@@ -85,4 +85,74 @@ public class VinculoController {
     }
     @Autowired
     private ProfessorTurmaMateriaRepository professorTurmaMateriaRepository;
+    @GetMapping("/aluno-turma")
+    @PreAuthorize("hasRole('DIRECAO')")
+    public ResponseEntity<?> listarVinculosAluno() {
+        return ResponseEntity.ok(alunoTurmaRepository.findAll());
+    }
+
+    @DeleteMapping("/aluno-turma")
+    @PreAuthorize("hasRole('DIRECAO')")
+    public ResponseEntity<?> deletarVinculoAluno(@RequestBody Map<String, String> body) {
+        Long alunoId = Long.parseLong(body.get("alunoId"));
+        Long turmaId = Long.parseLong(body.get("turmaId"));
+
+        Optional<Usuario> aluno = usuarioRepository.findById(alunoId);
+        Optional<Turma> turma = turmaRepository.findById(turmaId);
+
+        if (aluno.isEmpty() || turma.isEmpty()) {
+            return ResponseEntity.badRequest().body("Aluno ou turma não encontrado");
+        }
+
+        alunoTurmaRepository.findAll().stream()
+                .filter(v -> v.getAluno().getId().equals(alunoId) && v.getTurma().getId().equals(turmaId))
+                .findFirst()
+                .ifPresent(alunoTurmaRepository::delete);
+
+        return ResponseEntity.ok(Map.of("mensagem", "Vínculo removido com sucesso"));
+    }
+
+    @GetMapping("/professor-turma-materia")
+    @PreAuthorize("hasRole('DIRECAO')")
+    public ResponseEntity<?> listarVinculosProfessor() {
+        return ResponseEntity.ok(professorTurmaMateriaRepository.findAll());
+    }
+
+    @DeleteMapping("/professor-turma-materia")
+    @PreAuthorize("hasRole('DIRECAO')")
+    public ResponseEntity<?> deletarVinculoProfessor(@RequestBody Map<String, String> body) {
+        Long professorId = Long.parseLong(body.get("professorId"));
+        Long turmaId = Long.parseLong(body.get("turmaId"));
+        Long materiaId = Long.parseLong(body.get("materiaId"));
+
+        professorTurmaMateriaRepository.findAll().stream()
+                .filter(v -> v.getProfessor().getId().equals(professorId)
+                        && v.getTurma().getId().equals(turmaId)
+                        && v.getMateria().getId().equals(materiaId))
+                .findFirst()
+                .ifPresent(professorTurmaMateriaRepository::delete);
+
+        return ResponseEntity.ok(Map.of("mensagem", "Vínculo removido com sucesso"));
+    }
+
+    @GetMapping("/aluno-turma/turma/{turmaId}")
+    @PreAuthorize("hasRole('DIRECAO')")
+    public ResponseEntity<?> listarAlunosPorTurma(@PathVariable Long turmaId) {
+        return ResponseEntity.ok(
+                alunoTurmaRepository.findAll().stream()
+                        .filter(v -> v.getTurma().getId().equals(turmaId))
+                        .toList()
+        );
+    }
+
+    @GetMapping("/professor-turma-materia/turma/{turmaId}")
+    @PreAuthorize("hasRole('DIRECAO')")
+    public ResponseEntity<?> listarProfessoresPorTurma(@PathVariable Long turmaId) {
+        return ResponseEntity.ok(
+                professorTurmaMateriaRepository.findAll().stream()
+                        .filter(v -> v.getTurma().getId().equals(turmaId))
+                        .toList()
+        );
+    }
+
 }

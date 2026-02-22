@@ -9,6 +9,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
+import java.util.Map;
 
 import java.util.List;
 import java.util.Map;
@@ -66,5 +68,26 @@ public class TurmaController {
     @PreAuthorize("hasRole('DIRECAO')")
     public ResponseEntity<List<Turma>> listarTurmas() {
         return ResponseEntity.ok(turmaRepository.findAll());
+    }
+
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('DIRECAO')")
+    public ResponseEntity<?> deletarTurma(@PathVariable Long id) {
+        if (!turmaRepository.existsById(id)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Turma não encontrada");
+        }
+        turmaRepository.deleteById(id);
+        return ResponseEntity.ok(Map.of("mensagem", "Turma removida com sucesso"));
+    }
+
+    @DeleteMapping("/series/{id}")
+    @PreAuthorize("hasRole('DIRECAO')")
+    public ResponseEntity<?> deletarSerie(@PathVariable Long id) {
+        if (!serieRepository.existsById(id)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Série não encontrada");
+        }
+        serieRepository.deleteById(id);
+        return ResponseEntity.ok(Map.of("mensagem", "Série removida com sucesso"));
     }
 }

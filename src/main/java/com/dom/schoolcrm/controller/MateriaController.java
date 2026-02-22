@@ -8,6 +8,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.http.HttpStatus;
+import java.util.Map;
+
 import java.util.List;
 import java.util.Map;
 
@@ -32,4 +35,14 @@ public class MateriaController {
     public ResponseEntity<List<Materia>> listar() {
         return ResponseEntity.ok(materiaRepository.findAll());
     }
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('DIRECAO')")
+    public ResponseEntity<?> deletarMateria(@PathVariable Long id) {
+        if (!materiaRepository.existsById(id)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Matéria não encontrada");
+        }
+        materiaRepository.deleteById(id);
+        return ResponseEntity.ok(Map.of("mensagem", "Matéria removida com sucesso"));
+    }
+
 }
