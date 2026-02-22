@@ -328,8 +328,16 @@ function Usuarios() {
     const [form, setForm] = useState({ nome: "", login: "", senha: "", role: "ALUNO" });
     const [msg, setMsg] = useState({ texto: "", tipo: "" });
 
-    const carregar = () => api.get("/usuarios").then(r => setUsuarios(r.data));
-    useEffect(() => { carregar(); }, []);
+    const carregar = () => {
+        api.get("/turmas").then(r => {
+            const data = Array.isArray(r.data) ? r.data : [];
+            setTurmas(data);
+        });
+        api.get("/turmas/series").then(r => {
+            const data = Array.isArray(r.data) ? r.data : [];
+            setSeries(data);
+        });
+    };
 
     const cadastrar = async (e) => {
         e.preventDefault();
@@ -443,8 +451,14 @@ function Turmas() {
     const [turmaSelecionada, setTurmaSelecionada] = useState(null);
 
     const carregar = () => {
-        api.get("/turmas").then(r => setTurmas(r.data));
-        api.get("/turmas/series").then(r => setSeries(r.data));
+        api.get("/turmas").then(r => {
+            const data = Array.isArray(r.data) ? r.data : [];
+            setTurmas(data);
+        });
+        api.get("/turmas/series").then(r => {
+            const data = Array.isArray(r.data) ? r.data : [];
+            setSeries(data);
+        });
     };
     useEffect(() => { carregar(); }, []);
 

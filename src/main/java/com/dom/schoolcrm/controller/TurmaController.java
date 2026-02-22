@@ -4,14 +4,14 @@ import com.dom.schoolcrm.entity.Serie;
 import com.dom.schoolcrm.entity.Turma;
 import com.dom.schoolcrm.repository.SerieRepository;
 import com.dom.schoolcrm.repository.TurmaRepository;
+import com.dom.schoolcrm.repository.AlunoTurmaRepository;
+import com.dom.schoolcrm.repository.ProfessorTurmaMateriaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.http.HttpStatus;
-import java.util.Map;
-
+import jakarta.transaction.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -26,7 +26,12 @@ public class TurmaController {
     @Autowired
     private SerieRepository serieRepository;
 
-    // Cadastrar série
+    @Autowired
+    private AlunoTurmaRepository alunoTurmaRepository;
+
+    @Autowired
+    private ProfessorTurmaMateriaRepository professorTurmaMateriaRepository;
+
     @PostMapping("/series")
     @PreAuthorize("hasRole('DIRECAO')")
     public ResponseEntity<?> cadastrarSerie(@RequestBody Map<String, String> body) {
@@ -36,56 +41,58 @@ public class TurmaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(serie);
     }
 
-    // Listar séries
     @GetMapping("/series")
     @PreAuthorize("hasRole('DIRECAO')")
     public ResponseEntity<List<Serie>> listarSeries() {
         return ResponseEntity.ok(serieRepository.findAll());
     }
 
-    // Cadastrar turma
     @PostMapping
     @PreAuthorize("hasRole('DIRECAO')")
     public ResponseEntity<?> cadastrarTurma(@RequestBody Map<String, String> body) {
         Long serieId = Long.parseLong(body.get("serieId"));
         Optional<Serie> serie = serieRepository.findById(serieId);
-
         if (serie.isEmpty()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Série não encontrada");
         }
-
         Turma turma = new Turma();
         turma.setNome(body.get("nome"));
         turma.setSerie(serie.get());
         turma.setAnoLetivo(Integer.parseInt(body.get("anoLetivo")));
         turmaRepository.save(turma);
-
         return ResponseEntity.status(HttpStatus.CREATED).body(turma);
     }
 
-    // Listar turmas
     @GetMapping
     @PreAuthorize("hasRole('DIRECAO')")
     public ResponseEntity<List<Turma>> listarTurmas() {
         return ResponseEntity.ok(turmaRepository.findAll());
     }
 
-
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('DIRECAO')")
+    @Transactional
     public ResponseEntity<?> deletarTurma(@PathVariable Long id) {
         if (!turmaRepository.existsById(id)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Turma não encontrada");
         }
+        alunoTurmaRepository.deleteByTurmaId(id);
+        professorTurmaMateriaRepository.deleteByTurmaId(id);
         turmaRepository.deleteById(id);
         return ResponseEntity.ok(Map.of("mensagem", "Turma removida com sucesso"));
     }
 
     @DeleteMapping("/series/{id}")
     @PreAuthorize("hasRole('DIRECAO')")
+    @Transactional
     public ResponseEntity<?> deletarSerie(@PathVariable Long id) {
         if (!serieRepository.existsById(id)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Série não encontrada");
+        }
+        List<Turma> turmas = turmaRepository.findBySerieId(id);
+        for (Turma turma : turmas) {
+            alunoTurmaRepository.deleteByTurmaId(turma.getId());
+            professorTurmaMateriaRepository.deleteByTurmaId(turma.getId());
         }
         serieRepository.deleteById(id);
         return ResponseEntity.ok(Map.of("mensagem", "Série removida com sucesso"));

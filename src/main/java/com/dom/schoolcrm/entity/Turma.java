@@ -27,4 +27,5 @@ public class Turma {
     public void setNome(String nome) { this.nome = nome; }
     public void setSerie(Serie serie) { this.serie = serie; }
     public void setAnoLetivo(Integer anoLetivo) { this.anoLetivo = anoLetivo; }
+
 }
