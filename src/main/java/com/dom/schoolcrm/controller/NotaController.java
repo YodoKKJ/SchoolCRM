@@ -8,8 +8,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import java.math.BigDecimal;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -33,7 +34,6 @@ public class NotaController {
     @Autowired
     private MateriaRepository materiaRepository;
 
-    // Professor cria uma avaliação
     @PostMapping("/avaliacao")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO')")
     public ResponseEntity<?> criarAvaliacao(@RequestBody Map<String, String> body) {
@@ -63,13 +63,12 @@ public class NotaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(avaliacao);
     }
 
-    // Professor lança nota para um aluno
     @PostMapping("/lancar")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO')")
     public ResponseEntity<?> lancarNota(@RequestBody Map<String, String> body) {
         Long avaliacaoId = Long.parseLong(body.get("avaliacaoId"));
         Long alunoId = Long.parseLong(body.get("alunoId"));
-        Double valor = Double.parseDouble(body.get("valor"));
+        BigDecimal valor = new BigDecimal(body.get("valor"));
 
         Optional<Avaliacao> avaliacao = avaliacaoRepository.findById(avaliacaoId);
         Optional<Usuario> aluno = usuarioRepository.findById(alunoId);
@@ -77,16 +76,14 @@ public class NotaController {
         if (avaliacao.isEmpty()) return ResponseEntity.badRequest().body("Avaliação não encontrada");
         if (aluno.isEmpty()) return ResponseEntity.badRequest().body("Aluno não encontrado");
 
-        // Valida range de valor
         if (avaliacao.get().getBonificacao()) {
-            if (valor < 0 || valor > 1)
+            if (valor.compareTo(BigDecimal.ZERO) < 0 || valor.compareTo(BigDecimal.ONE) > 0)
                 return ResponseEntity.badRequest().body("Simulado deve ser entre 0.00 e 1.00");
         } else {
-            if (valor < 0 || valor > 10)
+            if (valor.compareTo(BigDecimal.ZERO) < 0 || valor.compareTo(new BigDecimal("10")) > 0)
                 return ResponseEntity.badRequest().body("Nota deve ser entre 0 e 10");
         }
 
-        // Atualiza se já existe
         Optional<Nota> notaExistente = notaRepository.findByAvaliacaoIdAndAlunoId(avaliacaoId, alunoId);
         Nota nota = notaExistente.orElse(new Nota());
         nota.setAvaliacao(avaliacao.get());
@@ -98,7 +95,6 @@ public class NotaController {
         return ResponseEntity.ok(Map.of("mensagem", "Nota lançada com sucesso", "valor", valor));
     }
 
-    // Busca média de um aluno por matéria e turma
     @GetMapping("/media/{alunoId}/{turmaId}/{materiaId}")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'ALUNO')")
     public ResponseEntity<?> calcularMedia(@PathVariable Long alunoId,
@@ -107,32 +103,31 @@ public class NotaController {
         List<Nota> notas = notaRepository
                 .findByAlunoIdAndAvaliacaoTurmaIdAndAvaliacaoMateriaId(alunoId, turmaId, materiaId);
 
-        if (notas.isEmpty()) return ResponseEntity.ok(Map.of("media", 0.0, "bonus", 0.0));
+        if (notas.isEmpty()) return ResponseEntity.ok(Map.of("media", 0.0, "bonus", 0.0, "mediaFinal", 0.0));
 
-        double somaNotas = 0;
-        double bonus = 0;
+        BigDecimal somaNotas = BigDecimal.ZERO;
+        BigDecimal bonus = BigDecimal.ZERO;
         int count = 0;
 
         for (Nota nota : notas) {
             if (nota.getAvaliacao().getBonificacao()) {
-                bonus += nota.getValor();
+                bonus = bonus.add(nota.getValor());
             } else {
-                somaNotas += nota.getValor();
+                somaNotas = somaNotas.add(nota.getValor());
                 count++;
             }
         }
 
-        double media = count > 0 ? somaNotas / count : 0;
-        double mediaFinal = media + bonus;
+        BigDecimal media = count > 0 ? somaNotas.divide(new BigDecimal(count), 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+        BigDecimal mediaFinal = media.add(bonus).setScale(2, RoundingMode.HALF_UP);
 
         return ResponseEntity.ok(Map.of(
-                "media", Math.round(media * 100.0) / 100.0,
-                "bonus", Math.round(bonus * 100.0) / 100.0,
-                "mediaFinal", Math.round(mediaFinal * 100.0) / 100.0
+                "media", media,
+                "bonus", bonus,
+                "mediaFinal", mediaFinal
         ));
     }
 
-    // Aluno vê suas próprias notas
     @GetMapping("/minhas")
     @PreAuthorize("hasRole('ALUNO')")
     public ResponseEntity<?> minhasNotas(Authentication auth) {
