@@ -327,17 +327,18 @@ function Usuarios() {
     const [usuarios, setUsuarios] = useState([]);
     const [form, setForm] = useState({ nome: "", login: "", senha: "", role: "ALUNO" });
     const [msg, setMsg] = useState({ texto: "", tipo: "" });
+    const [editando, setEditando] = useState(null); // usuário sendo editado
+    const [formEdit, setFormEdit] = useState({ nome: "", login: "", senha: "" });
+    const [msgEdit, setMsgEdit] = useState({ texto: "", tipo: "" });
 
     const carregar = () => {
-        api.get("/turmas").then(r => {
+        api.get("/usuarios").then(r => {
             const data = Array.isArray(r.data) ? r.data : [];
-            setTurmas(data);
-        });
-        api.get("/turmas/series").then(r => {
-            const data = Array.isArray(r.data) ? r.data : [];
-            setSeries(data);
+            setUsuarios(data);
         });
     };
+
+    useEffect(() => { carregar(); }, []);
 
     const cadastrar = async (e) => {
         e.preventDefault();
@@ -347,6 +348,34 @@ function Usuarios() {
             setForm({ nome: "", login: "", senha: "", role: "ALUNO" });
             carregar();
         } catch { setMsg({ texto: "Erro ao cadastrar. Login já existe?", tipo: "erro" }); }
+    };
+
+    const abrirEdicao = (u) => {
+        setEditando(u);
+        setFormEdit({ nome: u.nome, login: u.login, senha: "" });
+        setMsgEdit({ texto: "", tipo: "" });
+    };
+
+    const salvarEdicao = async (e) => {
+        e.preventDefault();
+        try {
+            await api.put(`/usuarios/${editando.id}`, formEdit);
+            setMsgEdit({ texto: "Usuário atualizado com sucesso!", tipo: "ok" });
+            carregar();
+            setTimeout(() => setEditando(null), 1000);
+        } catch (err) {
+            const msg = err.response?.data || "Erro ao atualizar.";
+            setMsgEdit({ texto: msg, tipo: "erro" });
+        }
+    };
+
+    const toggleStatus = async (u) => {
+        const acao = u.ativo ? "inativar" : "ativar";
+        if (!confirm(`Deseja ${acao} o usuário "${u.nome}"?`)) return;
+        try {
+            await api.patch(`/usuarios/${u.id}/status`);
+            carregar();
+        } catch { alert("Erro ao alterar status."); }
     };
 
     const inputStyle = {
@@ -366,6 +395,70 @@ function Usuarios() {
 
     return (
         <div className="flex flex-col gap-5">
+
+            {/* Modal de edição */}
+            {editando && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
+                        <div className="flex items-center justify-between mb-5">
+                            <div>
+                                <p className="text-base font-bold" style={{ color: C.text }}>Editar Usuário</p>
+                                <p className="text-xs mt-0.5" style={{ color: C.textMuted }}>{editando.role}</p>
+                            </div>
+                            <button onClick={() => setEditando(null)}
+                                    className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition"
+                                    style={{ color: C.textMuted }}>
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={salvarEdicao} className="flex flex-col gap-3">
+                            <div>
+                                <label className="text-xs font-medium mb-1 block" style={{ color: C.textMuted }}>Nome</label>
+                                <input type="text" value={formEdit.nome}
+                                       onChange={e => setFormEdit({ ...formEdit, nome: e.target.value })}
+                                       style={inputStyle} placeholder="Nome completo" />
+                            </div>
+                            <div>
+                                <label className="text-xs font-medium mb-1 block" style={{ color: C.textMuted }}>Login</label>
+                                <input type="text" value={formEdit.login}
+                                       onChange={e => setFormEdit({ ...formEdit, login: e.target.value })}
+                                       style={inputStyle} placeholder="Login" />
+                            </div>
+                            <div>
+                                <label className="text-xs font-medium mb-1 block" style={{ color: C.textMuted }}>
+                                    Nova Senha <span style={{ color: C.textMuted, fontWeight: 400 }}>(deixe em branco para não alterar)</span>
+                                </label>
+                                <input type="password" value={formEdit.senha}
+                                       onChange={e => setFormEdit({ ...formEdit, senha: e.target.value })}
+                                       style={inputStyle} placeholder="••••••••" />
+                            </div>
+
+                            {msgEdit.texto && (
+                                <p className="text-xs px-3 py-2 rounded-lg"
+                                   style={{ background: msgEdit.tipo === "ok" ? "#e8f8f2" : "#fde8e8", color: msgEdit.tipo === "ok" ? "#52B69A" : "#e53e3e" }}>
+                                    {msgEdit.texto}
+                                </p>
+                            )}
+
+                            <div className="flex gap-2 mt-1">
+                                <button type="button" onClick={() => setEditando(null)}
+                                        className="flex-1 py-2.5 rounded-lg text-sm font-medium transition"
+                                        style={{ background: "#f1f5f9", color: C.textMuted }}>
+                                    Cancelar
+                                </button>
+                                <button type="submit"
+                                        className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white transition"
+                                        style={{ background: C.primary }}>
+                                    Salvar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Formulário cadastro */}
             <div className="bg-white rounded-xl p-5" style={{ border: `1px solid ${C.border}` }}>
                 <p className="text-sm font-semibold mb-4" style={{ color: C.text }}>Novo Usuário</p>
                 <form onSubmit={cadastrar} className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -400,6 +493,7 @@ function Usuarios() {
                 )}
             </div>
 
+            {/* Tabela de usuários */}
             <div className="bg-white rounded-xl overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
                 <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${C.border}` }}>
                     <span className="text-sm font-semibold" style={{ color: C.text }}>Todos os Usuários</span>
@@ -408,8 +502,8 @@ function Usuarios() {
                 <table className="w-full">
                     <thead>
                     <tr style={{ background: "#f8fafb", borderBottom: `1px solid ${C.border}` }}>
-                        {["Nome", "Login", "Perfil"].map(h => (
-                            <th key={h} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider"
+                        {["Nome", "Login", "Perfil", "Status", ""].map((h, i) => (
+                            <th key={i} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider"
                                 style={{ color: C.textMuted }}>{h}</th>
                         ))}
                     </tr>
@@ -417,19 +511,40 @@ function Usuarios() {
                     <tbody>
                     {usuarios.map((u, i) => {
                         const rc = roleColor(u.role);
+                        const inativo = !u.ativo;
                         return (
-                            <tr key={u.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? "white" : "#fafbfc" }}>
+                            <tr key={u.id} style={{ borderBottom: `1px solid ${C.border}`, background: inativo ? "#fafafa" : (i % 2 === 0 ? "white" : "#fafbfc"), opacity: inativo ? 0.6 : 1 }}>
                                 <td className="px-5 py-3">
                                     <div className="flex items-center gap-3">
                                         <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                                             style={{ background: rc.text }}>{u.nome.charAt(0)}</div>
-                                        <span className="text-sm font-medium" style={{ color: C.text }}>{u.nome}</span>
+                                             style={{ background: inativo ? "#aaa" : rc.text }}>{u.nome.charAt(0)}</div>
+                                        <span className="text-sm font-medium" style={{ color: inativo ? C.textMuted : C.text }}>{u.nome}</span>
                                     </div>
                                 </td>
                                 <td className="px-5 py-3 text-sm" style={{ color: C.textMuted }}>{u.login}</td>
                                 <td className="px-5 py-3">
-                                        <span className="text-xs px-2.5 py-1 rounded-full font-medium"
-                                              style={{ background: rc.bg, color: rc.text }}>{u.role}</span>
+                                    <span className="text-xs px-2.5 py-1 rounded-full font-medium"
+                                          style={{ background: rc.bg, color: rc.text }}>{u.role}</span>
+                                </td>
+                                <td className="px-5 py-3">
+                                    <span className="text-xs px-2.5 py-1 rounded-full font-medium"
+                                          style={{ background: u.ativo ? "#e8f8f2" : "#fde8e8", color: u.ativo ? "#52B69A" : "#e53e3e" }}>
+                                        {u.ativo ? "Ativo" : "Inativo"}
+                                    </span>
+                                </td>
+                                <td className="px-5 py-3 text-right">
+                                    <div className="flex items-center gap-2 justify-end">
+                                        <button onClick={() => abrirEdicao(u)}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition hover:opacity-80"
+                                                style={{ background: "#e8f4fd", color: C.primary }}>
+                                            <Pencil size={12} /> Editar
+                                        </button>
+                                        <button onClick={() => toggleStatus(u)}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition hover:opacity-80"
+                                                style={{ background: u.ativo ? "#fde8e8" : "#e8f8f2", color: u.ativo ? "#e53e3e" : "#52B69A" }}>
+                                            {u.ativo ? "Inativar" : "Ativar"}
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         );

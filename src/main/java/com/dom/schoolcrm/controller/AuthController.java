@@ -40,6 +40,11 @@ public class AuthController {
 
         Usuario usuario = usuarioOpt.get();
 
+        if (!usuario.getAtivo()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("Usuário inativo. Entre em contato com a direção.");
+        }
+
         if (!passwordEncoder.matches(senha, usuario.getSenhaHash())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body("Senha incorreta");
@@ -58,7 +63,7 @@ public class AuthController {
     public String gerarHash() {
         return passwordEncoder.encode("123456");
 
-}
+    }
     @GetMapping("/me")
     public ResponseEntity<?> me(@RequestHeader("Authorization") String authHeader) {
         String token = authHeader.substring(7);

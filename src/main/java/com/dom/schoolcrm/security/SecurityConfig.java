@@ -19,7 +19,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+@EnableMethodSecurity(proxyTargetClass = true)
 public class SecurityConfig {
 
     @Autowired
@@ -34,6 +34,9 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/turmas/**").hasRole("DIRECAO")
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/materias/**").hasRole("DIRECAO")
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/vinculos/**").hasRole("DIRECAO")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
