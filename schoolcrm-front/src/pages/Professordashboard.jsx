@@ -11,6 +11,19 @@ api.interceptors.request.use(config => {
     return config;
 });
 
+api.interceptors.response.use(
+    response => response,
+    error => {
+        if (error.response?.status === 401) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("role");
+            localStorage.removeItem("nome");
+            window.location.href = "/";
+        }
+        return Promise.reject(error);
+    }
+);
+
 // ── Design tokens — idênticos ao DirecaoDashboard ──────────────
 const STYLE = `
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap');

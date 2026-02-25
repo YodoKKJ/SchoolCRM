@@ -48,6 +48,19 @@ api.interceptors.request.use(config => {
     return config;
 });
 
+api.interceptors.response.use(
+    response => response,
+    error => {
+        if (error.response?.status === 401) {
+            localStorage.removeItem("token");
+            localStorage.removeItem("role");
+            localStorage.removeItem("nome");
+            window.location.href = "/";
+        }
+        return Promise.reject(error);
+    }
+);
+
 const C = {
     primary: "#1A759F",
     primaryDark: "#184E77",
