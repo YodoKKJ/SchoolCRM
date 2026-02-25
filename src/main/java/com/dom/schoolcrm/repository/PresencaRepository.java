@@ -10,5 +10,6 @@ import java.util.Optional;
 @Repository
 public interface PresencaRepository extends JpaRepository<Presenca, Long> {
     List<Presenca> findByAlunoIdAndTurmaIdAndMateriaId(Long alunoId, Long turmaId, Long materiaId);
+    List<Presenca> findByTurmaIdAndMateriaId(Long turmaId, Long materiaId);
     Optional<Presenca> findByAlunoIdAndMateriaIdAndData(Long alunoId, Long materiaId, java.time.LocalDate data);
 }

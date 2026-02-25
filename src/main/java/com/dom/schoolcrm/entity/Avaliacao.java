@@ -30,6 +30,8 @@ public class Avaliacao {
 
     private Boolean bonificacao;
 
+    private Integer bimestre; // 1, 2, 3 ou 4
+
     public Long getId() { return id; }
     public Turma getTurma() { return turma; }
     public Materia getMateria() { return materia; }
@@ -47,4 +49,6 @@ public class Avaliacao {
     public void setDataAplicacao(LocalDate dataAplicacao) { this.dataAplicacao = dataAplicacao; }
     public void setPeso(BigDecimal peso) { this.peso = peso; }
     public void setBonificacao(Boolean bonificacao) { this.bonificacao = bonificacao; }
+    public Integer getBimestre() { return bimestre; }
+    public void setBimestre(Integer bimestre) { this.bimestre = bimestre; }
 }

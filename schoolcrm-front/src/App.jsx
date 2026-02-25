@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import DirecaoDashboard from "./pages/DirecaoDashboard";
+import ProfessorDashboard from "./pages/ProfessorDashboard";
 
 function PrivateRoute({ children, role }) {
     const token = localStorage.getItem("token");
@@ -22,7 +23,7 @@ function App() {
                 } />
                 <Route path="/professor" element={
                     <PrivateRoute role="PROFESSOR">
-                        <div className="p-8 text-xl">Dashboard Professor 🚧</div>
+                        <ProfessorDashboard />
                     </PrivateRoute>
                 } />
                 <Route path="/aluno" element={

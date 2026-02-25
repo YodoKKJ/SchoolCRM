@@ -6,126 +6,426 @@ export default function Login() {
     const [senha, setSenha] = useState("");
     const [erro, setErro] = useState("");
     const [loading, setLoading] = useState(false);
+    const [focusLogin, setFocusLogin] = useState(false);
+    const [focusSenha, setFocusSenha] = useState(false);
 
     const handleLogin = async (e) => {
         e.preventDefault();
         setErro("");
         setLoading(true);
-
         try {
-            const response = await axios.post("http://localhost:8080/auth/login", {
-                login,
-                senha,
-            });
-
+            const response = await axios.post("http://localhost:8080/auth/login", { login, senha });
             const { token, role, nome } = response.data;
             localStorage.setItem("token", token);
             localStorage.setItem("role", role);
             localStorage.setItem("nome", nome);
-
             if (role === "DIRECAO") window.location.href = "/direcao";
             else if (role === "PROFESSOR") window.location.href = "/professor";
             else if (role === "ALUNO") window.location.href = "/aluno";
         } catch (err) {
-            setErro("Login ou senha incorretos");
+            setErro(err.response?.data || "Login ou senha incorretos.");
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-[#3b1a08] flex items-center justify-center p-4">
+        <>
+            <style>{`
+                @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap');
 
-            {/* Mobile: card simples */}
-            <div className="w-full max-w-sm md:hidden bg-white rounded-2xl shadow-2xl p-8">
-                <div className="flex flex-col items-center mb-6">
-                    <div className="bg-orange-500 text-white text-xl w-10 h-10 rounded-lg flex items-center justify-center mb-4">✳</div>
-                    <h1 className="text-2xl font-bold text-gray-900">Bem-vindo</h1>
-                    <p className="text-gray-400 text-sm mt-1 text-center">Faça login para acessar o sistema</p>
-                </div>
+                * { box-sizing: border-box; margin: 0; padding: 0; }
 
-                <form onSubmit={handleLogin} className="flex flex-col gap-4">
-                    <div>
-                        <label className="text-xs text-gray-500 mb-1 block">Login</label>
-                        <input
-                            type="text"
-                            value={login}
-                            onChange={(e) => setLogin(e.target.value)}
-                            placeholder="seu.login"
-                            className="w-full border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none focus:border-orange-400 transition"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-xs text-gray-500 mb-1 block">Senha</label>
-                        <input
-                            type="password"
-                            value={senha}
-                            onChange={(e) => setSenha(e.target.value)}
-                            placeholder="••••••••••"
-                            className="w-full border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none focus:border-orange-400 transition"
-                        />
-                    </div>
-                    {erro && <p className="text-red-500 text-xs">{erro}</p>}
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-lg transition text-sm mt-2"
-                    >
-                        {loading ? "Entrando..." : "Entrar"}
-                    </button>
-                </form>
-            </div>
+                .login-root {
+                    min-height: 100vh;
+                    display: flex;
+                    background: #f5f2ed;
+                    font-family: 'DM Sans', sans-serif;
+                }
 
-            {/* Desktop: dois painéis */}
-            <div className="hidden md:flex bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden">
+                /* ── lado esquerdo ── */
+                .left-panel {
+                    display: none;
+                    width: 52%;
+                    position: relative;
+                    overflow: hidden;
+                    background: #111;
+                }
+                @media (min-width: 900px) { .left-panel { display: block; } }
 
-                {/* Lado esquerdo */}
-                <div className="w-1/2 bg-black rounded-xl m-3 flex items-end p-8 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-t from-orange-600 via-orange-400 to-transparent opacity-60" />
-                    <div className="absolute bottom-0 left-0 right-0 h-2/3 bg-gradient-to-t from-black to-transparent" />
-                    <p className="relative text-white text-2xl font-bold leading-snug z-10">
-                        Sistema de Gestão <br /> Escolar
-                    </p>
-                </div>
+                .left-bg {
+                    position: absolute;
+                    inset: 0;
+                    background:
+                        radial-gradient(ellipse 80% 60% at 20% 80%, #1a4d3a55 0%, transparent 60%),
+                        radial-gradient(ellipse 60% 80% at 80% 20%, #2c6e4966 0%, transparent 60%),
+                        #0d1f18;
+                }
 
-                {/* Lado direito */}
-                <div className="w-1/2 p-10 flex flex-col justify-center">
-                    <div className="bg-orange-500 text-white text-xl w-10 h-10 rounded-lg flex items-center justify-center mb-4">✳</div>
-                    <h1 className="text-2xl font-bold text-gray-900 mb-1">Bem-vindo</h1>
-                    <p className="text-gray-400 text-sm mb-8">Faça login para acessar o sistema</p>
+                /* grade fina sobre o fundo */
+                .left-grid {
+                    position: absolute;
+                    inset: 0;
+                    background-image:
+                        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+                    background-size: 48px 48px;
+                }
 
-                    <form onSubmit={handleLogin} className="flex flex-col gap-5">
-                        <div>
-                            <label className="text-xs text-gray-500 mb-1 block">Login</label>
-                            <input
-                                type="text"
-                                value={login}
-                                onChange={(e) => setLogin(e.target.value)}
-                                placeholder="seu.login"
-                                className="w-full border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none focus:border-orange-400 transition"
-                            />
+                .left-content {
+                    position: relative;
+                    z-index: 2;
+                    height: 100%;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-between;
+                    padding: 52px 56px;
+                }
+
+                .left-logo {
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                }
+
+                .left-logo-mark {
+                    width: 36px;
+                    height: 36px;
+                    border: 1.5px solid rgba(255,255,255,0.2);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                .left-logo-mark svg {
+                    width: 16px;
+                    height: 16px;
+                }
+
+                .left-logo-name {
+                    font-family: 'DM Sans', sans-serif;
+                    font-size: 13px;
+                    font-weight: 500;
+                    letter-spacing: 0.12em;
+                    text-transform: uppercase;
+                    color: rgba(255,255,255,0.6);
+                }
+
+                .left-headline {
+                    font-family: 'Playfair Display', serif;
+                    font-size: clamp(36px, 4vw, 52px);
+                    font-weight: 700;
+                    line-height: 1.12;
+                    color: #fff;
+                    letter-spacing: -0.02em;
+                }
+
+                .left-headline em {
+                    font-style: italic;
+                    color: #7ec8a0;
+                }
+
+                .left-tagline {
+                    font-size: 13px;
+                    color: rgba(255,255,255,0.35);
+                    letter-spacing: 0.06em;
+                    text-transform: uppercase;
+                    margin-top: 24px;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                }
+
+                .left-tagline::before {
+                    content: '';
+                    width: 32px;
+                    height: 1px;
+                    background: rgba(255,255,255,0.2);
+                    display: block;
+                }
+
+                .left-footer {
+                    font-size: 11px;
+                    color: rgba(255,255,255,0.2);
+                    letter-spacing: 0.04em;
+                }
+
+                /* ── lado direito ── */
+                .right-panel {
+                    flex: 1;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 40px 24px;
+                }
+
+                .form-box {
+                    width: 100%;
+                    max-width: 380px;
+                }
+
+                .form-eyebrow {
+                    font-size: 11px;
+                    font-weight: 500;
+                    letter-spacing: 0.14em;
+                    text-transform: uppercase;
+                    color: #7ec8a0;
+                    margin-bottom: 12px;
+                }
+
+                .form-title {
+                    font-family: 'Playfair Display', serif;
+                    font-size: 32px;
+                    font-weight: 700;
+                    color: #0d1f18;
+                    letter-spacing: -0.02em;
+                    line-height: 1.1;
+                    margin-bottom: 8px;
+                }
+
+                .form-subtitle {
+                    font-size: 14px;
+                    color: #8a9490;
+                    font-weight: 300;
+                    margin-bottom: 40px;
+                    line-height: 1.5;
+                }
+
+                /* mobile logo */
+                .mobile-logo {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    margin-bottom: 32px;
+                }
+                @media (min-width: 900px) { .mobile-logo { display: none; } }
+
+                .mobile-logo-mark {
+                    width: 30px;
+                    height: 30px;
+                    background: #0d1f18;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                .mobile-logo-name {
+                    font-size: 12px;
+                    font-weight: 500;
+                    letter-spacing: 0.12em;
+                    text-transform: uppercase;
+                    color: #0d1f18;
+                    opacity: 0.5;
+                }
+
+                /* campos */
+                .field {
+                    margin-bottom: 20px;
+                }
+
+                .field-label {
+                    display: block;
+                    font-size: 11px;
+                    font-weight: 500;
+                    letter-spacing: 0.1em;
+                    text-transform: uppercase;
+                    color: #8a9490;
+                    margin-bottom: 8px;
+                }
+
+                .field-wrap {
+                    position: relative;
+                    border-bottom: 1.5px solid #d4d9d6;
+                    transition: border-color 0.2s;
+                }
+
+                .field-wrap.focused {
+                    border-color: #0d1f18;
+                }
+
+                .field-input {
+                    width: 100%;
+                    border: none;
+                    background: transparent;
+                    padding: 10px 0;
+                    font-size: 15px;
+                    font-family: 'DM Sans', sans-serif;
+                    font-weight: 400;
+                    color: #0d1f18;
+                    outline: none;
+                }
+
+                .field-input::placeholder {
+                    color: #c0c8c4;
+                }
+
+                /* linha animada sob o campo */
+                .field-line {
+                    position: absolute;
+                    bottom: -1.5px;
+                    left: 0;
+                    height: 1.5px;
+                    background: #0d1f18;
+                    width: 0;
+                    transition: width 0.3s ease;
+                }
+
+                .field-wrap.focused .field-line {
+                    width: 100%;
+                }
+
+                /* erro */
+                .erro-msg {
+                    font-size: 12px;
+                    color: #b94040;
+                    margin-bottom: 20px;
+                    padding: 10px 14px;
+                    background: #fdf0f0;
+                    border-left: 3px solid #b94040;
+                }
+
+                /* botão */
+                .btn-submit {
+                    width: 100%;
+                    background: #0d1f18;
+                    color: #fff;
+                    border: none;
+                    padding: 16px;
+                    font-family: 'DM Sans', sans-serif;
+                    font-size: 13px;
+                    font-weight: 500;
+                    letter-spacing: 0.1em;
+                    text-transform: uppercase;
+                    cursor: pointer;
+                    margin-top: 8px;
+                    position: relative;
+                    overflow: hidden;
+                    transition: background 0.2s;
+                }
+
+                .btn-submit:hover:not(:disabled) {
+                    background: #1a4d3a;
+                }
+
+                .btn-submit:disabled {
+                    opacity: 0.5;
+                    cursor: default;
+                }
+
+                .btn-submit .btn-arrow {
+                    display: inline-block;
+                    margin-left: 8px;
+                    transition: transform 0.2s;
+                }
+
+                .btn-submit:hover:not(:disabled) .btn-arrow {
+                    transform: translateX(4px);
+                }
+
+                /* rodapé */
+                .form-footer {
+                    margin-top: 32px;
+                    font-size: 11px;
+                    color: #b0bab6;
+                    letter-spacing: 0.04em;
+                }
+            `}</style>
+
+            <div className="login-root">
+
+                {/* ── Painel esquerdo (desktop) ── */}
+                <div className="left-panel">
+                    <div className="left-bg" />
+                    <div className="left-grid" />
+                    <div className="left-content">
+                        <div className="left-logo">
+                            <div className="left-logo-mark">
+                                <svg viewBox="0 0 16 16" fill="none">
+                                    <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="rgba(255,255,255,0.6)" strokeWidth="1.2" />
+                                    <circle cx="8" cy="8" r="2" fill="#7ec8a0" />
+                                </svg>
+                            </div>
+                            <span className="left-logo-name">DomGestão</span>
                         </div>
+
                         <div>
-                            <label className="text-xs text-gray-500 mb-1 block">Senha</label>
-                            <input
-                                type="password"
-                                value={senha}
-                                onChange={(e) => setSenha(e.target.value)}
-                                placeholder="••••••••••"
-                                className="w-full border border-gray-200 rounded-lg px-4 py-3 text-sm outline-none focus:border-orange-400 transition"
-                            />
+                            <h1 className="left-headline">
+                                Gestão escolar<br />
+                                <em>inteligente.</em>
+                            </h1>
+                            <p className="left-tagline">Sistema integrado de administração</p>
                         </div>
-                        {erro && <p className="text-red-500 text-xs">{erro}</p>}
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-lg transition text-sm"
-                        >
-                            {loading ? "Entrando..." : "Entrar"}
-                        </button>
-                    </form>
+
+                        <p className="left-footer">© {new Date().getFullYear()} DomGestão</p>
+                    </div>
                 </div>
+
+                {/* ── Painel direito ── */}
+                <div className="right-panel">
+                    <div className="form-box">
+
+                        {/* logo mobile */}
+                        <div className="mobile-logo">
+                            <div className="mobile-logo-mark">
+                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                                    <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="rgba(255,255,255,0.7)" strokeWidth="1.4" />
+                                    <circle cx="8" cy="8" r="2" fill="#7ec8a0" />
+                                </svg>
+                            </div>
+                            <span className="mobile-logo-name">DomGestão</span>
+                        </div>
+
+                        <p className="form-eyebrow">Acesso ao sistema</p>
+                        <h2 className="form-title">Bem-vindo</h2>
+                        <p className="form-subtitle">Insira suas credenciais para continuar.</p>
+
+                        <form onSubmit={handleLogin}>
+                            <div className="field">
+                                <label className="field-label">Login</label>
+                                <div className={`field-wrap ${focusLogin ? "focused" : ""}`}>
+                                    <input
+                                        className="field-input"
+                                        type="text"
+                                        value={login}
+                                        onChange={e => setLogin(e.target.value)}
+                                        onFocus={() => setFocusLogin(true)}
+                                        onBlur={() => setFocusLogin(false)}
+                                        placeholder="seu.login"
+                                        autoComplete="username"
+                                    />
+                                    <div className="field-line" />
+                                </div>
+                            </div>
+
+                            <div className="field">
+                                <label className="field-label">Senha</label>
+                                <div className={`field-wrap ${focusSenha ? "focused" : ""}`}>
+                                    <input
+                                        className="field-input"
+                                        type="password"
+                                        value={senha}
+                                        onChange={e => setSenha(e.target.value)}
+                                        onFocus={() => setFocusSenha(true)}
+                                        onBlur={() => setFocusSenha(false)}
+                                        placeholder="••••••••"
+                                        autoComplete="current-password"
+                                    />
+                                    <div className="field-line" />
+                                </div>
+                            </div>
+
+                            {erro && <div className="erro-msg">{erro}</div>}
+
+                            <button type="submit" className="btn-submit" disabled={loading}>
+                                {loading ? "Verificando..." : <>Entrar <span className="btn-arrow">→</span></>}
+                            </button>
+                        </form>
+
+                        <p className="form-footer">Acesso restrito a usuários autorizados.</p>
+                    </div>
+                </div>
+
             </div>
-        </div>
+        </>
     );
 }

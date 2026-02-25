@@ -155,4 +155,26 @@ public class VinculoController {
         );
     }
 
+    // Professor vê suas próprias turmas+matérias
+    @GetMapping("/professor-turma-materia/minhas")
+    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO')")
+    public ResponseEntity<?> minhasturmas(org.springframework.security.core.Authentication auth) {
+        String login = auth.getName();
+        var professor = usuarioRepository.findByLogin(login);
+        if (professor.isEmpty()) return ResponseEntity.badRequest().body("Professor não encontrado");
+        var vinculos = professorTurmaMateriaRepository.findByProfessorId(professor.get().getId());
+        return ResponseEntity.ok(vinculos);
+    }
+
+    // Aluno vê sua própria turma
+    @GetMapping("/aluno-turma/minhas")
+    @PreAuthorize("hasAnyRole('ALUNO', 'DIRECAO')")
+    public ResponseEntity<?> minhasTurmasAluno(org.springframework.security.core.Authentication auth) {
+        String login = auth.getName();
+        var aluno = usuarioRepository.findByLogin(login);
+        if (aluno.isEmpty()) return ResponseEntity.badRequest().body("Aluno não encontrado");
+        var vinculos = alunoTurmaRepository.findByAlunoId(aluno.get().getId());
+        return ResponseEntity.ok(vinculos);
+    }
+
 }

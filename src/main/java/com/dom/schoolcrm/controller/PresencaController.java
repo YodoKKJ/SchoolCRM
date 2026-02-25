@@ -2,6 +2,7 @@ package com.dom.schoolcrm.controller;
 
 import com.dom.schoolcrm.entity.*;
 import com.dom.schoolcrm.repository.*;
+import java.util.LinkedHashMap;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -84,6 +85,29 @@ public class PresencaController {
                 "faltas", total - presentes,
                 "percentualPresenca", Math.round(percentual * 100.0) / 100.0
         ));
+    }
+
+    // Listar chamada da turma em uma data específica (ou listar todas as datas de uma turma/matéria)
+    @GetMapping("/turma/{turmaId}/materia/{materiaId}")
+    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO')")
+    public ResponseEntity<?> presencasPorTurmaEMateria(
+            @PathVariable Long turmaId,
+            @PathVariable Long materiaId) {
+
+        List<Presenca> todas = presencaRepository.findByTurmaIdAndMateriaId(turmaId, materiaId);
+
+        // Agrupa por data
+        Map<String, List<Map<String,Object>>> porData = new java.util.TreeMap<>();
+        for (Presenca p : todas) {
+            String data = p.getData().toString();
+            porData.computeIfAbsent(data, k -> new ArrayList<>()).add(Map.of(
+                    "alunoId", p.getAluno().getId(),
+                    "alunoNome", p.getAluno().getNome(),
+                    "presente", p.getPresente(),
+                    "presencaId", p.getId()
+            ));
+        }
+        return ResponseEntity.ok(porData);
     }
 
     // Aluno vê suas próprias presenças

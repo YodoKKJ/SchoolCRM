@@ -1,12 +1,48 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import { BoletimImpresso } from "./BoletimPDF";
 import {
     Home, Users, School, BookOpen, LogOut,
     GraduationCap, UserCheck, LayoutGrid, BookMarked, Menu,
-    Trash2, Pencil, ArrowLeft, UserPlus, ChevronDown, Search, X
+    Trash2, Pencil, ArrowLeft, UserPlus, ChevronDown, Search, X,
+    FileText, DollarSign, Lock, ClipboardList, ChevronRight, Clock
 } from "lucide-react";
 
 const api = axios.create({ baseURL: "http://localhost:8080" });
+
+// Hook debounce — espera Xms após parar de digitar
+function useDebounce(value, delay = 400) {
+    const [debounced, setDebounced] = useState(value);
+    useEffect(() => {
+        const t = setTimeout(() => setDebounced(value), delay);
+        return () => clearTimeout(t);
+    }, [value, delay]);
+    return debounced;
+}
+
+// Barra de pesquisa reutilizável
+function BarraBusca({ campos, campoBusca, setCampoBusca, termoBusca, setTermoBusca }) {
+    return (
+        <div className="dd-search-wrap">
+            <select className="dd-search-select" value={campoBusca}
+                    onChange={e => { setCampoBusca(e.target.value); setTermoBusca(""); }}>
+                {campos.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
+            <div className="dd-search-input-wrap">
+                <Search size={12} className="dd-search-icon" />
+                <input className="dd-search-input" value={termoBusca}
+                       onChange={e => setTermoBusca(e.target.value)}
+                       placeholder="Pesquisar..." />
+                {termoBusca && (
+                    <button className="dd-search-clear" onClick={() => setTermoBusca("")}>
+                        <X size={12} />
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+}
+
 api.interceptors.request.use(config => {
     config.headers.Authorization = `Bearer ${localStorage.getItem("token")}`;
     return config;
@@ -24,12 +60,50 @@ const C = {
     textMuted: "#6b7a8d",
 };
 
-const menuItems = [
-    { id: "inicio", label: "Início", icon: Home },
-    { id: "usuarios", label: "Usuários", icon: Users },
-    { id: "turmas", label: "Turmas", icon: School },
-    { id: "materias", label: "Matérias", icon: BookOpen },
+const modulos = [
+    {
+        id: "geral",
+        label: null, // sem título na seção principal
+        items: [
+            { id: "inicio", label: "Início", icon: Home },
+        ]
+    },
+    {
+        id: "academico",
+        label: "Acadêmico",
+        items: [
+            { id: "turmas", label: "Turmas", icon: School },
+            { id: "materias", label: "Matérias", icon: BookOpen },
+            { id: "atrasos", label: "Atrasos", icon: Clock },
+            { id: "lancamentos", label: "Lançamentos", icon: BookMarked },
+            { id: "boletins", label: "Boletins", icon: ClipboardList },
+        ]
+    },
+    {
+        id: "gestao",
+        label: "Gestão",
+        items: [
+            { id: "usuarios", label: "Usuários", icon: Users },
+        ]
+    },
+    {
+        id: "financeiro",
+        label: "Financeiro",
+        items: [
+            { id: "financeiro", label: "Financeiro", icon: DollarSign, disabled: true },
+        ]
+    },
+    {
+        id: "relatorios",
+        label: "Relatórios",
+        items: [
+            { id: "relatorios", label: "Relatórios", icon: FileText, disabled: true },
+        ]
+    },
 ];
+
+// helper para buscar label de qualquer aba
+const allMenuItems = modulos.flatMap(m => m.items);
 
 // ---- SEARCH SELECT ----
 function SearchSelect({ options, value, onChange, placeholder }) {
@@ -68,14 +142,14 @@ function SearchSelect({ options, value, onChange, placeholder }) {
             <button type="button" onClick={handleOpen}
                     className="w-full flex items-center justify-between gap-2 text-left text-sm transition"
                     style={{
-                        border: `1px solid ${open ? C.primary : C.border}`,
+                        border: `1px solid ${open ? '#0d1f18' : '#eaeef2'}`,
                         borderRadius: "8px",
                         padding: "8px 12px",
                         background: "white",
-                        color: selected ? C.text : C.textMuted,
+                        color: selected ? '#0d1f18' : '#9aaa9f',
                     }}>
                 <span className="truncate">{selected ? selected.label : placeholder}</span>
-                <ChevronDown size={14} color={C.textMuted}
+                <ChevronDown size={14} color='#9aaa9f'
                              style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s", flexShrink: 0 }} />
             </button>
 
@@ -87,24 +161,24 @@ function SearchSelect({ options, value, onChange, placeholder }) {
                     width: coords.width,
                     zIndex: 9999,
                     background: "white",
-                    border: `1px solid ${C.border}`,
-                    borderRadius: "12px",
+                    border: '1px solid #eaeef2',
+                    borderRadius: '4px',
                     boxShadow: "0 8px 32px rgba(26,117,159,0.15)",
                     overflow: "hidden",
                 }}>
-                    <div className="p-2" style={{ borderBottom: `1px solid ${C.border}` }}>
+                    <div className="p-2" style={{ borderBottom: '1px solid #eaeef2' }}>
                         <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg" style={{ background: C.bg }}>
-                            <Search size={13} color={C.textMuted} />
+                            <Search size={13} color='#9aaa9f' />
                             <input autoFocus placeholder="Buscar..." value={search}
                                    onChange={e => setSearch(e.target.value)}
                                    className="flex-1 text-xs outline-none bg-transparent"
-                                   style={{ color: C.text }}
+                                   style={{ color: '#0d1f18' }}
                                    onClick={e => e.stopPropagation()} />
                         </div>
                     </div>
                     <div style={{ maxHeight: "200px", overflowY: "auto" }}>
                         {filtered.length === 0 && (
-                            <p className="px-4 py-3 text-xs text-center" style={{ color: C.textMuted }}>Nenhum resultado</p>
+                            <p className="px-4 py-3 text-xs text-center" style={{ color: '#9aaa9f' }}>Nenhum resultado</p>
                         )}
                         {filtered.map(o => {
                             const active = String(o.value) === String(value);
@@ -113,11 +187,11 @@ function SearchSelect({ options, value, onChange, placeholder }) {
                                         onClick={() => { onChange(o.value); setOpen(false); setSearch(""); }}
                                         className="w-full text-left px-4 py-2.5 text-sm transition flex items-center gap-2"
                                         style={{
-                                            color: active ? C.primary : C.text,
-                                            background: active ? `${C.primary}10` : "transparent",
+                                            color: active ? '#1a4d3a' : '#0d1f18',
+                                            background: active ? '#f0f5f2' : 'transparent',
                                             fontWeight: active ? 600 : 400,
                                         }}>
-                                    {active && <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: C.primary }} />}
+                                    {active && <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#1a4d3a' }} />}
                                     {o.label}
                                 </button>
                             );
@@ -130,103 +204,187 @@ function SearchSelect({ options, value, onChange, placeholder }) {
 }
 
 // ---- DASHBOARD ----
+const GLOBAL_STYLE = `
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap');
+* { box-sizing: border-box; }
+:root { font-family: 'DM Sans', sans-serif; }
+.dd-sidebar { background: #0d1f18; }
+.dd-sidebar-logo-wrap { border-bottom: 1px solid rgba(255,255,255,0.07); }
+.dd-user-wrap { border-bottom: 1px solid rgba(255,255,255,0.07); }
+.dd-nav-section-label { font-size:10px; font-weight:500; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.3); padding: 0 12px; margin-bottom:4px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; border:none; background:none; width:100%; }
+.dd-nav-section-label:hover { color:rgba(255,255,255,.5); }
+.dd-nav-btn { display:flex; align-items:center; gap:10px; padding:9px 12px; font-size:13px; font-weight:400; color:rgba(255,255,255,.45); border:none; background:transparent; width:100%; text-align:left; cursor:pointer; border-left:2px solid transparent; transition:color .15s, background .15s, border-color .15s; }
+.dd-nav-btn:hover { color:rgba(255,255,255,.8); background:rgba(255,255,255,.04); }
+.dd-nav-btn.active { color:#7ec8a0; border-left-color:#7ec8a0; background:rgba(126,200,160,.07); font-weight:500; }
+.dd-nav-btn.disabled { color:rgba(255,255,255,.18); cursor:default; }
+.dd-badge-soon { font-size:9px; letter-spacing:.08em; text-transform:uppercase; padding:2px 6px; background:rgba(255,255,255,.06); color:rgba(255,255,255,.25); }
+.dd-header { background:#fff; border-bottom:1px solid #eaeef2; position:sticky; top:0; z-index:10; }
+.dd-page-title { font-family:'Playfair Display', serif; font-size:22px; font-weight:700; color:#0d1f18; letter-spacing:-.02em; line-height:1; }
+.dd-page-sub { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#9aaa9f; margin-top:3px; }
+.dd-card { background:#fff; border:1px solid #eaeef2; border-top:2px solid var(--accent, #0d1f18); }
+.dd-card-num { font-family:'Playfair Display', serif; font-size:30px; font-weight:700; color:#0d1f18; line-height:1; }
+.dd-card-label { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:#9aaa9f; margin-top:4px; }
+.dd-section { background:#fff; border:1px solid #eaeef2; }
+.dd-section-header { border-bottom:1px solid #eaeef2; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; }
+.dd-section-title { font-size:13px; font-weight:500; color:#0d1f18; letter-spacing:.01em; }
+.dd-section-count { font-size:11px; color:#9aaa9f; letter-spacing:.04em; }
+.dd-table th { font-size:10px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:#9aaa9f; padding:10px 20px; text-align:left; background:#f8faf8; border-bottom:1px solid #eaeef2; }
+.dd-table td { padding:12px 20px; border-bottom:1px solid #f2f5f2; font-size:13px; color:#2a3a2e; }
+.dd-table tr:last-child td { border-bottom:none; }
+.dd-table tr:hover td { background:#fafcfa; }
+.dd-badge { font-size:11px; font-weight:500; padding:3px 10px; letter-spacing:.02em; }
+.dd-input { border:none; border-bottom:1.5px solid #d4ddd8; background:transparent; padding:9px 0; font-size:14px; font-family:'DM Sans',sans-serif; color:#0d1f18; outline:none; width:100%; transition:border-color .2s; }
+.dd-input:focus { border-bottom-color:#0d1f18; }
+.dd-input::placeholder { color:#b8c4be; }
+.dd-input-wrap { position:relative; }
+.dd-input-line { position:absolute; bottom:-1.5px; left:0; height:1.5px; background:#0d1f18; width:0; transition:width .25s ease; }
+.dd-input-wrap:focus-within .dd-input-line { width:100%; }
+.dd-label { font-size:10px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:#9aaa9f; display:block; margin-bottom:6px; }
+.dd-btn-primary { background:#0d1f18; color:#fff; border:none; padding:11px 20px; font-family:'DM Sans',sans-serif; font-size:12px; font-weight:500; letter-spacing:.08em; text-transform:uppercase; cursor:pointer; transition:background .2s; }
+.dd-btn-primary:hover { background:#1a4d3a; }
+.dd-btn-primary:disabled { opacity:.4; cursor:default; }
+.dd-btn-ghost { background:#f4f7f4; color:#5a7060; border:none; padding:7px 14px; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; transition:background .2s; }
+.dd-btn-ghost:hover { background:#ebf0eb; }
+.dd-btn-danger { background:#fdf0f0; color:#b94040; border:none; padding:7px 14px; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; }
+.dd-btn-danger:hover { background:#fbe0e0; }
+.dd-btn-edit { background:#f0f5f2; color:#3a6649; border:none; padding:7px 14px; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; }
+.dd-btn-edit:hover { background:#e4ede7; }
+.dd-btn-toggle-on { background:#fdf0f0; color:#b94040; border:none; padding:7px 14px; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; }
+.dd-btn-toggle-off { background:#f0f5f2; color:#3a6649; border:none; padding:7px 14px; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; }
+.dd-modal-overlay { position:fixed; inset:0; background:rgba(13,31,24,.55); z-index:50; display:flex; align-items:center; justify-content:center; padding:24px; }
+.dd-modal { background:#fff; width:100%; max-width:420px; padding:32px; }
+.dd-modal-title { font-family:'Playfair Display',serif; font-size:20px; font-weight:700; color:#0d1f18; }
+.dd-modal-sub { font-size:12px; color:#9aaa9f; margin-top:2px; letter-spacing:.04em; }
+.dd-err { font-size:12px; color:#b94040; padding:10px 14px; background:#fdf0f0; border-left:3px solid #b94040; margin-top:4px; }
+.dd-ok { font-size:12px; color:#3a6649; padding:10px 14px; background:#f0f5f2; border-left:3px solid #7ec8a0; margin-top:4px; }
+.dd-search-wrap { display:flex; gap:8px; align-items:center; }
+.dd-search-select { font-size:11px; padding:8px 12px; border:1px solid #eaeef2; background:white; color:#5a7060; outline:none; letter-spacing:.04em; font-family:'DM Sans',sans-serif; }
+.dd-search-input-wrap { position:relative; flex:1; }
+.dd-search-input { width:100%; padding:8px 32px 8px 32px; font-size:12px; border:1px solid #eaeef2; background:white; color:#0d1f18; outline:none; font-family:'DM Sans',sans-serif; transition:border-color .15s; }
+.dd-search-input:focus { border-color:#0d1f18; }
+.dd-search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#9aaa9f; pointer-events:none; }
+.dd-search-clear { position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:#9aaa9f; cursor:pointer; padding:0; }
+`;
+
 export default function DirecaoDashboard() {
     const [aba, setAba] = useState("inicio");
     const [sidebarAberta, setSidebarAberta] = useState(false);
+    const [colapsados, setColapsados] = useState({});
     const nome = localStorage.getItem("nome") || "Direção";
     const logout = () => { localStorage.clear(); window.location.href = "/"; };
+    const toggleColapso = (id) => setColapsados(prev => ({ ...prev, [id]: !prev[id] }));
 
     return (
-        <div className="flex min-h-screen" style={{ background: C.bg, fontFamily: "'Inter', sans-serif" }}>
-            {sidebarAberta && (
-                <div className="fixed inset-0 bg-black bg-opacity-30 z-20 md:hidden"
-                     onClick={() => setSidebarAberta(false)} />
-            )}
+        <>
+            <style>{GLOBAL_STYLE}</style>
+            <div style={{ display:"flex", minHeight:"100vh", background:"#f5f8f5" }}>
+                {/* overlay mobile */}
+                {sidebarAberta && (
+                    <div style={{ position:"fixed", inset:0, background:"rgba(13,31,24,.4)", zIndex:20 }}
+                         onClick={() => setSidebarAberta(false)} />
+                )}
 
-            <aside className={`fixed z-30 top-0 left-0 h-screen w-52 flex flex-col transition-transform duration-300
-                ${sidebarAberta ? "translate-x-0" : "-translate-x-full"} md:translate-x-0 md:sticky md:top-0`}
-                   style={{ background: C.sidebar, borderRight: `1px solid ${C.border}` }}>
-
-                <div className="px-5 py-5 flex items-center gap-3" style={{ borderBottom: `1px solid ${C.border}` }}>
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                         style={{ background: `linear-gradient(135deg, ${C.primaryLight}, ${C.primary})` }}>
-                        <GraduationCap size={16} color="white" />
-                    </div>
-                    <div>
-                        <p className="font-bold text-sm leading-none" style={{ color: C.primaryDark }}>DomGestão</p>
-                        <p className="text-xs mt-0.5" style={{ color: C.primaryLight }}>Direção</p>
-                    </div>
-                </div>
-
-                <div className="px-5 py-4 flex items-center gap-3" style={{ borderBottom: `1px solid ${C.border}` }}>
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                         style={{ background: C.primary }}>
-                        {nome.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                        <p className="text-xs font-semibold truncate" style={{ color: C.text }}>{nome}</p>
-                        <p className="text-xs" style={{ color: C.textMuted }}>Administrador</p>
-                    </div>
-                </div>
-
-                <nav className="flex-1 px-3 py-3 flex flex-col gap-0.5">
-                    {menuItems.map(item => {
-                        const Icon = item.icon;
-                        const active = aba === item.id;
-                        return (
-                            <button key={item.id}
-                                    onClick={() => { setAba(item.id); setSidebarAberta(false); }}
-                                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium w-full text-left transition-all"
-                                    style={{
-                                        background: active ? `${C.primary}15` : "transparent",
-                                        color: active ? C.primary : C.textMuted,
-                                        borderLeft: active ? `3px solid ${C.primary}` : "3px solid transparent",
-                                    }}>
-                                <Icon size={16} />
-                                {item.label}
-                            </button>
-                        );
-                    })}
-                </nav>
-
-                <div className="px-3 py-3" style={{ borderTop: `1px solid ${C.border}` }}>
-                    <button onClick={logout}
-                            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm w-full text-left transition-all hover:bg-red-50"
-                            style={{ color: C.textMuted }}>
-                        <LogOut size={16} />
-                        Sair
-                    </button>
-                </div>
-            </aside>
-
-            <div className="flex-1 flex flex-col min-w-0 min-h-screen">
-                <header className="px-6 py-4 flex items-center justify-between sticky top-0 z-10"
-                        style={{ background: "white", borderBottom: `1px solid ${C.border}` }}>
-                    <div className="flex items-center gap-3">
-                        <button className="md:hidden" onClick={() => setSidebarAberta(true)}>
-                            <Menu size={20} color={C.text} />
-                        </button>
+                {/* ── Sidebar ── */}
+                <aside className="dd-sidebar" style={{
+                    width:210, flexShrink:0, display:"flex", flexDirection:"column",
+                    position:"sticky", top:0, height:"100vh", overflowY:"auto",
+                }}>
+                    {/* logo */}
+                    <div className="dd-sidebar-logo-wrap" style={{ padding:"24px 20px 20px", display:"flex", alignItems:"center", gap:12 }}>
+                        <div style={{ width:28, height:28, border:"1.5px solid rgba(255,255,255,.2)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="rgba(255,255,255,.5)" strokeWidth="1.2"/>
+                                <circle cx="8" cy="8" r="2" fill="#7ec8a0"/>
+                            </svg>
+                        </div>
                         <div>
-                            <h1 className="text-sm font-semibold" style={{ color: C.text }}>
-                                {menuItems.find(m => m.id === aba)?.label}
-                            </h1>
-                            <p className="text-xs" style={{ color: C.textMuted }}>DomGestão — Sistema Escolar</p>
+                            <p style={{ fontFamily:"'DM Sans',sans-serif", fontWeight:500, fontSize:13, letterSpacing:"0.08em", color:"rgba(255,255,255,.75)", lineHeight:1 }}>DomGestão</p>
+                            <p style={{ fontSize:10, letterSpacing:"0.1em", textTransform:"uppercase", color:"rgba(255,255,255,.3)", marginTop:3 }}>Direção</p>
                         </div>
                     </div>
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                         style={{ background: C.primary }}>
-                        {nome.charAt(0).toUpperCase()}
-                    </div>
-                </header>
 
-                <main className="flex-1 p-6">
-                    {aba === "inicio" && <Inicio />}
-                    {aba === "usuarios" && <Usuarios />}
-                    {aba === "turmas" && <Turmas />}
-                    {aba === "materias" && <Materias />}
-                </main>
+                    {/* user */}
+                    <div className="dd-user-wrap" style={{ padding:"14px 20px", display:"flex", alignItems:"center", gap:10 }}>
+                        <div style={{ width:28, height:28, background:"rgba(126,200,160,.15)", border:"1px solid rgba(126,200,160,.3)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:12, fontWeight:600, color:"#7ec8a0" }}>
+                            {nome.charAt(0).toUpperCase()}
+                        </div>
+                        <div style={{ minWidth:0 }}>
+                            <p style={{ fontSize:12, fontWeight:500, color:"rgba(255,255,255,.65)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{nome}</p>
+                            <p style={{ fontSize:10, color:"rgba(255,255,255,.25)", letterSpacing:"0.04em" }}>Administrador</p>
+                        </div>
+                    </div>
+
+                    {/* nav */}
+                    <nav style={{ flex:1, padding:"16px 8px", display:"flex", flexDirection:"column", gap:16, overflowY:"auto" }}>
+                        {modulos.map(modulo => {
+                            const colapsado = !!colapsados[modulo.id];
+                            return (
+                                <div key={modulo.id}>
+                                    {modulo.label && (
+                                        <button className="dd-nav-section-label" onClick={() => toggleColapso(modulo.id)}>
+                                            <span>{modulo.label}</span>
+                                            <ChevronRight size={11} style={{ opacity:.4, transform: colapsado ? "rotate(0deg)" : "rotate(90deg)", transition:"transform .2s" }} />
+                                        </button>
+                                    )}
+                                    {!colapsado && modulo.items.map(item => {
+                                        const Icon = item.icon;
+                                        const active = aba === item.id;
+                                        return (
+                                            <button key={item.id}
+                                                    className={`dd-nav-btn${active ? " active" : ""}${item.disabled ? " disabled" : ""}`}
+                                                    disabled={item.disabled}
+                                                    onClick={() => { if (!item.disabled) { setAba(item.id); setSidebarAberta(false); } }}>
+                                                <Icon size={14} style={{ flexShrink:0 }} />
+                                                <span style={{ flex:1 }}>{item.label}</span>
+                                                {item.disabled && <span className="dd-badge-soon">Em breve</span>}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })}
+                    </nav>
+
+                    {/* logout */}
+                    <div style={{ padding:"12px 8px", borderTop:"1px solid rgba(255,255,255,.06)" }}>
+                        <button className="dd-nav-btn" onClick={logout} style={{ color:"rgba(255,100,100,.5)" }}>
+                            <LogOut size={14} />
+                            <span>Sair</span>
+                        </button>
+                    </div>
+                </aside>
+
+                {/* ── Main ── */}
+                <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0 }}>
+                    {/* header */}
+                    <header className="dd-header" style={{ padding:"18px 32px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+                            <button style={{ display:"none", background:"none", border:"none", cursor:"pointer" }}
+                                    className="md:block" onClick={() => setSidebarAberta(true)}>
+                                <Menu size={18} color="#0d1f18" />
+                            </button>
+                            <div>
+                                <h1 className="dd-page-title">{allMenuItems.find(m => m.id === aba)?.label}</h1>
+                                <p className="dd-page-sub">DomGestão — Sistema Escolar</p>
+                            </div>
+                        </div>
+                        <div style={{ width:32, height:32, background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:600, color:"#7ec8a0", letterSpacing:".04em" }}>
+                            {nome.charAt(0).toUpperCase()}
+                        </div>
+                    </header>
+
+                    <main style={{ flex:1, padding:"28px 32px", display:"flex", flexDirection:"column", gap:0 }}>
+                        {aba === "inicio" && <Inicio />}
+                        {aba === "usuarios" && <Usuarios />}
+                        {aba === "turmas" && <Turmas />}
+                        {aba === "materias" && <Materias />}
+                        {aba === "atrasos" && <Atrasos />}
+                        {aba === "lancamentos" && <Lancamentos />}
+                        {aba === "boletins" && <Boletins />}
+                    </main>
+                </div>
             </div>
-        </div>
+        </>
     );
 }
 
@@ -249,68 +407,53 @@ function Inicio() {
     }, []);
 
     const cards = [
-        { label: "Alunos", value: stats.alunos, icon: GraduationCap, color: "#1A759F" },
-        { label: "Professores", value: stats.professores, icon: UserCheck, color: "#52B69A" },
-        { label: "Turmas", value: stats.turmas, icon: LayoutGrid, color: "#168AAD" },
-        { label: "Matérias", value: stats.materias, icon: BookMarked, color: "#1E6091" },
+        { label: "Alunos", value: stats.alunos, accent: "#0d1f18" },
+        { label: "Professores", value: stats.professores, accent: "#2d6a4f" },
+        { label: "Turmas", value: stats.turmas, accent: "#7ec8a0" },
+        { label: "Matérias", value: stats.materias, accent: "#b7dfc8" },
     ];
 
-    const roleColor = (role) => ({
-        bg: role === "ALUNO" ? "#e8f4fd" : role === "PROFESSOR" ? "#e8f8f2" : "#e8f0f8",
-        text: role === "ALUNO" ? "#1A759F" : role === "PROFESSOR" ? "#52B69A" : "#1E6091",
+    const roleBadge = (role) => ({
+        bg: role === "ALUNO" ? "#f0f5f2" : role === "PROFESSOR" ? "#e8f3ec" : "#eef5f0",
+        color: role === "ALUNO" ? "#3a6649" : role === "PROFESSOR" ? "#2d6a4f" : "#1a4d3a",
     });
 
     return (
-        <div className="flex flex-col gap-5">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {cards.map(card => {
-                    const Icon = card.icon;
-                    return (
-                        <div key={card.label} className="bg-white rounded-xl p-5 flex items-center gap-4"
-                             style={{ border: `1px solid ${C.border}`, borderTop: `3px solid ${card.color}` }}>
-                            <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                                 style={{ background: `${card.color}15` }}>
-                                <Icon size={18} color={card.color} />
-                            </div>
-                            <div>
-                                <p className="text-2xl font-bold" style={{ color: C.text }}>{card.value}</p>
-                                <p className="text-xs" style={{ color: C.textMuted }}>{card.label}</p>
-                            </div>
-                        </div>
-                    );
-                })}
+        <div style={{ display:"flex", flexDirection:"column", gap:24 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:16 }}>
+                {cards.map(card => (
+                    <div key={card.label} className="dd-card" style={{ "--accent": card.accent, padding:"20px 20px 18px" }}>
+                        <p className="dd-card-num">{card.value}</p>
+                        <p className="dd-card-label">{card.label}</p>
+                    </div>
+                ))}
             </div>
 
-            <div className="bg-white rounded-xl overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
-                <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${C.border}` }}>
-                    <span className="text-sm font-semibold" style={{ color: C.text }}>Usuários Recentes</span>
-                    <span className="text-xs" style={{ color: C.textMuted }}>{usuarios.length} registros</span>
+            <div className="dd-section">
+                <div className="dd-section-header">
+                    <span className="dd-section-title">Usuários Recentes</span>
+                    <span className="dd-section-count">{usuarios.length} registros</span>
                 </div>
-                <table className="w-full">
+                <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
                     <thead>
-                    <tr style={{ background: "#f8fafb", borderBottom: `1px solid ${C.border}` }}>
-                        {["Nome", "Login", "Perfil"].map(h => (
-                            <th key={h} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider"
-                                style={{ color: C.textMuted }}>{h}</th>
-                        ))}
-                    </tr>
+                    <tr>{["Nome", "Login", "Perfil"].map(h => <th key={h}>{h}</th>)}</tr>
                     </thead>
                     <tbody>
-                    {usuarios.slice(0, 8).map((u, i) => {
-                        const rc = roleColor(u.role);
+                    {usuarios.slice(0, 8).map(u => {
+                        const rb = roleBadge(u.role);
                         return (
-                            <tr key={u.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? "white" : "#fafbfc" }}>
-                                <td className="px-5 py-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                                             style={{ background: rc.text }}>{u.nome.charAt(0)}</div>
-                                        <span className="text-sm font-medium" style={{ color: C.text }}>{u.nome}</span>
+                            <tr key={u.id}>
+                                <td>
+                                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                        <div style={{ width:26, height:26, background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color:"#7ec8a0", flexShrink:0 }}>
+                                            {u.nome.charAt(0)}
+                                        </div>
+                                        <span style={{ fontWeight:500 }}>{u.nome}</span>
                                     </div>
                                 </td>
-                                <td className="px-5 py-3 text-sm" style={{ color: C.textMuted }}>{u.login}</td>
-                                <td className="px-5 py-3">
-                                        <span className="text-xs px-2.5 py-1 rounded-full font-medium"
-                                              style={{ background: rc.bg, color: rc.text }}>{u.role}</span>
+                                <td style={{ color:"#9aaa9f" }}>{u.login}</td>
+                                <td>
+                                    <span className="dd-badge" style={{ background:rb.bg, color:rb.color }}>{u.role}</span>
                                 </td>
                             </tr>
                         );
@@ -327,18 +470,27 @@ function Usuarios() {
     const [usuarios, setUsuarios] = useState([]);
     const [form, setForm] = useState({ nome: "", login: "", senha: "", role: "ALUNO" });
     const [msg, setMsg] = useState({ texto: "", tipo: "" });
-    const [editando, setEditando] = useState(null); // usuário sendo editado
+    const [editando, setEditando] = useState(null);
     const [formEdit, setFormEdit] = useState({ nome: "", login: "", senha: "" });
     const [msgEdit, setMsgEdit] = useState({ texto: "", tipo: "" });
+    const [campoBusca, setCampoBusca] = useState("nome");
+    const [termoBusca, setTermoBusca] = useState("");
+    const termoDebounced = useDebounce(termoBusca);
 
-    const carregar = () => {
-        api.get("/usuarios").then(r => {
-            const data = Array.isArray(r.data) ? r.data : [];
-            setUsuarios(data);
+    const carregar = (nome, role) => {
+        const params = {};
+        if (nome) params.nome = nome;
+        if (role) params.role = role;
+        api.get("/usuarios/buscar", { params }).then(r => {
+            setUsuarios(Array.isArray(r.data) ? r.data : []);
         });
     };
 
-    useEffect(() => { carregar(); }, []);
+    useEffect(() => {
+        const nome = campoBusca === "nome" ? termoDebounced : undefined;
+        const role = campoBusca === "role" ? termoDebounced : undefined;
+        carregar(nome, role);
+    }, [termoDebounced, campoBusca]);
 
     const cadastrar = async (e) => {
         e.preventDefault();
@@ -378,80 +530,49 @@ function Usuarios() {
         } catch { alert("Erro ao alterar status."); }
     };
 
-    const inputStyle = {
-        border: `1px solid ${C.border}`,
-        borderRadius: "8px",
-        padding: "8px 12px",
-        fontSize: "13px",
-        outline: "none",
-        width: "100%",
-        color: C.text,
-    };
 
-    const roleColor = (role) => ({
-        bg: role === "ALUNO" ? "#e8f4fd" : role === "PROFESSOR" ? "#e8f8f2" : "#e8f0f8",
-        text: role === "ALUNO" ? "#1A759F" : role === "PROFESSOR" ? "#52B69A" : "#1E6091",
-    });
+
+
 
     return (
-        <div className="flex flex-col gap-5">
+        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
 
             {/* Modal de edição */}
             {editando && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
-                        <div className="flex items-center justify-between mb-5">
+                <div className="dd-modal-overlay">
+                    <div className="dd-modal">
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:24 }}>
                             <div>
-                                <p className="text-base font-bold" style={{ color: C.text }}>Editar Usuário</p>
-                                <p className="text-xs mt-0.5" style={{ color: C.textMuted }}>{editando.role}</p>
+                                <p className="dd-modal-title">Editar Usuário</p>
+                                <p className="dd-modal-sub">{editando.role}</p>
                             </div>
-                            <button onClick={() => setEditando(null)}
-                                    className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition"
-                                    style={{ color: C.textMuted }}>
+                            <button onClick={() => setEditando(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f", padding:4 }}>
                                 <X size={16} />
                             </button>
                         </div>
 
-                        <form onSubmit={salvarEdicao} className="flex flex-col gap-3">
-                            <div>
-                                <label className="text-xs font-medium mb-1 block" style={{ color: C.textMuted }}>Nome</label>
-                                <input type="text" value={formEdit.nome}
-                                       onChange={e => setFormEdit({ ...formEdit, nome: e.target.value })}
-                                       style={inputStyle} placeholder="Nome completo" />
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium mb-1 block" style={{ color: C.textMuted }}>Login</label>
-                                <input type="text" value={formEdit.login}
-                                       onChange={e => setFormEdit({ ...formEdit, login: e.target.value })}
-                                       style={inputStyle} placeholder="Login" />
-                            </div>
-                            <div>
-                                <label className="text-xs font-medium mb-1 block" style={{ color: C.textMuted }}>
-                                    Nova Senha <span style={{ color: C.textMuted, fontWeight: 400 }}>(deixe em branco para não alterar)</span>
-                                </label>
-                                <input type="password" value={formEdit.senha}
-                                       onChange={e => setFormEdit({ ...formEdit, senha: e.target.value })}
-                                       style={inputStyle} placeholder="••••••••" />
-                            </div>
+                        <form onSubmit={salvarEdicao} style={{ display:"flex", flexDirection:"column", gap:20 }}>
+                            {[
+                                { key:"nome", label:"Nome", type:"text", placeholder:"Nome completo" },
+                                { key:"login", label:"Login", type:"text", placeholder:"Login" },
+                                { key:"senha", label:"Nova Senha", type:"password", placeholder:"••••••••", hint:"deixe em branco para manter" },
+                            ].map(f => (
+                                <div key={f.key}>
+                                    <label className="dd-label">{f.label} {f.hint && <span style={{ textTransform:"none", letterSpacing:0, fontWeight:300, color:"#b8c4be" }}>— {f.hint}</span>}</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" type={f.type} placeholder={f.placeholder}
+                                               value={formEdit[f.key]}
+                                               onChange={e => setFormEdit({ ...formEdit, [f.key]: e.target.value })} />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                            ))}
 
-                            {msgEdit.texto && (
-                                <p className="text-xs px-3 py-2 rounded-lg"
-                                   style={{ background: msgEdit.tipo === "ok" ? "#e8f8f2" : "#fde8e8", color: msgEdit.tipo === "ok" ? "#52B69A" : "#e53e3e" }}>
-                                    {msgEdit.texto}
-                                </p>
-                            )}
+                            {msgEdit.texto && <div className={msgEdit.tipo === "ok" ? "dd-ok" : "dd-err"}>{msgEdit.texto}</div>}
 
-                            <div className="flex gap-2 mt-1">
-                                <button type="button" onClick={() => setEditando(null)}
-                                        className="flex-1 py-2.5 rounded-lg text-sm font-medium transition"
-                                        style={{ background: "#f1f5f9", color: C.textMuted }}>
-                                    Cancelar
-                                </button>
-                                <button type="submit"
-                                        className="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white transition"
-                                        style={{ background: C.primary }}>
-                                    Salvar
-                                </button>
+                            <div style={{ display:"flex", gap:8, marginTop:4 }}>
+                                <button type="button" onClick={() => setEditando(null)} className="dd-btn-ghost" style={{ flex:1 }}>Cancelar</button>
+                                <button type="submit" className="dd-btn-primary" style={{ flex:1 }}>Salvar →</button>
                             </div>
                         </form>
                     </div>
@@ -459,89 +580,93 @@ function Usuarios() {
             )}
 
             {/* Formulário cadastro */}
-            <div className="bg-white rounded-xl p-5" style={{ border: `1px solid ${C.border}` }}>
-                <p className="text-sm font-semibold mb-4" style={{ color: C.text }}>Novo Usuário</p>
-                <form onSubmit={cadastrar} className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="dd-section" style={{ padding:"24px" }}>
+                <p className="dd-section-title" style={{ marginBottom:20 }}>Novo Usuário</p>
+                <form onSubmit={cadastrar} style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr", gap:16 }}>
                     {[
-                        { key: "nome", placeholder: "Nome completo", type: "text" },
-                        { key: "login", placeholder: "Login", type: "text" },
-                        { key: "senha", placeholder: "Senha", type: "password" },
+                        { key:"nome", label:"Nome", type:"text", placeholder:"Nome completo" },
+                        { key:"login", label:"Login", type:"text", placeholder:"Login" },
+                        { key:"senha", label:"Senha", type:"password", placeholder:"••••••••" },
                     ].map(f => (
-                        <input key={f.key} type={f.type} placeholder={f.placeholder}
-                               value={form[f.key]} onChange={e => setForm({ ...form, [f.key]: e.target.value })}
-                               style={inputStyle} />
+                        <div key={f.key}>
+                            <label className="dd-label">{f.label}</label>
+                            <div className="dd-input-wrap">
+                                <input className="dd-input" type={f.type} placeholder={f.placeholder}
+                                       value={form[f.key]} onChange={e => setForm({ ...form, [f.key]: e.target.value })} />
+                                <div className="dd-input-line" />
+                            </div>
+                        </div>
                     ))}
-                    <SearchSelect
-                        options={[
-                            { value: "ALUNO", label: "Aluno" },
-                            { value: "PROFESSOR", label: "Professor" },
-                            { value: "DIRECAO", label: "Direção" },
-                        ]}
-                        value={form.role}
-                        onChange={v => setForm({ ...form, role: v })}
-                        placeholder="Selecione o perfil..." />
-                    <button type="submit" className="md:col-span-4 py-2.5 rounded-lg text-sm font-semibold text-white transition"
-                            style={{ background: C.primary }}>
-                        Cadastrar Usuário
+                    <div>
+                        <label className="dd-label">Perfil</label>
+                        <SearchSelect
+                            options={[
+                                { value: "ALUNO", label: "Aluno" },
+                                { value: "PROFESSOR", label: "Professor" },
+                                { value: "DIRECAO", label: "Direção" },
+                            ]}
+                            value={form.role}
+                            onChange={v => setForm({ ...form, role: v })}
+                            placeholder="Selecione..." />
+                    </div>
+                    <button type="submit" className="dd-btn-primary" style={{ gridColumn:"1/-1", marginTop:4 }}>
+                        Cadastrar Usuário →
                     </button>
                 </form>
-                {msg.texto && (
-                    <p className="mt-3 text-xs px-3 py-2 rounded-lg"
-                       style={{ background: msg.tipo === "ok" ? "#e8f8f2" : "#fde8e8", color: msg.tipo === "ok" ? "#52B69A" : "#e53e3e" }}>
-                        {msg.texto}
-                    </p>
-                )}
+                {msg.texto && <div className={msg.tipo === "ok" ? "dd-ok" : "dd-err"} style={{ marginTop:12 }}>{msg.texto}</div>}
             </div>
 
             {/* Tabela de usuários */}
-            <div className="bg-white rounded-xl overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
-                <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${C.border}` }}>
-                    <span className="text-sm font-semibold" style={{ color: C.text }}>Todos os Usuários</span>
-                    <span className="text-xs" style={{ color: C.textMuted }}>{usuarios.length} registros</span>
+            <div className="dd-section">
+                <div className="dd-section-header" style={{ flexDirection:"column", alignItems:"stretch", gap:12 }}>
+                    <div className="flex items-center justify-between">
+                        <span className="dd-section-title">Todos os Usuários</span>
+                        <span className="dd-section-count">{usuarios.length} registros</span>
+                    </div>
+                    <BarraBusca
+                        campos={[
+                            { value: "nome", label: "Nome" },
+                            { value: "role", label: "Perfil" },
+                        ]}
+                        campoBusca={campoBusca} setCampoBusca={setCampoBusca}
+                        termoBusca={termoBusca} setTermoBusca={setTermoBusca}
+                    />
+                    {campoBusca === "role" && (
+                        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                            {["ALUNO", "PROFESSOR", "DIRECAO"].map(r => (
+                                <button key={r} onClick={() => setTermoBusca(termoBusca === r ? "" : r)}
+                                        className="dd-badge"
+                                        style={{ background: termoBusca === r ? "#0d1f18" : "#f0f5f2", color: termoBusca === r ? "#7ec8a0" : "#3a6649", cursor:"pointer", border:"none" }}>
+                                    {r}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
-                <table className="w-full">
-                    <thead>
-                    <tr style={{ background: "#f8fafb", borderBottom: `1px solid ${C.border}` }}>
-                        {["Nome", "Login", "Perfil", "Status", ""].map((h, i) => (
-                            <th key={i} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider"
-                                style={{ color: C.textMuted }}>{h}</th>
-                        ))}
-                    </tr>
-                    </thead>
+                <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
+                    <thead><tr>{["Nome","Login","Perfil","Status",""].map(h=><th key={h}>{h}</th>)}</tr></thead>
                     <tbody>
-                    {usuarios.map((u, i) => {
-                        const rc = roleColor(u.role);
+                    {usuarios.map(u => {
+                        const roleBg = { ALUNO:"#f0f5f2", PROFESSOR:"#e8f3ec", DIRECAO:"#eef5f0" };
+                        const roleClr = { ALUNO:"#3a6649", PROFESSOR:"#2d6a4f", DIRECAO:"#1a4d3a" };
                         const inativo = !u.ativo;
                         return (
-                            <tr key={u.id} style={{ borderBottom: `1px solid ${C.border}`, background: inativo ? "#fafafa" : (i % 2 === 0 ? "white" : "#fafbfc"), opacity: inativo ? 0.6 : 1 }}>
-                                <td className="px-5 py-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                                             style={{ background: inativo ? "#aaa" : rc.text }}>{u.nome.charAt(0)}</div>
-                                        <span className="text-sm font-medium" style={{ color: inativo ? C.textMuted : C.text }}>{u.nome}</span>
+                            <tr key={u.id} style={{ opacity: inativo ? 0.5 : 1 }}>
+                                <td>
+                                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                        <div style={{ width:26, height:26, background: inativo ? "#ccc" : "#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color: inativo ? "#fff" : "#7ec8a0", flexShrink:0 }}>
+                                            {u.nome.charAt(0)}
+                                        </div>
+                                        <span style={{ fontWeight:500 }}>{u.nome}</span>
                                     </div>
                                 </td>
-                                <td className="px-5 py-3 text-sm" style={{ color: C.textMuted }}>{u.login}</td>
-                                <td className="px-5 py-3">
-                                    <span className="text-xs px-2.5 py-1 rounded-full font-medium"
-                                          style={{ background: rc.bg, color: rc.text }}>{u.role}</span>
-                                </td>
-                                <td className="px-5 py-3">
-                                    <span className="text-xs px-2.5 py-1 rounded-full font-medium"
-                                          style={{ background: u.ativo ? "#e8f8f2" : "#fde8e8", color: u.ativo ? "#52B69A" : "#e53e3e" }}>
-                                        {u.ativo ? "Ativo" : "Inativo"}
-                                    </span>
-                                </td>
-                                <td className="px-5 py-3 text-right">
-                                    <div className="flex items-center gap-2 justify-end">
-                                        <button onClick={() => abrirEdicao(u)}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition hover:opacity-80"
-                                                style={{ background: "#e8f4fd", color: C.primary }}>
-                                            <Pencil size={12} /> Editar
-                                        </button>
-                                        <button onClick={() => toggleStatus(u)}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition hover:opacity-80"
-                                                style={{ background: u.ativo ? "#fde8e8" : "#e8f8f2", color: u.ativo ? "#e53e3e" : "#52B69A" }}>
+                                <td style={{ color:"#9aaa9f" }}>{u.login}</td>
+                                <td><span className="dd-badge" style={{ background: roleBg[u.role]||"#f0f5f2", color: roleClr[u.role]||"#3a6649" }}>{u.role}</span></td>
+                                <td><span className="dd-badge" style={{ background: u.ativo?"#f0f5f2":"#fdf0f0", color: u.ativo?"#3a6649":"#b94040" }}>{u.ativo?"Ativo":"Inativo"}</span></td>
+                                <td style={{ textAlign:"right" }}>
+                                    <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
+                                        <button className="dd-btn-edit" onClick={() => abrirEdicao(u)}>Editar</button>
+                                        <button className={u.ativo ? "dd-btn-toggle-on" : "dd-btn-toggle-off"} onClick={() => toggleStatus(u)}>
                                             {u.ativo ? "Inativar" : "Ativar"}
                                         </button>
                                     </div>
@@ -564,21 +689,37 @@ function Turmas() {
     const [formTurma, setFormTurma] = useState({ nome: "", serieId: "", anoLetivo: "2026" });
     const [msg, setMsg] = useState({ texto: "", tipo: "" });
     const [turmaSelecionada, setTurmaSelecionada] = useState(null);
+    const [campoBusca, setCampoBusca] = useState("nome");
+    const [termoBusca, setTermoBusca] = useState("");
+    const termoDebounced = useDebounce(termoBusca);
+
+    const carregarSeries = () => {
+        api.get("/turmas/series").then(r => setSeries(Array.isArray(r.data) ? r.data : []));
+    };
+
+    const buscarTurmas = (nome, serieId) => {
+        const params = {};
+        if (nome) params.nome = nome;
+        if (serieId) params.serieId = serieId;
+        api.get("/turmas/buscar", { params }).then(r => setTurmas(Array.isArray(r.data) ? r.data : []));
+    };
 
     const carregar = () => {
-        api.get("/turmas").then(r => {
-            const data = Array.isArray(r.data) ? r.data : [];
-            setTurmas(data);
-        });
-        api.get("/turmas/series").then(r => {
-            const data = Array.isArray(r.data) ? r.data : [];
-            setSeries(data);
-        });
+        buscarTurmas();
+        carregarSeries();
     };
-    useEffect(() => { carregar(); }, []);
 
-    const inputStyle = { border: `1px solid ${C.border}`, borderRadius: "8px", padding: "8px 12px", fontSize: "13px", outline: "none", width: "100%", color: C.text };
-    const btnStyle = { background: C.primary, color: "white", borderRadius: "8px", padding: "8px 16px", fontSize: "13px", fontWeight: 600, whiteSpace: "nowrap" };
+    useEffect(() => { carregarSeries(); }, []);
+
+    useEffect(() => {
+        const nome = campoBusca === "nome" ? termoDebounced : undefined;
+        const serieId = campoBusca === "serie"
+            ? (series.find(s => s.nome.toLowerCase().includes(termoDebounced.toLowerCase()))?.id)
+            : undefined;
+        buscarTurmas(nome, serieId);
+    }, [termoDebounced, campoBusca, series]);
+
+
 
     const excluirSerie = async (s) => {
         if (!confirm(`Excluir série "${s.nome}"?`)) return;
@@ -597,44 +738,39 @@ function Turmas() {
     }
 
     return (
-        <div className="flex flex-col gap-5">
-            {msg.texto && (
-                <div className="text-sm px-4 py-3 rounded-lg"
-                     style={{ background: msg.tipo === "ok" ? "#e8f8f2" : "#fde8e8", color: msg.tipo === "ok" ? "#52B69A" : "#e53e3e" }}>
-                    {msg.texto}
-                </div>
-            )}
+        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+            {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
 
-            <div className="grid md:grid-cols-2 gap-4">
-                <div className="bg-white rounded-xl p-5" style={{ border: `1px solid ${C.border}` }}>
-                    <p className="text-sm font-semibold mb-4" style={{ color: C.text }}>Nova Série</p>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+                <div className="dd-section" style={{ padding:24 }}>
+                    <p className="dd-section-title" style={{ marginBottom:16 }}>Nova Série</p>
                     <form onSubmit={async e => {
                         e.preventDefault();
                         await api.post("/turmas/series", formSerie);
                         setFormSerie({ nome: "" });
                         carregar();
-                    }} className="flex gap-2">
-                        <input placeholder="Ex: 1º Ano" value={formSerie.nome}
-                               onChange={e => setFormSerie({ nome: e.target.value })} style={inputStyle} />
-                        <button type="submit" style={btnStyle}>Adicionar</button>
+                    }} style={{ display:"flex", gap:8 }}>
+                        <div className="dd-input-wrap" style={{ flex:1 }}>
+                            <input className="dd-input" placeholder="Ex: 1º Ano" value={formSerie.nome}
+                                   onChange={e => setFormSerie({ nome: e.target.value })} />
+                            <div className="dd-input-line" />
+                        </div>
+                        <button type="submit" className="dd-btn-primary">Adicionar</button>
                     </form>
-                    <div className="mt-4 flex flex-wrap gap-2">
+                    <div style={{ marginTop:16, display:"flex", flexWrap:"wrap", gap:8 }}>
                         {series.map(s => (
-                            <div key={s.id} className="flex items-center gap-1 rounded-full pr-1"
-                                 style={{ background: "#e8f4fd" }}>
-                                <span className="text-xs px-3 py-1.5 font-medium" style={{ color: C.primary }}>{s.nome}</span>
-                                <button onClick={() => excluirSerie(s)}
-                                        className="w-4 h-4 rounded-full flex items-center justify-center transition hover:opacity-70"
-                                        style={{ background: `${C.primary}25`, color: C.primary }}>
-                                    <X size={10} />
+                            <div key={s.id} style={{ display:"flex", alignItems:"center", gap:6, background:"#f0f5f2", padding:"4px 10px 4px 12px" }}>
+                                <span style={{ fontSize:12, fontWeight:500, color:"#2d6a4f" }}>{s.nome}</span>
+                                <button onClick={() => excluirSerie(s)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f", padding:0, display:"flex" }}>
+                                    <X size={11} />
                                 </button>
                             </div>
                         ))}
                     </div>
                 </div>
 
-                <div className="bg-white rounded-xl p-5" style={{ border: `1px solid ${C.border}` }}>
-                    <p className="text-sm font-semibold mb-4" style={{ color: C.text }}>Nova Turma</p>
+                <div className="dd-section" style={{ padding:24 }}>
+                    <p className="dd-section-title" style={{ marginBottom:16 }}>Nova Turma</p>
                     <form onSubmit={async e => {
                         e.preventDefault();
                         try {
@@ -643,54 +779,50 @@ function Turmas() {
                             setFormTurma({ nome: "", serieId: "", anoLetivo: "2026" });
                             carregar();
                         } catch { setMsg({ texto: "Erro ao cadastrar.", tipo: "erro" }); }
-                    }} className="flex flex-col gap-3">
-                        <input placeholder="Nome da turma" value={formTurma.nome}
-                               onChange={e => setFormTurma({ ...formTurma, nome: e.target.value })} style={inputStyle} />
-                        <SearchSelect
-                            options={series.map(s => ({ value: s.id, label: s.nome }))}
-                            value={formTurma.serieId}
-                            onChange={v => setFormTurma({ ...formTurma, serieId: v })}
-                            placeholder="Selecione a série..." />
-                        <button type="submit" style={{ ...btnStyle, padding: "10px", width: "100%" }}>Cadastrar Turma</button>
+                    }} style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                        <div>
+                            <label className="dd-label">Nome</label>
+                            <div className="dd-input-wrap">
+                                <input className="dd-input" placeholder="Nome da turma" value={formTurma.nome}
+                                       onChange={e => setFormTurma({ ...formTurma, nome: e.target.value })} />
+                                <div className="dd-input-line" />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="dd-label">Série</label>
+                            <SearchSelect
+                                options={series.map(s => ({ value: s.id, label: s.nome }))}
+                                value={formTurma.serieId}
+                                onChange={v => setFormTurma({ ...formTurma, serieId: v })}
+                                placeholder="Selecione a série..." />
+                        </div>
+                        <button type="submit" className="dd-btn-primary">Cadastrar Turma →</button>
                     </form>
                 </div>
             </div>
 
-            <div className="bg-white rounded-xl overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
-                <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${C.border}` }}>
-                    <span className="text-sm font-semibold" style={{ color: C.text }}>Turmas Cadastradas</span>
-                    <span className="text-xs" style={{ color: C.textMuted }}>{turmas.length} turmas</span>
+            <div className="dd-section">
+                <div className="dd-section-header" style={{ flexDirection:"column", alignItems:"stretch", gap:12 }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                        <span className="dd-section-title">Turmas Cadastradas</span>
+                        <span className="dd-section-count">{turmas.length} turmas</span>
+                    </div>
+                    <BarraBusca campos={[{value:"nome",label:"Nome da Turma"},{value:"serie",label:"Série"}]}
+                                campoBusca={campoBusca} setCampoBusca={setCampoBusca}
+                                termoBusca={termoBusca} setTermoBusca={setTermoBusca} />
                 </div>
-                <table className="w-full">
-                    <thead>
-                    <tr style={{ background: "#f8fafb", borderBottom: `1px solid ${C.border}` }}>
-                        {["Turma", "Série", "Ano Letivo", ""].map((h, i) => (
-                            <th key={i} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider"
-                                style={{ color: C.textMuted }}>{h}</th>
-                        ))}
-                    </tr>
-                    </thead>
+                <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
+                    <thead><tr>{["Turma","Série","Ano",""].map(h=><th key={h}>{h}</th>)}</tr></thead>
                     <tbody>
-                    {turmas.map((t, i) => (
-                        <tr key={t.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? "white" : "#fafbfc" }}>
-                            <td className="px-5 py-3 text-sm font-medium" style={{ color: C.text }}>{t.nome}</td>
-                            <td className="px-5 py-3">
-                                    <span className="text-xs px-2.5 py-1 rounded-full font-medium"
-                                          style={{ background: "#e8f4fd", color: C.primary }}>{t.serie?.nome}</span>
-                            </td>
-                            <td className="px-5 py-3 text-sm" style={{ color: C.textMuted }}>{t.anoLetivo}</td>
-                            <td className="px-5 py-3 text-right">
-                                <div className="flex items-center gap-2 justify-end">
-                                    <button onClick={() => setTurmaSelecionada(t)}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition hover:opacity-80"
-                                            style={{ background: "#e8f4fd", color: C.primary }}>
-                                        <Pencil size={12} /> Gerenciar
-                                    </button>
-                                    <button onClick={() => excluirTurma(t)}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition hover:opacity-80"
-                                            style={{ background: "#fde8e8", color: "#e53e3e" }}>
-                                        <Trash2 size={12} />
-                                    </button>
+                    {turmas.map(t => (
+                        <tr key={t.id}>
+                            <td style={{ fontWeight:500 }}>{t.nome}</td>
+                            <td><span className="dd-badge" style={{ background:"#f0f5f2", color:"#2d6a4f" }}>{t.serie?.nome}</span></td>
+                            <td style={{ color:"#9aaa9f" }}>{t.anoLetivo}</td>
+                            <td style={{ textAlign:"right" }}>
+                                <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
+                                    <button className="dd-btn-edit" onClick={() => setTurmaSelecionada(t)}>Gerenciar</button>
+                                    <button className="dd-btn-danger" onClick={() => excluirTurma(t)}><Trash2 size={12} /></button>
                                 </div>
                             </td>
                         </tr>
@@ -727,8 +859,7 @@ function EditarTurma({ turma, onVoltar }) {
         carregar();
     }, []);
 
-    const btnPrimary = { background: C.primary, color: "white", borderRadius: "8px", padding: "8px 14px", fontSize: "13px", fontWeight: 600, flexShrink: 0 };
-    const btnDanger = { background: "#fde8e8", color: "#e53e3e", borderRadius: "6px", padding: "4px 10px", fontSize: "12px", fontWeight: 500 };
+
 
     const vincularAluno = async e => {
         e.preventDefault();
@@ -773,111 +904,85 @@ function EditarTurma({ turma, onVoltar }) {
         .map(a => ({ value: a.id, label: a.nome }));
 
     return (
-        <div className="flex flex-col gap-5">
-            <div className="flex items-center gap-3">
-                <button onClick={onVoltar}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition hover:opacity-80"
-                        style={{ background: "#e8f4fd", color: C.primary }}>
-                    <ArrowLeft size={14} /> Voltar
+        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+                <button className="dd-btn-ghost" onClick={onVoltar} style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <ArrowLeft size={13} /> Voltar
                 </button>
                 <div>
-                    <h2 className="text-base font-bold" style={{ color: C.text }}>Gerenciar: {turma.nome}</h2>
-                    <p className="text-xs" style={{ color: C.textMuted }}>{turma.serie?.nome} — {turma.anoLetivo}</p>
+                    <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:20, fontWeight:700, color:"#0d1f18", letterSpacing:"-.02em" }}>
+                        {turma.nome}
+                    </h2>
+                    <p className="dd-section-count">{turma.serie?.nome} — {turma.anoLetivo}</p>
                 </div>
             </div>
 
-            {msg.texto && (
-                <div className="text-sm px-4 py-3 rounded-lg"
-                     style={{ background: msg.tipo === "ok" ? "#e8f8f2" : "#fde8e8", color: msg.tipo === "ok" ? "#52B69A" : "#e53e3e" }}>
-                    {msg.texto}
-                </div>
-            )}
+            {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
 
-            <div className="grid md:grid-cols-2 gap-5">
-                <div className="bg-white rounded-xl" style={{ border: `1px solid ${C.border}` }}>
-                    <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${C.border}` }}>
-                        <p className="text-sm font-semibold" style={{ color: C.text }}>Alunos da Turma</p>
-                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#e8f4fd", color: C.primary }}>
-                            {vinculosAluno.length} alunos
-                        </span>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+                {/* Alunos */}
+                <div className="dd-section">
+                    <div className="dd-section-header">
+                        <span className="dd-section-title">Alunos</span>
+                        <span className="dd-section-count">{vinculosAluno.length} alunos</span>
                     </div>
-                    <div className="p-4" style={{ borderBottom: `1px solid ${C.border}` }}>
-                        <form onSubmit={vincularAluno} className="flex gap-2">
-                            <SearchSelect
-                                options={alunosDisponiveis}
-                                value={formAluno.alunoId}
-                                onChange={v => setFormAluno({ alunoId: v })}
-                                placeholder="Buscar aluno..." />
-                            <button type="submit" style={btnPrimary}><UserPlus size={14} /></button>
+                    <div style={{ padding:"16px", borderBottom:"1px solid #eaeef2" }}>
+                        <form onSubmit={vincularAluno} style={{ display:"flex", gap:8 }}>
+                            <SearchSelect options={alunosDisponiveis} value={formAluno.alunoId}
+                                          onChange={v => setFormAluno({ alunoId: v })} placeholder="Buscar aluno..." />
+                            <button type="submit" className="dd-btn-primary"><UserPlus size={13} /></button>
                         </form>
                     </div>
-                    <div>
-                        {vinculosAluno.length === 0 && (
-                            <p className="px-5 py-6 text-sm text-center" style={{ color: C.textMuted }}>Nenhum aluno vinculado</p>
-                        )}
-                        {vinculosAluno.map(v => (
-                            <div key={v.aluno?.id} className="px-5 py-3 flex items-center justify-between"
-                                 style={{ borderBottom: `1px solid ${C.border}` }}>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                                         style={{ background: C.primary }}>{v.aluno?.nome?.charAt(0)}</div>
-                                    <span className="text-sm" style={{ color: C.text }}>{v.aluno?.nome}</span>
+                    {vinculosAluno.length === 0
+                        ? <p style={{ padding:"24px", textAlign:"center", fontSize:12, color:"#9aaa9f" }}>Nenhum aluno vinculado</p>
+                        : vinculosAluno.map(v => (
+                            <div key={v.aluno?.id} style={{ padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #f2f5f2" }}>
+                                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                    <div style={{ width:26, height:26, background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color:"#7ec8a0" }}>
+                                        {v.aluno?.nome?.charAt(0)}
+                                    </div>
+                                    <span style={{ fontSize:13 }}>{v.aluno?.nome}</span>
                                 </div>
-                                <button onClick={() => removerAluno(v)} style={btnDanger}
-                                        className="flex items-center gap-1 hover:opacity-80 transition">
-                                    <Trash2 size={11} /> Remover
-                                </button>
+                                <button className="dd-btn-danger" onClick={() => removerAluno(v)}>Remover</button>
                             </div>
-                        ))}
-                    </div>
+                        ))
+                    }
                 </div>
 
-                <div className="bg-white rounded-xl" style={{ border: `1px solid ${C.border}` }}>
-                    <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${C.border}` }}>
-                        <p className="text-sm font-semibold" style={{ color: C.text }}>Professores da Turma</p>
-                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#e8f8f2", color: C.primaryLight }}>
-                            {vinculosProf.length} professores
-                        </span>
+                {/* Professores */}
+                <div className="dd-section">
+                    <div className="dd-section-header">
+                        <span className="dd-section-title">Professores</span>
+                        <span className="dd-section-count">{vinculosProf.length} professores</span>
                     </div>
-                    <div className="p-4" style={{ borderBottom: `1px solid ${C.border}` }}>
-                        <form onSubmit={vincularProf} className="flex flex-col gap-2">
-                            <SearchSelect
-                                options={todosProfessores.map(p => ({ value: p.id, label: p.nome }))}
-                                value={formProf.professorId}
-                                onChange={v => setFormProf({ ...formProf, professorId: v })}
-                                placeholder="Buscar professor..." />
-                            <div className="flex gap-2">
-                                <SearchSelect
-                                    options={todasMaterias.map(m => ({ value: m.id, label: m.nome }))}
-                                    value={formProf.materiaId}
-                                    onChange={v => setFormProf({ ...formProf, materiaId: v })}
-                                    placeholder="Selecionar matéria..." />
-                                <button type="submit" style={btnPrimary}><UserPlus size={14} /></button>
+                    <div style={{ padding:"16px", borderBottom:"1px solid #eaeef2" }}>
+                        <form onSubmit={vincularProf} style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                            <SearchSelect options={todosProfessores.map(p=>({value:p.id,label:p.nome}))} value={formProf.professorId}
+                                          onChange={v => setFormProf({ ...formProf, professorId: v })} placeholder="Buscar professor..." />
+                            <div style={{ display:"flex", gap:8 }}>
+                                <SearchSelect options={todasMaterias.map(m=>({value:m.id,label:m.nome}))} value={formProf.materiaId}
+                                              onChange={v => setFormProf({ ...formProf, materiaId: v })} placeholder="Selecionar matéria..." />
+                                <button type="submit" className="dd-btn-primary"><UserPlus size={13} /></button>
                             </div>
                         </form>
                     </div>
-                    <div>
-                        {vinculosProf.length === 0 && (
-                            <p className="px-5 py-6 text-sm text-center" style={{ color: C.textMuted }}>Nenhum professor vinculado</p>
-                        )}
-                        {vinculosProf.map((v, i) => (
-                            <div key={i} className="px-5 py-3 flex items-center justify-between"
-                                 style={{ borderBottom: `1px solid ${C.border}` }}>
-                                <div className="flex items-center gap-3">
-                                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                                         style={{ background: C.primaryLight }}>{v.professor?.nome?.charAt(0)}</div>
+                    {vinculosProf.length === 0
+                        ? <p style={{ padding:"24px", textAlign:"center", fontSize:12, color:"#9aaa9f" }}>Nenhum professor vinculado</p>
+                        : vinculosProf.map((v, i) => (
+                            <div key={i} style={{ padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #f2f5f2" }}>
+                                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                    <div style={{ width:26, height:26, background:"#2d6a4f", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color:"#fff" }}>
+                                        {v.professor?.nome?.charAt(0)}
+                                    </div>
                                     <div>
-                                        <p className="text-sm font-medium" style={{ color: C.text }}>{v.professor?.nome}</p>
-                                        <p className="text-xs" style={{ color: C.textMuted }}>{v.materia?.nome}</p>
+                                        <p style={{ fontSize:13, fontWeight:500 }}>{v.professor?.nome}</p>
+                                        <p style={{ fontSize:11, color:"#9aaa9f" }}>{v.materia?.nome}</p>
                                     </div>
                                 </div>
-                                <button onClick={() => removerProf(v)} style={btnDanger}
-                                        className="flex items-center gap-1 hover:opacity-80 transition">
-                                    <Trash2 size={11} /> Remover
-                                </button>
+                                <button className="dd-btn-danger" onClick={() => removerProf(v)}>Remover</button>
                             </div>
-                        ))}
-                    </div>
+                        ))
+                    }
                 </div>
             </div>
         </div>
@@ -889,74 +994,1016 @@ function Materias() {
     const [materias, setMaterias] = useState([]);
     const [form, setForm] = useState({ nome: "" });
     const [msg, setMsg] = useState({ texto: "", tipo: "" });
+    const [termoBusca, setTermoBusca] = useState("");
+    const termoDebounced = useDebounce(termoBusca);
 
-    const carregar = () => api.get("/materias").then(r => setMaterias(r.data));
-    useEffect(() => { carregar(); }, []);
+    const buscar = (nome) => {
+        const params = {};
+        if (nome) params.nome = nome;
+        api.get("/materias/buscar", { params }).then(r => setMaterias(Array.isArray(r.data) ? r.data : []));
+    };
 
-    const inputStyle = { border: `1px solid ${C.border}`, borderRadius: "8px", padding: "8px 12px", fontSize: "13px", outline: "none", flex: 1, color: C.text };
+    useEffect(() => { buscar(termoDebounced); }, [termoDebounced]);
+
+
 
     const excluirMateria = async (m) => {
         if (!confirm(`Excluir matéria "${m.nome}"?`)) return;
-        try { await api.delete(`/materias/${m.id}`); carregar(); }
+        try { await api.delete(`/materias/${m.id}`); buscar(termoDebounced); }
         catch { setMsg({ texto: "Erro ao excluir. Há vínculos ativos com essa matéria?", tipo: "erro" }); }
     };
 
     return (
-        <div className="flex flex-col gap-5">
-            {msg.texto && (
-                <div className="text-sm px-4 py-3 rounded-lg"
-                     style={{ background: msg.tipo === "ok" ? "#e8f8f2" : "#fde8e8", color: msg.tipo === "ok" ? "#52B69A" : "#e53e3e" }}>
-                    {msg.texto}
-                </div>
-            )}
+        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+            {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
 
-            <div className="bg-white rounded-xl p-5" style={{ border: `1px solid ${C.border}` }}>
-                <p className="text-sm font-semibold mb-4" style={{ color: C.text }}>Nova Matéria</p>
+            <div className="dd-section" style={{ padding:24 }}>
+                <p className="dd-section-title" style={{ marginBottom:16 }}>Nova Matéria</p>
                 <form onSubmit={async e => {
                     e.preventDefault();
                     await api.post("/materias", form);
                     setForm({ nome: "" });
-                    carregar();
-                }} className="flex gap-2">
-                    <input placeholder="Ex: Matemática" value={form.nome}
-                           onChange={e => setForm({ nome: e.target.value })} style={inputStyle} />
-                    <button type="submit" style={{ background: C.primary, color: "white", borderRadius: "8px", padding: "8px 16px", fontSize: "13px", fontWeight: 600 }}>
-                        Adicionar
-                    </button>
+                    buscar(termoDebounced);
+                }} style={{ display:"flex", gap:8 }}>
+                    <div className="dd-input-wrap" style={{ flex:1 }}>
+                        <input className="dd-input" placeholder="Ex: Matemática" value={form.nome}
+                               onChange={e => setForm({ nome: e.target.value })} />
+                        <div className="dd-input-line" />
+                    </div>
+                    <button type="submit" className="dd-btn-primary">Adicionar</button>
                 </form>
             </div>
 
-            <div className="bg-white rounded-xl overflow-hidden" style={{ border: `1px solid ${C.border}` }}>
-                <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${C.border}` }}>
-                    <span className="text-sm font-semibold" style={{ color: C.text }}>Matérias Cadastradas</span>
-                    <span className="text-xs" style={{ color: C.textMuted }}>{materias.length} matérias</span>
+            <div className="dd-section">
+                <div className="dd-section-header" style={{ flexDirection:"column", alignItems:"stretch", gap:12 }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                        <span className="dd-section-title">Matérias Cadastradas</span>
+                        <span className="dd-section-count">{materias.length} matérias</span>
+                    </div>
+                    <div className="dd-search-input-wrap">
+                        <Search size={12} className="dd-search-icon" />
+                        <input className="dd-search-input" value={termoBusca}
+                               onChange={e => setTermoBusca(e.target.value)} placeholder="Pesquisar por nome..." />
+                        {termoBusca && <button className="dd-search-clear" onClick={() => setTermoBusca("")}><X size={12}/></button>}
+                    </div>
                 </div>
-                <table className="w-full">
-                    <thead>
-                    <tr style={{ background: "#f8fafb", borderBottom: `1px solid ${C.border}` }}>
-                        {["#", "Nome", ""].map((h, i) => (
-                            <th key={i} className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider"
-                                style={{ color: C.textMuted }}>{h}</th>
-                        ))}
-                    </tr>
-                    </thead>
+                <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
+                    <thead><tr>{["#","Nome",""].map(h=><th key={h}>{h}</th>)}</tr></thead>
                     <tbody>
-                    {materias.map((m, i) => (
-                        <tr key={m.id} style={{ borderBottom: `1px solid ${C.border}`, background: i % 2 === 0 ? "white" : "#fafbfc" }}>
-                            <td className="px-5 py-3 text-sm" style={{ color: C.textMuted }}>{m.id}</td>
-                            <td className="px-5 py-3 text-sm font-medium" style={{ color: C.text }}>{m.nome}</td>
-                            <td className="px-5 py-3 text-right">
-                                <button onClick={() => excluirMateria(m)}
-                                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition ml-auto hover:opacity-80"
-                                        style={{ background: "#fde8e8", color: "#e53e3e" }}>
-                                    <Trash2 size={12} /> Excluir
-                                </button>
+                    {materias.map(m => (
+                        <tr key={m.id}>
+                            <td style={{ color:"#9aaa9f", width:40 }}>{m.id}</td>
+                            <td style={{ fontWeight:500 }}>{m.nome}</td>
+                            <td style={{ textAlign:"right" }}>
+                                <button className="dd-btn-danger" onClick={() => excluirMateria(m)}>Excluir</button>
                             </td>
                         </tr>
                     ))}
                     </tbody>
                 </table>
             </div>
+        </div>
+    );
+}
+
+
+
+// ---- LANÇAMENTOS ----
+function Lancamentos() {
+    // ── seleção
+    const [turmas, setTurmas] = useState([]);
+    const [turmaId, setTurmaId] = useState("");
+    const [materias, setMaterias] = useState([]);
+    const [materiaId, setMateriaId] = useState("");
+    const [aba, setAba] = useState("notas"); // "notas" | "presenca"
+
+    // ── notas
+    const [avaliacoes, setAvaliacoes] = useState([]);
+    const [alunos, setAlunos] = useState([]);
+    const [avaliacaoSel, setAvaliacaoSel] = useState(null);
+    const [notasEdit, setNotasEdit] = useState({});
+    const [formAv, setFormAv] = useState({ tipo:"PROVA", descricao:"", peso:"1.0", bonificacao:false, bimestre:"1" });
+    const [criandoAv, setCriandoAv] = useState(false);
+
+    // ── presença
+    const [dataAula, setDataAula] = useState(new Date().toISOString().slice(0,10));
+    const [chamada, setChamada] = useState({}); // { alunoId: true/false }
+    const [presencasExistentes, setPresencasExistentes] = useState({});
+    const [historicoPresenca, setHistoricoPresenca] = useState({});
+
+    const [msg, setMsg] = useState({ texto:"", tipo:"" });
+    const [salvando, setSalvando] = useState(false);
+
+    const flash = (texto, tipo="ok") => {
+        setMsg({ texto, tipo });
+        setTimeout(() => setMsg({ texto:"", tipo:"" }), 3000);
+    };
+
+    useEffect(() => {
+        api.get("/turmas").then(r => setTurmas(r.data || []));
+        api.get("/materias").then(r => setMaterias(r.data || []));
+    }, []);
+
+    // carrega alunos da turma
+    useEffect(() => {
+        if (!turmaId) return;
+        api.get(`/vinculos/aluno-turma/turma/${turmaId}`)
+            .then(r => setAlunos((r.data || []).map(v => v.aluno).filter(Boolean)));
+    }, [turmaId]);
+
+    // carrega avaliações
+    useEffect(() => {
+        if (!turmaId || !materiaId) return;
+        api.get("/notas/avaliacoes", { params: { turmaId, materiaId } })
+            .then(r => { setAvaliacoes(r.data || []); setAvaliacaoSel(null); setNotasEdit({}); });
+    }, [turmaId, materiaId]);
+
+    // carrega histórico de presença
+    useEffect(() => {
+        if (!turmaId || !materiaId) return;
+        api.get(`/presencas/turma/${turmaId}/materia/${materiaId}`)
+            .then(r => setHistoricoPresenca(r.data || {}));
+    }, [turmaId, materiaId]);
+
+    // quando muda a data, preenche chamada com registros existentes
+    useEffect(() => {
+        if (!dataAula || !historicoPresenca[dataAula]) {
+            // inicia todos como presente por padrão
+            const init = {};
+            alunos.forEach(a => init[a.id] = true);
+            setChamada(init);
+            setPresencasExistentes({});
+        } else {
+            const registros = historicoPresenca[dataAula];
+            const nova = {};
+            const exist = {};
+            registros.forEach(r => { nova[r.alunoId] = r.presente; exist[r.alunoId] = r.presencaId; });
+            // alunos sem registro = presente por padrão
+            alunos.forEach(a => { if (nova[a.id] === undefined) nova[a.id] = true; });
+            setChamada(nova);
+            setPresencasExistentes(exist);
+        }
+    }, [dataAula, historicoPresenca, alunos]);
+
+    // quando seleciona avaliação, preenche notas existentes
+    const selecionarAvaliacao = (av) => {
+        setAvaliacaoSel(av);
+        const init = {};
+        av.notas.forEach(n => init[n.alunoId] = String(n.valor));
+        setNotasEdit(init);
+    };
+
+    const criarAvaliacao = async (e) => {
+        e.preventDefault();
+        try {
+            await api.post("/notas/avaliacao", { turmaId: String(turmaId), materiaId: String(materiaId), ...formAv, bimestre: formAv.bimestre });
+            flash("Avaliação criada!");
+            setCriandoAv(false);
+            setFormAv({ tipo:"PROVA", descricao:"", peso:"1.0", bonificacao:false, bimestre:"1" });
+            const r = await api.get("/notas/avaliacoes", { params: { turmaId, materiaId } });
+            setAvaliacoes(r.data || []);
+        } catch { flash("Erro ao criar avaliação.", "erro"); }
+    };
+
+    const salvarNotas = async () => {
+        if (!avaliacaoSel) return;
+        setSalvando(true);
+        let erros = 0;
+        for (const aluno of alunos) {
+            const val = notasEdit[aluno.id];
+            if (val === undefined || val === "") continue;
+            try {
+                await api.post("/notas/lancar", {
+                    avaliacaoId: String(avaliacaoSel.id),
+                    alunoId: String(aluno.id),
+                    valor: val
+                });
+            } catch { erros++; }
+        }
+        setSalvando(false);
+        flash(erros > 0 ? `${erros} erro(s) ao salvar.` : "Notas salvas!", erros > 0 ? "erro" : "ok");
+        const r = await api.get("/notas/avaliacoes", { params: { turmaId, materiaId } });
+        setAvaliacoes(r.data || []);
+        if (avaliacaoSel) {
+            const updated = (r.data || []).find(a => a.id === avaliacaoSel.id);
+            if (updated) selecionarAvaliacao(updated);
+        }
+    };
+
+    const salvarChamada = async () => {
+        if (!turmaId || !materiaId || !dataAula) return;
+        setSalvando(true);
+        let erros = 0;
+        for (const aluno of alunos) {
+            try {
+                await api.post("/presencas/lancar", {
+                    alunoId: String(aluno.id),
+                    turmaId: String(turmaId),
+                    materiaId: String(materiaId),
+                    presente: String(chamada[aluno.id] ?? true),
+                    data: dataAula
+                });
+            } catch { erros++; }
+        }
+        setSalvando(false);
+        flash(erros > 0 ? `${erros} erro(s) ao salvar.` : "Chamada salva!", erros > 0 ? "erro" : "ok");
+        const r = await api.get(`/presencas/turma/${turmaId}/materia/${materiaId}`);
+        setHistoricoPresenca(r.data || {});
+    };
+
+    const tipoLabel = { PROVA:"Prova", TRABALHO:"Trabalho", SIMULADO:"Simulado (bônus)" };
+    const tipoColor = { PROVA:{ bg:"#f0f5f2", color:"#2d6a4f" }, TRABALHO:{ bg:"#f5f3ee", color:"#7a5c2e" }, SIMULADO:{ bg:"#f0f0f8", color:"#4a4a8a" } };
+
+    // ── render seletor ──────────────────────────────────────────────────────
+    const semSelecao = !turmaId || !materiaId;
+
+    return (
+        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+
+            {/* Seletor turma + matéria */}
+            <div className="dd-section" style={{ padding:24 }}>
+                <p className="dd-section-title" style={{ marginBottom:20 }}>Selecionar Turma e Matéria</p>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+                    <div>
+                        <label className="dd-label">Turma</label>
+                        <select className="dd-search-input" style={{ width:"100%", paddingLeft:12 }}
+                                value={turmaId} onChange={e => { setTurmaId(e.target.value); setMateriaId(""); }}>
+                            <option value="">Selecione a turma...</option>
+                            {turmas.map(t => <option key={t.id} value={t.id}>{t.nome} — {t.serie?.nome}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="dd-label">Matéria</label>
+                        <select className="dd-search-input" style={{ width:"100%", paddingLeft:12 }}
+                                value={materiaId} onChange={e => setMateriaId(e.target.value)} disabled={!turmaId}>
+                            <option value="">Selecione a matéria...</option>
+                            {materias.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
+                        </select>
+                    </div>
+                </div>
+                {!semSelecao && (
+                    <div style={{ display:"flex", gap:0, marginTop:20, borderBottom:"2px solid #eaeef2" }}>
+                        {[["notas","Notas"],["presenca","Presença"]].map(([id,label]) => (
+                            <button key={id} onClick={() => setAba(id)}
+                                    style={{ padding:"10px 24px", background:"none", border:"none", cursor:"pointer",
+                                        fontSize:12, fontWeight:500, letterSpacing:".06em", textTransform:"uppercase",
+                                        color: aba===id ? "#0d1f18" : "#9aaa9f",
+                                        borderBottom: aba===id ? "2px solid #0d1f18" : "2px solid transparent",
+                                        marginBottom:-2 }}>
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
+
+            {semSelecao && (
+                <div style={{ padding:"48px", textAlign:"center", color:"#9aaa9f", fontSize:13, background:"#fff", border:"1px solid #eaeef2" }}>
+                    Selecione uma turma e matéria para começar.
+                </div>
+            )}
+
+            {/* ── ABA NOTAS ─────────────────────────────────────────────── */}
+            {!semSelecao && aba === "notas" && (
+                <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+
+                    {/* Lista de avaliações */}
+                    <div className="dd-section">
+                        <div className="dd-section-header">
+                            <span className="dd-section-title">Avaliações</span>
+                            <button className="dd-btn-primary" onClick={() => setCriandoAv(true)}>
+                                + Nova Avaliação
+                            </button>
+                        </div>
+
+                        {avaliacoes.length === 0
+                            ? <p style={{ padding:"32px", textAlign:"center", fontSize:12, color:"#9aaa9f" }}>
+                                Nenhuma avaliação criada para essa turma/matéria.
+                            </p>
+                            : <div style={{ display:"flex", flexDirection:"column" }}>
+                                {avaliacoes.map(av => {
+                                    const tc = tipoColor[av.tipo] || tipoColor.PROVA;
+                                    const ativa = avaliacaoSel?.id === av.id;
+                                    const lancadas = av.notas.length;
+                                    return (
+                                        <div key={av.id} onClick={() => selecionarAvaliacao(av)}
+                                             style={{ padding:"14px 20px", display:"flex", alignItems:"center", gap:16,
+                                                 borderBottom:"1px solid #f2f5f2", cursor:"pointer",
+                                                 background: ativa ? "#f8faf8" : "white",
+                                                 borderLeft: ativa ? "3px solid #0d1f18" : "3px solid transparent" }}>
+                                            <span className="dd-badge" style={{ background:tc.bg, color:tc.color, flexShrink:0 }}>
+                                                {tipoLabel[av.tipo]}
+                                            </span>
+                                            <div style={{ flex:1, minWidth:0 }}>
+                                                <p style={{ fontSize:13, fontWeight:500, color:"#0d1f18" }}>
+                                                    {av.descricao || tipoLabel[av.tipo]}
+                                                </p>
+                                                <p style={{ fontSize:11, color:"#9aaa9f", marginTop:2 }}>
+                                                    Peso {av.peso} · {av.dataAplicacao || "sem data"}
+                                                    {av.bonificacao && " · ✦ Bônus"}
+                                                </p>
+                                            </div>
+                                            <span style={{ fontSize:11, color:"#9aaa9f" }}>
+                                                {lancadas}/{alunos.length} notas
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        }
+                    </div>
+
+                    {/* Tabela de notas da avaliação selecionada */}
+                    {avaliacaoSel && (
+                        <div className="dd-section">
+                            <div className="dd-section-header">
+                                <div>
+                                    <span className="dd-section-title">{avaliacaoSel.descricao || tipoLabel[avaliacaoSel.tipo]}</span>
+                                    <p style={{ fontSize:11, color:"#9aaa9f", marginTop:2 }}>
+                                        {avaliacaoSel.bonificacao
+                                            ? "Bônus — valor entre 0.00 e 1.00, não entra no denominador da média"
+                                            : `Peso ${avaliacaoSel.peso} — nota de 0 a 10`}
+                                    </p>
+                                </div>
+                                <button className="dd-btn-primary" onClick={salvarNotas} disabled={salvando}>
+                                    {salvando ? "Salvando..." : "Salvar Notas →"}
+                                </button>
+                            </div>
+                            <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
+                                <thead>
+                                <tr>
+                                    <th>Aluno</th>
+                                    <th style={{ width:180 }}>Nota {avaliacaoSel.bonificacao ? "(0.00–1.00)" : "(0–10)"}</th>
+                                    <th style={{ width:80 }}>Status</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {alunos.map(aluno => {
+                                    const val = notasEdit[aluno.id] ?? "";
+                                    const temNota = avaliacaoSel.notas.some(n => n.alunoId === aluno.id);
+                                    return (
+                                        <tr key={aluno.id}>
+                                            <td>
+                                                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                                    <div style={{ width:26, height:26, background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color:"#7ec8a0", flexShrink:0 }}>
+                                                        {aluno.nome.charAt(0)}
+                                                    </div>
+                                                    <span style={{ fontWeight:500, fontSize:13 }}>{aluno.nome}</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    max={avaliacaoSel.bonificacao ? 1 : 10}
+                                                    step={avaliacaoSel.bonificacao ? 0.01 : 0.1}
+                                                    value={val}
+                                                    onChange={e => setNotasEdit(prev => ({ ...prev, [aluno.id]: e.target.value }))}
+                                                    placeholder="—"
+                                                    className="dd-input"
+                                                    style={{ width:120, padding:"6px 0", fontSize:15, fontFamily:"'Playfair Display',serif", fontWeight:700 }}
+                                                />
+                                            </td>
+                                            <td>
+                                                {temNota
+                                                    ? <span className="dd-badge" style={{ background:"#f0f5f2", color:"#2d6a4f" }}>Lançada</span>
+                                                    : <span className="dd-badge" style={{ background:"#f5f3ee", color:"#7a5c2e" }}>Pendente</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ── ABA PRESENÇA ──────────────────────────────────────────── */}
+            {!semSelecao && aba === "presenca" && (
+                <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                    <div className="dd-section" style={{ padding:24 }}>
+                        <div style={{ display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:16 }}>
+                            <div>
+                                <label className="dd-label">Data da Aula</label>
+                                <div className="dd-input-wrap" style={{ width:180 }}>
+                                    <input className="dd-input" type="date" value={dataAula}
+                                           onChange={e => setDataAula(e.target.value)} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                                {Object.keys(historicoPresenca).length > 0 && (
+                                    <span style={{ fontSize:11, color:"#9aaa9f" }}>
+                                        {Object.keys(historicoPresenca).length} aula(s) registrada(s)
+                                    </span>
+                                )}
+                                <button className="dd-btn-ghost"
+                                        onClick={() => { const init={}; alunos.forEach(a=>init[a.id]=true); setChamada(init); }}>
+                                    Todos Presentes
+                                </button>
+                                <button className="dd-btn-primary" onClick={salvarChamada} disabled={salvando}>
+                                    {salvando ? "Salvando..." : "Salvar Chamada →"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="dd-section">
+                        <div className="dd-section-header">
+                            <span className="dd-section-title">Chamada — {dataAula}</span>
+                            <span className="dd-section-count">
+                                {Object.values(chamada).filter(Boolean).length}/{alunos.length} presentes
+                            </span>
+                        </div>
+                        <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
+                            <thead>
+                            <tr>
+                                <th>Aluno</th>
+                                <th style={{ width:160, textAlign:"center" }}>Presença</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {alunos.map(aluno => {
+                                const presente = chamada[aluno.id] ?? true;
+                                return (
+                                    <tr key={aluno.id}>
+                                        <td>
+                                            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                                <div style={{ width:26, height:26, background: presente ? "#0d1f18" : "#e8e8e8", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color: presente ? "#7ec8a0" : "#aaa", flexShrink:0, transition:"background .15s" }}>
+                                                    {aluno.nome.charAt(0)}
+                                                </div>
+                                                <span style={{ fontWeight:500, fontSize:13, color: presente ? "#0d1f18" : "#aaa", transition:"color .15s" }}>
+                                                    {aluno.nome}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td style={{ textAlign:"center" }}>
+                                            <div style={{ display:"flex", gap:0, justifyContent:"center" }}>
+                                                <button onClick={() => setChamada(p => ({...p, [aluno.id]: true}))}
+                                                        style={{ padding:"6px 16px", border:"1px solid #eaeef2", borderRight:"none", background: presente ? "#0d1f18" : "white", color: presente ? "#7ec8a0" : "#9aaa9f", fontSize:11, fontWeight:500, cursor:"pointer", letterSpacing:".04em", transition:"all .15s" }}>
+                                                    P
+                                                </button>
+                                                <button onClick={() => setChamada(p => ({...p, [aluno.id]: false}))}
+                                                        style={{ padding:"6px 16px", border:"1px solid #eaeef2", background: !presente ? "#b94040" : "white", color: !presente ? "white" : "#9aaa9f", fontSize:11, fontWeight:500, cursor:"pointer", letterSpacing:".04em", transition:"all .15s" }}>
+                                                    F
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Mini histórico de frequência */}
+                    {Object.keys(historicoPresenca).length > 0 && (
+                        <div className="dd-section">
+                            <div className="dd-section-header">
+                                <span className="dd-section-title">Histórico de Frequência</span>
+                            </div>
+                            <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
+                                <thead>
+                                <tr>
+                                    <th>Aluno</th>
+                                    <th>Presenças</th>
+                                    <th>Faltas</th>
+                                    <th>Frequência</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {alunos.map(aluno => {
+                                    const registros = Object.values(historicoPresenca).flatMap(d => d).filter(r => r.alunoId === aluno.id);
+                                    const total = registros.length;
+                                    const presentes = registros.filter(r => r.presente).length;
+                                    const pct = total > 0 ? Math.round((presentes/total)*100) : 0;
+                                    return (
+                                        <tr key={aluno.id}>
+                                            <td style={{ fontWeight:500 }}>{aluno.nome}</td>
+                                            <td style={{ color:"#2d6a4f" }}>{presentes}</td>
+                                            <td style={{ color:"#b94040" }}>{total - presentes}</td>
+                                            <td>
+                                                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                                    <div style={{ flex:1, height:4, background:"#eaeef2", overflow:"hidden" }}>
+                                                        <div style={{ width:`${pct}%`, height:"100%", background: pct >= 75 ? "#7ec8a0" : pct >= 50 ? "#e6a817" : "#b94040", transition:"width .3s" }} />
+                                                    </div>
+                                                    <span style={{ fontSize:12, fontWeight:500, color: pct >= 75 ? "#2d6a4f" : pct >= 50 ? "#a05c00" : "#b94040", width:36, textAlign:"right" }}>
+                                                        {pct}%
+                                                    </span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Modal nova avaliação */}
+            {criandoAv && (
+                <div className="dd-modal-overlay">
+                    <div className="dd-modal">
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:24 }}>
+                            <div>
+                                <p className="dd-modal-title">Nova Avaliação</p>
+                                <p className="dd-modal-sub">{turmas.find(t=>String(t.id)===String(turmaId))?.nome} · {materias.find(m=>String(m.id)===String(materiaId))?.nome}</p>
+                            </div>
+                            <button onClick={() => setCriandoAv(false)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}>
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <form onSubmit={criarAvaliacao} style={{ display:"flex", flexDirection:"column", gap:20 }}>
+                            <div>
+                                <label className="dd-label">Tipo</label>
+                                <div style={{ display:"flex", gap:0 }}>
+                                    {["PROVA","TRABALHO","SIMULADO"].map(t => (
+                                        <button key={t} type="button" onClick={() => setFormAv(p => ({...p, tipo:t, bonificacao: t==="SIMULADO"}))}
+                                                style={{ flex:1, padding:"9px", border:"1px solid #eaeef2", borderRight: t!=="SIMULADO"?"none":"1px solid #eaeef2",
+                                                    background: formAv.tipo===t ? "#0d1f18" : "white",
+                                                    color: formAv.tipo===t ? "#7ec8a0" : "#9aaa9f",
+                                                    fontSize:11, fontWeight:500, letterSpacing:".06em", textTransform:"uppercase", cursor:"pointer" }}>
+                                            {t==="SIMULADO" ? "Bônus" : t}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Bimestre</label>
+                                <div style={{ display:"flex", gap:0 }}>
+                                    {["1","2","3","4"].map((b, i) => (
+                                        <button key={b} type="button"
+                                                onClick={() => setFormAv(p => ({...p, bimestre:b}))}
+                                                style={{ flex:1, padding:"9px", border:"1px solid #eaeef2",
+                                                    borderRight: i < 3 ? "none" : "1px solid #eaeef2",
+                                                    background: formAv.bimestre===b ? "#0d1f18" : "white",
+                                                    color: formAv.bimestre===b ? "#7ec8a0" : "#9aaa9f",
+                                                    fontSize:11, fontWeight:500, letterSpacing:".06em",
+                                                    textTransform:"uppercase", cursor:"pointer" }}>
+                                            {b}º
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Descrição</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" placeholder="Ex: Prova bimestral 1"
+                                           value={formAv.descricao} onChange={e => setFormAv(p => ({...p, descricao:e.target.value}))} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            {formAv.tipo !== "SIMULADO" && (
+                                <div>
+                                    <label className="dd-label">Peso</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" type="number" min="0.1" max="10" step="0.1"
+                                               value={formAv.peso} onChange={e => setFormAv(p => ({...p, peso:e.target.value}))} />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                            )}
+                            {formAv.tipo === "SIMULADO" && (
+                                <div className="dd-ok" style={{ fontSize:12 }}>
+                                    ✦ Bônus — a nota (0.00 a 1.00) é somada à média final sem entrar no denominador.
+                                </div>
+                            )}
+                            <div style={{ display:"flex", gap:8, marginTop:4 }}>
+                                <button type="button" onClick={() => setCriandoAv(false)} className="dd-btn-ghost" style={{ flex:1 }}>Cancelar</button>
+                                <button type="submit" className="dd-btn-primary" style={{ flex:1 }}>Criar Avaliação →</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+
+// ---- ATRASOS ----
+function Atrasos() {
+    const [alunos, setAlunos] = useState([]);
+    const [busca, setBusca] = useState("");
+    const [alunoSel, setAlunoSel] = useState(null);
+    const [obs, setObs] = useState("");
+    const [registros, setRegistros] = useState([]);
+    const [msg, setMsg] = useState({ texto:"", tipo:"" });
+    const [salvando, setSalvando] = useState(false);
+    const [historico, setHistorico] = useState([]);
+    const [verHistorico, setVerHistorico] = useState(false);
+
+    const flash = (texto, tipo="ok") => {
+        setMsg({ texto, tipo });
+        setTimeout(() => setMsg({ texto:"", tipo:"" }), 3000);
+    };
+
+    const carregarHoje = () =>
+        api.get("/atrasos/hoje").then(r => setRegistros(r.data || []));
+
+    useEffect(() => {
+        api.get("/usuarios").then(r =>
+            setAlunos((r.data || []).filter(u => u.role === "ALUNO" && u.ativo))
+        );
+        carregarHoje();
+    }, []);
+
+    const alunosFiltrados = busca.length >= 2
+        ? alunos.filter(a => a.nome.toLowerCase().includes(busca.toLowerCase()))
+        : [];
+
+    const selecionarAluno = (aluno) => {
+        setAlunoSel(aluno);
+        setBusca(aluno.nome);
+        setVerHistorico(false);
+        setHistorico([]);
+    };
+
+    const verHistoricoAluno = async (aluno) => {
+        const r = await api.get(`/atrasos/aluno/${aluno.id}`);
+        setHistorico(r.data || []);
+        setVerHistorico(true);
+    };
+
+    const registrar = async () => {
+        if (!alunoSel) return;
+        setSalvando(true);
+        try {
+            const r = await api.post("/atrasos", {
+                alunoId: String(alunoSel.id),
+                observacao: obs || null
+            });
+            flash(`Atraso registrado — ${r.data.aluno} às ${r.data.horario}`);
+            setAlunoSel(null);
+            setBusca("");
+            setObs("");
+            carregarHoje();
+        } catch { flash("Erro ao registrar.", "erro"); }
+        setSalvando(false);
+    };
+
+    const remover = async (id) => {
+        await api.delete(`/atrasos/${id}`);
+        carregarHoje();
+    };
+
+    const agora = new Date();
+    const dataHoje = agora.toLocaleDateString("pt-BR");
+    const horaAgora = agora.toLocaleTimeString("pt-BR", { hour:"2-digit", minute:"2-digit" });
+
+    return (
+        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+
+            {/* Header do dia */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+                <div className="dd-section" style={{ borderTop:"2px solid #0d1f18", padding:"20px" }}>
+                    <p style={{ fontFamily:"'Playfair Display',serif", fontSize:28, fontWeight:700, color:"#0d1f18", lineHeight:1 }}>
+                        {registros.length}
+                    </p>
+                    <p style={{ fontSize:11, letterSpacing:".06em", textTransform:"uppercase", color:"#9aaa9f", marginTop:4 }}>
+                        Atrasos hoje
+                    </p>
+                </div>
+                <div className="dd-section" style={{ borderTop:"2px solid #7ec8a0", padding:"20px" }}>
+                    <p style={{ fontFamily:"'Playfair Display',serif", fontSize:28, fontWeight:700, color:"#0d1f18", lineHeight:1 }}>
+                        {horaAgora}
+                    </p>
+                    <p style={{ fontSize:11, letterSpacing:".06em", textTransform:"uppercase", color:"#9aaa9f", marginTop:4 }}>
+                        {dataHoje}
+                    </p>
+                </div>
+            </div>
+
+            {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
+
+            {/* Registro de atraso */}
+            <div className="dd-section">
+                <div className="dd-section-header">
+                    <span className="dd-section-title">Registrar Atraso</span>
+                </div>
+                <div style={{ padding:24, display:"flex", flexDirection:"column", gap:20 }}>
+
+                    {/* Busca de aluno */}
+                    <div style={{ position:"relative" }}>
+                        <label className="dd-label">Buscar Aluno</label>
+                        <div className="dd-input-wrap">
+                            <input
+                                className="dd-input"
+                                placeholder="Digite o nome do aluno..."
+                                value={busca}
+                                onChange={e => { setBusca(e.target.value); setAlunoSel(null); setVerHistorico(false); }}
+                                autoComplete="off"
+                            />
+                            <div className="dd-input-line" />
+                        </div>
+
+                        {/* Dropdown sugestões */}
+                        {alunosFiltrados.length > 0 && !alunoSel && (
+                            <div style={{ position:"absolute", top:"100%", left:0, right:0, zIndex:99,
+                                background:"white", border:"1px solid #eaeef2",
+                                boxShadow:"0 8px 24px rgba(13,31,24,.1)", maxHeight:220, overflowY:"auto" }}>
+                                {alunosFiltrados.map(a => (
+                                    <button key={a.id} onClick={() => selecionarAluno(a)}
+                                            style={{ width:"100%", textAlign:"left", padding:"11px 16px",
+                                                background:"none", border:"none", borderBottom:"1px solid #f2f5f2",
+                                                cursor:"pointer", fontSize:13, color:"#0d1f18",
+                                                fontFamily:"'DM Sans',sans-serif", display:"flex",
+                                                alignItems:"center", gap:10 }}>
+                                        <div style={{ width:24, height:24, background:"#0d1f18", flexShrink:0,
+                                            display:"flex", alignItems:"center", justifyContent:"center",
+                                            fontSize:10, fontWeight:600, color:"#7ec8a0" }}>
+                                            {a.nome.charAt(0)}
+                                        </div>
+                                        <span style={{ fontWeight:500 }}>{a.nome}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Aluno selecionado */}
+                    {alunoSel && (
+                        <div style={{ display:"flex", alignItems:"center", gap:16, padding:"14px 16px",
+                            background:"#f8faf8", border:"1px solid #eaeef2", borderLeft:"3px solid #7ec8a0" }}>
+                            <div style={{ width:36, height:36, background:"#0d1f18", display:"flex",
+                                alignItems:"center", justifyContent:"center", fontSize:14,
+                                fontWeight:600, color:"#7ec8a0", flexShrink:0 }}>
+                                {alunoSel.nome.charAt(0)}
+                            </div>
+                            <div style={{ flex:1 }}>
+                                <p style={{ fontWeight:500, fontSize:14, color:"#0d1f18" }}>{alunoSel.nome}</p>
+                                <p style={{ fontSize:11, color:"#9aaa9f" }}>
+                                    Selecionado · clique em "Ver Histórico" para conferir ocorrências anteriores
+                                </p>
+                            </div>
+                            <button className="dd-btn-ghost" onClick={() => verHistoricoAluno(alunoSel)}
+                                    style={{ fontSize:11, whiteSpace:"nowrap" }}>
+                                Ver Histórico
+                            </button>
+                            <button onClick={() => { setAlunoSel(null); setBusca(""); setVerHistorico(false); }}
+                                    style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f", padding:4 }}>
+                                <X size={14} />
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Histórico do aluno */}
+                    {verHistorico && historico.length > 0 && (
+                        <div style={{ background:"#fdf9f0", border:"1px solid #e8d9a0", padding:"12px 16px" }}>
+                            <p style={{ fontSize:11, fontWeight:500, letterSpacing:".08em", textTransform:"uppercase",
+                                color:"#a05c00", marginBottom:8 }}>
+                                ⚠ {historico.length} atraso(s) registrado(s) para este aluno
+                            </p>
+                            <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                                {historico.slice(0,5).map(h => (
+                                    <p key={h.id} style={{ fontSize:12, color:"#7a5c2e" }}>
+                                        {new Date(h.data).toLocaleDateString("pt-BR")} às {h.horario}
+                                        {h.turma !== "—" ? ` · ${h.turma}` : ""}
+                                        {h.observacao ? ` — ${h.observacao}` : ""}
+                                    </p>
+                                ))}
+                                {historico.length > 5 && (
+                                    <p style={{ fontSize:11, color:"#9aaa9f" }}>... e mais {historico.length - 5}</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Observação opcional */}
+                    <div>
+                        <label className="dd-label">Observação (opcional)</label>
+                        <div className="dd-input-wrap">
+                            <input className="dd-input" placeholder="Ex: Problema no transporte..."
+                                   value={obs} onChange={e => setObs(e.target.value)} />
+                            <div className="dd-input-line" />
+                        </div>
+                    </div>
+
+                    <button className="dd-btn-primary" onClick={registrar}
+                            disabled={!alunoSel || salvando}
+                            style={{ alignSelf:"flex-start", padding:"12px 32px" }}>
+                        {salvando ? "Registrando..." : "Registrar Atraso →"}
+                    </button>
+                </div>
+            </div>
+
+            {/* Lista do dia */}
+            <div className="dd-section">
+                <div className="dd-section-header">
+                    <span className="dd-section-title">Atrasos de Hoje</span>
+                    <span className="dd-section-count">{registros.length} registro(s)</span>
+                </div>
+                {registros.length === 0
+                    ? <p style={{ padding:"40px", textAlign:"center", fontSize:13, color:"#9aaa9f" }}>
+                        Nenhum atraso registrado hoje.
+                    </p>
+                    : <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
+                        <thead>
+                        <tr>
+                            <th>Aluno</th>
+                            <th style={{ width:80 }}>Horário</th>
+                            <th>Turma</th>
+                            <th>Observação</th>
+                            <th style={{ width:60 }}></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {registros.map((r, i) => (
+                            <tr key={r.id}>
+                                <td>
+                                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                        <div style={{ width:26, height:26, background:"#0d1f18", flexShrink:0,
+                                            display:"flex", alignItems:"center", justifyContent:"center",
+                                            fontSize:10, fontWeight:600, color:"#7ec8a0" }}>
+                                            {r.alunoNome.charAt(0)}
+                                        </div>
+                                        <span style={{ fontWeight:500, fontSize:13 }}>{r.alunoNome}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span style={{ fontFamily:"'Playfair Display',serif", fontWeight:700,
+                                        fontSize:15, color:"#0d1f18" }}>
+                                        {r.horario}
+                                    </span>
+                                </td>
+                                <td style={{ color:"#9aaa9f", fontSize:12 }}>{r.turma}</td>
+                                <td style={{ color:"#9aaa9f", fontSize:12 }}>{r.observacao || "—"}</td>
+                                <td>
+                                    <button onClick={() => remover(r.id)} className="dd-btn-danger"
+                                            title="Remover registro">
+                                        <Trash2 size={13} />
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                }
+            </div>
+        </div>
+    );
+}
+
+// ---- BOLETINS ----
+function Boletins() {
+    const [alunos, setAlunos] = useState([]);
+    const [turmas, setTurmas] = useState([]);
+    const [alunoId, setAlunoId] = useState("");
+    const [turmaId, setTurmaId] = useState("");
+    const [boletim, setBoletim] = useState(null);
+    const [carregando, setCarregando] = useState(false);
+    const [logo, setLogo] = useState(() => localStorage.getItem("escola_logo") || null);
+    const [gerando, setGerando] = useState(false);
+    const [preview, setPreview] = useState(false);
+    const boletimRef = useRef(null);
+
+    useEffect(() => {
+        api.get("/usuarios").then(r => setAlunos((r.data || []).filter(u => u.role === "ALUNO" && u.ativo)));
+        api.get("/turmas").then(r => setTurmas(r.data || []));
+    }, []);
+
+    const handleLogo = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const dataUrl = ev.target.result;
+            setLogo(dataUrl);
+            localStorage.setItem("escola_logo", dataUrl);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const gerarBoletim = async () => {
+        if (!alunoId || !turmaId) return;
+        setCarregando(true);
+        setBoletim(null);
+        setPreview(false);
+        try {
+            const r = await api.get(`/notas/boletim/${alunoId}/${turmaId}`);
+            setBoletim(r.data);
+            setPreview(true);
+        } catch (e) {
+            alert("Erro ao gerar boletim.");
+        } finally {
+            setCarregando(false);
+        }
+    };
+
+    const baixarPDF = async () => {
+        if (!boletimRef.current) return;
+        setGerando(true);
+        try {
+            const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+                import("jspdf"),
+                import("html2canvas"),
+            ]);
+            const canvas = await html2canvas(boletimRef.current, {
+                scale: 2, useCORS: true, backgroundColor: "#fff",
+            });
+            const imgData = canvas.toDataURL("image/png");
+            const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+            const pdfW = pdf.internal.pageSize.getWidth();
+            const pdfH = (canvas.height * pdfW) / canvas.width;
+            pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
+            const nome = (boletim?.aluno?.nome || "aluno").replace(/\s+/g,"_").toLowerCase();
+            pdf.save(`boletim_${nome}.pdf`);
+        } catch (e) {
+            alert("Erro ao gerar PDF.\nInstale as dependências:\nnpm install jspdf html2canvas");
+        }
+        setGerando(false);
+    };
+
+    return (
+        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+
+            {/* Configuração do logo */}
+            <div className="dd-section" style={{ padding:24 }}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+                    <p className="dd-section-title">Logo da Escola</p>
+                    {logo && (
+                        <button onClick={() => { setLogo(null); localStorage.removeItem("escola_logo"); }}
+                                className="dd-btn-ghost" style={{ fontSize:10 }}>Remover logo</button>
+                    )}
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:20 }}>
+                    <div style={{ width:100, height:64, border:"1px solid #eaeef2", display:"flex",
+                        alignItems:"center", justifyContent:"center", overflow:"hidden", background:"#f8faf8" }}>
+                        {logo
+                            ? <img src={logo} style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain" }} alt="logo" />
+                            : <span style={{ fontSize:10, color:"#9aaa9f", textAlign:"center" }}>Sem logo</span>
+                        }
+                    </div>
+                    <div>
+                        <label className="dd-label">Carregar imagem (PNG, JPG)</label>
+                        <input type="file" accept="image/*" onChange={handleLogo}
+                               style={{ fontSize:12, color:"#0d1f18", fontFamily:"'DM Sans',sans-serif" }} />
+                        <p style={{ fontSize:11, color:"#9aaa9f", marginTop:4 }}>
+                            Salvo localmente no navegador. Recomendado: fundo transparente, proporção ~3:2.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Seletor aluno + turma */}
+            <div className="dd-section" style={{ padding:24 }}>
+                <p className="dd-section-title" style={{ marginBottom:20 }}>Gerar Boletim</p>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:16, alignItems:"flex-end" }}>
+                    <div>
+                        <label className="dd-label">Aluno</label>
+                        <SearchSelect
+                            options={alunos.map(a => ({ value: a.id, label: a.nome }))}
+                            value={alunoId} onChange={setAlunoId}
+                            placeholder="Selecione o aluno..." />
+                    </div>
+                    <div>
+                        <label className="dd-label">Turma</label>
+                        <SearchSelect
+                            options={turmas.map(t => ({ value: t.id, label: `${t.nome} — ${t.serie?.nome || ""}` }))}
+                            value={turmaId} onChange={setTurmaId}
+                            placeholder="Selecione a turma..." />
+                    </div>
+                    <button onClick={gerarBoletim} disabled={!alunoId || !turmaId || carregando}
+                            className="dd-btn-primary" style={{ whiteSpace:"nowrap" }}>
+                        {carregando ? "Carregando..." : "Gerar →"}
+                    </button>
+                </div>
+            </div>
+
+            {/* Preview + PDF */}
+            {preview && boletim && (
+                <div className="dd-section">
+                    <div className="dd-section-header">
+                        <div>
+                            <span className="dd-section-title">{boletim.aluno?.nome}</span>
+                            <p style={{ fontSize:11, color:"#9aaa9f", marginTop:2 }}>
+                                {boletim.turma?.nome} · {boletim.turma?.anoLetivo}
+                            </p>
+                        </div>
+                        <div style={{ display:"flex", gap:8 }}>
+                            <button className="dd-btn-ghost" onClick={() => setPreview(p => !p)}>
+                                {preview ? "Ocultar preview" : "Ver preview"}
+                            </button>
+                            <button className="dd-btn-primary" onClick={baixarPDF} disabled={gerando}>
+                                {gerando ? "Gerando..." : "Baixar PDF →"}
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Preview visual */}
+                    <div style={{ padding:20, background:"#f2f4f2", overflowX:"auto" }}>
+                        <div ref={boletimRef} style={{ transformOrigin:"top left" }}>
+                            <BoletimImpresso boletim={boletim} logo={logo} />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

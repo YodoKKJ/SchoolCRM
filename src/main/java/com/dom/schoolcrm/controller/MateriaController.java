@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import org.springframework.http.HttpStatus;
 import java.util.Map;
@@ -35,6 +36,13 @@ public class MateriaController {
     public ResponseEntity<List<Materia>> listar() {
         return ResponseEntity.ok(materiaRepository.findAll());
     }
+    @GetMapping("/buscar")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR')")
+    public ResponseEntity<List<Materia>> buscar(@RequestParam(required = false) String nome) {
+        String nomeParam = (nome == null || nome.isBlank()) ? null : nome.trim();
+        return ResponseEntity.ok(materiaRepository.buscar(nomeParam));
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('DIRECAO')")
     public ResponseEntity<?> deletarMateria(@PathVariable Long id) {
