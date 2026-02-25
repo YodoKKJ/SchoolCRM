@@ -1,5 +1,6 @@
 package com.dom.schoolcrm.security;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -38,6 +39,10 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/materias/**").hasRole("DIRECAO")
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/vinculos/**").hasRole("DIRECAO")
                         .anyRequest().authenticated()
+                )
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) ->
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
