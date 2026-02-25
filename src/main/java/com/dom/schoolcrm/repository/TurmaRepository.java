@@ -13,8 +13,9 @@ public interface TurmaRepository extends JpaRepository<Turma, Long> {
 
     List<Turma> findBySerieId(Long serieId);
 
-    @Query("SELECT t FROM Turma t WHERE " +
-            "(:nome IS NULL OR LOWER(t.nome) LIKE LOWER(CONCAT('%', :nome, '%'))) AND " +
-            "(:serieId IS NULL OR t.serie.id = :serieId)")
+    @Query(value = "SELECT * FROM turmas WHERE " +
+            "(CAST(:nome AS TEXT) IS NULL OR LOWER(nome) LIKE LOWER('%' || CAST(:nome AS TEXT) || '%')) AND " +
+            "(:serieId IS NULL OR serie_id = :serieId)",
+            nativeQuery = true)
     List<Turma> buscar(@Param("nome") String nome, @Param("serieId") Long serieId);
 }

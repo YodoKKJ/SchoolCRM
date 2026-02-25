@@ -11,6 +11,8 @@ import java.util.List;
 @Repository
 public interface MateriaRepository extends JpaRepository<Materia, Long> {
 
-    @Query("SELECT m FROM Materia m WHERE (:nome IS NULL OR LOWER(m.nome) LIKE LOWER(CONCAT('%', :nome, '%')))")
+    @Query(value = "SELECT * FROM materias WHERE " +
+           "(CAST(:nome AS TEXT) IS NULL OR LOWER(nome) LIKE LOWER('%' || CAST(:nome AS TEXT) || '%'))",
+           nativeQuery = true)
     List<Materia> buscar(@Param("nome") String nome);
 }
