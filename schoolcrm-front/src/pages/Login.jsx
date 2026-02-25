@@ -8,13 +8,14 @@ export default function Login() {
     const [loading, setLoading] = useState(false);
     const [focusLogin, setFocusLogin] = useState(false);
     const [focusSenha, setFocusSenha] = useState(false);
+    const [lembrar, setLembrar] = useState(false);
 
     const handleLogin = async (e) => {
         e.preventDefault();
         setErro("");
         setLoading(true);
         try {
-            const response = await axios.post("http://localhost:8080/auth/login", { login, senha });
+            const response = await axios.post("http://localhost:8080/auth/login", { login, senha, lembrar: lembrar ? "true" : "false" });
             const { token, role, nome } = response.data;
             localStorage.setItem("token", token);
             localStorage.setItem("role", role);
@@ -322,6 +323,39 @@ export default function Login() {
                     transform: translateX(4px);
                 }
 
+                /* lembrar */
+                .lembrar-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    margin-bottom: 24px;
+                    cursor: pointer;
+                    user-select: none;
+                }
+
+                .lembrar-box {
+                    width: 16px;
+                    height: 16px;
+                    border: 1.5px solid #d4d9d6;
+                    background: transparent;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
+                    transition: border-color 0.2s, background 0.2s;
+                }
+
+                .lembrar-box.checked {
+                    border-color: #0d1f18;
+                    background: #0d1f18;
+                }
+
+                .lembrar-label {
+                    font-size: 12px;
+                    color: #8a9490;
+                    letter-spacing: 0.04em;
+                }
+
                 /* rodapé */
                 .form-footer {
                     margin-top: 32px;
@@ -412,6 +446,17 @@ export default function Login() {
                                     />
                                     <div className="field-line" />
                                 </div>
+                            </div>
+
+                            <div className="lembrar-row" onClick={() => setLembrar(v => !v)}>
+                                <div className={`lembrar-box ${lembrar ? "checked" : ""}`}>
+                                    {lembrar && (
+                                        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                                            <path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                        </svg>
+                                    )}
+                                </div>
+                                <span className="lembrar-label">Lembrar de mim por 30 dias</span>
                             </div>
 
                             {erro && <div className="erro-msg">{erro}</div>}

@@ -50,7 +50,8 @@ public class AuthController {
                     .body("Senha incorreta");
         }
 
-        String token = jwtUtil.gerarToken(usuario.getLogin(), usuario.getRole());
+        boolean lembrar = "true".equalsIgnoreCase(body.get("lembrar"));
+        String token = jwtUtil.gerarToken(usuario.getLogin(), usuario.getRole(), lembrar);
 
         return ResponseEntity.ok(Map.of(
                 "token", token,
