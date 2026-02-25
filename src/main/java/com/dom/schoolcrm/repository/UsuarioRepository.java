@@ -13,8 +13,9 @@ import java.util.Optional;
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     Optional<Usuario> findByLogin(String login);
 
-    @Query("SELECT u FROM Usuario u WHERE " +
-           "(:nome IS NULL OR LOWER(u.nome) LIKE LOWER(CONCAT('%', :nome, '%'))) AND " +
-           "(:role IS NULL OR LOWER(u.role) LIKE LOWER(CONCAT('%', :role, '%')))")
+    @Query(value = "SELECT * FROM usuarios WHERE " +
+           "(CAST(:nome AS TEXT) IS NULL OR LOWER(nome) LIKE LOWER('%' || CAST(:nome AS TEXT) || '%')) AND " +
+           "(CAST(:role AS TEXT) IS NULL OR LOWER(role) LIKE LOWER('%' || CAST(:role AS TEXT) || '%'))",
+           nativeQuery = true)
     List<Usuario> buscar(@Param("nome") String nome, @Param("role") String role);
 }
