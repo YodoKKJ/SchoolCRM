@@ -16,18 +16,20 @@ public class JwtUtil {
     @Value("${jwt.secret}")
     private String secret;
 
-    private final long expiracaoMs = 86400000;
+    private final long expiracaoMs = 86400000;           // 1 dia
+    private final long expiracaoLembrarMs = 2592000000L; // 30 dias
 
     private Key getChave() {
         return Keys.hmacShaKeyFor(secret.getBytes());
     }
 
-    public String gerarToken(String login, String role) {
+    public String gerarToken(String login, String role, boolean lembrar) {
+        long expiracao = lembrar ? expiracaoLembrarMs : expiracaoMs;
         return Jwts.builder()
                 .setSubject(login)
                 .claim("role", role)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + expiracaoMs))
+                .setExpiration(new Date(System.currentTimeMillis() + expiracao))
                 .signWith(getChave())
                 .compact();
     }
