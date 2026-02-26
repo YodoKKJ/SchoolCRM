@@ -31,23 +31,31 @@ public class AtrasoController {
         if (aluno.isEmpty() || !aluno.get().getRole().equals("ALUNO"))
             return ResponseEntity.badRequest().body("Aluno não encontrado");
 
+        // Data opcional — padrão: hoje
+        String dataStr = body.get("data");
+        LocalDate dataRegistro = (dataStr != null && !dataStr.isBlank())
+                ? LocalDate.parse(dataStr)
+                : LocalDate.now();
+
         // Busca turma do aluno automaticamente
         var vinculos = alunoTurmaRepository.findByAlunoId(alunoId);
         Turma turma = vinculos.isEmpty() ? null : vinculos.get(0).getTurma();
 
-        // Verifica se já tem atraso hoje
-        LocalDateTime inicioDia = LocalDate.now().atStartOfDay();
+        // Verifica se já tem atraso no dia especificado
+        LocalDateTime inicioDia = dataRegistro.atStartOfDay();
         LocalDateTime fimDia = inicioDia.plusDays(1);
-        List<Atraso> hoje = atrasoRepository.findByData(inicioDia, fimDia);
-        boolean jaTemHoje = hoje.stream().anyMatch(a -> a.getAluno().getId().equals(alunoId));
-        if (jaTemHoje)
+        List<Atraso> doDia = atrasoRepository.findByData(inicioDia, fimDia);
+        boolean jaTemNoDia = doDia.stream().anyMatch(a -> a.getAluno().getId().equals(alunoId));
+        if (jaTemNoDia)
             return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body("Aluno já tem atraso registrado hoje");
+                    .body("Aluno já tem atraso registrado neste dia");
+
+        LocalDateTime registradoEm = dataRegistro.atTime(LocalDateTime.now().toLocalTime());
 
         Atraso atraso = new Atraso();
         atraso.setAluno(aluno.get());
         atraso.setTurma(turma);
-        atraso.setRegistradoEm(LocalDateTime.now());
+        atraso.setRegistradoEm(registradoEm);
         atraso.setObservacao(body.getOrDefault("observacao", ""));
         atrasoRepository.save(atraso);
 
@@ -55,7 +63,8 @@ public class AtrasoController {
             "id", atraso.getId(),
             "aluno", aluno.get().getNome(),
             "turma", turma != null ? turma.getNome() : "",
-            "registradoEm", atraso.getRegistradoEm().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")),
+            "horario", registradoEm.format(DateTimeFormatter.ofPattern("HH:mm")),
+            "registradoEm", registradoEm.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")),
             "mensagem", "Atraso registrado com sucesso"
         ));
     }
@@ -108,7 +117,7 @@ public class AtrasoController {
         m.put("turma", a.getTurma() != null ? a.getTurma().getNome() : "—");
         m.put("registradoEm", a.getRegistradoEm().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
         m.put("data", a.getRegistradoEm().toLocalDate().toString());
-        m.put("hora", a.getRegistradoEm().format(DateTimeFormatter.ofPattern("HH:mm")));
+        m.put("horario", a.getRegistradoEm().format(DateTimeFormatter.ofPattern("HH:mm")));
         m.put("observacao", a.getObservacao() != null ? a.getObservacao() : "");
         return m;
     }

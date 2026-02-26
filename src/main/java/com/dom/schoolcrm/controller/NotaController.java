@@ -155,6 +155,7 @@ public class NotaController {
             item.put("dataAplicacao", av.getDataAplicacao());
             item.put("peso", av.getPeso());
             item.put("bonificacao", av.getBonificacao());
+            item.put("bimestre", av.getBimestre() != null ? av.getBimestre() : 1);
             item.put("notas", notas.stream().map(n -> Map.of(
                     "alunoId", n.getAluno().getId(),
                     "alunoNome", n.getAluno().getNome(),
