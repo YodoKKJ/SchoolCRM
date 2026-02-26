@@ -16,7 +16,7 @@ public class JwtUtil {
     @Value("${jwt.secret}")
     private String secret;
 
-    private final long expiracaoMs = 86400000;           // 1 dia
+    private final long expiracaoMs = 604800000L;          // 7 dias
     private final long expiracaoLembrarMs = 2592000000L; // 30 dias
 
     private Key getChave() {
