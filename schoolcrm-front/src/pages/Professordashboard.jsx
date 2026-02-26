@@ -11,10 +11,12 @@ api.interceptors.request.use(config => {
     return config;
 });
 
+let redirectingTo401 = false;
 api.interceptors.response.use(
     response => response,
     error => {
-        if (error.response?.status === 401) {
+        if (error.response?.status === 401 && !redirectingTo401) {
+            redirectingTo401 = true;
             localStorage.removeItem("token");
             localStorage.removeItem("role");
             localStorage.removeItem("nome");

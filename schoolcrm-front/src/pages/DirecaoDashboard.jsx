@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Component } from "react";
 import axios from "axios";
 import { BoletimImpresso } from "./BoletimPDF";
 import {
@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 
 const api = axios.create({ baseURL: "http://localhost:8080" });
+
+let redirectingTo401 = false;
 
 // Hook debounce — espera Xms após parar de digitar
 function useDebounce(value, delay = 400) {
@@ -51,7 +53,8 @@ api.interceptors.request.use(config => {
 api.interceptors.response.use(
     response => response,
     error => {
-        if (error.response?.status === 401) {
+        if (error.response?.status === 401 && !redirectingTo401) {
+            redirectingTo401 = true;
             localStorage.removeItem("token");
             localStorage.removeItem("role");
             localStorage.removeItem("nome");
@@ -123,7 +126,7 @@ function SearchSelect({ options, value, onChange, placeholder }) {
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState("");
     const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
-    const divRef = { current: null };
+    const divRef = useRef(null);
 
     const selected = options.find(o => String(o.value) === String(value));
     const filtered = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()));
@@ -279,6 +282,32 @@ const GLOBAL_STYLE = `
 .dd-search-clear { position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:#9aaa9f; cursor:pointer; padding:0; }
 `;
 
+class ErrorBoundary extends Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false };
+    }
+    static getDerivedStateFromError() {
+        return { hasError: true };
+    }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div style={{ padding: 48, textAlign: "center", color: "#6b7a8d" }}>
+                    <p style={{ fontSize: 15, marginBottom: 16 }}>Algo deu errado ao carregar esta seção.</p>
+                    <button
+                        onClick={() => this.setState({ hasError: false })}
+                        style={{ background: "#0d1f18", color: "#fff", border: "none", padding: "10px 24px",
+                            fontFamily: "'DM Sans',sans-serif", fontSize: 12, cursor: "pointer" }}>
+                        Tentar novamente
+                    </button>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
+
 export default function DirecaoDashboard() {
     const [aba, setAba] = useState("inicio");
     const [sidebarAberta, setSidebarAberta] = useState(false);
@@ -387,13 +416,13 @@ export default function DirecaoDashboard() {
                     </header>
 
                     <main style={{ flex:1, padding:"28px 32px", display:"flex", flexDirection:"column", gap:0 }}>
-                        {aba === "inicio" && <Inicio />}
-                        {aba === "usuarios" && <Usuarios />}
-                        {aba === "turmas" && <Turmas />}
-                        {aba === "materias" && <Materias />}
-                        {aba === "atrasos" && <Atrasos />}
-                        {aba === "lancamentos" && <Lancamentos />}
-                        {aba === "boletins" && <Boletins />}
+                        {aba === "inicio" && <ErrorBoundary key="inicio"><Inicio /></ErrorBoundary>}
+                        {aba === "usuarios" && <ErrorBoundary key="usuarios"><Usuarios /></ErrorBoundary>}
+                        {aba === "turmas" && <ErrorBoundary key="turmas"><Turmas /></ErrorBoundary>}
+                        {aba === "materias" && <ErrorBoundary key="materias"><Materias /></ErrorBoundary>}
+                        {aba === "atrasos" && <ErrorBoundary key="atrasos"><Atrasos /></ErrorBoundary>}
+                        {aba === "lancamentos" && <ErrorBoundary key="lancamentos"><Lancamentos /></ErrorBoundary>}
+                        {aba === "boletins" && <ErrorBoundary key="boletins"><Boletins /></ErrorBoundary>}
                     </main>
                 </div>
             </div>
@@ -409,14 +438,16 @@ function Inicio() {
     useEffect(() => {
         Promise.all([api.get("/usuarios"), api.get("/turmas"), api.get("/materias")])
             .then(([u, t, m]) => {
-                setUsuarios(u.data);
+                const listaUsuarios = u.data || [];
+                setUsuarios(listaUsuarios);
                 setStats({
-                    alunos: u.data.filter(x => x.role === "ALUNO").length,
-                    professores: u.data.filter(x => x.role === "PROFESSOR").length,
-                    turmas: t.data.length,
-                    materias: m.data.length,
+                    alunos: listaUsuarios.filter(x => x.role === "ALUNO").length,
+                    professores: listaUsuarios.filter(x => x.role === "PROFESSOR").length,
+                    turmas: (t.data || []).length,
+                    materias: (m.data || []).length,
                 });
-            });
+            })
+            .catch(() => {});
     }, []);
 
     const cards = [
