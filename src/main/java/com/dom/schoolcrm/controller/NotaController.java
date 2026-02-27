@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -298,6 +299,19 @@ public class NotaController {
                 "frequenciaGeral", freqGeral,
                 "totalFaltasGeral", faltasGeral
         ));
+    }
+
+    @DeleteMapping("/avaliacao/{id}")
+    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO')")
+    @Transactional
+    public ResponseEntity<?> deletarAvaliacao(@PathVariable Long id) {
+        if (!avaliacaoRepository.existsById(id))
+            return ResponseEntity.notFound().build();
+
+        notaRepository.deleteAll(notaRepository.findByAvaliacaoId(id));
+        avaliacaoRepository.deleteById(id);
+
+        return ResponseEntity.ok(Map.of("mensagem", "Avaliação e notas removidas com sucesso"));
     }
 
     @GetMapping("/minhas")

@@ -560,7 +560,8 @@ function Usuarios() {
             carregar();
             setTimeout(() => setEditando(null), 1000);
         } catch (err) {
-            const msg = err.response?.data || "Erro ao atualizar.";
+            const raw = err.response?.data;
+            const msg = typeof raw === "string" ? raw : (raw?.message || "Erro ao atualizar.");
             setMsgEdit({ texto: msg, tipo: "erro" });
         }
     };
@@ -1235,6 +1236,18 @@ function Lancamentos() {
         }
     };
 
+    const deletarAvaliacao = async (av, e) => {
+        e.stopPropagation();
+        if (!confirm(`Excluir a avaliação "${av.descricao || av.tipo}" e todas as suas notas? Esta ação não pode ser desfeita.`)) return;
+        try {
+            await api.delete(`/notas/avaliacao/${av.id}`);
+            if (avaliacaoSel?.id === av.id) setAvaliacaoSel(null);
+            const r = await api.get("/notas/avaliacoes", { params: { turmaId, materiaId } });
+            setAvaliacoes(r.data || []);
+            flash("Avaliação excluída.");
+        } catch { flash("Erro ao excluir avaliação.", "erro"); }
+    };
+
     const salvarChamada = async () => {
         if (!turmaId || !materiaId || !dataAula) return;
         setSalvando(true);
@@ -1381,6 +1394,16 @@ function Lancamentos() {
                                                 <span style={{ fontSize:11, color:"#9aaa9f" }}>
                                                     {lancadas}/{alunos.length} notas
                                                 </span>
+                                                <button
+                                                    onClick={(e) => deletarAvaliacao(av, e)}
+                                                    title="Excluir avaliação"
+                                                    style={{ background:"none", border:"none", cursor:"pointer",
+                                                        color:"#c0392b", padding:"4px 6px", borderRadius:4,
+                                                        fontSize:14, lineHeight:1, flexShrink:0,
+                                                        opacity: 0.6 }}
+                                                    onMouseEnter={e => e.currentTarget.style.opacity = "1"}
+                                                    onMouseLeave={e => e.currentTarget.style.opacity = "0.6"}
+                                                >✕</button>
                                             </div>
                                         );
                                     })}

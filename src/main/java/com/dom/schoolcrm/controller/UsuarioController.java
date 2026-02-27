@@ -66,4 +66,54 @@ public class UsuarioController {
         String roleParam = (role == null || role.isBlank()) ? null : role.trim();
         return ResponseEntity.ok(usuarioRepository.buscar(nomeParam, roleParam));
     }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('DIRECAO')")
+    public ResponseEntity<?> editar(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        var opt = usuarioRepository.findById(id);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+
+        Usuario usuario = opt.get();
+
+        String nome = body.get("nome");
+        if (nome != null && !nome.isBlank()) usuario.setNome(nome.trim());
+
+        String login = body.get("login");
+        if (login != null && !login.isBlank() && !login.equals(usuario.getLogin())) {
+            if (usuarioRepository.findByLogin(login).isPresent())
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("Login já existe");
+            usuario.setLogin(login.trim());
+        }
+
+        String senha = body.get("senha");
+        if (senha != null && !senha.isBlank()) {
+            usuario.setSenhaHash(passwordEncoder.encode(senha));
+        }
+
+        usuarioRepository.save(usuario);
+
+        return ResponseEntity.ok(Map.of(
+                "id", usuario.getId(),
+                "nome", usuario.getNome(),
+                "login", usuario.getLogin(),
+                "role", usuario.getRole(),
+                "ativo", usuario.getAtivo()
+        ));
+    }
+
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasRole('DIRECAO')")
+    public ResponseEntity<?> alterarStatus(@PathVariable Long id) {
+        var opt = usuarioRepository.findById(id);
+        if (opt.isEmpty()) return ResponseEntity.notFound().build();
+
+        Usuario usuario = opt.get();
+        usuario.setAtivo(!Boolean.TRUE.equals(usuario.getAtivo()));
+        usuarioRepository.save(usuario);
+
+        return ResponseEntity.ok(Map.of(
+                "id", usuario.getId(),
+                "ativo", usuario.getAtivo()
+        ));
+    }
 }
