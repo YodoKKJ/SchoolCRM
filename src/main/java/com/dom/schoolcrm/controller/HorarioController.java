@@ -6,10 +6,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/horarios")
@@ -19,6 +21,8 @@ public class HorarioController {
     @Autowired private TurmaRepository turmaRepository;
     @Autowired private MateriaRepository materiaRepository;
     @Autowired private UsuarioRepository usuarioRepository;
+    @Autowired private ProfessorTurmaMateriaRepository professorTurmaMateriaRepository;
+    @Autowired private AlunoTurmaRepository alunoTurmaRepository;
 
     private static final List<String> DIAS_VALIDOS = List.of("SEG", "TER", "QUA", "QUI", "SEX");
 
@@ -106,6 +110,46 @@ public class HorarioController {
                 "total", salvos.size(),
                 "horarios", salvos
         ));
+    }
+
+    // Listar horários filtrados pelo perfil do usuário logado
+    // ALUNO → apenas sua turma | PROFESSOR → apenas suas turmas | DIRECAO → todos
+    @GetMapping("/minhas")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR', 'ALUNO')")
+    public ResponseEntity<?> listarMinhas(Authentication auth) {
+        String login = auth.getName();
+        var usuario = usuarioRepository.findByLogin(login);
+        if (usuario.isEmpty()) return ResponseEntity.badRequest().body("Usuário não encontrado");
+
+        String role = usuario.get().getRole();
+
+        if ("ALUNO".equals(role)) {
+            var vinculos = alunoTurmaRepository.findByAlunoId(usuario.get().getId());
+            List<Long> turmaIds = vinculos.stream()
+                    .map(v -> v.getTurma().getId())
+                    .distinct()
+                    .collect(Collectors.toList());
+            if (turmaIds.isEmpty()) return ResponseEntity.ok(List.of());
+            List<Horario> horarios = horarioRepository
+                    .findByTurmaIdInOrderByTurmaIdAscDiaSemanaAscOrdemAulaAsc(turmaIds);
+            return ResponseEntity.ok(horarios.stream().map(this::toMap).toList());
+        }
+
+        if ("PROFESSOR".equals(role)) {
+            var vinculos = professorTurmaMateriaRepository.findByProfessorId(usuario.get().getId());
+            List<Long> turmaIds = vinculos.stream()
+                    .map(v -> v.getTurma().getId())
+                    .distinct()
+                    .collect(Collectors.toList());
+            if (turmaIds.isEmpty()) return ResponseEntity.ok(List.of());
+            List<Horario> horarios = horarioRepository
+                    .findByTurmaIdInOrderByTurmaIdAscDiaSemanaAscOrdemAulaAsc(turmaIds);
+            return ResponseEntity.ok(horarios.stream().map(this::toMap).toList());
+        }
+
+        // DIRECAO: todos
+        List<Horario> todos = horarioRepository.findAllByOrderByTurmaIdAscDiaSemanaAscOrdemAulaAsc();
+        return ResponseEntity.ok(todos.stream().map(this::toMap).toList());
     }
 
     // Listar TODOS os horários (todos os perfis logados podem ver)
