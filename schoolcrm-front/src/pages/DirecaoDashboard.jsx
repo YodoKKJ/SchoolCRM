@@ -5,7 +5,7 @@ import {
     Home, Users, School, BookOpen, LogOut,
     GraduationCap, UserCheck, LayoutGrid, BookMarked, Menu,
     Trash2, Pencil, ArrowLeft, UserPlus, ChevronDown, Search, X,
-    FileText, DollarSign, Lock, ClipboardList, ChevronRight, Clock
+    FileText, DollarSign, Lock, ClipboardList, ChevronRight, Clock, CalendarDays
 } from "lucide-react";
 
 const api = axios.create({ baseURL: "http://localhost:8080" });
@@ -90,6 +90,7 @@ const modulos = [
         items: [
             { id: "turmas", label: "Turmas", icon: School },
             { id: "materias", label: "Matérias", icon: BookOpen },
+            { id: "horarios", label: "Horários", icon: CalendarDays },
             { id: "atrasos", label: "Atrasos", icon: Clock },
             { id: "lancamentos", label: "Lançamentos", icon: BookMarked },
             { id: "boletins", label: "Boletins", icon: ClipboardList },
@@ -420,6 +421,7 @@ export default function DirecaoDashboard() {
                         {aba === "usuarios" && <ErrorBoundary key="usuarios"><Usuarios /></ErrorBoundary>}
                         {aba === "turmas" && <ErrorBoundary key="turmas"><Turmas /></ErrorBoundary>}
                         {aba === "materias" && <ErrorBoundary key="materias"><Materias /></ErrorBoundary>}
+                        {aba === "horarios" && <ErrorBoundary key="horarios"><Horarios /></ErrorBoundary>}
                         {aba === "atrasos" && <ErrorBoundary key="atrasos"><Atrasos /></ErrorBoundary>}
                         {aba === "lancamentos" && <ErrorBoundary key="lancamentos"><Lancamentos /></ErrorBoundary>}
                         {aba === "boletins" && <ErrorBoundary key="boletins"><Boletins /></ErrorBoundary>}
@@ -731,7 +733,7 @@ function Turmas() {
     const [turmas, setTurmas] = useState([]);
     const [series, setSeries] = useState([]);
     const [formSerie, setFormSerie] = useState({ nome: "" });
-    const [formTurma, setFormTurma] = useState({ nome: "", serieId: "", anoLetivo: "2026" });
+    const [formTurma, setFormTurma] = useState({ nome: "", serieId: "", anoLetivo: String(new Date().getFullYear()) });
     const [msg, setMsg] = useState({ texto: "", tipo: "" });
     const [turmaSelecionada, setTurmaSelecionada] = useState(null);
     const [campoBusca, setCampoBusca] = useState("nome");
@@ -754,15 +756,16 @@ function Turmas() {
         carregarSeries();
     };
 
-    useEffect(() => { carregarSeries(); }, []);
+    useEffect(() => { carregarSeries(); buscarTurmas(); }, []);
 
     useEffect(() => {
+        if (!termoDebounced) { buscarTurmas(); return; }
         const nome = campoBusca === "nome" ? termoDebounced : undefined;
         const serieId = campoBusca === "serie"
             ? (series.find(s => s.nome.toLowerCase().includes(termoDebounced.toLowerCase()))?.id)
             : undefined;
         buscarTurmas(nome, serieId);
-    }, [termoDebounced, campoBusca, series]);
+    }, [termoDebounced, campoBusca]);
 
 
 
@@ -791,9 +794,13 @@ function Turmas() {
                     <p className="dd-section-title" style={{ marginBottom:16 }}>Nova Série</p>
                     <form onSubmit={async e => {
                         e.preventDefault();
-                        await api.post("/turmas/series", formSerie);
-                        setFormSerie({ nome: "" });
-                        carregar();
+                        if (!formSerie.nome.trim()) return;
+                        try {
+                            await api.post("/turmas/series", formSerie);
+                            setFormSerie({ nome: "" });
+                            setMsg({ texto: "Série criada!", tipo: "ok" });
+                            carregar();
+                        } catch { setMsg({ texto: "Erro ao criar série.", tipo: "erro" }); }
                     }} style={{ display:"flex", gap:8 }}>
                         <div className="dd-input-wrap" style={{ flex:1 }}>
                             <input className="dd-input" placeholder="Ex: 1º Ano" value={formSerie.nome}
@@ -821,7 +828,7 @@ function Turmas() {
                         try {
                             await api.post("/turmas", formTurma);
                             setMsg({ texto: "Turma cadastrada!", tipo: "ok" });
-                            setFormTurma({ nome: "", serieId: "", anoLetivo: "2026" });
+                            setFormTurma({ nome: "", serieId: "", anoLetivo: String(new Date().getFullYear()) });
                             carregar();
                         } catch { setMsg({ texto: "Erro ao cadastrar.", tipo: "erro" }); }
                     }} style={{ display:"flex", flexDirection:"column", gap:16 }}>
@@ -840,6 +847,14 @@ function Turmas() {
                                 value={formTurma.serieId}
                                 onChange={v => setFormTurma({ ...formTurma, serieId: v })}
                                 placeholder="Selecione a série..." />
+                        </div>
+                        <div>
+                            <label className="dd-label">Ano Letivo</label>
+                            <div className="dd-input-wrap">
+                                <input className="dd-input" type="number" placeholder="Ex: 2026" value={formTurma.anoLetivo}
+                                       onChange={e => setFormTurma({ ...formTurma, anoLetivo: e.target.value })} />
+                                <div className="dd-input-line" />
+                            </div>
                         </div>
                         <button type="submit" className="dd-btn-primary">Cadastrar Turma →</button>
                     </form>
@@ -889,18 +904,23 @@ function EditarTurma({ turma, onVoltar }) {
     const [formAluno, setFormAluno] = useState({ alunoId: "" });
     const [formProf, setFormProf] = useState({ professorId: "", materiaId: "" });
     const [msg, setMsg] = useState({ texto: "", tipo: "" });
+    const [nomeTurma, setNomeTurma] = useState(turma.nome);
+    const [anoLetivoTurma, setAnoLetivoTurma] = useState(String(turma.anoLetivo || ""));
+    const [editandoNome, setEditandoNome] = useState(false);
+    const [salvandoNome, setSalvandoNome] = useState(false);
 
     const carregar = () => {
-        api.get(`/vinculos/aluno-turma/turma/${turma.id}`).then(r => setVinculosAluno(r.data));
-        api.get(`/vinculos/professor-turma-materia/turma/${turma.id}`).then(r => setVinculosProf(r.data));
+        api.get(`/vinculos/aluno-turma/turma/${turma.id}`).then(r => setVinculosAluno(Array.isArray(r.data) ? r.data : [])).catch(() => setVinculosAluno([]));
+        api.get(`/vinculos/professor-turma-materia/turma/${turma.id}`).then(r => setVinculosProf(Array.isArray(r.data) ? r.data : [])).catch(() => setVinculosProf([]));
     };
 
     useEffect(() => {
         api.get("/usuarios").then(r => {
-            setTodosAlunos(r.data.filter(u => u.role === "ALUNO"));
-            setTodosProfessores(r.data.filter(u => u.role === "PROFESSOR"));
-        });
-        api.get("/materias").then(r => setTodasMaterias(r.data));
+            const data = Array.isArray(r.data) ? r.data : [];
+            setTodosAlunos(data.filter(u => u.role === "ALUNO"));
+            setTodosProfessores(data.filter(u => u.role === "PROFESSOR"));
+        }).catch(() => {});
+        api.get("/materias").then(r => setTodasMaterias(Array.isArray(r.data) ? r.data : [])).catch(() => {});
         carregar();
     }, []);
 
@@ -948,18 +968,62 @@ function EditarTurma({ turma, onVoltar }) {
         .filter(a => !vinculosAluno.some(v => v.aluno?.id === a.id))
         .map(a => ({ value: a.id, label: a.nome }));
 
+    const salvarNomeTurma = async () => {
+        if (!nomeTurma.trim()) return;
+        setSalvandoNome(true);
+        try {
+            await api.put(`/turmas/${turma.id}`, { nome: nomeTurma.trim(), anoLetivo: anoLetivoTurma });
+            turma.nome = nomeTurma.trim();
+            turma.anoLetivo = parseInt(anoLetivoTurma);
+            setMsg({ texto: "Turma atualizada!", tipo: "ok" });
+            setEditandoNome(false);
+        } catch (err) {
+            const raw = err.response?.data;
+            setMsg({ texto: typeof raw === "string" ? raw : "Erro ao atualizar.", tipo: "erro" });
+        }
+        setSalvandoNome(false);
+    };
+
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
             <div style={{ display:"flex", alignItems:"center", gap:16 }}>
                 <button className="dd-btn-ghost" onClick={onVoltar} style={{ display:"flex", alignItems:"center", gap:6 }}>
                     <ArrowLeft size={13} /> Voltar
                 </button>
-                <div>
-                    <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:20, fontWeight:700, color:"#0d1f18", letterSpacing:"-.02em" }}>
-                        {turma.nome}
-                    </h2>
-                    <p className="dd-section-count">{turma.serie?.nome} — {turma.anoLetivo}</p>
-                </div>
+                {!editandoNome ? (
+                    <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                        <div>
+                            <h2 style={{ fontFamily:"'Playfair Display',serif", fontSize:20, fontWeight:700, color:"#0d1f18", letterSpacing:"-.02em" }}>
+                                {nomeTurma}
+                            </h2>
+                            <p className="dd-section-count">{turma.serie?.nome} — {anoLetivoTurma}</p>
+                        </div>
+                        <button className="dd-btn-edit" onClick={() => setEditandoNome(true)} style={{ display:"flex", alignItems:"center", gap:4 }}>
+                            <Pencil size={11} /> Editar
+                        </button>
+                    </div>
+                ) : (
+                    <div style={{ display:"flex", alignItems:"center", gap:10, flex:1 }}>
+                        <div style={{ display:"flex", flexDirection:"column", gap:6, flex:1, maxWidth:280 }}>
+                            <div className="dd-input-wrap">
+                                <input className="dd-input" value={nomeTurma} onChange={e => setNomeTurma(e.target.value)}
+                                       placeholder="Nome da turma" style={{ fontSize:16, fontWeight:600 }} />
+                                <div className="dd-input-line" />
+                            </div>
+                            <div className="dd-input-wrap">
+                                <input className="dd-input" type="number" value={anoLetivoTurma} onChange={e => setAnoLetivoTurma(e.target.value)}
+                                       placeholder="Ano letivo" style={{ fontSize:13 }} />
+                                <div className="dd-input-line" />
+                            </div>
+                        </div>
+                        <button className="dd-btn-primary" onClick={salvarNomeTurma} disabled={salvandoNome} style={{ fontSize:11 }}>
+                            {salvandoNome ? "Salvando..." : "Salvar"}
+                        </button>
+                        <button className="dd-btn-ghost" onClick={() => { setNomeTurma(turma.nome); setAnoLetivoTurma(String(turma.anoLetivo || "")); setEditandoNome(false); }} style={{ fontSize:11 }}>
+                            Cancelar
+                        </button>
+                    </div>
+                )}
             </div>
 
             {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
@@ -2139,6 +2203,558 @@ function Boletins() {
                         </div>
                     </div>
                 </div>
+            )}
+        </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HORÁRIOS — Grade de aulas
+// ═══════════════════════════════════════════════════════════════
+const DIAS = ["SEG", "TER", "QUA", "QUI", "SEX"];
+const DIAS_LABEL = { SEG: "Segunda", TER: "Terça", QUA: "Quarta", QUI: "Quinta", SEX: "Sexta" };
+const DEFAULT_HORARIOS = ["07:30", "08:18", "09:06", "10:09", "10:57"];
+
+function Horarios() {
+    const [turmas, setTurmas] = useState([]);
+    const [turmaId, setTurmaId] = useState("");
+    const [professores, setProfessores] = useState([]);
+    const [materias, setMaterias] = useState([]);
+    const [horarios, setHorarios] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [salvando, setSalvando] = useState(false);
+    const [msg, setMsg] = useState({ texto: "", tipo: "" });
+    const [editMode, setEditMode] = useState(false);
+    const [horariosConfig, setHorariosConfig] = useState([...DEFAULT_HORARIOS]);
+    const [editingSlot, setEditingSlot] = useState(null); // { dia, ordem }
+    const [allHorarios, setAllHorarios] = useState([]);
+    const [viewAll, setViewAll] = useState(true);
+    const [vinculosTurma, setVinculosTurma] = useState([]); // vinculos professor-turma-materia
+
+    // Grid state: grid[dia][ordem] = { professorId, materiaId }
+    const [grid, setGrid] = useState({});
+
+    useEffect(() => {
+        Promise.all([
+            api.get("/turmas"),
+            api.get("/usuarios/buscar?role=PROFESSOR"),
+            api.get("/materias"),
+            api.get("/horarios"),
+        ]).then(([t, p, m, h]) => {
+            setTurmas(t.data || []);
+            setProfessores(p.data || []);
+            setMaterias(m.data || []);
+            setAllHorarios(h.data || []);
+        });
+    }, []);
+
+    // Carrega horários e vínculos da turma selecionada
+    useEffect(() => {
+        if (!turmaId) { setHorarios([]); setGrid({}); setVinculosTurma([]); return; }
+        setLoading(true);
+        Promise.all([
+            api.get(`/horarios/turma/${turmaId}`),
+            api.get(`/vinculos/professor-turma-materia/turma/${turmaId}`),
+        ]).then(([r, v]) => {
+            const data = r.data || [];
+            setHorarios(data);
+            setVinculosTurma(Array.isArray(v.data) ? v.data : []);
+            // Monta o grid
+            const g = {};
+            for (const h of data) {
+                if (!g[h.diaSemana]) g[h.diaSemana] = {};
+                g[h.diaSemana][h.ordemAula] = {
+                    professorId: h.professorId,
+                    materiaId: h.materiaId,
+                };
+            }
+            setGrid(g);
+            // Detecta horários do backend
+            const hrs = [...new Set(data.map(h => h.horarioInicio))].sort();
+            if (hrs.length > 0) setHorariosConfig(hrs.length >= 5 ? hrs : [...DEFAULT_HORARIOS]);
+        })
+            .catch(() => {})
+            .finally(() => setLoading(false));
+    }, [turmaId]);
+
+    const setSlot = (dia, ordem, field, value) => {
+        setGrid(prev => {
+            const g = { ...prev };
+            if (!g[dia]) g[dia] = {};
+            g[dia] = { ...g[dia], [ordem]: { ...(g[dia][ordem] || {}), [field]: value } };
+            return g;
+        });
+    };
+
+    const clearSlot = (dia, ordem) => {
+        setGrid(prev => {
+            const g = { ...prev };
+            if (g[dia]) {
+                const d = { ...g[dia] };
+                delete d[ordem];
+                g[dia] = d;
+            }
+            return g;
+        });
+        setEditingSlot(null);
+    };
+
+    const salvarGrade = async () => {
+        if (!turmaId) return;
+        setSalvando(true);
+        setMsg({ texto: "", tipo: "" });
+
+        const aulas = [];
+        DIAS.forEach(dia => {
+            horariosConfig.forEach((hr, idx) => {
+                const ordem = idx + 1;
+                const slot = grid[dia]?.[ordem];
+                if (slot?.professorId && slot?.materiaId) {
+                    aulas.push({
+                        diaSemana: dia,
+                        ordemAula: ordem,
+                        horarioInicio: hr,
+                        professorId: slot.professorId,
+                        materiaId: slot.materiaId,
+                    });
+                }
+            });
+        });
+
+        try {
+            await api.post("/horarios/lote", { turmaId, aulas });
+            setMsg({ texto: "Grade de horários salva com sucesso!", tipo: "ok" });
+            setEditMode(false);
+            // Recarrega
+            const r = await api.get(`/horarios/turma/${turmaId}`);
+            setHorarios(r.data || []);
+            const ha = await api.get("/horarios");
+            setAllHorarios(ha.data || []);
+        } catch (e) {
+            setMsg({ texto: e.response?.data || "Erro ao salvar horários", tipo: "err" });
+        }
+        setSalvando(false);
+    };
+
+    const limparGrade = async () => {
+        if (!turmaId) return;
+        if (!window.confirm("Tem certeza que deseja limpar todos os horários desta turma?")) return;
+        try {
+            await api.delete(`/horarios/turma/${turmaId}`);
+            setGrid({});
+            setHorarios([]);
+            setMsg({ texto: "Horários removidos", tipo: "ok" });
+            const ha = await api.get("/horarios");
+            setAllHorarios(ha.data || []);
+        } catch {
+            setMsg({ texto: "Erro ao limpar horários", tipo: "err" });
+        }
+    };
+
+    // Agrupa allHorarios por turma para a visão geral
+    const turmasComHorario = [...new Set(allHorarios.map(h => h.turmaId))];
+    const turmaMap = {};
+    turmas.forEach(t => { turmaMap[t.id] = t; });
+
+    // Helper para pegar nome do prof + materia de um slot do allHorarios
+    const getSlotLabel = (turmaIdView, dia, ordem) => {
+        const h = allHorarios.find(
+            x => x.turmaId === turmaIdView && x.diaSemana === dia && x.ordemAula === ordem
+        );
+        if (!h) return null;
+        // Pega só sobrenome do professor
+        const nomeProf = h.professorNome?.split(" ")[0] || "";
+        return `${nomeProf} (${h.materiaNome})`;
+    };
+
+    // Detecta horários usados na visão geral
+    const horariosUsados = [...new Set(allHorarios.map(h => h.horarioInicio))].sort();
+    const hrsView = horariosUsados.length >= 1 ? horariosUsados : DEFAULT_HORARIOS;
+
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+
+            {/* ── Toggle: Visão Geral vs Editar Turma ── */}
+            <div style={{ display: "flex", gap: 8 }}>
+                <button
+                    className={viewAll ? "dd-btn-primary" : "dd-btn-ghost"}
+                    onClick={() => setViewAll(true)}
+                    style={{ fontSize: 11 }}>
+                    Visão Geral
+                </button>
+                <button
+                    className={!viewAll ? "dd-btn-primary" : "dd-btn-ghost"}
+                    onClick={() => setViewAll(false)}
+                    style={{ fontSize: 11 }}>
+                    Editar Horários
+                </button>
+            </div>
+
+            {msg.texto && (
+                <div className={msg.tipo === "ok" ? "dd-ok" : "dd-err"}>{msg.texto}</div>
+            )}
+
+            {/* ═══════ VISÃO GERAL — todas as turmas lado a lado ═══════ */}
+            {viewAll && (
+                <div className="dd-section">
+                    <div className="dd-section-header">
+                        <span className="dd-section-title">Grade de Horários — Visão Geral</span>
+                        <span className="dd-section-count">{turmasComHorario.length} turma(s) com horário</span>
+                    </div>
+                    <div style={{ padding: 20, overflowX: "auto" }}>
+                        {turmasComHorario.length === 0 ? (
+                            <p style={{ color: "#9aaa9f", fontSize: 13, textAlign: "center", padding: 32 }}>
+                                Nenhum horário cadastrado ainda. Use "Editar Horários" para começar.
+                            </p>
+                        ) : (
+                            DIAS.map(dia => {
+                                return (
+                                    <div key={dia} style={{ marginBottom: 20 }}>
+                                        <p style={{
+                                            fontSize: 12, fontWeight: 600, letterSpacing: ".08em",
+                                            textTransform: "uppercase", color: "#0d1f18", marginBottom: 8,
+                                            paddingBottom: 4, borderBottom: "2px solid #0d1f18", display: "inline-block"
+                                        }}>
+                                            {DIAS_LABEL[dia]}
+                                        </p>
+                                        <table className="dd-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+                                            <thead>
+                                            <tr>
+                                                <th style={{ width: 70 }}>Horário</th>
+                                                {turmasComHorario.map(tid => (
+                                                    <th key={tid}>{turmaMap[tid]?.nome || `Turma ${tid}`}</th>
+                                                ))}
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            {hrsView.map((hr, idx) => (
+                                                <tr key={hr}>
+                                                    <td style={{ fontWeight: 500, fontSize: 12, color: "#5a7060" }}>{hr}</td>
+                                                    {turmasComHorario.map(tid => {
+                                                        const label = getSlotLabel(tid, dia, idx + 1);
+                                                        return (
+                                                            <td key={tid} style={{
+                                                                fontSize: 12,
+                                                                color: label ? "#0d1f18" : "#d4ddd8",
+                                                                fontWeight: label ? 400 : 300,
+                                                            }}>
+                                                                {label || "—"}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* ═══════ MODO EDIÇÃO — seleciona turma e edita grade ═══════ */}
+            {!viewAll && (
+                <>
+                    {/* Seletor de turma */}
+                    <div className="dd-section" style={{ padding: 20 }}>
+                        <div style={{ display: "flex", gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
+                            <div style={{ flex: 1, minWidth: 200 }}>
+                                <label className="dd-label">Selecione a Turma</label>
+                                <SearchSelect
+                                    options={turmas.map(t => ({ value: t.id, label: `${t.nome}${t.serie ? ` — ${t.serie.nome}` : ""}` }))}
+                                    value={turmaId}
+                                    onChange={v => { setTurmaId(v); setEditMode(false); }}
+                                    placeholder="Escolha uma turma"
+                                />
+                            </div>
+                            {turmaId && (
+                                <div style={{ display: "flex", gap: 8 }}>
+                                    {!editMode ? (
+                                        <button className="dd-btn-primary" onClick={() => setEditMode(true)}>
+                                            Editar Grade
+                                        </button>
+                                    ) : (
+                                        <>
+                                            <button className="dd-btn-primary" onClick={salvarGrade} disabled={salvando}>
+                                                {salvando ? "Salvando..." : "Salvar Grade →"}
+                                            </button>
+                                            <button className="dd-btn-ghost" onClick={() => setEditMode(false)}>
+                                                Cancelar
+                                            </button>
+                                        </>
+                                    )}
+                                    <button className="dd-btn-danger" onClick={limparGrade}>
+                                        <Trash2 size={12} /> Limpar
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {loading && (
+                        <p style={{ color: "#9aaa9f", fontSize: 13, textAlign: "center", padding: 20 }}>
+                            Carregando...
+                        </p>
+                    )}
+
+                    {/* Grade de horários */}
+                    {turmaId && !loading && (
+                        <div className="dd-section">
+                            <div className="dd-section-header">
+                                <span className="dd-section-title">
+                                    Grade — {turmas.find(t => String(t.id) === String(turmaId))?.nome || ""}
+                                </span>
+                                {!editMode && (
+                                    <span className="dd-section-count">
+                                        {horarios.length} aula(s) cadastrada(s)
+                                    </span>
+                                )}
+                            </div>
+                            {editMode && vinculosTurma.length === 0 && (
+                                <div style={{ padding: "12px 20px", background: "#fdf8f0", borderBottom: "1px solid #eaeef2",
+                                    fontSize: 12, color: "#7a5c2e", display: "flex", alignItems: "center", gap: 8 }}>
+                                    <span style={{ fontSize: 16 }}>⚠</span>
+                                    Nenhum professor vinculado a esta turma. Vincule professores primeiro na aba <b>Turmas → Gerenciar</b>.
+                                </div>
+                            )}
+                            <div style={{ padding: 0, overflowX: "auto" }}>
+                                <table style={{
+                                    width: "100%", borderCollapse: "collapse", fontSize: 12,
+                                    fontFamily: "'DM Sans', sans-serif"
+                                }}>
+                                    <thead>
+                                    <tr>
+                                        <th style={{
+                                            padding: "10px 12px", background: "#f8faf8",
+                                            borderBottom: "1px solid #eaeef2", fontSize: 10,
+                                            fontWeight: 500, letterSpacing: ".1em", textTransform: "uppercase",
+                                            color: "#9aaa9f", textAlign: "left", width: 80,
+                                        }}>
+                                            Horário
+                                        </th>
+                                        {DIAS.map(dia => (
+                                            <th key={dia} style={{
+                                                padding: "10px 12px", background: "#f8faf8",
+                                                borderBottom: "1px solid #eaeef2", fontSize: 10,
+                                                fontWeight: 500, letterSpacing: ".1em", textTransform: "uppercase",
+                                                color: "#9aaa9f", textAlign: "center", minWidth: 140,
+                                            }}>
+                                                {DIAS_LABEL[dia]}
+                                            </th>
+                                        ))}
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {horariosConfig.map((hr, idx) => {
+                                        const ordem = idx + 1;
+                                        return (
+                                            <tr key={hr}>
+                                                <td style={{
+                                                    padding: "10px 12px", borderBottom: "1px solid #f2f5f2",
+                                                    fontWeight: 500, color: "#5a7060", verticalAlign: "top",
+                                                }}>
+                                                    {editMode ? (
+                                                        <input
+                                                            value={hr}
+                                                            onChange={e => {
+                                                                const newConfig = [...horariosConfig];
+                                                                newConfig[idx] = e.target.value;
+                                                                setHorariosConfig(newConfig);
+                                                            }}
+                                                            style={{
+                                                                width: 56, border: "1px solid #eaeef2", padding: "4px 6px",
+                                                                fontSize: 12, fontFamily: "'DM Sans',sans-serif",
+                                                                textAlign: "center", outline: "none", color: "#0d1f18",
+                                                            }}
+                                                        />
+                                                    ) : hr}
+                                                </td>
+                                                {DIAS.map(dia => {
+                                                    const slot = grid[dia]?.[ordem];
+                                                    const isEditing = editingSlot?.dia === dia && editingSlot?.ordem === ordem;
+                                                    const prof = professores.find(p => String(p.id) === String(slot?.professorId));
+                                                    const mat = materias.find(m => String(m.id) === String(slot?.materiaId));
+
+                                                    if (!editMode) {
+                                                        // Modo visualização
+                                                        return (
+                                                            <td key={dia} style={{
+                                                                padding: "8px 10px", borderBottom: "1px solid #f2f5f2",
+                                                                textAlign: "center", fontSize: 12,
+                                                                color: slot ? "#0d1f18" : "#d4ddd8",
+                                                            }}>
+                                                                {slot && prof && mat ? (
+                                                                    <>
+                                                                        <span style={{ fontWeight: 500 }}>{prof.nome?.split(" ")[0]}</span>
+                                                                        <br />
+                                                                        <span style={{ fontSize: 11, color: "#5a7060" }}>({mat.nome})</span>
+                                                                    </>
+                                                                ) : "—"}
+                                                            </td>
+                                                        );
+                                                    }
+
+                                                    // Modo edição
+                                                    if (isEditing) {
+                                                        // Professores vinculados à turma (únicos)
+                                                        const profsVinculados = [];
+                                                        const profsIds = new Set();
+                                                        for (const v of vinculosTurma) {
+                                                            const pid = v.professor?.id;
+                                                            if (pid && !profsIds.has(pid)) {
+                                                                profsIds.add(pid);
+                                                                profsVinculados.push(v.professor);
+                                                            }
+                                                        }
+                                                        // Matérias do professor selecionado nesta turma
+                                                        const selectedProfId = slot?.professorId;
+                                                        const matsDoProf = selectedProfId
+                                                            ? vinculosTurma
+                                                                .filter(v => String(v.professor?.id) === String(selectedProfId))
+                                                                .map(v => v.materia)
+                                                                .filter(Boolean)
+                                                            : [];
+
+                                                        return (
+                                                            <td key={dia} style={{
+                                                                padding: "6px 8px", borderBottom: "1px solid #f2f5f2",
+                                                                background: "#f0f5f2", verticalAlign: "top",
+                                                            }}>
+                                                                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                                                    <select
+                                                                        value={slot?.professorId || ""}
+                                                                        onChange={e => {
+                                                                            const newProfId = e.target.value;
+                                                                            setSlot(dia, ordem, "professorId", newProfId);
+                                                                            // Auto-limpa matéria se professor mudou
+                                                                            const matsValidas = vinculosTurma
+                                                                                .filter(v => String(v.professor?.id) === String(newProfId))
+                                                                                .map(v => String(v.materia?.id));
+                                                                            if (!matsValidas.includes(String(slot?.materiaId))) {
+                                                                                // Se só tem 1 matéria, auto-seleciona
+                                                                                setSlot(dia, ordem, "materiaId", matsValidas.length === 1 ? matsValidas[0] : "");
+                                                                            }
+                                                                        }}
+                                                                        style={{
+                                                                            fontSize: 11, padding: "4px 6px",
+                                                                            border: "1px solid #d4ddd8",
+                                                                            fontFamily: "'DM Sans',sans-serif",
+                                                                            outline: "none", background: "#fff",
+                                                                        }}
+                                                                    >
+                                                                        <option value="">Professor...</option>
+                                                                        {profsVinculados.map(p => (
+                                                                            <option key={p.id} value={p.id}>{p.nome}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                    <select
+                                                                        value={slot?.materiaId || ""}
+                                                                        onChange={e => setSlot(dia, ordem, "materiaId", e.target.value)}
+                                                                        disabled={!selectedProfId}
+                                                                        style={{
+                                                                            fontSize: 11, padding: "4px 6px",
+                                                                            border: "1px solid #d4ddd8",
+                                                                            fontFamily: "'DM Sans',sans-serif",
+                                                                            outline: "none",
+                                                                            background: selectedProfId ? "#fff" : "#f5f5f5",
+                                                                            color: selectedProfId ? "#0d1f18" : "#b8c4be",
+                                                                        }}
+                                                                    >
+                                                                        <option value="">{selectedProfId ? "Matéria..." : "Selecione professor primeiro"}</option>
+                                                                        {matsDoProf.map(m => (
+                                                                            <option key={m.id} value={m.id}>{m.nome}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                    <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
+                                                                        <button
+                                                                            onClick={() => setEditingSlot(null)}
+                                                                            style={{
+                                                                                fontSize: 10, padding: "3px 8px",
+                                                                                background: "#0d1f18", color: "#fff",
+                                                                                border: "none", cursor: "pointer",
+                                                                                fontFamily: "'DM Sans',sans-serif",
+                                                                            }}>
+                                                                            OK
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => clearSlot(dia, ordem)}
+                                                                            style={{
+                                                                                fontSize: 10, padding: "3px 8px",
+                                                                                background: "#fdf0f0", color: "#b94040",
+                                                                                border: "none", cursor: "pointer",
+                                                                                fontFamily: "'DM Sans',sans-serif",
+                                                                            }}>
+                                                                            Limpar
+                                                                        </button>
+                                                                    </div>
+                                                                    {profsVinculados.length === 0 && (
+                                                                        <p style={{ fontSize: 9, color: "#b94040", textAlign: "center", margin: 0 }}>
+                                                                            Nenhum professor vinculado a esta turma
+                                                                        </p>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        );
+                                                    }
+
+                                                    // Célula clicável no modo edição
+                                                    return (
+                                                        <td key={dia}
+                                                            onClick={() => setEditingSlot({ dia, ordem })}
+                                                            style={{
+                                                                padding: "8px 10px", borderBottom: "1px solid #f2f5f2",
+                                                                textAlign: "center", fontSize: 12,
+                                                                cursor: "pointer",
+                                                                color: slot?.professorId ? "#0d1f18" : "#b8c4be",
+                                                                background: slot?.professorId ? "transparent" : "#fafcfa",
+                                                                transition: "background .15s",
+                                                            }}
+                                                            onMouseEnter={e => e.currentTarget.style.background = "#f0f5f2"}
+                                                            onMouseLeave={e => e.currentTarget.style.background = slot?.professorId ? "transparent" : "#fafcfa"}
+                                                        >
+                                                            {slot?.professorId && prof && mat ? (
+                                                                <>
+                                                                    <span style={{ fontWeight: 500 }}>{prof.nome?.split(" ")[0]}</span>
+                                                                    <br />
+                                                                    <span style={{ fontSize: 11, color: "#5a7060" }}>({mat.nome})</span>
+                                                                </>
+                                                            ) : (
+                                                                <span style={{ fontSize: 18, lineHeight: 1 }}>+</span>
+                                                            )}
+                                                        </td>
+                                                    );
+                                                })}
+                                            </tr>
+                                        );
+                                    })}
+                                    </tbody>
+                                </table>
+
+                                {/* Botão adicionar mais linhas de horário */}
+                                {editMode && (
+                                    <div style={{ padding: "12px 20px", borderTop: "1px solid #eaeef2", display: "flex", gap: 8 }}>
+                                        <button
+                                            className="dd-btn-ghost"
+                                            onClick={() => setHorariosConfig(prev => [...prev, ""])}
+                                            style={{ fontSize: 11 }}>
+                                            + Adicionar Horário
+                                        </button>
+                                        {horariosConfig.length > 1 && (
+                                            <button
+                                                className="dd-btn-danger"
+                                                onClick={() => setHorariosConfig(prev => prev.slice(0, -1))}
+                                                style={{ fontSize: 11 }}>
+                                                Remover Último
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );

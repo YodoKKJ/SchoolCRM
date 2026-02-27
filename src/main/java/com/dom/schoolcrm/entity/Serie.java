@@ -1,5 +1,6 @@
 package com.dom.schoolcrm.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +16,7 @@ public class Serie {
     private String nome;
 
     @OneToMany(mappedBy = "serie", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<Turma> turmas = new ArrayList<>();
 
     public Long getId() { return id; }

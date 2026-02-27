@@ -79,6 +79,37 @@ public class TurmaController {
         return ResponseEntity.ok(turmaRepository.buscar(nomeParam, serieId));
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('DIRECAO')")
+    public ResponseEntity<?> editarTurma(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        var opt = turmaRepository.findById(id);
+        if (opt.isEmpty()) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Turma não encontrada");
+
+        Turma turma = opt.get();
+
+        String nome = body.get("nome");
+        if (nome != null && !nome.isBlank()) turma.setNome(nome.trim());
+
+        String anoLetivo = body.get("anoLetivo");
+        if (anoLetivo != null && !anoLetivo.isBlank()) turma.setAnoLetivo(Integer.parseInt(anoLetivo));
+
+        String serieIdStr = body.get("serieId");
+        if (serieIdStr != null && !serieIdStr.isBlank()) {
+            var serie = serieRepository.findById(Long.parseLong(serieIdStr));
+            if (serie.isEmpty()) return ResponseEntity.badRequest().body("Série não encontrada");
+            turma.setSerie(serie.get());
+        }
+
+        turmaRepository.save(turma);
+
+        return ResponseEntity.ok(Map.of(
+                "id", turma.getId(),
+                "nome", turma.getNome(),
+                "anoLetivo", turma.getAnoLetivo(),
+                "serie", turma.getSerie() != null ? turma.getSerie().getNome() : ""
+        ));
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('DIRECAO')")
     @Transactional

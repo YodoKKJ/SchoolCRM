@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import {
     Home, BookOpen, LogOut, GraduationCap,
-    Menu, ChevronRight, Search, X, UserPlus, ArrowLeft
+    Menu, ChevronRight, Search, X, UserPlus, ArrowLeft, CalendarDays
 } from "lucide-react";
 
 const api = axios.create({ baseURL: "http://localhost:8080" });
@@ -159,6 +159,7 @@ export default function ProfessorDashboard() {
         { id:"inicio",     label:"Início",      icon:Home },
         { id:"notas",      label:"Lançar Notas", icon:BookOpen },
         { id:"presenca",   label:"Chamada",      icon:GraduationCap },
+        { id:"horarios",   label:"Horários",     icon:CalendarDays },
     ];
 
     return (
@@ -248,6 +249,7 @@ export default function ProfessorDashboard() {
                         {aba === "inicio"   && <Inicio />}
                         {aba === "notas"    && <LancarNotas />}
                         {aba === "presenca" && <Chamada />}
+                        {aba === "horarios" && <HorariosView />}
                     </main>
                 </div>
             </div>
@@ -937,6 +939,141 @@ function Chamada() {
                     )}
                 </div>
             )}
+        </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HORÁRIOS — Visualização (somente leitura)
+// ═══════════════════════════════════════════════════════════════
+const DIAS = ["SEG", "TER", "QUA", "QUI", "SEX"];
+const DIAS_LABEL = { SEG: "Segunda", TER: "Terça", QUA: "Quarta", QUI: "Quinta", SEX: "Sexta" };
+
+function HorariosView() {
+    const [horarios, setHorarios] = useState([]);
+    const [turmas, setTurmas] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [filtroTurma, setFiltroTurma] = useState("todas");
+
+    useEffect(() => {
+        setLoading(true);
+        Promise.all([
+            api.get("/horarios"),
+            api.get("/turmas"),
+        ]).then(([h, t]) => {
+            setHorarios(h.data || []);
+            setTurmas(t.data || []);
+        }).finally(() => setLoading(false));
+    }, []);
+
+    const turmaIds = [...new Set(horarios.map(h => h.turmaId))];
+    const turmaMap = {};
+    turmas.forEach(t => { turmaMap[t.id] = t; });
+
+    const turmasFiltradas = filtroTurma === "todas"
+        ? turmaIds
+        : turmaIds.filter(id => String(id) === String(filtroTurma));
+
+    const horariosUsados = [...new Set(horarios.map(h => h.horarioInicio))].sort();
+
+    const getSlot = (turmaId, dia, ordem) => {
+        return horarios.find(
+            h => h.turmaId === turmaId && h.diaSemana === dia && h.ordemAula === ordem
+        );
+    };
+
+    if (loading) {
+        return <p style={{ color: "#9aaa9f", fontSize: 13, textAlign: "center", padding: 40 }}>Carregando horários...</p>;
+    }
+
+    if (horarios.length === 0) {
+        return (
+            <div className="pd-section" style={{ padding: 40, textAlign: "center" }}>
+                <CalendarDays size={32} color="#d4ddd8" style={{ marginBottom: 12 }} />
+                <p style={{ color: "#9aaa9f", fontSize: 13 }}>Nenhum horário cadastrado ainda.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            {/* Filtro por turma */}
+            <div className="pd-section" style={{ padding: "12px 20px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <label style={{ fontSize: 11, fontWeight: 500, letterSpacing: ".08em", textTransform: "uppercase", color: "#9aaa9f" }}>
+                        Filtrar turma:
+                    </label>
+                    <select
+                        value={filtroTurma}
+                        onChange={e => setFiltroTurma(e.target.value)}
+                        style={{
+                            fontSize: 12, padding: "6px 12px", border: "1px solid #eaeef2",
+                            fontFamily: "'DM Sans',sans-serif", outline: "none", color: "#0d1f18",
+                            background: "white",
+                        }}
+                    >
+                        <option value="todas">Todas as turmas</option>
+                        {turmaIds.map(id => (
+                            <option key={id} value={id}>{turmaMap[id]?.nome || `Turma ${id}`}</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+
+            {/* Grade por dia */}
+            {DIAS.map(dia => {
+                const temAula = turmasFiltradas.some(tid =>
+                    horariosUsados.some((_, idx) => getSlot(tid, dia, idx + 1))
+                );
+                if (!temAula) return null;
+
+                return (
+                    <div key={dia} className="pd-section">
+                        <div className="pd-section-header">
+                            <span className="pd-section-title" style={{
+                                borderLeft: "3px solid #0d1f18", paddingLeft: 10
+                            }}>
+                                {DIAS_LABEL[dia]}
+                            </span>
+                        </div>
+                        <div style={{ overflowX: "auto" }}>
+                            <table className="pd-table">
+                                <thead>
+                                <tr>
+                                    <th style={{ width: 70 }}>Horário</th>
+                                    {turmasFiltradas.map(tid => (
+                                        <th key={tid} style={{ textAlign: "center" }}>
+                                            {turmaMap[tid]?.nome || `Turma ${tid}`}
+                                        </th>
+                                    ))}
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {horariosUsados.map((hr, idx) => (
+                                    <tr key={hr}>
+                                        <td style={{ fontWeight: 500, fontSize: 12, color: "#5a7060" }}>{hr}</td>
+                                        {turmasFiltradas.map(tid => {
+                                            const slot = getSlot(tid, dia, idx + 1);
+                                            if (!slot) {
+                                                return <td key={tid} style={{ textAlign: "center", color: "#d4ddd8" }}>—</td>;
+                                            }
+                                            const nomeProf = slot.professorNome?.split(" ")[0] || "";
+                                            return (
+                                                <td key={tid} style={{ textAlign: "center" }}>
+                                                    <span style={{ fontWeight: 500 }}>{nomeProf}</span>
+                                                    <br />
+                                                    <span style={{ fontSize: 11, color: "#5a7060" }}>({slot.materiaNome})</span>
+                                                </td>
+                                            );
+                                        })}
+                                    </tr>
+                                ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                );
+            })}
         </div>
     );
 }
