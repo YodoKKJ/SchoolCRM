@@ -1128,6 +1128,7 @@ function Lancamentos() {
     const [notasEdit, setNotasEdit] = useState({});
     const [formAv, setFormAv] = useState({ tipo:"PROVA", descricao:"", peso:"1.0", bonificacao:false, bimestre:"1" });
     const [criandoAv, setCriandoAv] = useState(false);
+    const [bimestroFiltro, setBimestroFiltro] = useState("");
 
     // ── presença
     const [dataAula, setDataAula] = useState(new Date().toISOString().slice(0,10));
@@ -1316,47 +1317,76 @@ function Lancamentos() {
                     {/* Lista de avaliações */}
                     <div className="dd-section">
                         <div className="dd-section-header">
-                            <span className="dd-section-title">Avaliações</span>
+                            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                                <span className="dd-section-title">Avaliações</span>
+                                <div style={{ display:"flex", gap:0 }}>
+                                    {[["", "Todos"], ["1","1º Bim"], ["2","2º Bim"], ["3","3º Bim"], ["4","4º Bim"]].map(([val, label], i, arr) => (
+                                        <button key={val} type="button"
+                                                onClick={() => setBimestroFiltro(val)}
+                                                style={{ padding:"4px 10px", border:"1px solid #eaeef2",
+                                                    borderRight: i < arr.length - 1 ? "none" : "1px solid #eaeef2",
+                                                    background: bimestroFiltro === val ? "#0d1f18" : "white",
+                                                    color: bimestroFiltro === val ? "#7ec8a0" : "#9aaa9f",
+                                                    fontSize:10, fontWeight:500, letterSpacing:".05em",
+                                                    textTransform:"uppercase", cursor:"pointer" }}>
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                             <button className="dd-btn-primary" onClick={() => setCriandoAv(true)}>
                                 + Nova Avaliação
                             </button>
                         </div>
 
-                        {avaliacoes.length === 0
-                            ? <p style={{ padding:"32px", textAlign:"center", fontSize:12, color:"#9aaa9f" }}>
-                                Nenhuma avaliação criada para essa turma/matéria.
-                            </p>
-                            : <div style={{ display:"flex", flexDirection:"column" }}>
-                                {avaliacoes.map(av => {
-                                    const tc = tipoColor[av.tipo] || tipoColor.PROVA;
-                                    const ativa = avaliacaoSel?.id === av.id;
-                                    const lancadas = av.notas.length;
-                                    return (
-                                        <div key={av.id} onClick={() => selecionarAvaliacao(av)}
-                                             style={{ padding:"14px 20px", display:"flex", alignItems:"center", gap:16,
-                                                 borderBottom:"1px solid #f2f5f2", cursor:"pointer",
-                                                 background: ativa ? "#f8faf8" : "white",
-                                                 borderLeft: ativa ? "3px solid #0d1f18" : "3px solid transparent" }}>
-                                            <span className="dd-badge" style={{ background:tc.bg, color:tc.color, flexShrink:0 }}>
-                                                {tipoLabel[av.tipo]}
-                                            </span>
-                                            <div style={{ flex:1, minWidth:0 }}>
-                                                <p style={{ fontSize:13, fontWeight:500, color:"#0d1f18" }}>
-                                                    {av.descricao || tipoLabel[av.tipo]}
-                                                </p>
-                                                <p style={{ fontSize:11, color:"#9aaa9f", marginTop:2 }}>
-                                                    Peso {av.peso} · {av.dataAplicacao || "sem data"}
-                                                    {av.bonificacao && " · ✦ Bônus"}
-                                                </p>
+                        {(() => {
+                            const lista = bimestroFiltro
+                                ? avaliacoes.filter(av => String(av.bimestre) === bimestroFiltro)
+                                : avaliacoes;
+                            if (lista.length === 0) return (
+                                <p style={{ padding:"32px", textAlign:"center", fontSize:12, color:"#9aaa9f" }}>
+                                    {avaliacoes.length === 0
+                                        ? "Nenhuma avaliação criada para essa turma/matéria."
+                                        : "Nenhuma avaliação no bimestre selecionado."}
+                                </p>
+                            );
+                            return (
+                                <div style={{ display:"flex", flexDirection:"column" }}>
+                                    {lista.map(av => {
+                                        const tc = tipoColor[av.tipo] || tipoColor.PROVA;
+                                        const ativa = avaliacaoSel?.id === av.id;
+                                        const lancadas = av.notas.length;
+                                        return (
+                                            <div key={av.id} onClick={() => selecionarAvaliacao(av)}
+                                                 style={{ padding:"14px 20px", display:"flex", alignItems:"center", gap:16,
+                                                     borderBottom:"1px solid #f2f5f2", cursor:"pointer",
+                                                     background: ativa ? "#f8faf8" : "white",
+                                                     borderLeft: ativa ? "3px solid #0d1f18" : "3px solid transparent" }}>
+                                                <span className="dd-badge" style={{ background:tc.bg, color:tc.color, flexShrink:0 }}>
+                                                    {tipoLabel[av.tipo]}
+                                                </span>
+                                                <span style={{ fontSize:10, fontWeight:600, color:"#1A759F", background:"#e8f3fb",
+                                                    padding:"2px 7px", letterSpacing:".04em", flexShrink:0 }}>
+                                                    {av.bimestre || 1}º BIM
+                                                </span>
+                                                <div style={{ flex:1, minWidth:0 }}>
+                                                    <p style={{ fontSize:13, fontWeight:500, color:"#0d1f18" }}>
+                                                        {av.descricao || tipoLabel[av.tipo]}
+                                                    </p>
+                                                    <p style={{ fontSize:11, color:"#9aaa9f", marginTop:2 }}>
+                                                        Peso {av.peso} · {av.dataAplicacao || "sem data"}
+                                                        {av.bonificacao && " · ✦ Bônus"}
+                                                    </p>
+                                                </div>
+                                                <span style={{ fontSize:11, color:"#9aaa9f" }}>
+                                                    {lancadas}/{alunos.length} notas
+                                                </span>
                                             </div>
-                                            <span style={{ fontSize:11, color:"#9aaa9f" }}>
-                                                {lancadas}/{alunos.length} notas
-                                            </span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        }
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()}
                     </div>
 
                     {/* Tabela de notas da avaliação selecionada */}
@@ -1633,6 +1663,8 @@ function Lancamentos() {
 
 // ---- ATRASOS ----
 function Atrasos() {
+    const hoje = new Date().toISOString().slice(0, 10);
+    const [dataSel, setDataSel] = useState(hoje);
     const [alunos, setAlunos] = useState([]);
     const [busca, setBusca] = useState("");
     const [alunoSel, setAlunoSel] = useState(null);
@@ -1640,6 +1672,7 @@ function Atrasos() {
     const [registros, setRegistros] = useState([]);
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
     const [salvando, setSalvando] = useState(false);
+    const [carregando, setCarregando] = useState(false);
     const [historico, setHistorico] = useState([]);
     const [verHistorico, setVerHistorico] = useState(false);
 
@@ -1648,15 +1681,23 @@ function Atrasos() {
         setTimeout(() => setMsg({ texto:"", tipo:"" }), 3000);
     };
 
-    const carregarHoje = () =>
-        api.get("/atrasos/hoje").then(r => setRegistros(r.data || []));
+    const carregarDia = (data) => {
+        setCarregando(true);
+        api.get("/atrasos/historico", { params: { data } })
+            .then(r => setRegistros(r.data || []))
+            .catch(() => {})
+            .finally(() => setCarregando(false));
+    };
 
     useEffect(() => {
         api.get("/usuarios").then(r =>
             setAlunos((r.data || []).filter(u => u.role === "ALUNO" && u.ativo))
         );
-        carregarHoje();
     }, []);
+
+    useEffect(() => {
+        carregarDia(dataSel);
+    }, [dataSel]);
 
     const alunosFiltrados = busca.length >= 2
         ? alunos.filter(a => a.nome.toLowerCase().includes(busca.toLowerCase()))
@@ -1681,37 +1722,40 @@ function Atrasos() {
         try {
             const r = await api.post("/atrasos", {
                 alunoId: String(alunoSel.id),
-                observacao: obs || null
+                observacao: obs || null,
+                data: dataSel
             });
             flash(`Atraso registrado — ${r.data.aluno} às ${r.data.horario}`);
             setAlunoSel(null);
             setBusca("");
             setObs("");
-            carregarHoje();
-        } catch { flash("Erro ao registrar.", "erro"); }
+            carregarDia(dataSel);
+        } catch (e) {
+            flash(e.response?.status === 409 ? "Aluno já tem atraso registrado neste dia." : "Erro ao registrar.", "erro");
+        }
         setSalvando(false);
     };
 
     const remover = async (id) => {
         await api.delete(`/atrasos/${id}`);
-        carregarHoje();
+        carregarDia(dataSel);
     };
 
-    const agora = new Date();
-    const dataHoje = agora.toLocaleDateString("pt-BR");
-    const horaAgora = agora.toLocaleTimeString("pt-BR", { hour:"2-digit", minute:"2-digit" });
+    const horaAgora = new Date().toLocaleTimeString("pt-BR", { hour:"2-digit", minute:"2-digit" });
+    const dataSelDisplay = new Date(dataSel + "T12:00:00").toLocaleDateString("pt-BR");
+    const eHoje = dataSel === hoje;
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
 
             {/* Header do dia */}
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16 }}>
                 <div className="dd-section" style={{ borderTop:"2px solid #0d1f18", padding:"20px" }}>
                     <p style={{ fontFamily:"'Playfair Display',serif", fontSize:28, fontWeight:700, color:"#0d1f18", lineHeight:1 }}>
-                        {registros.length}
+                        {carregando ? "—" : registros.length}
                     </p>
                     <p style={{ fontSize:11, letterSpacing:".06em", textTransform:"uppercase", color:"#9aaa9f", marginTop:4 }}>
-                        Atrasos hoje
+                        Atrasos {eHoje ? "hoje" : "no dia"}
                     </p>
                 </div>
                 <div className="dd-section" style={{ borderTop:"2px solid #7ec8a0", padding:"20px" }}>
@@ -1719,8 +1763,32 @@ function Atrasos() {
                         {horaAgora}
                     </p>
                     <p style={{ fontSize:11, letterSpacing:".06em", textTransform:"uppercase", color:"#9aaa9f", marginTop:4 }}>
-                        {dataHoje}
+                        Agora
                     </p>
+                </div>
+                <div className="dd-section" style={{ borderTop:"2px solid #1A759F", padding:"20px" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <input
+                            type="date"
+                            value={dataSel}
+                            max={hoje}
+                            onChange={e => setDataSel(e.target.value)}
+                            style={{ border:"none", background:"transparent", fontFamily:"'Playfair Display',serif",
+                                fontSize:16, fontWeight:700, color:"#0d1f18", outline:"none", cursor:"pointer", width:"100%" }}
+                        />
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:4 }}>
+                        <p style={{ fontSize:11, letterSpacing:".06em", textTransform:"uppercase", color:"#9aaa9f" }}>
+                            Filtrar data
+                        </p>
+                        {!eHoje && (
+                            <button onClick={() => setDataSel(hoje)}
+                                    style={{ fontSize:10, padding:"2px 8px", background:"#0d1f18", color:"#7ec8a0",
+                                        border:"none", cursor:"pointer", letterSpacing:".04em" }}>
+                                HOJE
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -1730,6 +1798,7 @@ function Atrasos() {
             <div className="dd-section">
                 <div className="dd-section-header">
                     <span className="dd-section-title">Registrar Atraso</span>
+                    {!eHoje && <span className="dd-section-count">para {dataSelDisplay}</span>}
                 </div>
                 <div style={{ padding:24, display:"flex", flexDirection:"column", gap:20 }}>
 
@@ -1840,12 +1909,12 @@ function Atrasos() {
             {/* Lista do dia */}
             <div className="dd-section">
                 <div className="dd-section-header">
-                    <span className="dd-section-title">Atrasos de Hoje</span>
+                    <span className="dd-section-title">Atrasos — {dataSelDisplay}</span>
                     <span className="dd-section-count">{registros.length} registro(s)</span>
                 </div>
                 {registros.length === 0
                     ? <p style={{ padding:"40px", textAlign:"center", fontSize:13, color:"#9aaa9f" }}>
-                        Nenhum atraso registrado hoje.
+                        {carregando ? "Carregando..." : "Nenhum atraso registrado neste dia."}
                     </p>
                     : <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
                         <thead>
