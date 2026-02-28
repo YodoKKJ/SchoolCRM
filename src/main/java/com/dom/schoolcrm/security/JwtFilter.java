@@ -32,13 +32,11 @@ public class JwtFilter extends OncePerRequestFilter {
 
         String path = request.getRequestURI();
 
-        if (path.startsWith("/assets") ||
-                path.equals("/") ||
-                path.equals("/index.html") ||
-                path.endsWith(".js") ||
-                path.endsWith(".css") ||
-                path.endsWith(".map") ||
-                path.endsWith(".ico")) {
+        if (!path.startsWith("/auth") &&
+                !path.startsWith("/turmas") &&
+                !path.startsWith("/materias") &&
+                !path.startsWith("/vinculos") &&
+                !path.startsWith("/usuarios")) {
 
             filterChain.doFilter(request, response);
             return;
