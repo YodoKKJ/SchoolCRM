@@ -67,7 +67,23 @@ public class SecurityConfig {
 
                         // RESTO PROTEGIDO
                         .anyRequest().authenticated()
+                );
+        http.securityMatcher("/**")
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(
+                                "/",
+                                "/index.html",
+                                "/favicon.ico",
+                                "/vite.svg",
+                                "/assets/**",
+                                "/**/*.js",
+                                "/**/*.css",
+                                "/**/*.map"
+                        ).permitAll()
+                        .requestMatchers("/auth/**").permitAll()
+                        .anyRequest().authenticated()
                 )
+
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) ->
                                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
