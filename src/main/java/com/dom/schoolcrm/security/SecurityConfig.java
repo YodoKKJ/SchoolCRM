@@ -38,16 +38,34 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Arquivos estáticos do React (index.html, assets JS/CSS, ícones)
-                        .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico", "/vite.svg", "/error").permitAll()
-                        // API de autenticação e preflight CORS
+                        // LIBERA TODOS OS ARQUIVOS ESTÁTICOS
+                        .requestMatchers(
+                                "/",
+                                "/index.html",
+                                "/error",
+                                "/favicon.ico",
+                                "/vite.svg",
+                                "/assets/**",
+                                "/**/*.js",
+                                "/**/*.css",
+                                "/**/*.map",
+                                "/**/*.png",
+                                "/**/*.jpg",
+                                "/**/*.svg"
+                        ).permitAll()
+
+                        // API de autenticação
                         .requestMatchers("/auth/**").permitAll()
+
+                        // Preflight CORS
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-                        // Restrições de role para DELETE
+
+                        // DELETE protegido
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/turmas/**").hasRole("DIRECAO")
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/materias/**").hasRole("DIRECAO")
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/vinculos/**").hasRole("DIRECAO")
-                        // Todo o resto exige autenticação
+
+                        // RESTO PROTEGIDO
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
