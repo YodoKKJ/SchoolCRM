@@ -10,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -39,6 +40,11 @@ public class UsuarioController {
         usuario.setSenhaHash(passwordEncoder.encode(body.get("senha")));
         usuario.setRole(body.get("role"));
         usuario.setAtivo(true);
+
+        String dataNascStr = body.get("dataNascimento");
+        if (dataNascStr != null && !dataNascStr.isBlank()) usuario.setDataNascimento(LocalDate.parse(dataNascStr));
+        usuario.setNomePai(body.get("nomePai"));
+        usuario.setNomeMae(body.get("nomeMae"));
 
         usuarioRepository.save(usuario);
 
@@ -89,6 +95,13 @@ public class UsuarioController {
         if (senha != null && !senha.isBlank()) {
             usuario.setSenhaHash(passwordEncoder.encode(senha));
         }
+
+        if (body.containsKey("dataNascimento")) {
+            String dataNascStr = body.get("dataNascimento");
+            usuario.setDataNascimento(dataNascStr == null || dataNascStr.isBlank() ? null : LocalDate.parse(dataNascStr));
+        }
+        if (body.containsKey("nomePai")) usuario.setNomePai(body.get("nomePai"));
+        if (body.containsKey("nomeMae")) usuario.setNomeMae(body.get("nomeMae"));
 
         usuarioRepository.save(usuario);
 
