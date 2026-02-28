@@ -319,11 +319,12 @@ export default function DirecaoDashboard() {
 
     const anoAtual = new Date().getFullYear();
     const [anoLetivo, setAnoLetivo] = useState(anoAtual);
-    const [anosDisponiveis, setAnosDisponiveis] = useState([anoAtual]);
+    const [anosDisponiveis, setAnosDisponiveis] = useState([anoAtual + 1, anoAtual]);
     useEffect(() => {
         api.get("/turmas").then(r => {
-            const anos = [...new Set((r.data || []).map(t => t.anoLetivo).filter(Boolean))].sort((a, b) => b - a);
-            setAnosDisponiveis(anos.length > 0 ? (anos.includes(anoAtual) ? anos : [anoAtual, ...anos]) : [anoAtual]);
+            const anosExistentes = (r.data || []).map(t => t.anoLetivo).filter(Boolean);
+            const todos = [...new Set([anoAtual + 1, anoAtual, ...anosExistentes])].sort((a, b) => b - a);
+            setAnosDisponiveis(todos);
         }).catch(() => {});
     }, []);
 
