@@ -317,6 +317,16 @@ export default function DirecaoDashboard() {
     const logout = () => { localStorage.clear(); window.location.href = "/"; };
     const toggleColapso = (id) => setColapsados(prev => ({ ...prev, [id]: !prev[id] }));
 
+    const anoAtual = new Date().getFullYear();
+    const [anoLetivo, setAnoLetivo] = useState(anoAtual);
+    const [anosDisponiveis, setAnosDisponiveis] = useState([anoAtual]);
+    useEffect(() => {
+        api.get("/turmas").then(r => {
+            const anos = [...new Set((r.data || []).map(t => t.anoLetivo).filter(Boolean))].sort((a, b) => b - a);
+            setAnosDisponiveis(anos.length > 0 ? (anos.includes(anoAtual) ? anos : [anoAtual, ...anos]) : [anoAtual]);
+        }).catch(() => {});
+    }, []);
+
     return (
         <>
             <style>{GLOBAL_STYLE}</style>
@@ -355,6 +365,15 @@ export default function DirecaoDashboard() {
                             <p style={{ fontSize:12, fontWeight:500, color:"rgba(255,255,255,.65)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{nome}</p>
                             <p style={{ fontSize:10, color:"rgba(255,255,255,.25)", letterSpacing:"0.04em" }}>Administrador</p>
                         </div>
+                    </div>
+
+                    {/* ano letivo */}
+                    <div style={{ padding:"10px 20px 14px", borderBottom:"1px solid rgba(255,255,255,.06)" }}>
+                        <p style={{ fontSize:9, color:"rgba(255,255,255,.3)", letterSpacing:".12em", textTransform:"uppercase", marginBottom:6 }}>Ano Letivo</p>
+                        <select value={anoLetivo} onChange={e => setAnoLetivo(Number(e.target.value))}
+                                style={{ width:"100%", background:"rgba(255,255,255,.07)", border:"1px solid rgba(255,255,255,.12)", color:"#7ec8a0", fontFamily:"'DM Sans',sans-serif", fontSize:13, fontWeight:500, padding:"6px 10px", cursor:"pointer", outline:"none" }}>
+                            {anosDisponiveis.map(ano => <option key={ano} value={ano} style={{ background:"#1a2e23", color:"#7ec8a0" }}>{ano}</option>)}
+                        </select>
                     </div>
 
                     {/* nav */}
@@ -419,12 +438,12 @@ export default function DirecaoDashboard() {
                     <main style={{ flex:1, padding:"28px 32px", display:"flex", flexDirection:"column", gap:0 }}>
                         {aba === "inicio" && <ErrorBoundary key="inicio"><Inicio /></ErrorBoundary>}
                         {aba === "usuarios" && <ErrorBoundary key="usuarios"><Usuarios /></ErrorBoundary>}
-                        {aba === "turmas" && <ErrorBoundary key="turmas"><Turmas /></ErrorBoundary>}
+                        {aba === "turmas" && <ErrorBoundary key={`turmas-${anoLetivo}`}><Turmas anoLetivo={anoLetivo} /></ErrorBoundary>}
                         {aba === "materias" && <ErrorBoundary key="materias"><Materias /></ErrorBoundary>}
-                        {aba === "horarios" && <ErrorBoundary key="horarios"><Horarios /></ErrorBoundary>}
+                        {aba === "horarios" && <ErrorBoundary key={`horarios-${anoLetivo}`}><Horarios anoLetivo={anoLetivo} /></ErrorBoundary>}
                         {aba === "atrasos" && <ErrorBoundary key="atrasos"><Atrasos /></ErrorBoundary>}
-                        {aba === "lancamentos" && <ErrorBoundary key="lancamentos"><Lancamentos /></ErrorBoundary>}
-                        {aba === "boletins" && <ErrorBoundary key="boletins"><Boletins /></ErrorBoundary>}
+                        {aba === "lancamentos" && <ErrorBoundary key={`lancamentos-${anoLetivo}`}><Lancamentos anoLetivo={anoLetivo} /></ErrorBoundary>}
+                        {aba === "boletins" && <ErrorBoundary key={`boletins-${anoLetivo}`}><Boletins anoLetivo={anoLetivo} /></ErrorBoundary>}
                     </main>
                 </div>
             </div>
@@ -823,11 +842,11 @@ function Usuarios() {
 }
 
 // ---- TURMAS ----
-function Turmas() {
+function Turmas({ anoLetivo }) {
     const [turmas, setTurmas] = useState([]);
     const [series, setSeries] = useState([]);
     const [formSerie, setFormSerie] = useState({ tipo: "EF", numero: "1" });
-    const [formTurma, setFormTurma] = useState({ nome: "", serieId: "", anoLetivo: String(new Date().getFullYear()) });
+    const [formTurma, setFormTurma] = useState({ nome: "", serieId: "", anoLetivo: String(anoLetivo) });
     const [msg, setMsg] = useState({ texto: "", tipo: "" });
     const [turmaSelecionada, setTurmaSelecionada] = useState(null);
     const [campoBusca, setCampoBusca] = useState("nome");
@@ -981,7 +1000,7 @@ function Turmas() {
                 <div className="dd-section-header" style={{ flexDirection:"column", alignItems:"stretch", gap:12 }}>
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                         <span className="dd-section-title">Turmas Cadastradas</span>
-                        <span className="dd-section-count">{turmas.length} turmas</span>
+                        <span className="dd-section-count">{turmas.filter(t => t.anoLetivo === anoLetivo).length} turmas</span>
                     </div>
                     <BarraBusca campos={[{value:"nome",label:"Nome da Turma"},{value:"serie",label:"Série"}]}
                                 campoBusca={campoBusca} setCampoBusca={setCampoBusca}
@@ -990,7 +1009,7 @@ function Turmas() {
                 <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
                     <thead><tr>{["Turma","Série","Ano",""].map(h=><th key={h}>{h}</th>)}</tr></thead>
                     <tbody>
-                    {turmas.map(t => (
+                    {turmas.filter(t => t.anoLetivo === anoLetivo).map(t => (
                         <tr key={t.id}>
                             <td style={{ fontWeight:500 }}>{t.nome}</td>
                             <td><span className="dd-badge" style={{ background:"#f0f5f2", color:"#2d6a4f" }}>{t.serie?.nome}</span></td>
@@ -1304,7 +1323,7 @@ function Materias() {
 
 
 // ---- LANÇAMENTOS ----
-function Lancamentos() {
+function Lancamentos({ anoLetivo }) {
     // ── seleção
     const [turmas, setTurmas] = useState([]);
     const [turmaId, setTurmaId] = useState("");
@@ -1504,7 +1523,7 @@ function Lancamentos() {
                         <select className="dd-search-input" style={{ width:"100%", paddingLeft:12 }}
                                 value={turmaId} onChange={e => { setTurmaId(e.target.value); setMateriaId(""); }}>
                             <option value="">Selecione a turma...</option>
-                            {turmas.map(t => <option key={t.id} value={t.id}>{t.nome} — {t.serie?.nome}</option>)}
+                            {turmas.filter(t => t.anoLetivo === anoLetivo).map(t => <option key={t.id} value={t.id}>{t.nome} — {t.serie?.nome}</option>)}
                         </select>
                     </div>
                     <div>
@@ -2246,7 +2265,7 @@ function Atrasos() {
 }
 
 // ---- BOLETINS ----
-function Boletins() {
+function Boletins({ anoLetivo }) {
     const [alunos, setAlunos] = useState([]);
     const [turmas, setTurmas] = useState([]);
     const [alunoId, setAlunoId] = useState("");
@@ -2360,7 +2379,7 @@ function Boletins() {
                     <div>
                         <label className="dd-label">Turma</label>
                         <SearchSelect
-                            options={turmas.map(t => ({ value: t.id, label: `${t.nome} — ${t.serie?.nome || ""}` }))}
+                            options={turmas.filter(t => t.anoLetivo === anoLetivo).map(t => ({ value: t.id, label: `${t.nome} — ${t.serie?.nome || ""}` }))}
                             value={turmaId} onChange={setTurmaId}
                             placeholder="Selecione a turma..." />
                     </div>
@@ -2410,7 +2429,7 @@ const DIAS = ["SEG", "TER", "QUA", "QUI", "SEX"];
 const DIAS_LABEL = { SEG: "Segunda", TER: "Terça", QUA: "Quarta", QUI: "Quinta", SEX: "Sexta" };
 const DEFAULT_HORARIOS = ["07:30", "08:18", "09:06", "10:09", "10:57"];
 
-function Horarios() {
+function Horarios({ anoLetivo }) {
     const [turmas, setTurmas] = useState([]);
     const [turmaId, setTurmaId] = useState("");
     const [professores, setProfessores] = useState([]);
@@ -2665,7 +2684,7 @@ function Horarios() {
                             <div style={{ flex: 1, minWidth: 200 }}>
                                 <label className="dd-label">Selecione a Turma</label>
                                 <SearchSelect
-                                    options={turmas.map(t => ({ value: t.id, label: `${t.nome}${t.serie ? ` — ${t.serie.nome}` : ""}` }))}
+                                    options={turmas.filter(t => t.anoLetivo === anoLetivo).map(t => ({ value: t.id, label: `${t.nome}${t.serie ? ` — ${t.serie.nome}` : ""}` }))}
                                     value={turmaId}
                                     onChange={v => { setTurmaId(v); setEditMode(false); }}
                                     placeholder="Escolha uma turma"
