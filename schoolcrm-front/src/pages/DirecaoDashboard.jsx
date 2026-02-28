@@ -514,10 +514,10 @@ function Inicio() {
 // ---- USUÁRIOS ----
 function Usuarios() {
     const [usuarios, setUsuarios] = useState([]);
-    const [form, setForm] = useState({ nome: "", login: "", senha: "", role: "ALUNO" });
+    const [form, setForm] = useState({ nome: "", login: "", senha: "", role: "ALUNO", dataNascimento: "", nomePai: "", nomeMae: "" });
     const [msg, setMsg] = useState({ texto: "", tipo: "" });
     const [editando, setEditando] = useState(null);
-    const [formEdit, setFormEdit] = useState({ nome: "", login: "", senha: "" });
+    const [formEdit, setFormEdit] = useState({ nome: "", login: "", senha: "", dataNascimento: "", nomePai: "", nomeMae: "" });
     const [msgEdit, setMsgEdit] = useState({ texto: "", tipo: "" });
     const [campoBusca, setCampoBusca] = useState("nome");
     const [termoBusca, setTermoBusca] = useState("");
@@ -543,14 +543,19 @@ function Usuarios() {
         try {
             await api.post("/usuarios", form);
             setMsg({ texto: "Usuário cadastrado com sucesso!", tipo: "ok" });
-            setForm({ nome: "", login: "", senha: "", role: "ALUNO" });
+            setForm({ nome: "", login: "", senha: "", role: "ALUNO", dataNascimento: "", nomePai: "", nomeMae: "" });
             carregar();
         } catch { setMsg({ texto: "Erro ao cadastrar. Login já existe?", tipo: "erro" }); }
     };
 
     const abrirEdicao = (u) => {
         setEditando(u);
-        setFormEdit({ nome: u.nome, login: u.login, senha: "" });
+        setFormEdit({
+            nome: u.nome, login: u.login, senha: "",
+            dataNascimento: u.dataNascimento || "",
+            nomePai: u.nomePai || "",
+            nomeMae: u.nomeMae || "",
+        });
         setMsgEdit({ texto: "", tipo: "" });
     };
 
@@ -615,6 +620,40 @@ function Usuarios() {
                                 </div>
                             ))}
 
+                            {editando?.role === "ALUNO" && (<>
+                                <div style={{ borderTop:"1px solid #eef0ec", paddingTop:16 }}>
+                                    <p className="dd-label" style={{ marginBottom:12, color:"#6b7a8d" }}>Dados do aluno</p>
+                                    <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                                        <div>
+                                            <label className="dd-label">Data de Nascimento</label>
+                                            <div className="dd-input-wrap">
+                                                <input className="dd-input" type="date" value={formEdit.dataNascimento}
+                                                       onChange={e => setFormEdit({ ...formEdit, dataNascimento: e.target.value })} />
+                                                <div className="dd-input-line" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="dd-label">Nome do Pai</label>
+                                            <div className="dd-input-wrap">
+                                                <input className="dd-input" type="text" placeholder="Nome do pai"
+                                                       value={formEdit.nomePai}
+                                                       onChange={e => setFormEdit({ ...formEdit, nomePai: e.target.value })} />
+                                                <div className="dd-input-line" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="dd-label">Nome da Mãe</label>
+                                            <div className="dd-input-wrap">
+                                                <input className="dd-input" type="text" placeholder="Nome da mãe"
+                                                       value={formEdit.nomeMae}
+                                                       onChange={e => setFormEdit({ ...formEdit, nomeMae: e.target.value })} />
+                                                <div className="dd-input-line" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </>)}
+
                             {msgEdit.texto && <div className={msgEdit.tipo === "ok" ? "dd-ok" : "dd-err"}>{msgEdit.texto}</div>}
 
                             <div style={{ display:"flex", gap:8, marginTop:4 }}>
@@ -656,6 +695,32 @@ function Usuarios() {
                             onChange={v => setForm({ ...form, role: v })}
                             placeholder="Selecione..." />
                     </div>
+                    {form.role === "ALUNO" && (<>
+                        <div>
+                            <label className="dd-label">Data de Nascimento</label>
+                            <div className="dd-input-wrap">
+                                <input className="dd-input" type="date" value={form.dataNascimento}
+                                       onChange={e => setForm({ ...form, dataNascimento: e.target.value })} />
+                                <div className="dd-input-line" />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="dd-label">Nome do Pai</label>
+                            <div className="dd-input-wrap">
+                                <input className="dd-input" type="text" placeholder="Nome do pai"
+                                       value={form.nomePai} onChange={e => setForm({ ...form, nomePai: e.target.value })} />
+                                <div className="dd-input-line" />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="dd-label">Nome da Mãe</label>
+                            <div className="dd-input-wrap">
+                                <input className="dd-input" type="text" placeholder="Nome da mãe"
+                                       value={form.nomeMae} onChange={e => setForm({ ...form, nomeMae: e.target.value })} />
+                                <div className="dd-input-line" />
+                            </div>
+                        </div>
+                    </>)}
                     <button type="submit" className="dd-btn-primary" style={{ gridColumn:"1/-1", marginTop:4 }}>
                         Cadastrar Usuário →
                     </button>
@@ -732,7 +797,7 @@ function Usuarios() {
 function Turmas() {
     const [turmas, setTurmas] = useState([]);
     const [series, setSeries] = useState([]);
-    const [formSerie, setFormSerie] = useState({ nome: "" });
+    const [formSerie, setFormSerie] = useState({ tipo: "EF", numero: "1" });
     const [formTurma, setFormTurma] = useState({ nome: "", serieId: "", anoLetivo: String(new Date().getFullYear()) });
     const [msg, setMsg] = useState({ texto: "", tipo: "" });
     const [turmaSelecionada, setTurmaSelecionada] = useState(null);
@@ -794,18 +859,37 @@ function Turmas() {
                     <p className="dd-section-title" style={{ marginBottom:16 }}>Nova Série</p>
                     <form onSubmit={async e => {
                         e.preventDefault();
-                        if (!formSerie.nome.trim()) return;
+                        const nums = formSerie.tipo === "EM" ? ["1","2","3"] : ["1","2","3","4","5","6","7","8","9"];
+                        const ord = ["1º","2º","3º","4º","5º","6º","7º","8º","9º"][parseInt(formSerie.numero)-1];
+                        const nome = `${ord} ${formSerie.tipo}`;
+                        if (series.some(s => s.nome === nome)) {
+                            setMsg({ texto: `Série "${nome}" já existe.`, tipo: "erro" }); return;
+                        }
                         try {
-                            await api.post("/turmas/series", formSerie);
-                            setFormSerie({ nome: "" });
-                            setMsg({ texto: "Série criada!", tipo: "ok" });
+                            await api.post("/turmas/series", { nome });
+                            setFormSerie({ tipo: "EF", numero: "1" });
+                            setMsg({ texto: `Série "${nome}" criada!`, tipo: "ok" });
                             carregar();
                         } catch { setMsg({ texto: "Erro ao criar série.", tipo: "erro" }); }
-                    }} style={{ display:"flex", gap:8 }}>
-                        <div className="dd-input-wrap" style={{ flex:1 }}>
-                            <input className="dd-input" placeholder="Ex: 1º Ano" value={formSerie.nome}
-                                   onChange={e => setFormSerie({ nome: e.target.value })} />
-                            <div className="dd-input-line" />
+                    }} style={{ display:"flex", gap:8, alignItems:"flex-end" }}>
+                        <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                            <label className="dd-label">Nível</label>
+                            <select className="dd-input" value={formSerie.tipo}
+                                    onChange={e => setFormSerie({ tipo: e.target.value, numero: "1" })}
+                                    style={{ cursor:"pointer" }}>
+                                <option value="EF">Ensino Fundamental (EF)</option>
+                                <option value="EM">Ensino Médio (EM)</option>
+                            </select>
+                        </div>
+                        <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                            <label className="dd-label">Ano</label>
+                            <select className="dd-input" value={formSerie.numero}
+                                    onChange={e => setFormSerie({ ...formSerie, numero: e.target.value })}
+                                    style={{ cursor:"pointer" }}>
+                                {(formSerie.tipo === "EM" ? ["1","2","3"] : ["1","2","3","4","5","6","7","8","9"]).map(n => (
+                                    <option key={n} value={n}>{n}º ano</option>
+                                ))}
+                            </select>
                         </div>
                         <button type="submit" className="dd-btn-primary">Adicionar</button>
                     </form>
