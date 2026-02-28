@@ -36,7 +36,7 @@ export function BoletimImpresso({ boletim, logo, dataEmissao }) {
     const freqGeral = boletim?.frequenciaGeral || 100;
 
     const s = {
-        page: { fontFamily: "Arial, sans-serif", fontSize: 10, color: "#000", background: "#fff", padding: "20px 24px", width: 794, minHeight: 1123, boxSizing: "border-box" },
+        page: { fontFamily: "Arial, sans-serif", fontSize: 10, color: "#000", background: "#fff", padding: "20px 24px", width: 794, minHeight: 1123, boxSizing: "border-box", display: "flex", flexDirection: "column" },
         header: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 6 },
         logoBox: { width: 90, height: 60, display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid #ccc", overflow: "hidden" },
         logoImg: { maxWidth: "100%", maxHeight: "100%", objectFit: "contain" },
@@ -128,7 +128,7 @@ export function BoletimImpresso({ boletim, logo, dataEmissao }) {
                     <th style={s.thMain}>Nota</th><th style={s.thMain}>F</th>
                     <th style={s.thMain}>MA</th>
                     <th style={s.thMain}>TF</th>
-                    <th style={s.thMain}>EF</th>
+                    <th style={s.thMain}>Freq%</th>
                     <th style={s.thMain}>MF</th>
                     <th style={s.thMain}>Cons</th>
                 </tr>
@@ -142,6 +142,7 @@ export function BoletimImpresso({ boletim, logo, dataEmissao }) {
                     const b4 = getBim(bimMap, 4);
                     const tf = d.faltasMateria || 0;
                     const ma = fmt(d.mediaAnual);
+                    const freq = d.frequenciaMateria != null ? `${d.frequenciaMateria}%` : "";
                     return (
                         <tr key={d.materiaId} style={i % 2 === 1 ? s.trAlt : {}}>
                             <td style={s.tdDisciplina}>{d.materiaNome}</td>
@@ -155,7 +156,7 @@ export function BoletimImpresso({ boletim, logo, dataEmissao }) {
                             <td style={s.tdCenter}>{b4.faltas !== "" ? b4.faltas : 0}</td>
                             <td style={s.tdFinal}>{ma}</td>
                             <td style={s.tdFinal}>{tf}</td>
-                            <td style={s.tdFinal}></td>
+                            <td style={{ ...s.tdFinal, fontWeight: d.frequenciaMateria != null && d.frequenciaMateria < 75 ? "bold" : "normal", color: d.frequenciaMateria != null && d.frequenciaMateria < 75 ? "#b94040" : "inherit" }}>{freq}</td>
                             <td style={s.tdFinal}>{ma}</td>
                             <td style={s.tdFinal}></td>
                         </tr>
@@ -183,8 +184,11 @@ export function BoletimImpresso({ boletim, logo, dataEmissao }) {
 
             {/* ── Legenda ── */}
             <div style={s.legendaBox}>
-                Legenda:** F=Faltas ** MA=Média Anual ** TF=Total Faltas ** EF = Exame Final ** MF= Média Final ** Cons= conselho de Classe
+                Legenda:** F=Faltas ** MA=Média Anual ** TF=Total Faltas ** Freq%=Frequência ** MF= Média Final ** Cons= conselho de Classe
             </div>
+
+            {/* Espaço flexível para preencher o resto da folha */}
+            <div style={{ flex: 1 }} />
 
             {/* ── Linha de corte ── */}
             <div style={s.corteLine}>
@@ -242,7 +246,7 @@ export function BotaoGerarPDF({ boletim, logo }) {
             const imgData = canvas.toDataURL("image/png");
             const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
             const pdfW = pdf.internal.pageSize.getWidth();
-            const pdfH = (canvas.height * pdfW) / canvas.width;
+            const pdfH = pdf.internal.pageSize.getHeight();
             pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
 
             const nomeArquivo = `boletim_${(boletim?.aluno?.nome || "aluno").replace(/\s+/g,"_").toLowerCase()}.pdf`;
