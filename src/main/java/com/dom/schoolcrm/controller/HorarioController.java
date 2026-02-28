@@ -168,6 +168,16 @@ public class HorarioController {
         return ResponseEntity.ok(horarios.stream().map(this::toMap).toList());
     }
 
+    // Listar horários de uma turma num dia da semana específico (para calcular períodos da chamada)
+    @GetMapping("/turma/{turmaId}/dia/{diaSemana}")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR')")
+    public ResponseEntity<?> listarPorTurmaDia(
+            @PathVariable Long turmaId, @PathVariable String diaSemana) {
+        List<Horario> horarios = horarioRepository
+                .findByTurmaIdAndDiaSemanaOrderByOrdemAula(turmaId, diaSemana);
+        return ResponseEntity.ok(horarios.stream().map(this::toMap).toList());
+    }
+
     // Deletar um horário individual
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('DIRECAO')")
