@@ -125,15 +125,13 @@ public class TurmaController {
 
     @DeleteMapping("/series/{id}")
     @PreAuthorize("hasRole('DIRECAO')")
-    @Transactional
     public ResponseEntity<?> deletarSerie(@PathVariable Long id) {
         if (!serieRepository.existsById(id)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Série não encontrada");
         }
-        List<Turma> turmas = turmaRepository.findBySerieId(id);
-        for (Turma turma : turmas) {
-            alunoTurmaRepository.deleteByTurmaId(turma.getId());
-            professorTurmaMateriaRepository.deleteByTurmaId(turma.getId());
+        if (!turmaRepository.findBySerieId(id).isEmpty()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Série possui turmas vinculadas e não pode ser excluída.");
         }
         serieRepository.deleteById(id);
         return ResponseEntity.ok(Map.of("mensagem", "Série removida com sucesso"));
