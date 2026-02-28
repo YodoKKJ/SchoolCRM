@@ -199,4 +199,21 @@ public class VinculoController {
         return ResponseEntity.ok(vinculos);
     }
 
+    // Direção vê histórico de turmas de um aluno específico
+    @GetMapping("/aluno-turma/historico/{alunoId}")
+    @PreAuthorize("hasRole('DIRECAO')")
+    public ResponseEntity<?> historicoAluno(@PathVariable Long alunoId) {
+        var vinculos = alunoTurmaRepository.findByAlunoId(alunoId).stream()
+                .sorted((a, b) -> {
+                    Integer anoA = a.getTurma().getAnoLetivo();
+                    Integer anoB = b.getTurma().getAnoLetivo();
+                    if (anoA == null && anoB == null) return 0;
+                    if (anoA == null) return 1;
+                    if (anoB == null) return -1;
+                    return anoB.compareTo(anoA);
+                })
+                .toList();
+        return ResponseEntity.ok(vinculos);
+    }
+
 }
