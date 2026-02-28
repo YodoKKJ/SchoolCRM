@@ -1197,9 +1197,12 @@ function Lancamentos() {
 
     // ── presença
     const [dataAula, setDataAula] = useState(new Date().toISOString().slice(0,10));
-    const [chamada, setChamada] = useState({}); // { alunoId: true/false }
-    const [presencasExistentes, setPresencasExistentes] = useState({});
+    const [chamadaPorAula, setChamadaPorAula] = useState({}); // { ordemAula: { alunoId: bool } }
+    const [aulasNoDia, setAulasNoDia] = useState([]);
+    const [loadingAulas, setLoadingAulas] = useState(false);
     const [historicoPresenca, setHistoricoPresenca] = useState({});
+    const DIAS_SEMANA = ["DOM","SEG","TER","QUA","QUI","SEX","SAB"];
+    const DIAS_LABEL_PT = { SEG:"Segunda",TER:"Terça",QUA:"Quarta",QUI:"Quinta",SEX:"Sexta",SAB:"Sábado",DOM:"Domingo" };
 
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
     const [salvando, setSalvando] = useState(false);
@@ -1235,25 +1238,34 @@ function Lancamentos() {
             .then(r => setHistoricoPresenca(r.data || {}));
     }, [turmaId, materiaId]);
 
-    // quando muda a data, preenche chamada com registros existentes
+    // Busca quantas aulas da matéria existem nesse dia da semana
     useEffect(() => {
-        if (!dataAula || !historicoPresenca[dataAula]) {
-            // inicia todos como presente por padrão
+        if (!turmaId || !materiaId || !dataAula) { setAulasNoDia([]); return; }
+        const diaSemana = DIAS_SEMANA[new Date(dataAula + "T12:00").getDay()];
+        setLoadingAulas(true);
+        api.get(`/horarios/turma/${turmaId}/dia/${diaSemana}`)
+            .then(r => {
+                const filtradas = (r.data || []).filter(h => String(h.materiaId) === String(materiaId));
+                setAulasNoDia(filtradas);
+            })
+            .catch(() => setAulasNoDia([]))
+            .finally(() => setLoadingAulas(false));
+    }, [turmaId, materiaId, dataAula]);
+
+    // Preenche chamadaPorAula ao mudar aulasNoDia, historicoPresenca, dataAula ou alunos
+    useEffect(() => {
+        if (aulasNoDia.length === 0) { setChamadaPorAula({}); return; }
+        const novaMap = {};
+        aulasNoDia.forEach(aula => {
             const init = {};
-            alunos.forEach(a => init[a.id] = true);
-            setChamada(init);
-            setPresencasExistentes({});
-        } else {
-            const registros = historicoPresenca[dataAula];
-            const nova = {};
-            const exist = {};
-            registros.forEach(r => { nova[r.alunoId] = r.presente; exist[r.alunoId] = r.presencaId; });
-            // alunos sem registro = presente por padrão
-            alunos.forEach(a => { if (nova[a.id] === undefined) nova[a.id] = true; });
-            setChamada(nova);
-            setPresencasExistentes(exist);
-        }
-    }, [dataAula, historicoPresenca, alunos]);
+            alunos.forEach(a => { init[a.id] = true; });
+            (historicoPresenca[dataAula] || [])
+                .filter(r => r.ordemAula === aula.ordemAula)
+                .forEach(r => { init[r.alunoId] = r.presente; });
+            novaMap[aula.ordemAula] = init;
+        });
+        setChamadaPorAula(novaMap);
+    }, [aulasNoDia, historicoPresenca, dataAula, alunos]);
 
     // quando seleciona avaliação, preenche notas existentes
     const selecionarAvaliacao = (av) => {
@@ -1316,16 +1328,20 @@ function Lancamentos() {
         if (!turmaId || !materiaId || !dataAula) return;
         setSalvando(true);
         let erros = 0;
-        for (const aluno of alunos) {
-            try {
-                await api.post("/presencas/lancar", {
-                    alunoId: String(aluno.id),
-                    turmaId: String(turmaId),
-                    materiaId: String(materiaId),
-                    presente: String(chamada[aluno.id] ?? true),
-                    data: dataAula
-                });
-            } catch { erros++; }
+        for (const aula of aulasNoDia) {
+            for (const aluno of alunos) {
+                try {
+                    await api.post("/presencas/lancar", {
+                        alunoId: String(aluno.id),
+                        turmaId: String(turmaId),
+                        materiaId: String(materiaId),
+                        presente: String(chamadaPorAula[aula.ordemAula]?.[aluno.id] ?? true),
+                        data: dataAula,
+                        ordemAula: String(aula.ordemAula),
+                        horarioInicio: aula.horarioInicio,
+                    });
+                } catch { erros++; }
+            }
         }
         setSalvando(false);
         flash(erros > 0 ? `${erros} erro(s) ao salvar.` : "Chamada salva!", erros > 0 ? "erro" : "ok");
@@ -1338,6 +1354,10 @@ function Lancamentos() {
 
     // ── render seletor ──────────────────────────────────────────────────────
     const semSelecao = !turmaId || !materiaId;
+    const diaSemana = dataAula ? DIAS_SEMANA[new Date(dataAula + "T12:00").getDay()] : null;
+    const diaSemanaLabel = diaSemana ? (DIAS_LABEL_PT[diaSemana] || diaSemana) : "";
+    const materiaNome = materias.find(m => String(m.id) === String(materiaId))?.nome || "";
+    const bloqueado = !loadingAulas && aulasNoDia.length === 0;
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
@@ -1557,75 +1577,105 @@ function Lancamentos() {
                                 </div>
                             </div>
                             <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-                                {Object.keys(historicoPresenca).length > 0 && (
-                                    <span style={{ fontSize:11, color:"#9aaa9f" }}>
-                                        {Object.keys(historicoPresenca).length} aula(s) registrada(s)
-                                    </span>
-                                )}
-                                <button className="dd-btn-ghost"
-                                        onClick={() => { const init={}; alunos.forEach(a=>init[a.id]=true); setChamada(init); }}>
+                                <button className="dd-btn-ghost" disabled={bloqueado || loadingAulas}
+                                        onClick={() => {
+                                            const m = {};
+                                            aulasNoDia.forEach(aula => {
+                                                const p = {};
+                                                alunos.forEach(a => { p[a.id] = true; });
+                                                m[aula.ordemAula] = p;
+                                            });
+                                            setChamadaPorAula(m);
+                                        }}>
                                     Todos Presentes
                                 </button>
-                                <button className="dd-btn-primary" onClick={salvarChamada} disabled={salvando}>
+                                <button className="dd-btn-primary" onClick={salvarChamada}
+                                        disabled={salvando || bloqueado || loadingAulas}>
                                     {salvando ? "Salvando..." : "Salvar Chamada →"}
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    <div className="dd-section">
-                        <div className="dd-section-header">
-                            <span className="dd-section-title">Chamada — {dataAula}</span>
-                            <span className="dd-section-count">
-                                {Object.values(chamada).filter(Boolean).length}/{alunos.length} presentes
+                    {/* Loading */}
+                    {loadingAulas && (
+                        <div className="dd-section" style={{ padding:24, textAlign:"center", color:"#9aaa9f", fontSize:13 }}>
+                            Verificando horários...
+                        </div>
+                    )}
+
+                    {/* Sem aulas → bloqueado */}
+                    {!loadingAulas && bloqueado && (
+                        <div className="dd-section" style={{ padding:24, textAlign:"center" }}>
+                            <span style={{ fontSize:13, color:"#b94040", fontWeight:500 }}>
+                                Sem aulas de {materiaNome} na {diaSemanaLabel}. Chamada bloqueada.
                             </span>
                         </div>
-                        <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
-                            <thead>
-                            <tr>
-                                <th>Aluno</th>
-                                <th style={{ width:160, textAlign:"center" }}>Presença</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {alunos.map(aluno => {
-                                const presente = chamada[aluno.id] ?? true;
-                                return (
-                                    <tr key={aluno.id}>
-                                        <td>
-                                            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                                                <div style={{ width:26, height:26, background: presente ? "#0d1f18" : "#e8e8e8", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color: presente ? "#7ec8a0" : "#aaa", flexShrink:0, transition:"background .15s" }}>
-                                                    {aluno.nome.charAt(0)}
-                                                </div>
-                                                <span style={{ fontWeight:500, fontSize:13, color: presente ? "#0d1f18" : "#aaa", transition:"color .15s" }}>
-                                                    {aluno.nome}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td style={{ textAlign:"center" }}>
-                                            <div style={{ display:"flex", gap:0, justifyContent:"center" }}>
-                                                <button onClick={() => setChamada(p => ({...p, [aluno.id]: true}))}
-                                                        style={{ padding:"6px 16px", border:"1px solid #eaeef2", borderRight:"none", background: presente ? "#0d1f18" : "white", color: presente ? "#7ec8a0" : "#9aaa9f", fontSize:11, fontWeight:500, cursor:"pointer", letterSpacing:".04em", transition:"all .15s" }}>
-                                                    P
-                                                </button>
-                                                <button onClick={() => setChamada(p => ({...p, [aluno.id]: false}))}
-                                                        style={{ padding:"6px 16px", border:"1px solid #eaeef2", background: !presente ? "#b94040" : "white", color: !presente ? "white" : "#9aaa9f", fontSize:11, fontWeight:500, cursor:"pointer", letterSpacing:".04em", transition:"all .15s" }}>
-                                                    F
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                            </tbody>
-                        </table>
-                    </div>
+                    )}
 
-                    {/* Mini histórico de frequência */}
+                    {/* Seção por período */}
+                    {!loadingAulas && aulasNoDia.map((aula, idx) => (
+                        <div key={aula.ordemAula} className="dd-section">
+                            <div className="dd-section-header">
+                                <span className="dd-section-title">{idx + 1}ª Aula — {aula.horarioInicio}</span>
+                                <span className="dd-section-count">
+                                    {Object.values(chamadaPorAula[aula.ordemAula] || {}).filter(Boolean).length}/{alunos.length} presentes
+                                </span>
+                            </div>
+                            <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
+                                <thead>
+                                <tr>
+                                    <th>Aluno</th>
+                                    <th style={{ width:160, textAlign:"center" }}>Presença</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {alunos.map(aluno => {
+                                    const presente = chamadaPorAula[aula.ordemAula]?.[aluno.id] ?? true;
+                                    return (
+                                        <tr key={aluno.id}>
+                                            <td>
+                                                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                                    <div style={{ width:26, height:26, background: presente ? "#0d1f18" : "#e8e8e8", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color: presente ? "#7ec8a0" : "#aaa", flexShrink:0, transition:"background .15s" }}>
+                                                        {aluno.nome.charAt(0)}
+                                                    </div>
+                                                    <span style={{ fontWeight:500, fontSize:13, color: presente ? "#0d1f18" : "#aaa", transition:"color .15s" }}>
+                                                        {aluno.nome}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td style={{ textAlign:"center" }}>
+                                                <div style={{ display:"flex", gap:0, justifyContent:"center" }}>
+                                                    <button onClick={() => setChamadaPorAula(p => ({
+                                                                ...p,
+                                                                [aula.ordemAula]: { ...p[aula.ordemAula], [aluno.id]: true }
+                                                            }))}
+                                                            style={{ padding:"6px 16px", border:"1px solid #eaeef2", borderRight:"none", background: presente ? "#0d1f18" : "white", color: presente ? "#7ec8a0" : "#9aaa9f", fontSize:11, fontWeight:500, cursor:"pointer", letterSpacing:".04em", transition:"all .15s" }}>
+                                                        P
+                                                    </button>
+                                                    <button onClick={() => setChamadaPorAula(p => ({
+                                                                ...p,
+                                                                [aula.ordemAula]: { ...p[aula.ordemAula], [aluno.id]: false }
+                                                            }))}
+                                                            style={{ padding:"6px 16px", border:"1px solid #eaeef2", background: !presente ? "#b94040" : "white", color: !presente ? "white" : "#9aaa9f", fontSize:11, fontWeight:500, cursor:"pointer", letterSpacing:".04em", transition:"all .15s" }}>
+                                                        F
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                                </tbody>
+                            </table>
+                        </div>
+                    ))}
+
+                    {/* Histórico de frequência */}
                     {Object.keys(historicoPresenca).length > 0 && (
                         <div className="dd-section">
                             <div className="dd-section-header">
                                 <span className="dd-section-title">Histórico de Frequência</span>
+                                <span className="dd-section-count">{Object.keys(historicoPresenca).length} dia(s) registrado(s)</span>
                             </div>
                             <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
                                 <thead>

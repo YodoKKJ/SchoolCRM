@@ -39,6 +39,12 @@ public class PresencaController {
         Boolean presente = Boolean.parseBoolean(body.get("presente"));
         LocalDate data = LocalDate.parse(body.get("data"));
 
+        // Campos opcionais para presença por período (null = registro legado)
+        String ordemAulaStr = body.get("ordemAula");
+        Integer ordemAula = (ordemAulaStr != null && !ordemAulaStr.isBlank())
+                ? Integer.parseInt(ordemAulaStr) : null;
+        String horarioInicio = body.get("horarioInicio");
+
         Optional<Usuario> aluno = usuarioRepository.findById(alunoId);
         Optional<Turma> turma = turmaRepository.findById(turmaId);
         Optional<Materia> materia = materiaRepository.findById(materiaId);
@@ -47,9 +53,10 @@ public class PresencaController {
         if (turma.isEmpty()) return ResponseEntity.badRequest().body("Turma não encontrada");
         if (materia.isEmpty()) return ResponseEntity.badRequest().body("Matéria não encontrada");
 
-        // Atualiza se já existe presença nessa data
-        Optional<Presenca> existente = presencaRepository
-                .findByAlunoIdAndMateriaIdAndData(alunoId, materiaId, data);
+        // Upsert: por período específico quando ordemAula presente; legado caso contrário
+        Optional<Presenca> existente = (ordemAula != null)
+                ? presencaRepository.findByAlunoIdAndMateriaIdAndDataAndOrdemAula(alunoId, materiaId, data, ordemAula)
+                : presencaRepository.findByAlunoIdAndMateriaIdAndData(alunoId, materiaId, data);
 
         Presenca presenca = existente.orElse(new Presenca());
         presenca.setAluno(aluno.get());
@@ -57,6 +64,8 @@ public class PresencaController {
         presenca.setMateria(materia.get());
         presenca.setData(data);
         presenca.setPresente(presente);
+        presenca.setOrdemAula(ordemAula);
+        presenca.setHorarioInicio(horarioInicio);
         presencaRepository.save(presenca);
 
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -96,16 +105,18 @@ public class PresencaController {
 
         List<Presenca> todas = presencaRepository.findByTurmaIdAndMateriaId(turmaId, materiaId);
 
-        // Agrupa por data
+        // Agrupa por data, incluindo ordemAula/horarioInicio (null em registros legados)
         Map<String, List<Map<String,Object>>> porData = new java.util.TreeMap<>();
         for (Presenca p : todas) {
             String data = p.getData().toString();
-            porData.computeIfAbsent(data, k -> new ArrayList<>()).add(Map.of(
-                    "alunoId", p.getAluno().getId(),
-                    "alunoNome", p.getAluno().getNome(),
-                    "presente", p.getPresente(),
-                    "presencaId", p.getId()
-            ));
+            Map<String, Object> record = new LinkedHashMap<>();
+            record.put("alunoId", p.getAluno().getId());
+            record.put("alunoNome", p.getAluno().getNome());
+            record.put("presente", p.getPresente());
+            record.put("presencaId", p.getId());
+            record.put("ordemAula", p.getOrdemAula());
+            record.put("horarioInicio", p.getHorarioInicio());
+            porData.computeIfAbsent(data, k -> new ArrayList<>()).add(record);
         }
         return ResponseEntity.ok(porData);
     }

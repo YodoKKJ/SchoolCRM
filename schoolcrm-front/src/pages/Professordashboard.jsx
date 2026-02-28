@@ -663,11 +663,16 @@ function Chamada() {
     const [materiaId, setMateriaId] = useState("");
     const [alunos, setAlunos] = useState([]);
     const [dataAula, setDataAula] = useState(new Date().toISOString().slice(0,10));
-    const [chamada, setChamada] = useState({});
+    const [chamadaPorAula, setChamadaPorAula] = useState({}); // { ordemAula: { alunoId: bool } }
+    const [aulasNoDia, setAulasNoDia] = useState([]);
+    const [loadingAulas, setLoadingAulas] = useState(false);
     const [historico, setHistorico] = useState({});
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
     const [salvando, setSalvando] = useState(false);
     const [abaLocal, setAbaLocal] = useState("chamada"); // "chamada" | "historico"
+
+    const DIAS_SEMANA = ["DOM","SEG","TER","QUA","QUI","SEX","SAB"];
+    const DIAS_LABEL_PT = { SEG:"Segunda",TER:"Terça",QUA:"Quarta",QUI:"Quinta",SEX:"Sexta",SAB:"Sábado",DOM:"Domingo" };
 
     useEffect(() => {
         api.get("/vinculos/professor-turma-materia/minhas").then(r => setVinculos(r.data || []));
@@ -690,29 +695,52 @@ function Chamada() {
             .then(r => setHistorico(r.data || {}));
     }, [turmaId, materiaId]);
 
-    // preenche chamada ao mudar data
+    // Busca quantas aulas da matéria existem nesse dia da semana
     useEffect(() => {
-        const init = {};
-        alunos.forEach(a => init[a.id] = true);
-        if (historico[dataAula]) {
-            historico[dataAula].forEach(r => { init[r.alunoId] = r.presente; });
-        }
-        setChamada(init);
-    }, [dataAula, historico, alunos]);
+        if (!turmaId || !materiaId || !dataAula) { setAulasNoDia([]); return; }
+        const diaSemana = DIAS_SEMANA[new Date(dataAula + "T12:00").getDay()];
+        setLoadingAulas(true);
+        api.get(`/horarios/turma/${turmaId}/dia/${diaSemana}`)
+            .then(r => {
+                const filtradas = (r.data || []).filter(h => String(h.materiaId) === String(materiaId));
+                setAulasNoDia(filtradas);
+            })
+            .catch(() => setAulasNoDia([]))
+            .finally(() => setLoadingAulas(false));
+    }, [turmaId, materiaId, dataAula]);
+
+    // Preenche chamadaPorAula ao mudar aulasNoDia, historico, dataAula ou alunos
+    useEffect(() => {
+        if (aulasNoDia.length === 0) { setChamadaPorAula({}); return; }
+        const novaMap = {};
+        aulasNoDia.forEach(aula => {
+            const init = {};
+            alunos.forEach(a => { init[a.id] = true; });
+            (historico[dataAula] || [])
+                .filter(r => r.ordemAula === aula.ordemAula)
+                .forEach(r => { init[r.alunoId] = r.presente; });
+            novaMap[aula.ordemAula] = init;
+        });
+        setChamadaPorAula(novaMap);
+    }, [aulasNoDia, historico, dataAula, alunos]);
 
     const salvarChamada = async () => {
         setSalvando(true);
         let erros = 0;
-        for (const aluno of alunos) {
-            try {
-                await api.post("/presencas/lancar", {
-                    alunoId: String(aluno.id),
-                    turmaId: String(turmaId),
-                    materiaId: String(materiaId),
-                    presente: String(chamada[aluno.id] ?? true),
-                    data: dataAula
-                });
-            } catch { erros++; }
+        for (const aula of aulasNoDia) {
+            for (const aluno of alunos) {
+                try {
+                    await api.post("/presencas/lancar", {
+                        alunoId: String(aluno.id),
+                        turmaId: String(turmaId),
+                        materiaId: String(materiaId),
+                        presente: String(chamadaPorAula[aula.ordemAula]?.[aluno.id] ?? true),
+                        data: dataAula,
+                        ordemAula: String(aula.ordemAula),
+                        horarioInicio: aula.horarioInicio,
+                    });
+                } catch { erros++; }
+            }
         }
         setSalvando(false);
         flash(setMsg, erros > 0 ? `${erros} erro(s).` : "Chamada salva!", erros > 0 ? "erro" : "ok");
@@ -721,7 +749,10 @@ function Chamada() {
     };
 
     const semSelecao = !turmaId || !materiaId;
-    const presentes = Object.values(chamada).filter(Boolean).length;
+    const diaSemana = dataAula ? DIAS_SEMANA[new Date(dataAula + "T12:00").getDay()] : null;
+    const diaSemanaLabel = diaSemana ? (DIAS_LABEL_PT[diaSemana] || diaSemana) : "";
+    const materiaNome = materiasDaTurma.find(m => String(m.id) === String(materiaId))?.nome || "";
+    const bloqueado = !loadingAulas && aulasNoDia.length === 0;
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
@@ -787,73 +818,109 @@ function Chamada() {
                                 </div>
                             </div>
                             <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-                                <button className="pd-btn-ghost"
-                                        onClick={() => { const i={}; alunos.forEach(a=>i[a.id]=true); setChamada(i); }}>
+                                <button className="pd-btn-ghost" disabled={bloqueado || loadingAulas}
+                                        onClick={() => {
+                                            const m = {};
+                                            aulasNoDia.forEach(aula => {
+                                                const p = {};
+                                                alunos.forEach(a => { p[a.id] = true; });
+                                                m[aula.ordemAula] = p;
+                                            });
+                                            setChamadaPorAula(m);
+                                        }}>
                                     Todos Presentes
                                 </button>
-                                <button className="pd-btn-primary" onClick={salvarChamada} disabled={salvando}>
+                                <button className="pd-btn-primary" onClick={salvarChamada}
+                                        disabled={salvando || bloqueado || loadingAulas}>
                                     {salvando ? "Salvando..." : "Salvar Chamada →"}
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    <div className="pd-section">
-                        <div className="pd-section-header">
-                            <span className="pd-section-title">Chamada — {dataAula}</span>
-                            <span className="pd-section-count">{presentes}/{alunos.length} presentes</span>
+                    {/* Loading */}
+                    {loadingAulas && (
+                        <div className="pd-section" style={{ padding:24, textAlign:"center", color:"#9aaa9f", fontSize:13 }}>
+                            Verificando horários...
                         </div>
-                        <table className="pd-table">
-                            <thead>
-                            <tr>
-                                <th>Aluno</th>
-                                <th style={{ width:160, textAlign:"center" }}>Presença</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {alunos.map(aluno => {
-                                const presente = chamada[aluno.id] ?? true;
-                                return (
-                                    <tr key={aluno.id}>
-                                        <td>
-                                            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                                                <div style={{ width:26, height:26,
-                                                    background: presente ? "#0d1f18" : "#e8e8e8",
-                                                    display:"flex", alignItems:"center", justifyContent:"center",
-                                                    fontSize:11, fontWeight:600,
-                                                    color: presente ? "#7ec8a0" : "#aaa",
-                                                    flexShrink:0, transition:"background .15s" }}>
-                                                    {aluno.nome.charAt(0)}
+                    )}
+
+                    {/* Sem aulas → bloqueado */}
+                    {!loadingAulas && bloqueado && (
+                        <div className="pd-section" style={{ padding:24, textAlign:"center" }}>
+                            <span style={{ fontSize:13, color:"#b94040", fontWeight:500 }}>
+                                Sem aulas de {materiaNome} na {diaSemanaLabel}. Chamada bloqueada.
+                            </span>
+                        </div>
+                    )}
+
+                    {/* Seção por período */}
+                    {!loadingAulas && aulasNoDia.map((aula, idx) => (
+                        <div key={aula.ordemAula} className="pd-section">
+                            <div className="pd-section-header">
+                                <span className="pd-section-title">{idx + 1}ª Aula — {aula.horarioInicio}</span>
+                                <span className="pd-section-count">
+                                    {Object.values(chamadaPorAula[aula.ordemAula] || {}).filter(Boolean).length}/{alunos.length} presentes
+                                </span>
+                            </div>
+                            <table className="pd-table">
+                                <thead>
+                                <tr>
+                                    <th>Aluno</th>
+                                    <th style={{ width:160, textAlign:"center" }}>Presença</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {alunos.map(aluno => {
+                                    const presente = chamadaPorAula[aula.ordemAula]?.[aluno.id] ?? true;
+                                    return (
+                                        <tr key={aluno.id}>
+                                            <td>
+                                                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                                    <div style={{ width:26, height:26,
+                                                        background: presente ? "#0d1f18" : "#e8e8e8",
+                                                        display:"flex", alignItems:"center", justifyContent:"center",
+                                                        fontSize:11, fontWeight:600,
+                                                        color: presente ? "#7ec8a0" : "#aaa",
+                                                        flexShrink:0, transition:"background .15s" }}>
+                                                        {aluno.nome.charAt(0)}
+                                                    </div>
+                                                    <span style={{ fontWeight:500, fontSize:13,
+                                                        color: presente ? "#0d1f18" : "#aaa",
+                                                        transition:"color .15s" }}>
+                                                        {aluno.nome}
+                                                    </span>
                                                 </div>
-                                                <span style={{ fontWeight:500, fontSize:13,
-                                                    color: presente ? "#0d1f18" : "#aaa",
-                                                    transition:"color .15s" }}>
-                                                    {aluno.nome}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td style={{ textAlign:"center" }}>
-                                            <div style={{ display:"flex", justifyContent:"center" }}>
-                                                <button onClick={() => setChamada(p => ({...p, [aluno.id]: true}))}
-                                                        style={{ padding:"6px 20px", border:"1px solid #eaeef2", borderRight:"none",
-                                                            background: presente ? "#0d1f18" : "white",
-                                                            color: presente ? "#7ec8a0" : "#9aaa9f",
-                                                            fontSize:11, fontWeight:600, cursor:"pointer",
-                                                            letterSpacing:".06em", transition:"all .15s" }}>P</button>
-                                                <button onClick={() => setChamada(p => ({...p, [aluno.id]: false}))}
-                                                        style={{ padding:"6px 20px", border:"1px solid #eaeef2",
-                                                            background: !presente ? "#b94040" : "white",
-                                                            color: !presente ? "white" : "#9aaa9f",
-                                                            fontSize:11, fontWeight:600, cursor:"pointer",
-                                                            letterSpacing:".06em", transition:"all .15s" }}>F</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                            </tbody>
-                        </table>
-                    </div>
+                                            </td>
+                                            <td style={{ textAlign:"center" }}>
+                                                <div style={{ display:"flex", justifyContent:"center" }}>
+                                                    <button onClick={() => setChamadaPorAula(p => ({
+                                                                ...p,
+                                                                [aula.ordemAula]: { ...p[aula.ordemAula], [aluno.id]: true }
+                                                            }))}
+                                                            style={{ padding:"6px 20px", border:"1px solid #eaeef2", borderRight:"none",
+                                                                background: presente ? "#0d1f18" : "white",
+                                                                color: presente ? "#7ec8a0" : "#9aaa9f",
+                                                                fontSize:11, fontWeight:600, cursor:"pointer",
+                                                                letterSpacing:".06em", transition:"all .15s" }}>P</button>
+                                                    <button onClick={() => setChamadaPorAula(p => ({
+                                                                ...p,
+                                                                [aula.ordemAula]: { ...p[aula.ordemAula], [aluno.id]: false }
+                                                            }))}
+                                                            style={{ padding:"6px 20px", border:"1px solid #eaeef2",
+                                                                background: !presente ? "#b94040" : "white",
+                                                                color: !presente ? "white" : "#9aaa9f",
+                                                                fontSize:11, fontWeight:600, cursor:"pointer",
+                                                                letterSpacing:".06em", transition:"all .15s" }}>F</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                                </tbody>
+                            </table>
+                        </div>
+                    ))}
                 </div>
             )}
 
@@ -862,7 +929,7 @@ function Chamada() {
                 <div className="pd-section">
                     <div className="pd-section-header">
                         <span className="pd-section-title">Frequência por Aluno</span>
-                        <span className="pd-section-count">{Object.keys(historico).length} aula(s) registrada(s)</span>
+                        <span className="pd-section-count">{Object.keys(historico).length} dia(s) registrado(s)</span>
                     </div>
                     {alunos.length === 0 || Object.keys(historico).length === 0
                         ? <p style={{ padding:"40px", textAlign:"center", fontSize:13, color:"#9aaa9f" }}>
@@ -907,7 +974,7 @@ function Chamada() {
                         </table>
                     }
 
-                    {/* Histórico por data */}
+                    {/* Histórico por data, agrupado por período */}
                     {Object.keys(historico).length > 0 && (
                         <div style={{ borderTop:"1px solid #eaeef2" }}>
                             <div style={{ padding:"12px 20px", borderBottom:"1px solid #f2f5f2" }}>
@@ -916,22 +983,37 @@ function Chamada() {
                                 </span>
                             </div>
                             {Object.entries(historico).sort((a,b) => b[0].localeCompare(a[0])).map(([data, registros]) => {
-                                const pres = registros.filter(r => r.presente).length;
-                                const total = registros.length;
+                                const porOrdem = registros.reduce((acc, r) => {
+                                    const k = r.ordemAula != null ? r.ordemAula : "leg";
+                                    if (!acc[k]) acc[k] = [];
+                                    acc[k].push(r);
+                                    return acc;
+                                }, {});
+                                const ordens = Object.keys(porOrdem).sort((a,b) =>
+                                    a === "leg" ? 1 : b === "leg" ? -1 : Number(a) - Number(b));
                                 return (
-                                    <div key={data} style={{ padding:"12px 20px", display:"flex", alignItems:"center",
-                                        justifyContent:"space-between", borderBottom:"1px solid #f2f5f2" }}>
-                                        <span style={{ fontSize:13, color:"#0d1f18" }}>{data}</span>
-                                        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                                            <span style={{ fontSize:12, color:"#2d6a4f" }}>{pres} presentes</span>
-                                            <span style={{ fontSize:12, color:"#b94040" }}>{total-pres} faltas</span>
-                                            <span className="pd-badge" style={{
-                                                background: pres===total ? "#f0f5f2" : pres >= total*.75 ? "#f5f3ee" : "#fdf0f0",
-                                                color: pres===total ? "#2d6a4f" : pres >= total*.75 ? "#7a5c2e" : "#b94040"
-                                            }}>
-                                                {Math.round(pres/total*100)}%
-                                            </span>
+                                    <div key={data} style={{ borderBottom:"1px solid #f2f5f2" }}>
+                                        <div style={{ padding:"10px 20px", background:"#fafbfa" }}>
+                                            <span style={{ fontSize:13, fontWeight:500, color:"#0d1f18" }}>{data}</span>
                                         </div>
+                                        {ordens.map(ok => {
+                                            const regs = porOrdem[ok];
+                                            const pres = regs.filter(r => r.presente).length;
+                                            const tot = regs.length;
+                                            const hr = ok !== "leg" ? regs[0]?.horarioInicio : null;
+                                            const label = ok === "leg" ? "—" : `${ok}ª Aula${hr ? ` — ${hr}` : ""}`;
+                                            return (
+                                                <div key={ok} style={{ padding:"8px 20px 8px 32px", display:"flex",
+                                                    alignItems:"center", justifyContent:"space-between",
+                                                    borderBottom:"1px solid #f9faf9" }}>
+                                                    <span style={{ fontSize:12, color:"#5a6f5c" }}>{label}</span>
+                                                    <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                                                        <span style={{ fontSize:12, color:"#2d6a4f" }}>{pres} pres.</span>
+                                                        <span style={{ fontSize:12, color:"#b94040" }}>{tot-pres} falt.</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 );
                             })}
