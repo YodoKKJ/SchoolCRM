@@ -38,11 +38,16 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // Arquivos estáticos do React (index.html, assets JS/CSS, ícones)
+                        .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico", "/vite.svg", "/error").permitAll()
+                        // API de autenticação e preflight CORS
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                        // Restrições de role para DELETE
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/turmas/**").hasRole("DIRECAO")
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/materias/**").hasRole("DIRECAO")
                         .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/vinculos/**").hasRole("DIRECAO")
+                        // Todo o resto exige autenticação
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
