@@ -1,18 +1,24 @@
 package com.dom.schoolcrm.controller;
 
 import com.dom.schoolcrm.entity.Usuario;
+import com.dom.schoolcrm.repository.AlunoTurmaRepository;
+import com.dom.schoolcrm.repository.ProfessorTurmaMateriaRepository;
 import com.dom.schoolcrm.repository.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/usuarios")
@@ -20,6 +26,12 @@ public class UsuarioController {
 
     @Autowired
     private UsuarioRepository usuarioRepository;
+
+    @Autowired
+    private AlunoTurmaRepository alunoTurmaRepository;
+
+    @Autowired
+    private ProfessorTurmaMateriaRepository professorTurmaMateriaRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -112,6 +124,28 @@ public class UsuarioController {
                 "role", usuario.getRole(),
                 "ativo", usuario.getAtivo()
         ));
+    }
+
+    @GetMapping("/com-vinculos")
+    @PreAuthorize("hasRole('DIRECAO')")
+    public ResponseEntity<List<Long>> listarIdsComVinculos() {
+        Set<Long> ids = new HashSet<>();
+        alunoTurmaRepository.findAll().forEach(at -> ids.add(at.getId().getAlunoId()));
+        professorTurmaMateriaRepository.findAll().forEach(ptm -> ids.add(ptm.getId().getProfessorId()));
+        return ResponseEntity.ok(new ArrayList<>(ids));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('DIRECAO')")
+    @Transactional
+    public ResponseEntity<?> deletar(@PathVariable Long id) {
+        if (!usuarioRepository.existsById(id)) return ResponseEntity.notFound().build();
+        boolean temVinculos = !alunoTurmaRepository.findByAlunoId(id).isEmpty()
+                || !professorTurmaMateriaRepository.findByProfessorId(id).isEmpty();
+        if (temVinculos) return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body("Usuário possui vínculos e não pode ser excluído.");
+        usuarioRepository.deleteById(id);
+        return ResponseEntity.ok(Map.of("mensagem", "Usuário removido com sucesso"));
     }
 
     @PatchMapping("/{id}/status")

@@ -514,6 +514,7 @@ function Inicio() {
 // ---- USUÁRIOS ----
 function Usuarios() {
     const [usuarios, setUsuarios] = useState([]);
+    const [idsComVinculos, setIdsComVinculos] = useState(new Set());
     const [form, setForm] = useState({ nome: "", login: "", senha: "", role: "ALUNO", dataNascimento: "", nomePai: "", nomeMae: "" });
     const [msg, setMsg] = useState({ texto: "", tipo: "" });
     const [editando, setEditando] = useState(null);
@@ -523,6 +524,12 @@ function Usuarios() {
     const [termoBusca, setTermoBusca] = useState("");
     const termoDebounced = useDebounce(termoBusca);
 
+    const carregarVinculos = () => {
+        api.get("/usuarios/com-vinculos").then(r => {
+            setIdsComVinculos(new Set(Array.isArray(r.data) ? r.data : []));
+        }).catch(() => {});
+    };
+
     const carregar = (nome, role) => {
         const params = {};
         if (nome) params.nome = nome;
@@ -530,7 +537,12 @@ function Usuarios() {
         api.get("/usuarios/buscar", { params }).then(r => {
             setUsuarios(Array.isArray(r.data) ? r.data : []);
         });
+        carregarVinculos();
     };
+
+    useEffect(() => {
+        carregarVinculos();
+    }, []);
 
     useEffect(() => {
         const nome = campoBusca === "nome" ? termoDebounced : undefined;
@@ -580,6 +592,17 @@ function Usuarios() {
             await api.patch(`/usuarios/${u.id}/status`);
             carregar();
         } catch { alert("Erro ao alterar status."); }
+    };
+
+    const excluirUsuario = async (u) => {
+        if (!confirm(`Excluir permanentemente o usuário "${u.nome}"?`)) return;
+        try {
+            await api.delete(`/usuarios/${u.id}`);
+            carregar();
+        } catch (err) {
+            const raw = err.response?.data;
+            alert(typeof raw === "string" ? raw : "Erro ao excluir.");
+        }
     };
 
 
@@ -778,9 +801,15 @@ function Usuarios() {
                                 <td style={{ textAlign:"right" }}>
                                     <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
                                         <button className="dd-btn-edit" onClick={() => abrirEdicao(u)}>Editar</button>
-                                        <button className={u.ativo ? "dd-btn-toggle-on" : "dd-btn-toggle-off"} onClick={() => toggleStatus(u)}>
-                                            {u.ativo ? "Inativar" : "Ativar"}
-                                        </button>
+                                        {idsComVinculos.has(u.id) ? (
+                                            <button className={u.ativo ? "dd-btn-toggle-on" : "dd-btn-toggle-off"} onClick={() => toggleStatus(u)}>
+                                                {u.ativo ? "Inativar" : "Ativar"}
+                                            </button>
+                                        ) : (
+                                            <button className="dd-btn-danger" onClick={() => excluirUsuario(u)}>
+                                                <Trash2 size={12} />
+                                            </button>
+                                        )}
                                     </div>
                                 </td>
                             </tr>
