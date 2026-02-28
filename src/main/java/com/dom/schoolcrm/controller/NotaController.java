@@ -265,7 +265,9 @@ public class NotaController {
                 BigDecimal media = somaPesos.compareTo(BigDecimal.ZERO) > 0
                         ? somaPonderada.divide(somaPesos, 2, RoundingMode.HALF_UP)
                         : BigDecimal.ZERO;
-                BigDecimal mediaComBonus = media.add(bonus).setScale(1, RoundingMode.HALF_UP);
+                BigDecimal mediaComBonus = media.add(bonus)
+                        .min(BigDecimal.TEN)
+                        .setScale(1, RoundingMode.HALF_UP);
 
                 entry.getValue().put("media", mediaComBonus);
                 bonusTotal = bonusTotal.add(bonus);
@@ -279,10 +281,18 @@ public class NotaController {
             mat.put("totalFaltas", mat.getOrDefault("totalFaltas", 0));
 
             // frequência por matéria
-            long totalAulas = todasPresencas.stream().filter(p -> p.getMateria().getId().equals(mat.get("materiaId"))).count();
-            long faltasMateria = todasPresencas.stream().filter(p -> p.getMateria().getId().equals(mat.get("materiaId")) && !p.getPresente()).count();
+            long totalAulas = todasPresencas.stream()
+                    .filter(p -> p.getMateria().getId().equals(mat.get("materiaId")))
+                    .count();
+            long faltasMateria = todasPresencas.stream()
+                    .filter(p -> p.getMateria().getId().equals(mat.get("materiaId")) && !p.getPresente())
+                    .count();
+            double freqMateria = totalAulas > 0
+                    ? Math.round((totalAulas - faltasMateria) * 1000.0 / totalAulas) / 10.0
+                    : 100.0;
             mat.put("totalAulas", totalAulas);
             mat.put("faltasMateria", faltasMateria);
+            mat.put("frequenciaMateria", freqMateria);
         }
 
         // Frequência geral
