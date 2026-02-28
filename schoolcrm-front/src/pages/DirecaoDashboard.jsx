@@ -1201,6 +1201,13 @@ function Lancamentos() {
     const [aulasNoDia, setAulasNoDia] = useState([]);
     const [loadingAulas, setLoadingAulas] = useState(false);
     const [historicoPresenca, setHistoricoPresenca] = useState({});
+    const [aulasColapsadas, setAulasColapsadas] = useState(new Set());
+    const toggleAulaColapsada = (ordemAula) =>
+        setAulasColapsadas(prev => {
+            const next = new Set(prev);
+            next.has(ordemAula) ? next.delete(ordemAula) : next.add(ordemAula);
+            return next;
+        });
     const DIAS_SEMANA = ["DOM","SEG","TER","QUA","QUI","SEX","SAB"];
     const DIAS_LABEL_PT = { SEG:"Segunda",TER:"Terça",QUA:"Quarta",QUI:"Quinta",SEX:"Sexta",SAB:"Sábado",DOM:"Domingo" };
 
@@ -1616,12 +1623,23 @@ function Lancamentos() {
                     {/* Seção por período */}
                     {!loadingAulas && aulasNoDia.map((aula, idx) => (
                         <div key={aula.ordemAula} className="dd-section">
-                            <div className="dd-section-header">
-                                <span className="dd-section-title">{idx + 1}ª Aula — {aula.horarioInicio}</span>
+                            <div className="dd-section-header"
+                                 onClick={() => toggleAulaColapsada(aula.ordemAula)}
+                                 style={{ cursor:"pointer", userSelect:"none" }}>
+                                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                                    <span style={{
+                                        fontSize:14, color:"#9aaa9f",
+                                        display:"inline-block",
+                                        transition:"transform .2s",
+                                        transform: aulasColapsadas.has(aula.ordemAula) ? "rotate(-90deg)" : "rotate(0deg)"
+                                    }}>▾</span>
+                                    <span className="dd-section-title">{idx + 1}ª Aula — {aula.horarioInicio}</span>
+                                </div>
                                 <span className="dd-section-count">
                                     {Object.values(chamadaPorAula[aula.ordemAula] || {}).filter(Boolean).length}/{alunos.length} presentes
                                 </span>
                             </div>
+                            {!aulasColapsadas.has(aula.ordemAula) && (
                             <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
                                 <thead>
                                 <tr>
@@ -1667,6 +1685,7 @@ function Lancamentos() {
                                 })}
                                 </tbody>
                             </table>
+                            )}
                         </div>
                     ))}
 
