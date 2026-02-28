@@ -2325,13 +2325,20 @@ function Horarios() {
             await api.post("/horarios/lote", { turmaId, aulas });
             setMsg({ texto: "Grade de horários salva com sucesso!", tipo: "ok" });
             setEditMode(false);
-            // Recarrega
-            const r = await api.get(`/horarios/turma/${turmaId}`);
-            setHorarios(r.data || []);
-            const ha = await api.get("/horarios");
-            setAllHorarios(ha.data || []);
+            // Recarrega (erros de reload não desfazem o save)
+            try {
+                const r = await api.get(`/horarios/turma/${turmaId}`);
+                setHorarios(r.data || []);
+                const ha = await api.get("/horarios");
+                setAllHorarios(ha.data || []);
+            } catch {
+                // Reload falhou mas o save foi bem-sucedido
+            }
         } catch (e) {
-            setMsg({ texto: e.response?.data || "Erro ao salvar horários", tipo: "err" });
+            const msg = typeof e.response?.data === "string"
+                ? e.response.data
+                : e.response?.data?.mensagem || "Erro ao salvar horários";
+            setMsg({ texto: msg, tipo: "err" });
         }
         setSalvando(false);
     };

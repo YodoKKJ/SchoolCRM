@@ -951,24 +951,17 @@ const DIAS_LABEL = { SEG: "Segunda", TER: "Terça", QUA: "Quarta", QUI: "Quinta"
 
 function HorariosView() {
     const [horarios, setHorarios] = useState([]);
-    const [turmas, setTurmas] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filtroTurma, setFiltroTurma] = useState("todas");
 
     useEffect(() => {
         setLoading(true);
-        Promise.all([
-            api.get("/horarios"),
-            api.get("/turmas"),
-        ]).then(([h, t]) => {
-            setHorarios(h.data || []);
-            setTurmas(t.data || []);
-        }).finally(() => setLoading(false));
+        api.get("/horarios/minhas")
+            .then(r => setHorarios(r.data || []))
+            .finally(() => setLoading(false));
     }, []);
 
     const turmaIds = [...new Set(horarios.map(h => h.turmaId))];
-    const turmaMap = {};
-    turmas.forEach(t => { turmaMap[t.id] = t; });
 
     const turmasFiltradas = filtroTurma === "todas"
         ? turmaIds
@@ -1012,9 +1005,9 @@ function HorariosView() {
                             background: "white",
                         }}
                     >
-                        <option value="todas">Todas as turmas</option>
+                        <option value="todas">Todas as minhas turmas</option>
                         {turmaIds.map(id => (
-                            <option key={id} value={id}>{turmaMap[id]?.nome || `Turma ${id}`}</option>
+                            <option key={id} value={id}>{horarios.find(h => h.turmaId === id)?.turmaNome || `Turma ${id}`}</option>
                         ))}
                     </select>
                 </div>
@@ -1043,7 +1036,7 @@ function HorariosView() {
                                     <th style={{ width: 70 }}>Horário</th>
                                     {turmasFiltradas.map(tid => (
                                         <th key={tid} style={{ textAlign: "center" }}>
-                                            {turmaMap[tid]?.nome || `Turma ${tid}`}
+                                            {horarios.find(h => h.turmaId === tid)?.turmaNome || `Turma ${tid}`}
                                         </th>
                                     ))}
                                 </tr>
