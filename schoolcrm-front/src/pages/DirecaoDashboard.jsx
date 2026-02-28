@@ -114,7 +114,7 @@ const modulos = [
         id: "relatorios",
         label: "Relatórios",
         items: [
-            { id: "relatorios", label: "Relatórios", icon: FileText, disabled: true },
+            { id: "relatorios", label: "Relatórios", icon: FileText },
         ]
     },
 ];
@@ -281,7 +281,176 @@ const GLOBAL_STYLE = `
 .dd-search-input:focus { border-color:#0d1f18; }
 .dd-search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#9aaa9f; pointer-events:none; }
 .dd-search-clear { position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:#9aaa9f; cursor:pointer; padding:0; }
+@media print {
+  body > * { display:none !important; }
+  .print-section { display:block !important; position:fixed; inset:0; background:white; z-index:9999; padding:24px; }
+  .print-section .dd-btn-edit { display:none; }
+}
 `;
+
+// ---- RELATÓRIOS ----
+function Relatorios({ anoLetivo }) {
+    const [turmas, setTurmas] = useState([]);
+    const [turmaSel, setTurmaSel] = useState(null);
+    const [bimestreSel, setBimestreSel] = useState("0");
+    const [tipoRel, setTipoRel] = useState("medias");
+    const [relatorio, setRelatorio] = useState(null);
+    const [carregando, setCarregando] = useState(false);
+
+    useEffect(() => {
+        api.get("/turmas/buscar").then(r =>
+            setTurmas(Array.isArray(r.data) ? r.data.filter(t => t.anoLetivo === anoLetivo) : [])
+        );
+    }, [anoLetivo]);
+
+    const gerarRelatorio = async () => {
+        if (!turmaSel) return;
+        setCarregando(true);
+        setRelatorio(null);
+        try {
+            const vincR = await api.get(`/vinculos/aluno-turma/turma/${turmaSel.id}`);
+            const vinculos = Array.isArray(vincR.data) ? vincR.data : [];
+            const boletins = await Promise.all(
+                vinculos.map(v =>
+                    api.get(`/notas/boletim/${v.aluno.id}/${turmaSel.id}`)
+                        .then(r => r.data).catch(() => null)
+                )
+            );
+            setRelatorio(boletins.filter(Boolean).sort((a, b) =>
+                (a.aluno?.nome ?? "").localeCompare(b.aluno?.nome ?? "")
+            ));
+        } catch { alert("Erro ao gerar relatório."); }
+        finally { setCarregando(false); }
+    };
+
+    const materias = relatorio
+        ? [...new Map(relatorio.flatMap(b =>
+            (b.disciplinas || []).map(d => [d.materiaId, d.materiaNome])
+          )).entries()].map(([id, nome]) => ({ id, nome }))
+        : [];
+
+    const getMedia = (disciplinas, materiaId) => {
+        const disc = disciplinas?.find(d => d.materiaId === materiaId);
+        if (!disc) return null;
+        const bim = Number(bimestreSel);
+        if (bim === 0) return disc.mediaAnual != null ? Number(disc.mediaAnual) : null;
+        const bimData = disc.bimestres?.[bim];
+        return bimData?.media != null ? Number(bimData.media) : null;
+    };
+
+    const getFreq = (disciplinas, materiaId) => {
+        const disc = disciplinas?.find(d => d.materiaId === materiaId);
+        return disc?.frequenciaMateria ?? null;
+    };
+
+    const mediaClr = v => v === null ? "#ccc" : v < 6 ? "#b94040" : v < 7 ? "#c47a00" : "#2d6a4f";
+    const freqClr  = v => v === null ? "#ccc" : v < 75 ? "#b94040" : "#2d6a4f";
+
+    return (
+        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+            <div className="dd-section" style={{ padding:24 }}>
+                <p className="dd-section-title" style={{ marginBottom:20 }}>Gerar Relatório</p>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr auto", gap:16, alignItems:"flex-end" }}>
+                    <div>
+                        <label className="dd-label">Turma ({anoLetivo})</label>
+                        <SearchSelect
+                            options={turmas.map(t => ({ value: String(t.id), label: t.nome }))}
+                            value={turmaSel ? String(turmaSel.id) : ""}
+                            onChange={v => { setTurmaSel(turmas.find(t => String(t.id) === v) || null); setRelatorio(null); }}
+                            placeholder="Selecione a turma..." />
+                    </div>
+                    <div>
+                        <label className="dd-label">Tipo</label>
+                        <SearchSelect
+                            options={[
+                                { value: "medias", label: "Médias por matéria" },
+                                { value: "frequencia", label: "Frequência" },
+                            ]}
+                            value={tipoRel}
+                            onChange={v => { setTipoRel(v); setRelatorio(null); }}
+                            placeholder="" />
+                    </div>
+                    <div>
+                        <label className="dd-label">Período</label>
+                        <SearchSelect
+                            options={[
+                                { value: "0", label: "Ano completo" },
+                                { value: "1", label: "1º Bimestre" },
+                                { value: "2", label: "2º Bimestre" },
+                                { value: "3", label: "3º Bimestre" },
+                                { value: "4", label: "4º Bimestre" },
+                            ]}
+                            value={bimestreSel}
+                            onChange={v => { setBimestreSel(v); setRelatorio(null); }}
+                            placeholder="" />
+                    </div>
+                    <button className="dd-btn-primary" onClick={gerarRelatorio}
+                            disabled={!turmaSel || carregando} style={{ height:40, alignSelf:"flex-end" }}>
+                        {carregando ? "Gerando..." : "Gerar →"}
+                    </button>
+                </div>
+            </div>
+
+            {relatorio && (
+                <div className="dd-section print-section">
+                    <div className="dd-section-header">
+                        <div style={{ display:"flex", alignItems:"baseline", gap:10 }}>
+                            <span className="dd-section-title">
+                                {tipoRel === "medias" ? "Médias" : "Frequência"} — {turmaSel.nome}
+                                {tipoRel === "medias" && ` — ${bimestreSel === "0" ? "Ano completo" : `${bimestreSel}º Bimestre`}`}
+                            </span>
+                            <span className="dd-section-count">{relatorio.length} alunos</span>
+                        </div>
+                        <button className="dd-btn-edit" onClick={() => window.print()}>Imprimir / PDF</button>
+                    </div>
+                    <div style={{ overflowX:"auto" }}>
+                        <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
+                            <thead>
+                                <tr>
+                                    <th style={{ textAlign:"left" }}>Aluno</th>
+                                    {materias.map(m => <th key={m.id} style={{ textAlign:"center" }}>{m.nome}</th>)}
+                                    <th style={{ textAlign:"center" }}>{tipoRel === "medias" ? "Média Geral" : "Freq. Geral"}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {relatorio.map(b => {
+                                    const discs = b.disciplinas || [];
+                                    const geral = tipoRel === "medias"
+                                        ? (() => {
+                                            const vals = materias.map(m => getMedia(discs, m.id)).filter(v => v !== null);
+                                            return vals.length > 0 ? (vals.reduce((a, c) => a + c, 0) / vals.length).toFixed(1) : null;
+                                          })()
+                                        : b.frequenciaGeral;
+                                    return (
+                                        <tr key={b.aluno?.id}>
+                                            <td style={{ fontWeight:500 }}>{b.aluno?.nome ?? "—"}</td>
+                                            {materias.map(m => {
+                                                const val = tipoRel === "medias" ? getMedia(discs, m.id) : getFreq(discs, m.id);
+                                                return (
+                                                    <td key={m.id} style={{ textAlign:"center", fontWeight:600,
+                                                        color: tipoRel === "medias" ? mediaClr(val) : freqClr(val) }}>
+                                                        {val !== null ? (tipoRel === "medias" ? val.toFixed(1) : `${val}%`) : "—"}
+                                                    </td>
+                                                );
+                                            })}
+                                            <td style={{ textAlign:"center", fontWeight:700,
+                                                color: tipoRel === "medias" ? mediaClr(geral !== null ? Number(geral) : null) : freqClr(geral) }}>
+                                                {geral !== null ? (tipoRel === "medias" ? geral : `${geral}%`) : "—"}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                    {tipoRel === "frequencia" && (
+                        <p style={{ fontSize:11, color:"#9aaa9f", padding:"8px 16px 4px" }}>* Frequência geral do ano letivo, independente do período selecionado.</p>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
 
 class ErrorBoundary extends Component {
     constructor(props) {
@@ -445,6 +614,7 @@ export default function DirecaoDashboard() {
                         {aba === "atrasos" && <ErrorBoundary key="atrasos"><Atrasos /></ErrorBoundary>}
                         {aba === "lancamentos" && <ErrorBoundary key={`lancamentos-${anoLetivo}`}><Lancamentos anoLetivo={anoLetivo} /></ErrorBoundary>}
                         {aba === "boletins" && <ErrorBoundary key={`boletins-${anoLetivo}`}><Boletins anoLetivo={anoLetivo} /></ErrorBoundary>}
+                        {aba === "relatorios" && <ErrorBoundary key={`relatorios-${anoLetivo}`}><Relatorios anoLetivo={anoLetivo} /></ErrorBoundary>}
                     </main>
                 </div>
             </div>
@@ -895,6 +1065,10 @@ function Turmas({ anoLetivo }) {
     const [formTurma, setFormTurma] = useState({ nome: "", serieId: "", anoLetivo: String(anoLetivo) });
     const [msg, setMsg] = useState({ texto: "", tipo: "" });
     const [turmaSelecionada, setTurmaSelecionada] = useState(null);
+    const [turmaParaPromover, setTurmaParaPromover] = useState(null);
+    const [promovendo, setPromovendo] = useState(false);
+    const [reMatricular, setReMatricular] = useState(true);
+    const [resultadoPromocao, setResultadoPromocao] = useState(null);
     const [campoBusca, setCampoBusca] = useState("nome");
     const [termoBusca, setTermoBusca] = useState("");
     const termoDebounced = useDebounce(termoBusca);
@@ -943,6 +1117,48 @@ function Turmas({ anoLetivo }) {
         catch { setMsg({ texto: "Erro ao excluir. Há vínculos ativos nessa turma?", tipo: "erro" }); }
     };
 
+    const promoverTurma = async () => {
+        if (!turmaParaPromover) return;
+        setPromovendo(true);
+        try {
+            const novoAno = turmaParaPromover.anoLetivo + 1;
+            const r = await api.post("/turmas", {
+                nome: turmaParaPromover.nome,
+                serieId: String(turmaParaPromover.serie.id),
+                anoLetivo: String(novoAno),
+            });
+            const novaTurma = r.data;
+            let matriculados = 0, jaMatriculados = 0;
+            if (reMatricular) {
+                const vincR = await api.get(`/vinculos/aluno-turma/turma/${turmaParaPromover.id}`);
+                const vinculos = Array.isArray(vincR.data) ? vincR.data : [];
+                const resultados = await Promise.all(
+                    vinculos.map(async v => {
+                        try {
+                            await api.post("/vinculos/aluno-turma", {
+                                alunoId: String(v.aluno.id),
+                                turmaId: String(novaTurma.id),
+                            });
+                            return "ok";
+                        } catch (e) {
+                            return e.response?.status === 409 ? "conflict" : "error";
+                        }
+                    })
+                );
+                matriculados = resultados.filter(r => r === "ok").length;
+                jaMatriculados = resultados.filter(r => r === "conflict").length;
+            }
+            setResultadoPromocao({ criada: novaTurma, matriculados, jaMatriculados });
+            carregar();
+        } catch (e) {
+            const raw = e.response?.data;
+            alert(typeof raw === "string" ? raw : "Erro ao promover turma.");
+            setTurmaParaPromover(null);
+        } finally {
+            setPromovendo(false);
+        }
+    };
+
     if (turmaSelecionada) {
         return <EditarTurma turma={turmaSelecionada} onVoltar={() => { setTurmaSelecionada(null); carregar(); }} />;
     }
@@ -950,6 +1166,54 @@ function Turmas({ anoLetivo }) {
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
             {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
+
+            {/* Modal: confirmar promoção */}
+            {turmaParaPromover && !resultadoPromocao && (
+                <div className="dd-modal-overlay">
+                    <div className="dd-modal" style={{ maxWidth:440 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div>
+                                <p className="dd-modal-title">Promover Turma</p>
+                                <p className="dd-modal-sub">{turmaParaPromover.nome} → {turmaParaPromover.anoLetivo + 1}</p>
+                            </div>
+                            <button onClick={() => setTurmaParaPromover(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f", padding:4 }}><X size={16} /></button>
+                        </div>
+                        <div style={{ background:"#f8fafb", border:"1px solid #eef0ec", padding:14, marginBottom:20, fontSize:13, color:"#1a2332" }}>
+                            Será criada a turma <strong>{turmaParaPromover.nome}</strong> para o ano letivo <strong>{turmaParaPromover.anoLetivo + 1}</strong>, na série <strong>{turmaParaPromover.serie?.nome}</strong>.
+                        </div>
+                        <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer", marginBottom:24 }}>
+                            <input type="checkbox" checked={reMatricular} onChange={e => setReMatricular(e.target.checked)}
+                                   style={{ width:15, height:15, accentColor:"#0d1f18", cursor:"pointer" }} />
+                            <span style={{ fontSize:13, color:"#1a2332" }}>Re-matricular os alunos desta turma em {turmaParaPromover.anoLetivo + 1}</span>
+                        </label>
+                        <div style={{ display:"flex", gap:8 }}>
+                            <button onClick={() => setTurmaParaPromover(null)} className="dd-btn-ghost" style={{ flex:1 }}>Cancelar</button>
+                            <button onClick={promoverTurma} className="dd-btn-primary" style={{ flex:1 }} disabled={promovendo}>
+                                {promovendo ? "Promovendo..." : `Criar para ${turmaParaPromover.anoLetivo + 1} →`}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: resultado da promoção */}
+            {resultadoPromocao && (
+                <div className="dd-modal-overlay">
+                    <div className="dd-modal" style={{ maxWidth:400, textAlign:"center" }}>
+                        <div style={{ width:48, height:48, background:"#f0f5f2", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px" }}>
+                            <GraduationCap size={24} style={{ color:"#2d6a4f" }} />
+                        </div>
+                        <p className="dd-modal-title" style={{ marginBottom:8 }}>Turma promovida!</p>
+                        <p style={{ color:"#6b7a8d", fontSize:13, marginBottom:20 }}>
+                            Turma <strong>{resultadoPromocao.criada.nome}</strong> criada para {resultadoPromocao.criada.anoLetivo}.
+                            {reMatricular && <><br/>{resultadoPromocao.matriculados} aluno(s) re-matriculados
+                            {resultadoPromocao.jaMatriculados > 0 && `, ${resultadoPromocao.jaMatriculados} já tinham turma em ${resultadoPromocao.criada.anoLetivo}`}.</>}
+                        </p>
+                        <button className="dd-btn-primary" style={{ width:"100%" }}
+                                onClick={() => { setResultadoPromocao(null); setTurmaParaPromover(null); }}>Fechar</button>
+                    </div>
+                </div>
+            )}
 
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
                 <div className="dd-section" style={{ padding:24 }}>
@@ -1062,6 +1326,9 @@ function Turmas({ anoLetivo }) {
                             <td style={{ color:"#9aaa9f" }}>{t.anoLetivo}</td>
                             <td style={{ textAlign:"right" }}>
                                 <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
+                                    <button className="dd-btn-edit" onClick={() => { setTurmaParaPromover(t); setResultadoPromocao(null); setReMatricular(true); }}>
+                                        Promover
+                                    </button>
                                     <button className="dd-btn-edit" onClick={() => setTurmaSelecionada(t)}>Gerenciar</button>
                                     <button className="dd-btn-danger" onClick={() => excluirTurma(t)}><Trash2 size={12} /></button>
                                 </div>
