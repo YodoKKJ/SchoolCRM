@@ -114,7 +114,7 @@ export function BoletimImpresso({ boletim, logo, dataEmissao }) {
             <table style={s.table}>
                 <thead>
                 <tr>
-                    <th rowSpan={2} style={{ ...s.thMain, textAlign: "left", width: "22%" }}>Disciplinas</th>
+                    <th rowSpan={2} style={{ ...s.thMain, textAlign: "left", width: "11%" }}>Disciplinas</th>
                     <th colSpan={2} style={s.thMain}>1 Bimestre</th>
                     <th colSpan={2} style={s.thMain}>2 Bimestre</th>
                     <th colSpan={2} style={s.thMain}>3 Bimestre</th>
