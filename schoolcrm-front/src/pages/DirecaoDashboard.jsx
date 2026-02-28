@@ -437,7 +437,7 @@ export default function DirecaoDashboard() {
                     </header>
 
                     <main style={{ flex:1, padding:"28px 32px", display:"flex", flexDirection:"column", gap:0 }}>
-                        {aba === "inicio" && <ErrorBoundary key="inicio"><Inicio /></ErrorBoundary>}
+                        {aba === "inicio" && <ErrorBoundary key={`inicio-${anoLetivo}`}><Inicio anoLetivo={anoLetivo} /></ErrorBoundary>}
                         {aba === "usuarios" && <ErrorBoundary key="usuarios"><Usuarios /></ErrorBoundary>}
                         {aba === "turmas" && <ErrorBoundary key={`turmas-${anoLetivo}`}><Turmas anoLetivo={anoLetivo} /></ErrorBoundary>}
                         {aba === "materias" && <ErrorBoundary key="materias"><Materias /></ErrorBoundary>}
@@ -453,36 +453,35 @@ export default function DirecaoDashboard() {
 }
 
 // ---- INÍCIO ----
-function Inicio() {
+function Inicio({ anoLetivo }) {
     const [stats, setStats] = useState({ alunos: 0, professores: 0, turmas: 0, materias: 0 });
-    const [usuarios, setUsuarios] = useState([]);
+    const [alunosDoAno, setAlunosDoAno] = useState([]);
 
     useEffect(() => {
-        Promise.all([api.get("/usuarios"), api.get("/turmas"), api.get("/materias")])
-            .then(([u, t, m]) => {
-                const listaUsuarios = u.data || [];
-                setUsuarios(listaUsuarios);
-                setStats({
-                    alunos: listaUsuarios.filter(x => x.role === "ALUNO").length,
-                    professores: listaUsuarios.filter(x => x.role === "PROFESSOR").length,
-                    turmas: (t.data || []).length,
-                    materias: (m.data || []).length,
-                });
-            })
-            .catch(() => {});
-    }, []);
+        Promise.all([
+            api.get("/usuarios"),
+            api.get("/turmas"),
+            api.get("/materias"),
+            api.get(`/vinculos/aluno-turma/ocupados-no-ano/${anoLetivo}`),
+        ]).then(([u, t, m, a]) => {
+            const listaUsuarios = u.data || [];
+            const turmasDoAno = (t.data || []).filter(x => x.anoLetivo === anoLetivo);
+            setAlunosDoAno(listaUsuarios.filter(u => (a.data || []).includes(u.id)));
+            setStats({
+                alunos: (a.data || []).length,
+                professores: listaUsuarios.filter(x => x.role === "PROFESSOR").length,
+                turmas: turmasDoAno.length,
+                materias: (m.data || []).length,
+            });
+        }).catch(() => {});
+    }, [anoLetivo]);
 
     const cards = [
-        { label: "Alunos", value: stats.alunos, accent: "#0d1f18" },
-        { label: "Professores", value: stats.professores, accent: "#2d6a4f" },
-        { label: "Turmas", value: stats.turmas, accent: "#7ec8a0" },
-        { label: "Matérias", value: stats.materias, accent: "#b7dfc8" },
+        { label: "Alunos", sublabel: `em ${anoLetivo}`, value: stats.alunos, accent: "#0d1f18" },
+        { label: "Professores", sublabel: "total", value: stats.professores, accent: "#2d6a4f" },
+        { label: "Turmas", sublabel: `em ${anoLetivo}`, value: stats.turmas, accent: "#7ec8a0" },
+        { label: "Matérias", sublabel: "total", value: stats.materias, accent: "#b7dfc8" },
     ];
-
-    const roleBadge = (role) => ({
-        bg: role === "ALUNO" ? "#f0f5f2" : role === "PROFESSOR" ? "#e8f3ec" : "#eef5f0",
-        color: role === "ALUNO" ? "#3a6649" : role === "PROFESSOR" ? "#2d6a4f" : "#1a4d3a",
-    });
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:24 }}>
@@ -491,39 +490,37 @@ function Inicio() {
                     <div key={card.label} className="dd-card" style={{ "--accent": card.accent, padding:"20px 20px 18px" }}>
                         <p className="dd-card-num">{card.value}</p>
                         <p className="dd-card-label">{card.label}</p>
+                        <p style={{ fontSize:10, color:"rgba(255,255,255,.35)", marginTop:2, letterSpacing:".04em" }}>{card.sublabel}</p>
                     </div>
                 ))}
             </div>
 
             <div className="dd-section">
                 <div className="dd-section-header">
-                    <span className="dd-section-title">Usuários Recentes</span>
-                    <span className="dd-section-count">{usuarios.length} registros</span>
+                    <span className="dd-section-title">Alunos matriculados em {anoLetivo}</span>
+                    <span className="dd-section-count">{alunosDoAno.length} alunos</span>
                 </div>
                 <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
                     <thead>
-                    <tr>{["Nome", "Login", "Perfil"].map(h => <th key={h}>{h}</th>)}</tr>
+                    <tr>{["Nome", "Login"].map(h => <th key={h}>{h}</th>)}</tr>
                     </thead>
                     <tbody>
-                    {usuarios.slice(0, 8).map(u => {
-                        const rb = roleBadge(u.role);
-                        return (
-                            <tr key={u.id}>
-                                <td>
-                                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                                        <div style={{ width:26, height:26, background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color:"#7ec8a0", flexShrink:0 }}>
-                                            {u.nome.charAt(0)}
-                                        </div>
-                                        <span style={{ fontWeight:500 }}>{u.nome}</span>
+                    {alunosDoAno.slice(0, 8).map(u => (
+                        <tr key={u.id}>
+                            <td>
+                                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                    <div style={{ width:26, height:26, background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color:"#7ec8a0", flexShrink:0 }}>
+                                        {u.nome.charAt(0)}
                                     </div>
-                                </td>
-                                <td style={{ color:"#9aaa9f" }}>{u.login}</td>
-                                <td>
-                                    <span className="dd-badge" style={{ background:rb.bg, color:rb.color }}>{u.role}</span>
-                                </td>
-                            </tr>
-                        );
-                    })}
+                                    <span style={{ fontWeight:500 }}>{u.nome}</span>
+                                </div>
+                            </td>
+                            <td style={{ color:"#9aaa9f" }}>{u.login}</td>
+                        </tr>
+                    ))}
+                    {alunosDoAno.length === 0 && (
+                        <tr><td colSpan={2} style={{ textAlign:"center", color:"#9aaa9f", padding:20 }}>Nenhum aluno matriculado em {anoLetivo}</td></tr>
+                    )}
                     </tbody>
                 </table>
             </div>
@@ -543,6 +540,8 @@ function Usuarios() {
     const [campoBusca, setCampoBusca] = useState("nome");
     const [termoBusca, setTermoBusca] = useState("");
     const termoDebounced = useDebounce(termoBusca);
+    const [historicoAluno, setHistoricoAluno] = useState(null);
+    const [historico, setHistorico] = useState([]);
 
     const carregarVinculos = () => {
         api.get("/usuarios/com-vinculos").then(r => {
@@ -625,8 +624,14 @@ function Usuarios() {
         }
     };
 
-
-
+    const verHistorico = async (u) => {
+        setHistoricoAluno(u);
+        setHistorico([]);
+        try {
+            const r = await api.get(`/vinculos/aluno-turma/historico/${u.id}`);
+            setHistorico(Array.isArray(r.data) ? r.data : []);
+        } catch { setHistorico([]); }
+    };
 
 
     return (
@@ -704,6 +709,43 @@ function Usuarios() {
                                 <button type="submit" className="dd-btn-primary" style={{ flex:1 }}>Salvar →</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal histórico do aluno */}
+            {historicoAluno && (
+                <div className="dd-modal-overlay">
+                    <div className="dd-modal" style={{ maxWidth:480 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div>
+                                <p className="dd-modal-title">Histórico de Turmas</p>
+                                <p className="dd-modal-sub">{historicoAluno.nome}</p>
+                            </div>
+                            <button onClick={() => setHistoricoAluno(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f", padding:4 }}>
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        {historico.length === 0 ? (
+                            <p style={{ color:"#9aaa9f", fontSize:13, textAlign:"center", padding:"24px 0" }}>Nenhuma turma encontrada.</p>
+                        ) : (
+                            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                                {historico.map((v, i) => (
+                                    <div key={i} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", background:"#f8fafb", borderRadius:6, border:"1px solid #eef0ec" }}>
+                                        <div style={{ width:36, height:36, background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#7ec8a0", flexShrink:0 }}>
+                                            {v.turma?.anoLetivo ?? "—"}
+                                        </div>
+                                        <div>
+                                            <p style={{ fontSize:13, fontWeight:600, color:"#1a2332", margin:0 }}>{v.turma?.nome ?? "—"}</p>
+                                            <p style={{ fontSize:11, color:"#9aaa9f", margin:0 }}>{v.turma?.serie?.nome ?? ""}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <button onClick={() => setHistoricoAluno(null)} className="dd-btn-ghost" style={{ width:"100%", marginTop:20 }}>Fechar</button>
                     </div>
                 </div>
             )}
@@ -820,6 +862,9 @@ function Usuarios() {
                                 <td><span className="dd-badge" style={{ background: u.ativo?"#f0f5f2":"#fdf0f0", color: u.ativo?"#3a6649":"#b94040" }}>{u.ativo?"Ativo":"Inativo"}</span></td>
                                 <td style={{ textAlign:"right" }}>
                                     <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
+                                        {u.role === "ALUNO" && (
+                                            <button className="dd-btn-edit" onClick={() => verHistorico(u)}>Histórico</button>
+                                        )}
                                         <button className="dd-btn-edit" onClick={() => abrirEdicao(u)}>Editar</button>
                                         {idsComVinculos.has(u.id) ? (
                                             <button className={u.ativo ? "dd-btn-toggle-on" : "dd-btn-toggle-off"} onClick={() => toggleStatus(u)}>
