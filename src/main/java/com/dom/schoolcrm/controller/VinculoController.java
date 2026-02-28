@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -41,6 +42,15 @@ public class VinculoController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Turma não encontrada");
         }
 
+        Integer anoLetivo = turma.get().getAnoLetivo();
+        boolean jaMatriculado = alunoTurmaRepository.findByAlunoId(alunoId).stream()
+                .anyMatch(v -> v.getTurma().getAnoLetivo() != null
+                        && v.getTurma().getAnoLetivo().equals(anoLetivo));
+        if (jaMatriculado) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Aluno já está matriculado em uma turma em " + anoLetivo + ".");
+        }
+
         AlunoTurma vinculo = new AlunoTurma();
         vinculo.setAluno(aluno.get());
         vinculo.setTurma(turma.get());
@@ -48,6 +58,18 @@ public class VinculoController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of("mensagem", "Aluno vinculado à turma com sucesso"));
+    }
+
+    @GetMapping("/aluno-turma/ocupados-no-ano/{anoLetivo}")
+    @PreAuthorize("hasRole('DIRECAO')")
+    public ResponseEntity<List<Long>> alunosOcupadosNoAno(@PathVariable Integer anoLetivo) {
+        List<Long> ids = alunoTurmaRepository.findAll().stream()
+                .filter(at -> at.getTurma().getAnoLetivo() != null
+                        && at.getTurma().getAnoLetivo().equals(anoLetivo))
+                .map(at -> at.getId().getAlunoId())
+                .distinct()
+                .toList();
+        return ResponseEntity.ok(ids);
     }
 
     @Autowired

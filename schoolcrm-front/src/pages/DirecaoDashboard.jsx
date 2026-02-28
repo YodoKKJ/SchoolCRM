@@ -1017,6 +1017,7 @@ function EditarTurma({ turma, onVoltar }) {
     const [todosAlunos, setTodosAlunos] = useState([]);
     const [todosProfessores, setTodosProfessores] = useState([]);
     const [todasMaterias, setTodasMaterias] = useState([]);
+    const [alunosOcupados, setAlunosOcupados] = useState(new Set());
     const [formAluno, setFormAluno] = useState({ alunoId: "" });
     const [formProf, setFormProf] = useState({ professorId: "", materiaId: "" });
     const [msg, setMsg] = useState({ texto: "", tipo: "" });
@@ -1028,6 +1029,11 @@ function EditarTurma({ turma, onVoltar }) {
     const carregar = () => {
         api.get(`/vinculos/aluno-turma/turma/${turma.id}`).then(r => setVinculosAluno(Array.isArray(r.data) ? r.data : [])).catch(() => setVinculosAluno([]));
         api.get(`/vinculos/professor-turma-materia/turma/${turma.id}`).then(r => setVinculosProf(Array.isArray(r.data) ? r.data : [])).catch(() => setVinculosProf([]));
+        if (turma.anoLetivo) {
+            api.get(`/vinculos/aluno-turma/ocupados-no-ano/${turma.anoLetivo}`)
+                .then(r => setAlunosOcupados(new Set(Array.isArray(r.data) ? r.data : [])))
+                .catch(() => {});
+        }
     };
 
     useEffect(() => {
@@ -1050,7 +1056,10 @@ function EditarTurma({ turma, onVoltar }) {
             setMsg({ texto: "Aluno adicionado!", tipo: "ok" });
             setFormAluno({ alunoId: "" });
             carregar();
-        } catch { setMsg({ texto: "Erro ao vincular.", tipo: "erro" }); }
+        } catch (err) {
+            const raw = err.response?.data;
+            setMsg({ texto: typeof raw === "string" ? raw : "Erro ao vincular.", tipo: "erro" });
+        }
     };
 
     const vincularProf = async e => {
@@ -1082,6 +1091,7 @@ function EditarTurma({ turma, onVoltar }) {
 
     const alunosDisponiveis = todosAlunos
         .filter(a => !vinculosAluno.some(v => v.aluno?.id === a.id))
+        .filter(a => !alunosOcupados.has(a.id))
         .map(a => ({ value: a.id, label: a.nome }));
 
     const salvarNomeTurma = async () => {
