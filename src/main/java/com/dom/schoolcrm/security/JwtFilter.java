@@ -30,6 +30,20 @@ public class JwtFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
+        String path = request.getRequestURI();
+
+        if (path.startsWith("/assets") ||
+                path.equals("/") ||
+                path.equals("/index.html") ||
+                path.endsWith(".js") ||
+                path.endsWith(".css") ||
+                path.endsWith(".map") ||
+                path.endsWith(".ico")) {
+
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String header = request.getHeader("Authorization");
 
         // ===== DEBUG TEMPORÁRIO - REMOVER DEPOIS =====
