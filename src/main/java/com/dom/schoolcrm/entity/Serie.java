@@ -15,7 +15,7 @@ public class Serie {
 
     private String nome;
 
-    @OneToMany(mappedBy = "serie", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "serie")
     @JsonIgnore
     private List<Turma> turmas = new ArrayList<>();
 

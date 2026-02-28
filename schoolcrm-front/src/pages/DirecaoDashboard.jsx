@@ -866,7 +866,10 @@ function Turmas() {
     const excluirSerie = async (s) => {
         if (!confirm(`Excluir série "${s.nome}"?`)) return;
         try { await api.delete(`/turmas/series/${s.id}`); carregar(); }
-        catch { setMsg({ texto: "Erro ao excluir. Há turmas vinculadas a essa série?", tipo: "erro" }); }
+        catch (err) {
+            const raw = err.response?.data;
+            setMsg({ texto: typeof raw === "string" ? raw : "Erro ao excluir série.", tipo: "erro" });
+        }
     };
 
     const excluirTurma = async (t) => {
