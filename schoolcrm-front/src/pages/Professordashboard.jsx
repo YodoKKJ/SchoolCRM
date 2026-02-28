@@ -670,6 +670,13 @@ function Chamada() {
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
     const [salvando, setSalvando] = useState(false);
     const [abaLocal, setAbaLocal] = useState("chamada"); // "chamada" | "historico"
+    const [aulasColapsadas, setAulasColapsadas] = useState(new Set());
+    const toggleAulaColapsada = (ordemAula) =>
+        setAulasColapsadas(prev => {
+            const next = new Set(prev);
+            next.has(ordemAula) ? next.delete(ordemAula) : next.add(ordemAula);
+            return next;
+        });
 
     const DIAS_SEMANA = ["DOM","SEG","TER","QUA","QUI","SEX","SAB"];
     const DIAS_LABEL_PT = { SEG:"Segunda",TER:"Terça",QUA:"Quarta",QUI:"Quinta",SEX:"Sexta",SAB:"Sábado",DOM:"Domingo" };
@@ -857,12 +864,23 @@ function Chamada() {
                     {/* Seção por período */}
                     {!loadingAulas && aulasNoDia.map((aula, idx) => (
                         <div key={aula.ordemAula} className="pd-section">
-                            <div className="pd-section-header">
-                                <span className="pd-section-title">{idx + 1}ª Aula — {aula.horarioInicio}</span>
+                            <div className="pd-section-header"
+                                 onClick={() => toggleAulaColapsada(aula.ordemAula)}
+                                 style={{ cursor:"pointer", userSelect:"none" }}>
+                                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                                    <span style={{
+                                        fontSize:14, color:"#9aaa9f",
+                                        display:"inline-block",
+                                        transition:"transform .2s",
+                                        transform: aulasColapsadas.has(aula.ordemAula) ? "rotate(-90deg)" : "rotate(0deg)"
+                                    }}>▾</span>
+                                    <span className="pd-section-title">{idx + 1}ª Aula — {aula.horarioInicio}</span>
+                                </div>
                                 <span className="pd-section-count">
                                     {Object.values(chamadaPorAula[aula.ordemAula] || {}).filter(Boolean).length}/{alunos.length} presentes
                                 </span>
                             </div>
+                            {!aulasColapsadas.has(aula.ordemAula) && (
                             <table className="pd-table">
                                 <thead>
                                 <tr>
@@ -919,6 +937,7 @@ function Chamada() {
                                 })}
                                 </tbody>
                             </table>
+                            )}
                         </div>
                     ))}
                 </div>
