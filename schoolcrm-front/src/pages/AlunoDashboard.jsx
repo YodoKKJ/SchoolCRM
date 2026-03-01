@@ -294,6 +294,46 @@ function Frequencia({ vinculos }) {
                     </tbody>
                 </table>
             </div>
+            <table className="ad-table">
+                <thead>
+                    <tr>
+                        <th>Matéria</th>
+                        <th>Aulas</th>
+                        <th>Presenças</th>
+                        <th>Faltas</th>
+                        <th>%</th>
+                        <th>Situação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {entries.map(f => {
+                        const pct = f.percentualPresenca ?? 0;
+                        return (
+                            <tr key={f.key ?? f.materiaNome}>
+                                <td style={{ fontWeight:500 }}>{f.materiaNome}</td>
+                                <td style={{ color:"#9aaa9f" }}>{f.totalAulas}</td>
+                                <td style={{ color:"#3a6649" }}>{f.presentes}</td>
+                                <td style={{ color: f.faltas > 0 ? "#b94040" : "#9aaa9f" }}>{f.faltas}</td>
+                                <td>
+                                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                        <div style={{ width:72, height:6, background:"#eaeef2", borderRadius:3, overflow:"hidden" }}>
+                                            <div style={{ height:"100%", width:`${Math.min(pct,100)}%`, background: pct>=75?"#7ec8a0":pct>=60?"#e9c46a":"#e63946", borderRadius:3, transition:"width .4s" }} />
+                                        </div>
+                                        <span style={{ fontSize:12, fontWeight:600, color:corFreq(pct), minWidth:36 }}>
+                                            {fmt(pct)}%
+                                        </span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span className="ad-badge" style={{ color:corFreq(pct), background:bgFreq(pct) }}>
+                                        {pct>=75?"Regular":pct>=60?"Atenção":"Irregular"}
+                                    </span>
+                                </td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
         </div>
     );
 }
