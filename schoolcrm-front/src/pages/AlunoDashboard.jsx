@@ -60,6 +60,10 @@ const STYLE = `
 .ad-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
 .ad-cards-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
 .ad-hamburger { display:none; background:none; border:none; cursor:pointer; padding:4px; align-items:center; justify-content:center; }
+.ad-ano-selector { display:flex; gap:6px; }
+.ad-ano-btn { padding:4px 14px; border-radius:20px; border:1px solid #d0dbd4; background:#fff; font-size:12px; font-weight:600; color:#5a7060; cursor:pointer; transition:background .15s, color .15s; }
+.ad-ano-btn:hover { background:#f0f5f2; }
+.ad-ano-btn--active { background:#0d1f18; color:#fff; border-color:#0d1f18; }
 
 @media (max-width: 767px) {
   .ad-sidebar {
@@ -273,14 +277,13 @@ function Boletim({ notas }) {
 }
 
 // ── Seção Frequência ──────────────────────────────────────────────
-function Frequencia({ notas }) {
+function Frequencia({ notas, turmaId }) {
     const [frequencias, setFrequencias] = useState({});
     const [carregando, setCarregando] = useState(false);
 
     useEffect(() => {
         const porMateria = agruparPorMateria(notas);
         const materias = Object.values(porMateria).map(m => m.materia);
-        const turmaId = notas[0]?.avaliacao?.turma?.id;
         if (!turmaId || !materias.length) return;
         setCarregando(true);
         Promise.all(materias.map(mat =>
@@ -293,7 +296,7 @@ function Frequencia({ notas }) {
             setFrequencias(f);
             setCarregando(false);
         });
-    }, [notas]);
+    }, [notas, turmaId]);
 
     if (carregando) return <div className="ad-section"><p className="ad-empty">Carregando...</p></div>;
 
@@ -428,17 +431,31 @@ export default function AlunoDashboard() {
     const [sidebarAberta, setSidebarAberta] = useState(false);
     const [vinculos, setVinculos] = useState([]);
     const [notas, setNotas] = useState([]);
+    const [anoSelecionado, setAnoSelecionado] = useState(null);
     const nome = localStorage.getItem("nome") || "Aluno";
     const logout = () => { localStorage.clear(); window.location.href = "/"; };
 
     useEffect(() => {
         api.get("/vinculos/aluno-turma/minhas")
-            .then(r => setVinculos(Array.isArray(r.data) ? r.data : []))
+            .then(r => {
+                const vs = Array.isArray(r.data) ? r.data : [];
+                setVinculos(vs);
+                const maxAno = Math.max(0, ...vs.map(v => v.turma?.anoLetivo || 0));
+                if (maxAno > 0) setAnoSelecionado(maxAno);
+            })
             .catch(() => setVinculos([]));
         api.get("/notas/minhas")
             .then(r => setNotas(Array.isArray(r.data) ? r.data : []))
             .catch(() => setNotas([]));
     }, []);
+
+    // Dados filtrados pelo ano selecionado
+    const anosDisponiveis = [...new Set(vinculos.map(v => v.turma?.anoLetivo).filter(Boolean))]
+        .sort((a, b) => b - a);
+    const vinculoAno = vinculos.find(v => v.turma?.anoLetivo === anoSelecionado);
+    const turmaIdAno = vinculoAno?.turma?.id ?? null;
+    const notasAno = notas.filter(n => n.avaliacao?.turma?.id === turmaIdAno);
+    const vinculosAno = vinculos.filter(v => v.turma?.anoLetivo === anoSelecionado);
 
     return (
         <>
@@ -524,9 +541,22 @@ export default function AlunoDashboard() {
                     </header>
 
                     <main className="ad-main" style={{ flex:1, padding:"28px 32px", display:"flex", flexDirection:"column", gap:20 }}>
-                        {aba === "inicio"     && <Inicio vinculos={vinculos} notas={notas} />}
-                        {aba === "boletim"    && <Boletim notas={notas} />}
-                        {aba === "frequencia" && <Frequencia notas={notas} />}
+                        {anosDisponiveis.length > 1 && (
+                            <div className="ad-ano-selector">
+                                {anosDisponiveis.map(ano => (
+                                    <button
+                                        key={ano}
+                                        className={`ad-ano-btn${ano === anoSelecionado ? " ad-ano-btn--active" : ""}`}
+                                        onClick={() => setAnoSelecionado(ano)}
+                                    >
+                                        {ano}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {aba === "inicio"     && <Inicio vinculos={vinculosAno} notas={notasAno} />}
+                        {aba === "boletim"    && <Boletim notas={notasAno} />}
+                        {aba === "frequencia" && <Frequencia notas={notasAno} turmaId={turmaIdAno} />}
                         {aba === "horarios"   && <Horarios />}
                     </main>
                 </div>
