@@ -232,23 +232,13 @@ function Boletim({ notas }) {
     );
 }
 
-// ── Seção: Frequência ─────────────────────────────────────────────────────────
-function Frequencia({ vinculos }) {
-    const [frequencias, setFrequencias] = useState({});
+// ── Seção Frequência ──────────────────────────────────────────────
+function Frequencia({ frequencias, carregando }) {
+    if (carregando) return <div className="ad-section"><p className="ad-empty">Carregando...</p></div>;
 
-    useEffect(() => {
-        if (vinculos.length === 0) return;
-        vinculos.forEach(v => {
-            if (!v.turmaId || !v.materiaId) return;
-            api.get(`/presencas/minhas/${v.turmaId}/${v.materiaId}`)
-                .then(r => setFrequencias(prev => ({ ...prev, [`${v.turmaId}-${v.materiaId}`]: r.data })))
-                .catch(() => {});
-        });
-    }, [vinculos]);
+    const entries = Object.values(frequencias ?? {});
 
-    if (vinculos.length === 0) {
-        return <div style={{ color:"#9aaa9f", fontSize:13, padding:"24px 0" }}>Nenhum vínculo ativo.</div>;
-    }
+    if (!entries.length) return <div className="ad-section"><p className="ad-empty">Nenhum registro de frequência encontrado.</p></div>;
 
     return (
         <div className="ad-section">

@@ -98,6 +98,14 @@ public class SecurityConfig {
                 new AntPathRequestMatcher("/favicon.ico"),
                 new AntPathRequestMatcher("/vite.svg"),
                 new AntPathRequestMatcher("/error"),
+                // PWA assets — devem ser públicos para o browser registrar o service worker
+                new AntPathRequestMatcher("/manifest.json"),
+                new AntPathRequestMatcher("/manifest.webmanifest"),
+                new AntPathRequestMatcher("/sw.js"),
+                new AntPathRequestMatcher("/icon.svg"),
+                new AntPathRequestMatcher("/*.png"),
+                new AntPathRequestMatcher("/*.ico"),
+                new AntPathRequestMatcher("/*.svg"),
                 // Rotas SPA do React — navegação do browser não carrega JWT header
                 new AntPathRequestMatcher("/direcao"),
                 new AntPathRequestMatcher("/professor"),
