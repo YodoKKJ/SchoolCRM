@@ -1173,7 +1173,6 @@ function Usuarios() {
 function Turmas({ anoLetivo }) {
     const [turmas, setTurmas] = useState([]);
     const [series, setSeries] = useState([]);
-    const [formSerie, setFormSerie] = useState({ tipo: "EF", numero: "1" });
     const [formTurma, setFormTurma] = useState({ nome: "", serieId: "", anoLetivo: String(anoLetivo) });
     const [msg, setMsg] = useState({ texto: "", tipo: "" });
     const [turmaSelecionada, setTurmaSelecionada] = useState(null);
@@ -1215,15 +1214,6 @@ function Turmas({ anoLetivo }) {
     }, [termoDebounced, campoBusca]);
 
 
-
-    const excluirSerie = async (s) => {
-        if (!confirm(`Excluir série "${s.nome}"?`)) return;
-        try { await api.delete(`/turmas/series/${s.id}`); carregar(); }
-        catch (err) {
-            const raw = err.response?.data;
-            setMsg({ texto: typeof raw === "string" ? raw : "Erro ao excluir série.", tipo: "erro" });
-        }
-    };
 
     const excluirTurma = async (t) => {
         if (!confirm(`Excluir turma "${t.nome}"?`)) return;
@@ -1423,58 +1413,7 @@ function Turmas({ anoLetivo }) {
                 </div>
             )}
 
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
-                <div className="dd-section" style={{ padding:24 }}>
-                    <p className="dd-section-title" style={{ marginBottom:16 }}>Nova Série</p>
-                    <form onSubmit={async e => {
-                        e.preventDefault();
-                        const nums = formSerie.tipo === "EM" ? ["1","2","3"] : ["1","2","3","4","5","6","7","8","9"];
-                        const ord = ["1º","2º","3º","4º","5º","6º","7º","8º","9º"][parseInt(formSerie.numero)-1];
-                        const nome = `${ord} ${formSerie.tipo}`;
-                        if (series.some(s => s.nome === nome)) {
-                            setMsg({ texto: `Série "${nome}" já existe.`, tipo: "erro" }); return;
-                        }
-                        try {
-                            await api.post("/turmas/series", { nome });
-                            setFormSerie({ tipo: "EF", numero: "1" });
-                            setMsg({ texto: `Série "${nome}" criada!`, tipo: "ok" });
-                            carregar();
-                        } catch { setMsg({ texto: "Erro ao criar série.", tipo: "erro" }); }
-                    }} style={{ display:"flex", gap:8, alignItems:"flex-end" }}>
-                        <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
-                            <label className="dd-label">Nível</label>
-                            <select className="dd-input" value={formSerie.tipo}
-                                    onChange={e => setFormSerie({ tipo: e.target.value, numero: "1" })}
-                                    style={{ cursor:"pointer" }}>
-                                <option value="EF">Ensino Fundamental (EF)</option>
-                                <option value="EM">Ensino Médio (EM)</option>
-                            </select>
-                        </div>
-                        <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
-                            <label className="dd-label">Ano</label>
-                            <select className="dd-input" value={formSerie.numero}
-                                    onChange={e => setFormSerie({ ...formSerie, numero: e.target.value })}
-                                    style={{ cursor:"pointer" }}>
-                                {(formSerie.tipo === "EM" ? ["1","2","3"] : ["1","2","3","4","5","6","7","8","9"]).map(n => (
-                                    <option key={n} value={n}>{n}º ano</option>
-                                ))}
-                            </select>
-                        </div>
-                        <button type="submit" className="dd-btn-primary">Adicionar</button>
-                    </form>
-                    <div style={{ marginTop:16, display:"flex", flexWrap:"wrap", gap:8 }}>
-                        {series.map(s => (
-                            <div key={s.id} style={{ display:"flex", alignItems:"center", gap:6, background:"#f0f5f2", padding:"4px 10px 4px 12px" }}>
-                                <span style={{ fontSize:12, fontWeight:500, color:"#2d6a4f" }}>{s.nome}</span>
-                                <button onClick={() => excluirSerie(s)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f", padding:0, display:"flex" }}>
-                                    <X size={11} />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="dd-section" style={{ padding:24 }}>
+            <div className="dd-section" style={{ padding:24 }}>
                     <p className="dd-section-title" style={{ marginBottom:16 }}>Nova Turma</p>
                     <form onSubmit={async e => {
                         e.preventDefault();
@@ -1512,7 +1451,6 @@ function Turmas({ anoLetivo }) {
                         <button type="submit" className="dd-btn-primary">Cadastrar Turma →</button>
                     </form>
                 </div>
-            </div>
 
             <div className="dd-section">
                 <div className="dd-section-header" style={{ flexDirection:"column", alignItems:"stretch", gap:12 }}>
