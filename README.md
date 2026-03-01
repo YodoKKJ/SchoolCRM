@@ -1,10 +1,10 @@
-# 🎓 DomGestão — School Management System
+# DomGestão — School Management System
 
 A full-stack school management system built with **Java Spring Boot** and **React**, designed to digitalize academic operations. Covers students, teachers, classes, subjects, grades, attendance, schedules, and tardiness — all with role-based access control.
 
 ---
 
-## ✨ Features
+## Features
 
 - **JWT authentication** with 7-day or 30-day tokens ("remember me")
 - **User management** — create, edit, activate/deactivate directors, teachers, and students
