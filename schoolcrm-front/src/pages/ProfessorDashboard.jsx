@@ -1080,6 +1080,8 @@ function HorariosView() {
     const [horarios, setHorarios] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filtroTurma, setFiltroTurma] = useState("todas");
+    const [apenasMinhas, setApenasMinhas] = useState(false);
+    const myId = Number(localStorage.getItem("userId"));
 
     useEffect(() => {
         setLoading(true);
@@ -1097,9 +1099,12 @@ function HorariosView() {
     const horariosUsados = [...new Set(horarios.map(h => h.horarioInicio))].sort();
 
     const getSlot = (turmaId, dia, ordem) => {
-        return horarios.find(
+        const slot = horarios.find(
             h => h.turmaId === turmaId && h.diaSemana === dia && h.ordemAula === ordem
         );
+        if (!slot) return null;
+        if (apenasMinhas && slot.professorId !== myId) return null;
+        return slot;
     };
 
     if (loading) {
@@ -1119,7 +1124,7 @@ function HorariosView() {
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             {/* Filtro por turma */}
             <div className="pd-section" style={{ padding: "12px 20px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
                     <label style={{ fontSize: 11, fontWeight: 500, letterSpacing: ".08em", textTransform: "uppercase", color: "#9aaa9f" }}>
                         Filtrar turma:
                     </label>
@@ -1137,6 +1142,18 @@ function HorariosView() {
                             <option key={id} value={id}>{horarios.find(h => h.turmaId === id)?.turmaNome || `Turma ${id}`}</option>
                         ))}
                     </select>
+
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", userSelect: "none" }}>
+                        <input
+                            type="checkbox"
+                            checked={apenasMinhas}
+                            onChange={e => setApenasMinhas(e.target.checked)}
+                            style={{ accentColor: "#0d1f18", width: 14, height: 14, cursor: "pointer" }}
+                        />
+                        <span style={{ fontSize: 12, color: "#0d1f18", fontWeight: apenasMinhas ? 600 : 400 }}>
+                            Apenas minhas aulas
+                        </span>
+                    </label>
                 </div>
             </div>
 
