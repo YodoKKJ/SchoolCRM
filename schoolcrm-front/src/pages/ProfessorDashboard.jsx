@@ -5,7 +5,7 @@ import {
     Menu, ChevronRight, Search, X, UserPlus, ArrowLeft, CalendarDays
 } from "lucide-react";
 
-const api = axios.create({ baseURL: "http://localhost:8080" });
+const api = axios.create({ baseURL: "" });
 api.interceptors.request.use(config => {
     config.headers.Authorization = `Bearer ${localStorage.getItem("token")}`;
     return config;

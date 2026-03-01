@@ -10,11 +10,13 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -41,17 +43,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .authorizeHttpRequests(auth -> auth
-
-                        // 🔓 Arquivos estáticos e página inicial
-                        .requestMatchers(
-                                "/",
-                                "/index.html",
-                                "/favicon.ico",
-                                "/vite.svg",
-                                "/assets/**"
-                        ).permitAll()
-
-                        // 🔓 Login
+                        // API de autenticação e preflight CORS
                         .requestMatchers("/auth/**").permitAll()
 
                         // 🔓 Preflight CORS
@@ -82,7 +74,7 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         List<String> origins = List.of(allowedOriginsRaw.split(","));
 
-        config.setAllowedOrigins(origins);
+        config.setAllowedOriginPatterns(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         config.setAllowedHeaders(List.of("*"));
         config.setExposedHeaders(List.of("Authorization"));
@@ -95,7 +87,24 @@ public class SecurityConfig {
         return source;
     }
 
-    // Evita registrar o filtro duas vezes
+    // Arquivos estáticos do React ficam completamente fora do filtro de segurança
+    // (web.ignoring é necessário no Spring Security 6 para static resources sem controller)
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        return web -> web.ignoring().requestMatchers(
+                new AntPathRequestMatcher("/"),
+                new AntPathRequestMatcher("/index.html"),
+                new AntPathRequestMatcher("/assets/**"),
+                new AntPathRequestMatcher("/favicon.ico"),
+                new AntPathRequestMatcher("/vite.svg"),
+                new AntPathRequestMatcher("/error"),
+                // Rotas SPA do React — navegação do browser não carrega JWT header
+                new AntPathRequestMatcher("/direcao"),
+                new AntPathRequestMatcher("/professor"),
+                new AntPathRequestMatcher("/aluno")
+        );
+    }
+
     @Bean
     public FilterRegistrationBean<JwtFilter> jwtFilterRegistration(JwtFilter jwtFilter) {
         FilterRegistrationBean<JwtFilter> registration = new FilterRegistrationBean<>(jwtFilter);
