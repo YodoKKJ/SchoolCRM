@@ -191,91 +191,79 @@ function Inicio({ turmas, notas, frequencias }) {
 // ── Seção Boletim ─────────────────────────────────────────────────
 function Boletim({ notas }) {
     const porMateria = agruparPorMateria(notas);
-    const [materiaAberta, setMateriaAberta] = useState(null);
 
     if (!Object.keys(porMateria).length) return (
         <div className="ad-section"><p className="ad-empty">Nenhuma nota lançada ainda.</p></div>
     );
 
     return (
-        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
             {Object.values(porMateria).map(({ materia, notas: nts }, idx) => {
                 const media = mediaMateria(nts);
-                const aberta = materiaAberta === materia.id;
                 const accent = CORES_MATERIA[idx % CORES_MATERIA.length];
                 return (
-                    <div key={materia.id} className="ad-section" style={{ borderTop:`2px solid ${accent}` }}>
-                        {/* cabeçalho clicável */}
-                        <button
-                            onClick={() => setMateriaAberta(aberta ? null : materia.id)}
-                            style={{ width:"100%", background:"none", border:"none", cursor:"pointer", padding:0 }}
-                        >
-                            <div className="ad-section-header" style={{ userSelect:"none" }}>
-                                <span className="ad-section-title" style={{ color:accent }}>{materia.nome}</span>
-                                <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                                    <span className="ad-badge" style={{ color:corNota(media), background:bgNota(media) }}>
-                                        Média: {fmt(media)}
-                                    </span>
-                                    <span style={{ fontSize:11, color:"#9aaa9f" }}>{aberta?"▲":"▼"}</span>
-                                </div>
-                            </div>
-                        </button>
+                    <div key={materia.id} className="ad-section" style={{ borderTop:`2px solid ${accent}`, overflow:"hidden" }}>
+                        {/* cabeçalho matéria */}
+                        <div className="ad-section-header">
+                            <span className="ad-section-title" style={{ color:accent, fontSize:15, fontWeight:600 }}>{materia.nome}</span>
+                            <span className="ad-badge" style={{ color:corNota(media), background:bgNota(media), fontSize:13 }}>
+                                Média: {fmt(media)}
+                            </span>
+                        </div>
 
-                        {/* bimestres */}
-                        {aberta && (
-                            <div style={{ padding:"16px 20px", display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:12 }}>
-                                {[1,2,3,4].map(bim => {
-                                    const nBim = nts.filter(n => n.avaliacao?.bimestre === bim && !n.avaliacao?.bonificacao);
-                                    const bonus = nts.filter(n => n.avaliacao?.bimestre === bim && n.avaliacao?.bonificacao);
-                                    const mBim = mediaMateria(nBim);
-                                    return (
-                                        <div key={bim} style={{ border:"1px solid #eaeef2", padding:"14px 16px" }}>
-                                            <p style={{ fontSize:10, fontWeight:500, letterSpacing:".1em", textTransform:"uppercase", color:"#9aaa9f", marginBottom:10 }}>
-                                                {bim}º Bimestre
-                                            </p>
-                                            {nBim.length === 0 && bonus.length === 0 ? (
-                                                <p style={{ fontSize:12, color:"#9aaa9f" }}>Sem notas</p>
-                                            ) : (
-                                                <>
-                                                    <table style={{ width:"100%", borderCollapse:"collapse" }}>
-                                                        <tbody>
-                                                            {nBim.map(n => (
-                                                                <tr key={n.id}>
-                                                                    <td style={{ fontSize:12, color:"#5a7060", paddingBottom:6, paddingRight:8 }}>
-                                                                        {n.avaliacao?.descricao || n.avaliacao?.tipo || "Avaliação"}
-                                                                    </td>
-                                                                    <td style={{ fontSize:13, fontWeight:600, color:corNota(parseFloat(n.valor)), textAlign:"right", paddingBottom:6 }}>
-                                                                        {fmt(n.valor)}
-                                                                    </td>
-                                                                </tr>
-                                                            ))}
-                                                            {bonus.map(n => (
-                                                                <tr key={n.id}>
-                                                                    <td style={{ fontSize:12, color:"#7ec8a0", paddingBottom:6, paddingRight:8 }}>
-                                                                        +{n.avaliacao?.descricao || "Bônus"}
-                                                                    </td>
-                                                                    <td style={{ fontSize:13, fontWeight:600, color:"#7ec8a0", textAlign:"right", paddingBottom:6 }}>
-                                                                        +{fmt(n.valor)}
-                                                                    </td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                    {nBim.length > 0 && (
-                                                        <div style={{ borderTop:"1px solid #eaeef2", paddingTop:8, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                                                            <span style={{ fontSize:11, color:"#9aaa9f", letterSpacing:".04em" }}>MÉDIA BIM.</span>
-                                                            <span style={{ fontSize:14, fontWeight:700, color:corNota(mBim), fontFamily:"'Playfair Display',serif" }}>
-                                                                {fmt(mBim)}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
+                        {/* bimestres sempre visíveis */}
+                        <div style={{ padding:"16px 20px", display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:12 }}>
+                            {[1,2,3,4].map(bim => {
+                                const nBim = nts.filter(n => (n.avaliacao?.bimestre ?? 1) === bim && !n.avaliacao?.bonificacao);
+                                const bonus = nts.filter(n => (n.avaliacao?.bimestre ?? 1) === bim && n.avaliacao?.bonificacao);
+                                const mBim = mediaMateria(nBim);
+                                return (
+                                    <div key={bim} style={{ background:"#f8faf8", border:"1px solid #eaeef2", borderRadius:8, padding:"12px 14px" }}>
+                                        <p style={{ fontSize:10, fontWeight:500, letterSpacing:".1em", textTransform:"uppercase", color:"#9aaa9f", marginBottom:10 }}>
+                                            {bim}º Bimestre
+                                        </p>
+                                        {nBim.length === 0 && bonus.length === 0 ? (
+                                            <p style={{ fontSize:12, color:"#9aaa9f" }}>Sem notas</p>
+                                        ) : (
+                                            <>
+                                                <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                                                    <tbody>
+                                                        {nBim.map(n => (
+                                                            <tr key={n.id}>
+                                                                <td style={{ fontSize:12, color:"#5a7060", paddingBottom:5, paddingRight:8 }}>
+                                                                    {n.avaliacao?.descricao || n.avaliacao?.tipo || "Avaliação"}
+                                                                </td>
+                                                                <td style={{ fontSize:13, fontWeight:600, color:corNota(parseFloat(n.valor)), textAlign:"right", paddingBottom:5 }}>
+                                                                    {fmt(n.valor)}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                        {bonus.map(n => (
+                                                            <tr key={n.id}>
+                                                                <td style={{ fontSize:12, color:"#7ec8a0", paddingBottom:5, paddingRight:8 }}>
+                                                                    +{n.avaliacao?.descricao || "Bônus"}
+                                                                </td>
+                                                                <td style={{ fontSize:13, fontWeight:600, color:"#7ec8a0", textAlign:"right", paddingBottom:5 }}>
+                                                                    +{fmt(n.valor)}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                                {nBim.length > 0 && (
+                                                    <div style={{ borderTop:"1px solid #eaeef2", paddingTop:7, marginTop:4, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                                                        <span style={{ fontSize:10, color:"#9aaa9f", letterSpacing:".06em", textTransform:"uppercase" }}>Média bim.</span>
+                                                        <span style={{ fontSize:14, fontWeight:700, color:corNota(mBim), fontFamily:"'Playfair Display',serif" }}>
+                                                            {fmt(mBim)}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 );
             })}
