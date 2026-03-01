@@ -1,0 +1,18 @@
+{
+  "name": "DomGestão",
+  "short_name": "DomGestão",
+  "description": "Sistema de gestão escolar DomGestão",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#0d1f18",
+  "background_color": "#0d1f18",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
