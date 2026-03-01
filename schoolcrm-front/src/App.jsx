@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import DirecaoDashboard from "./pages/DirecaoDashboard";
 import ProfessorDashboard from "./pages/ProfessorDashboard";
+import AlunoDashboard from "./pages/AlunoDashboard";
 
 function PrivateRoute({ children, role }) {
     const token = localStorage.getItem("token");
@@ -28,7 +29,7 @@ function App() {
                 } />
                 <Route path="/aluno" element={
                     <PrivateRoute role="ALUNO">
-                        <div className="p-8 text-xl">Dashboard Aluno 🚧</div>
+                        <AlunoDashboard />
                     </PrivateRoute>
                 } />
             </Routes>
