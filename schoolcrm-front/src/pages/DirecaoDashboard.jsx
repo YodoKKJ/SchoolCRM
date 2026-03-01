@@ -5,8 +5,11 @@ import {
     Home, Users, School, BookOpen, LogOut,
     GraduationCap, UserCheck, LayoutGrid, BookMarked, Menu,
     Trash2, Pencil, ArrowLeft, UserPlus, ChevronDown, Search, X,
-    FileText, DollarSign, Lock, ClipboardList, ChevronRight, Clock, CalendarDays
+    FileText, DollarSign, Lock, ClipboardList, ChevronRight, Clock, CalendarDays,
+    TrendingUp, TrendingDown, ArrowLeftRight, Settings, BarChart2, Briefcase,
+    Receipt, Building2, CheckCircle2, AlertCircle, Ban, Wallet, CreditCard
 } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 const api = axios.create({ baseURL: "" });
 
@@ -107,7 +110,13 @@ const modulos = [
         id: "financeiro",
         label: "Financeiro",
         items: [
-            { id: "financeiro", label: "Financeiro", icon: DollarSign, disabled: true },
+            { id: "fin-dashboard",     label: "Dashboard",       icon: BarChart2 },
+            { id: "fin-pessoas",       label: "Pessoas",          icon: Building2 },
+            { id: "fin-funcionarios",  label: "Funcionários",     icon: Briefcase },
+            { id: "fin-contratos",     label: "Contratos / CR",   icon: Receipt },
+            { id: "fin-pagar",         label: "Contas a Pagar",   icon: TrendingDown },
+            { id: "fin-movimentacoes", label: "Movimentações",    icon: ArrowLeftRight },
+            { id: "fin-config",        label: "Configurações",    icon: Settings },
         ]
     },
     {
@@ -711,6 +720,13 @@ export default function DirecaoDashboard() {
                         {aba === "lancamentos" && <ErrorBoundary key={`lancamentos-${anoLetivo}`}><Lancamentos anoLetivo={anoLetivo} /></ErrorBoundary>}
                         {aba === "boletins" && <ErrorBoundary key={`boletins-${anoLetivo}`}><Boletins anoLetivo={anoLetivo} /></ErrorBoundary>}
                         {aba === "relatorios" && <ErrorBoundary key={`relatorios-${anoLetivo}`}><Relatorios anoLetivo={anoLetivo} /></ErrorBoundary>}
+                        {aba === "fin-dashboard"    && <ErrorBoundary key="fin-dashboard"><FinDashboard /></ErrorBoundary>}
+                        {aba === "fin-pessoas"      && <ErrorBoundary key="fin-pessoas"><FinPessoas /></ErrorBoundary>}
+                        {aba === "fin-funcionarios" && <ErrorBoundary key="fin-funcionarios"><FinFuncionarios /></ErrorBoundary>}
+                        {aba === "fin-contratos"    && <ErrorBoundary key="fin-contratos"><FinContratos anoLetivo={anoLetivo} /></ErrorBoundary>}
+                        {aba === "fin-pagar"        && <ErrorBoundary key="fin-pagar"><FinContasPagar /></ErrorBoundary>}
+                        {aba === "fin-movimentacoes" && <ErrorBoundary key="fin-movimentacoes"><FinMovimentacoes /></ErrorBoundary>}
+                        {aba === "fin-config"       && <ErrorBoundary key="fin-config"><FinConfiguracoes anoLetivo={anoLetivo} /></ErrorBoundary>}
                     </main>
                 </div>
             </div>
@@ -3482,6 +3498,1534 @@ function Horarios({ anoLetivo }) {
                     )}
                 </>
             )}
+        </div>
+    );
+}
+// ═══════════════════════════════════════════════════════════════
+// MÓDULO FINANCEIRO
+// ═══════════════════════════════════════════════════════════════
+
+const fmt = v => Number(v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmtData = d => d ? new Date(d + "T12:00").toLocaleDateString("pt-BR") : "—";
+const mesAtual = () => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`; };
+const statusColors = {
+    PENDENTE:  { bg:"#fff8e1", color:"#c47a00" },
+    PAGO:      { bg:"#f0f5f2", color:"#2d6a4f" },
+    CANCELADO: { bg:"#f5f5f5", color:"#9aaa9f" },
+    VENCIDO:   { bg:"#fdf0f0", color:"#b94040" },
+};
+const statusBadge = s => statusColors[s] ?? { bg:"#f5f5f5", color:"#9aaa9f" };
+
+// ---- FIN DASHBOARD ----
+function FinDashboard() {
+    const [mes, setMes] = useState(mesAtual());
+    const [dados, setDados] = useState(null);
+    const [carregando, setCarregando] = useState(false);
+
+    useEffect(() => {
+        setCarregando(true);
+        api.get("/fin/dashboard", { params: { mes } })
+            .then(r => setDados(r.data))
+            .catch(() => setDados(null))
+            .finally(() => setCarregando(false));
+    }, [mes]);
+
+    const kpis = dados?.kpis ?? {};
+    const grafico = dados?.grafico ?? [];
+    const proximosVenc = dados?.proximosVencimentos ?? [];
+    const inadimplentes = dados?.inadimplentes ?? [];
+
+    const kpiCards = [
+        { label: "Total Entradas",  valor: kpis.totalEntradas,  cor: "#2d6a4f", Icone: TrendingUp },
+        { label: "Total Saídas",    valor: kpis.totalSaidas,    cor: "#b94040", Icone: TrendingDown },
+        { label: "Saldo do Mês",    valor: kpis.saldoMes,       cor: Number(kpis.saldoMes??0)>=0?"#2d6a4f":"#b94040", Icone: Wallet },
+        { label: "CR a Receber",    valor: kpis.crAReceber,     cor: "#c47a00", Icone: CreditCard },
+        { label: "CP a Pagar",      valor: kpis.cpAPagar,       cor: "#c47a00", Icone: TrendingDown },
+        { label: "Inadimplência",   valor: kpis.crVencido,      cor: "#b94040", Icone: AlertCircle },
+    ];
+
+    return (
+        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                <label className="dd-label" style={{ margin:0 }}>Mês de referência</label>
+                <input type="month" value={mes} onChange={e => setMes(e.target.value)}
+                    style={{ border:"1px solid #eaeef2", padding:"6px 10px", fontFamily:"'DM Sans',sans-serif", fontSize:13, outline:"none", background:"#fff", color:"#0d1f18" }} />
+                {carregando && <span style={{ fontSize:11, color:"#9aaa9f" }}>Carregando...</span>}
+            </div>
+
+            <div className="dd-cards-grid">
+                {kpiCards.map(c => (
+                    <div key={c.label} className="dd-card" style={{ "--accent": c.cor, borderRadius:4, padding:"18px 20px" }}>
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+                            <span className="dd-card-label">{c.label}</span>
+                            <c.Icone size={16} color={c.cor} />
+                        </div>
+                        <div className="dd-card-num" style={{ color: c.cor, fontSize:22 }}>{fmt(c.valor)}</div>
+                    </div>
+                ))}
+            </div>
+
+            <div className="dd-section">
+                <div className="dd-section-header">
+                    <span className="dd-section-title">Receitas vs Despesas — últimos 6 meses</span>
+                </div>
+                <div style={{ padding:"20px 20px 12px" }}>
+                    <ResponsiveContainer width="100%" height={240}>
+                        <BarChart data={grafico} margin={{ top:4, right:16, left:0, bottom:0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#eaeef2" />
+                            <XAxis dataKey="mesNome" tick={{ fontSize:11, fill:"#9aaa9f" }} />
+                            <YAxis tick={{ fontSize:11, fill:"#9aaa9f" }} tickFormatter={v => `R$${(v/1000).toFixed(0)}k`} />
+                            <Tooltip formatter={(v, n) => [fmt(v), n==="receitas"?"Receitas":"Despesas"]} labelStyle={{ fontWeight:600, fontSize:12 }} contentStyle={{ fontSize:12, border:"1px solid #eaeef2" }} />
+                            <Legend wrapperStyle={{ fontSize:12, paddingTop:8 }} formatter={n => n==="receitas"?"Receitas":"Despesas"} />
+                            <Bar dataKey="receitas" fill="#52B69A" radius={[3,3,0,0]} />
+                            <Bar dataKey="despesas" fill="#e07070" radius={[3,3,0,0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+                <div className="dd-section">
+                    <div className="dd-section-header">
+                        <span className="dd-section-title">Próximos vencimentos (7 dias)</span>
+                        <span className="dd-section-count">{proximosVenc.length}</span>
+                    </div>
+                    {proximosVenc.length === 0
+                        ? <p style={{ padding:"20px", fontSize:12, color:"#9aaa9f", textAlign:"center" }}>Nenhum vencimento nos próximos 7 dias</p>
+                        : <div className="dd-table-wrap">
+                            <table className="dd-table" style={{ width:"100%" }}>
+                                <thead><tr>
+                                    <th>Módulo</th><th>Descrição</th><th>Valor</th><th>Vencimento</th><th>Dias</th>
+                                </tr></thead>
+                                <tbody>
+                                    {proximosVenc.map((v, i) => (
+                                        <tr key={i}>
+                                            <td><span className="dd-badge" style={{ background: v.modulo==="CR"?"#f0f5f2":"#fdf0f0", color: v.modulo==="CR"?"#2d6a4f":"#b94040", borderRadius:3 }}>{v.modulo}</span></td>
+                                            <td style={{ maxWidth:180 }}><div style={{ fontSize:12 }}>{v.descricao}</div>{(v.alunoNome||v.pessoaNome) && <div style={{ fontSize:11, color:"#9aaa9f" }}>{v.alunoNome||v.pessoaNome}</div>}</td>
+                                            <td style={{ fontWeight:500 }}>{fmt(v.valor)}</td>
+                                            <td>{fmtData(v.dataVencimento)}</td>
+                                            <td><span style={{ fontWeight:600, color: v.diasRestantes<=2?"#b94040":"#c47a00" }}>{v.diasRestantes}d</span></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                          </div>
+                    }
+                </div>
+
+                <div className="dd-section">
+                    <div className="dd-section-header">
+                        <span className="dd-section-title">Inadimplentes</span>
+                        <span className="dd-section-count">{inadimplentes.length}</span>
+                    </div>
+                    {inadimplentes.length === 0
+                        ? <p style={{ padding:"20px", fontSize:12, color:"#9aaa9f", textAlign:"center" }}>Nenhuma inadimplência</p>
+                        : <div className="dd-table-wrap">
+                            <table className="dd-table" style={{ width:"100%" }}>
+                                <thead><tr>
+                                    <th>Aluno / Pessoa</th><th>Valor</th><th>Vencimento</th><th>Atraso</th>
+                                </tr></thead>
+                                <tbody>
+                                    {inadimplentes.map((v, i) => (
+                                        <tr key={i}>
+                                            <td><div style={{ fontSize:12, fontWeight:500 }}>{v.alunoNome||v.pessoaNome||"—"}</div>{v.pessoaTelefone && <div style={{ fontSize:11, color:"#9aaa9f" }}>{v.pessoaTelefone}</div>}</td>
+                                            <td style={{ fontWeight:500, color:"#b94040" }}>{fmt(v.valor)}</td>
+                                            <td>{fmtData(v.dataVencimento)}</td>
+                                            <td><span style={{ fontWeight:600, color:"#b94040" }}>{v.diasAtraso}d</span></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                          </div>
+                    }
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ---- FIN PESSOAS ----
+function FinPessoas() {
+    const [pessoas, setPessoas] = useState([]);
+    const [usuarios, setUsuarios] = useState([]);
+    const [formasBusca, setFormasBusca] = useState([{ value:"nome", label:"Nome" }, { value:"cpf", label:"CPF" }, { value:"cnpj", label:"CNPJ" }]);
+    const [campoBusca, setCampoBusca] = useState("nome");
+    const [termoBusca, setTermoBusca] = useState("");
+    const [filtraTipo, setFiltraTipo] = useState("");
+    const termoD = useDebounce(termoBusca);
+    const [modal, setModal] = useState(null); // null | { modo:"criar"|"editar", dados:obj }
+    const [form, setForm] = useState({});
+    const [msg, setMsg] = useState({ texto:"", tipo:"" });
+    const [salvando, setSalvando] = useState(false);
+
+    const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
+
+    const carregar = () => {
+        const params = {};
+        if (termoD) params[campoBusca] = termoD;
+        if (filtraTipo) params.tipoPessoa = filtraTipo;
+        api.get("/fin/pessoas", { params }).then(r => setPessoas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    };
+
+    useEffect(() => { carregar(); }, [termoD, filtraTipo]);
+    useEffect(() => {
+        api.get("/usuarios/buscar").then(r => setUsuarios(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    }, []);
+
+    const abrirCriar = () => {
+        setForm({ tipoPessoa:"FISICA", nome:"", cpf:"", cnpj:"", email:"", telefone:"", endereco:"", cep:"", cidade:"", estado:"", observacoes:"", usuarioId:"" });
+        setModal({ modo:"criar" });
+    };
+    const abrirEditar = p => {
+        setForm({ tipoPessoa:p.tipoPessoa||"FISICA", nome:p.nome||"", cpf:p.cpf||"", cnpj:p.cnpj||"", email:p.email||"", telefone:p.telefone||"", endereco:p.endereco||"", cep:p.cep||"", cidade:p.cidade||"", estado:p.estado||"", observacoes:p.observacoes||"", usuarioId:p.usuarioId||"" });
+        setModal({ modo:"editar", dados:p });
+    };
+
+    const salvar = async e => {
+        e.preventDefault();
+        setSalvando(true);
+        try {
+            const body = { ...form, usuarioId: form.usuarioId ? Number(form.usuarioId) : null };
+            if (modal.modo === "criar") await api.post("/fin/pessoas", body);
+            else await api.put(`/fin/pessoas/${modal.dados.id}`, body);
+            setModal(null);
+            flash("Pessoa salva com sucesso!");
+            carregar();
+        } catch(err) {
+            flash(err.response?.data || "Erro ao salvar.", "err");
+        } finally { setSalvando(false); }
+    };
+
+    const toggleAtivo = async p => {
+        await api.patch(`/fin/pessoas/${p.id}/status`).catch(() => {});
+        carregar();
+    };
+
+    const deletar = async p => {
+        if (!window.confirm(`Remover "${p.nome}"?`)) return;
+        try {
+            await api.delete(`/fin/pessoas/${p.id}`);
+            flash("Pessoa removida.");
+            carregar();
+        } catch(err) {
+            flash(err.response?.data || "Erro ao remover.", "err");
+        }
+    };
+
+    const ff = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+    return (
+        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+            {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
+
+            <div style={{ display:"flex", gap:12, alignItems:"center", flexWrap:"wrap" }}>
+                <div style={{ flex:1 }}>
+                    <BarraBusca campos={[{ value:"nome", label:"Nome" },{ value:"cpf", label:"CPF" },{ value:"cnpj", label:"CNPJ" }]}
+                        campoBusca={campoBusca} setCampoBusca={setCampoBusca} termoBusca={termoBusca} setTermoBusca={setTermoBusca} />
+                </div>
+                <select value={filtraTipo} onChange={e => setFiltraTipo(e.target.value)}
+                    style={{ fontSize:11, padding:"8px 12px", border:"1px solid #eaeef2", background:"white", color:"#5a7060", outline:"none", fontFamily:"'DM Sans',sans-serif" }}>
+                    <option value="">Todos os tipos</option>
+                    <option value="FISICA">Pessoa Física</option>
+                    <option value="JURIDICA">Pessoa Jurídica</option>
+                </select>
+                <button className="dd-btn-primary" onClick={abrirCriar} style={{ whiteSpace:"nowrap" }}>+ Nova Pessoa</button>
+            </div>
+
+            <div className="dd-section">
+                <div className="dd-section-header">
+                    <span className="dd-section-title">Cadastro de Pessoas</span>
+                    <span className="dd-section-count">{pessoas.length} registro(s)</span>
+                </div>
+                <div className="dd-table-wrap">
+                    <table className="dd-table" style={{ width:"100%" }}>
+                        <thead><tr>
+                            <th>Nome</th><th>Tipo</th><th>Documento</th><th>Telefone</th><th>Vínculo</th><th>Status</th><th></th>
+                        </tr></thead>
+                        <tbody>
+                            {pessoas.length === 0 && <tr><td colSpan={7} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Nenhuma pessoa encontrada</td></tr>}
+                            {pessoas.map(p => (
+                                <tr key={p.id}>
+                                    <td style={{ fontWeight:500 }}>{p.nome}</td>
+                                    <td><span className="dd-badge" style={{ background: p.tipoPessoa==="FISICA"?"#f0f5f2":"#f0f0ff", color: p.tipoPessoa==="FISICA"?"#2d6a4f":"#4040aa", borderRadius:3 }}>{p.tipoPessoa==="FISICA"?"PF":"PJ"}</span></td>
+                                    <td style={{ fontSize:12, color:"#5a7060" }}>{p.cpf||p.cnpj||"—"}</td>
+                                    <td style={{ fontSize:12 }}>{p.telefone||"—"}</td>
+                                    <td style={{ fontSize:11, color:"#9aaa9f" }}>{p.usuarioNome||"—"}</td>
+                                    <td><span className="dd-badge" style={{ background: p.ativo?"#f0f5f2":"#fdf0f0", color: p.ativo?"#2d6a4f":"#b94040", borderRadius:3 }}>{p.ativo?"Ativo":"Inativo"}</span></td>
+                                    <td>
+                                        <div style={{ display:"flex", gap:6 }}>
+                                            <button className="dd-btn-edit" onClick={() => abrirEditar(p)}>Editar</button>
+                                            <button className={p.ativo?"dd-btn-toggle-on":"dd-btn-toggle-off"} onClick={() => toggleAtivo(p)}>{p.ativo?"Desativar":"Ativar"}</button>
+                                            <button className="dd-btn-danger" onClick={() => deletar(p)}>Remover</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {modal && (
+                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModal(null)}>
+                    <div className="dd-modal" style={{ maxWidth:520, maxHeight:"90vh", overflowY:"auto" }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div>
+                                <p className="dd-modal-title">{modal.modo==="criar"?"Nova Pessoa":"Editar Pessoa"}</p>
+                                <p className="dd-modal-sub">CRM Financeiro</p>
+                            </div>
+                            <button onClick={() => setModal(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
+                        </div>
+                        {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"} style={{ marginBottom:12 }}>{msg.texto}</div>}
+                        <form onSubmit={salvar} style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                            <div>
+                                <label className="dd-label">Tipo de Pessoa *</label>
+                                <div style={{ display:"flex", gap:16, marginTop:4 }}>
+                                    {["FISICA","JURIDICA"].map(t => (
+                                        <label key={t} style={{ display:"flex", alignItems:"center", gap:6, fontSize:13, cursor:"pointer" }}>
+                                            <input type="radio" name="tipoPessoa" value={t} checked={form.tipoPessoa===t} onChange={e => ff("tipoPessoa", e.target.value)} />
+                                            {t==="FISICA"?"Pessoa Física":"Pessoa Jurídica"}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                            {[
+                                { k:"nome", label:"Nome *", span:2 },
+                                { k:"cpf", label:"CPF", show: form.tipoPessoa==="FISICA" },
+                                { k:"cnpj", label:"CNPJ", show: form.tipoPessoa==="JURIDICA" },
+                                { k:"email", label:"E-mail" },
+                                { k:"telefone", label:"Telefone" },
+                                { k:"cep", label:"CEP" },
+                                { k:"endereco", label:"Endereço", span:2 },
+                                { k:"cidade", label:"Cidade" },
+                                { k:"estado", label:"Estado (UF)" },
+                            ].filter(f => f.show !== false).map(f => (
+                                <div key={f.k} style={{ gridColumn: f.span===2?"1/-1":"auto" }}>
+                                    <label className="dd-label">{f.label}</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" value={form[f.k]||""} onChange={e => ff(f.k, e.target.value)} />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                            ))}
+                            <div>
+                                <label className="dd-label">Observações</label>
+                                <textarea value={form.observacoes||""} onChange={e => ff("observacoes", e.target.value)}
+                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", resize:"vertical", outline:"none", minHeight:60 }} />
+                            </div>
+                            <div>
+                                <label className="dd-label">Vínculo com usuário do sistema (opcional)</label>
+                                <select value={form.usuarioId||""} onChange={e => ff("usuarioId", e.target.value)}
+                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
+                                    <option value="">— Sem vínculo —</option>
+                                    {usuarios.map(u => <option key={u.id} value={u.id}>{u.nome} ({u.login})</option>)}
+                                </select>
+                            </div>
+                            <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                                <button type="button" className="dd-btn-ghost" onClick={() => setModal(null)}>Cancelar</button>
+                                <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando?"Salvando...":"Salvar"}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ---- FIN FUNCIONARIOS ----
+function FinFuncionarios() {
+    const [funcionarios, setFuncionarios] = useState([]);
+    const [pessoas, setPessoas] = useState([]);
+    const [expandido, setExpandido] = useState(null);
+    const [beneficios, setBeneficios] = useState({});
+    const [modal, setModal] = useState(null);
+    const [form, setForm] = useState({});
+    const [formBenef, setFormBenef] = useState({ funcionarioId:"", tipo:"VALE_REFEICAO", valor:"", descricao:"" });
+    const [msg, setMsg] = useState({ texto:"", tipo:"" });
+    const [salvando, setSalvando] = useState(false);
+
+    const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
+
+    const carregar = () => {
+        api.get("/fin/funcionarios").then(r => setFuncionarios(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    };
+    const carregarBeneficios = id => {
+        api.get(`/fin/beneficios/funcionario/${id}`).then(r => setBeneficios(b => ({ ...b, [id]: Array.isArray(r.data) ? r.data : [] }))).catch(() => {});
+    };
+
+    useEffect(() => {
+        carregar();
+        api.get("/fin/pessoas", { params: { ativo: true } }).then(r => setPessoas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    }, []);
+
+    const toggleExpand = id => {
+        setExpandido(e => e === id ? null : id);
+        if (!beneficios[id]) carregarBeneficios(id);
+    };
+
+    const abrirCriar = () => {
+        setForm({ pessoaId:"", cargo:"", salarioBase:"", cargaHoraria:"", dataAdmissao:"" });
+        setModal({ modo:"criar" });
+    };
+    const abrirEditar = f => {
+        setForm({ pessoaId: f.pessoaId||"", cargo: f.cargo||"", salarioBase: f.salarioBase||"", cargaHoraria: f.cargaHoraria||"", dataAdmissao: f.dataAdmissao||"" });
+        setModal({ modo:"editar", dados: f });
+    };
+
+    const salvar = async e => {
+        e.preventDefault();
+        setSalvando(true);
+        try {
+            const body = { ...form, pessoaId: Number(form.pessoaId), salarioBase: Number(form.salarioBase), cargaHoraria: form.cargaHoraria ? Number(form.cargaHoraria) : null };
+            if (modal.modo === "criar") await api.post("/fin/funcionarios", body);
+            else await api.put(`/fin/funcionarios/${modal.dados.id}`, body);
+            setModal(null);
+            flash("Funcionário salvo!");
+            carregar();
+        } catch(err) { flash(err.response?.data || "Erro ao salvar.", "err"); }
+        finally { setSalvando(false); }
+    };
+
+    const toggleAtivo = async f => {
+        await api.patch(`/fin/funcionarios/${f.id}/status`).catch(() => {});
+        carregar();
+    };
+
+    const adicionarBeneficio = async e => {
+        e.preventDefault();
+        try {
+            await api.post("/fin/beneficios", { ...formBenef, valor: Number(formBenef.valor) });
+            setFormBenef(b => ({ ...b, tipo:"VALE_REFEICAO", valor:"", descricao:"" }));
+            carregarBeneficios(formBenef.funcionarioId);
+        } catch(err) { flash(err.response?.data || "Erro ao adicionar benefício.", "err"); }
+    };
+
+    const toggleBeneficio = async (b, funcId) => {
+        await api.patch(`/fin/beneficios/${b.id}/status`).catch(() => {});
+        carregarBeneficios(funcId);
+    };
+    const deletarBeneficio = async (b, funcId) => {
+        await api.delete(`/fin/beneficios/${b.id}`).catch(() => {});
+        carregarBeneficios(funcId);
+    };
+
+    const ff = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+    const tiposBenef = ["VALE_REFEICAO","VALE_TRANSPORTE","BONUS","HORA_EXTRA","OUTRO"];
+
+    return (
+        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+            {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
+
+            <div style={{ display:"flex", justifyContent:"flex-end" }}>
+                <button className="dd-btn-primary" onClick={abrirCriar}>+ Novo Funcionário</button>
+            </div>
+
+            <div className="dd-section">
+                <div className="dd-section-header">
+                    <span className="dd-section-title">Funcionários</span>
+                    <span className="dd-section-count">{funcionarios.length}</span>
+                </div>
+                <div className="dd-table-wrap">
+                    <table className="dd-table" style={{ width:"100%" }}>
+                        <thead><tr>
+                            <th></th><th>Nome</th><th>Cargo</th><th>Salário Base</th><th>Total c/ Benef.</th><th>C.H.</th><th>Status</th><th></th>
+                        </tr></thead>
+                        <tbody>
+                            {funcionarios.length === 0 && <tr><td colSpan={8} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Nenhum funcionário cadastrado</td></tr>}
+                            {funcionarios.map(f => (
+                                <>
+                                    <tr key={f.id} style={{ cursor:"pointer" }} onClick={() => toggleExpand(f.id)}>
+                                        <td style={{ width:32 }}><ChevronRight size={14} style={{ transform: expandido===f.id?"rotate(90deg)":"none", transition:".2s", color:"#9aaa9f" }} /></td>
+                                        <td style={{ fontWeight:500 }}>{f.pessoaNome||"—"}</td>
+                                        <td>{f.cargo||"—"}</td>
+                                        <td>{fmt(f.salarioBase)}</td>
+                                        <td style={{ fontWeight:500, color:"#2d6a4f" }}>{fmt(f.salarioTotal)}</td>
+                                        <td style={{ fontSize:12 }}>{f.cargaHoraria ? `${f.cargaHoraria}h` : "—"}</td>
+                                        <td><span className="dd-badge" style={{ background: f.ativo?"#f0f5f2":"#fdf0f0", color: f.ativo?"#2d6a4f":"#b94040", borderRadius:3 }}>{f.ativo?"Ativo":"Inativo"}</span></td>
+                                        <td onClick={e => e.stopPropagation()}>
+                                            <div style={{ display:"flex", gap:6 }}>
+                                                <button className="dd-btn-edit" onClick={() => abrirEditar(f)}>Editar</button>
+                                                <button className={f.ativo?"dd-btn-toggle-on":"dd-btn-toggle-off"} onClick={() => toggleAtivo(f)}>{f.ativo?"Desativar":"Ativar"}</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {expandido === f.id && (
+                                        <tr key={`benef-${f.id}`}>
+                                            <td colSpan={8} style={{ background:"#f8faf8", padding:"16px 24px" }}>
+                                                <p style={{ fontSize:12, fontWeight:600, color:"#0d1f18", marginBottom:12 }}>Benefícios de {f.pessoaNome}</p>
+                                                <table style={{ width:"100%", borderCollapse:"collapse", marginBottom:12, fontSize:12 }}>
+                                                    <thead><tr style={{ borderBottom:"1px solid #eaeef2" }}>
+                                                        <th style={{ padding:"6px 12px", textAlign:"left", color:"#9aaa9f", fontSize:10, textTransform:"uppercase" }}>Tipo</th>
+                                                        <th style={{ padding:"6px 12px", textAlign:"left", color:"#9aaa9f", fontSize:10, textTransform:"uppercase" }}>Valor</th>
+                                                        <th style={{ padding:"6px 12px", textAlign:"left", color:"#9aaa9f", fontSize:10, textTransform:"uppercase" }}>Descrição</th>
+                                                        <th style={{ padding:"6px 12px", textAlign:"left", color:"#9aaa9f", fontSize:10, textTransform:"uppercase" }}>Status</th>
+                                                        <th></th>
+                                                    </tr></thead>
+                                                    <tbody>
+                                                        {(beneficios[f.id]||[]).length === 0 && <tr><td colSpan={5} style={{ padding:"12px", color:"#9aaa9f", textAlign:"center" }}>Nenhum benefício</td></tr>}
+                                                        {(beneficios[f.id]||[]).map(b => (
+                                                            <tr key={b.id} style={{ borderBottom:"1px solid #f2f5f2" }}>
+                                                                <td style={{ padding:"8px 12px" }}>{b.tipo}</td>
+                                                                <td style={{ padding:"8px 12px", fontWeight:500 }}>{fmt(b.valor)}</td>
+                                                                <td style={{ padding:"8px 12px", color:"#9aaa9f" }}>{b.descricao||"—"}</td>
+                                                                <td style={{ padding:"8px 12px" }}><span style={{ fontSize:10, padding:"2px 8px", background: b.ativo?"#f0f5f2":"#fdf0f0", color: b.ativo?"#2d6a4f":"#b94040", borderRadius:3 }}>{b.ativo?"Ativo":"Inativo"}</span></td>
+                                                                <td style={{ padding:"8px 12px" }}>
+                                                                    <div style={{ display:"flex", gap:4 }}>
+                                                                        <button className={b.ativo?"dd-btn-toggle-on":"dd-btn-toggle-off"} style={{ fontSize:10, padding:"3px 8px" }} onClick={() => toggleBeneficio(b, f.id)}>{b.ativo?"Des.":"Ativ."}</button>
+                                                                        <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => deletarBeneficio(b, f.id)}>Rem.</button>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                                <form onSubmit={e => { setFormBenef(b => ({ ...b, funcionarioId: f.id })); adicionarBeneficio(e); }} style={{ display:"flex", gap:8, alignItems:"flex-end", flexWrap:"wrap" }}>
+                                                    <div>
+                                                        <label className="dd-label">Tipo</label>
+                                                        <select value={formBenef.tipo} onChange={e => setFormBenef(b => ({ ...b, tipo: e.target.value }))}
+                                                            style={{ fontSize:12, padding:"6px 8px", border:"1px solid #eaeef2", fontFamily:"'DM Sans',sans-serif", outline:"none" }}>
+                                                            {tiposBenef.map(t => <option key={t} value={t}>{t.replace("_"," ")}</option>)}
+                                                        </select>
+                                                    </div>
+                                                    <div>
+                                                        <label className="dd-label">Valor</label>
+                                                        <input type="number" step="0.01" value={formBenef.valor} onChange={e => setFormBenef(b => ({ ...b, valor: e.target.value }))}
+                                                            placeholder="0,00" required
+                                                            style={{ fontSize:12, padding:"6px 8px", border:"1px solid #eaeef2", fontFamily:"'DM Sans',sans-serif", outline:"none", width:100 }} />
+                                                    </div>
+                                                    <div>
+                                                        <label className="dd-label">Descrição</label>
+                                                        <input value={formBenef.descricao} onChange={e => setFormBenef(b => ({ ...b, descricao: e.target.value }))}
+                                                            placeholder="Opcional"
+                                                            style={{ fontSize:12, padding:"6px 8px", border:"1px solid #eaeef2", fontFamily:"'DM Sans',sans-serif", outline:"none", width:160 }} />
+                                                    </div>
+                                                    <button type="submit" className="dd-btn-primary" style={{ fontSize:11, padding:"7px 14px" }} onClick={() => setFormBenef(b => ({ ...b, funcionarioId: f.id }))}>+ Adicionar</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {modal && (
+                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModal(null)}>
+                    <div className="dd-modal" style={{ maxWidth:460 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div>
+                                <p className="dd-modal-title">{modal.modo==="criar"?"Novo Funcionário":"Editar Funcionário"}</p>
+                                <p className="dd-modal-sub">Dados trabalhistas</p>
+                            </div>
+                            <button onClick={() => setModal(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
+                        </div>
+                        <form onSubmit={salvar} style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                            <div>
+                                <label className="dd-label">Pessoa (cadastrada) *</label>
+                                <select value={form.pessoaId||""} onChange={e => ff("pessoaId", e.target.value)} required
+                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
+                                    <option value="">Selecione uma pessoa...</option>
+                                    {pessoas.map(p => <option key={p.id} value={p.id}>{p.nome} {p.cpf ? `(${p.cpf})` : ""}</option>)}
+                                </select>
+                            </div>
+                            {[
+                                { k:"cargo", label:"Cargo *", required:true },
+                                { k:"salarioBase", label:"Salário Base (R$) *", type:"number", step:"0.01", required:true },
+                                { k:"cargaHoraria", label:"Carga Horária (h/semana)", type:"number" },
+                                { k:"dataAdmissao", label:"Data de Admissão", type:"date" },
+                            ].map(f => (
+                                <div key={f.k}>
+                                    <label className="dd-label">{f.label}</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" type={f.type||"text"} step={f.step} required={f.required} value={form[f.k]||""} onChange={e => ff(f.k, e.target.value)} />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                            ))}
+                            <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                                <button type="button" className="dd-btn-ghost" onClick={() => setModal(null)}>Cancelar</button>
+                                <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando?"Salvando...":"Salvar"}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ---- FIN CONTRATOS / CR ----
+function FinContratos({ anoLetivo }) {
+    const [alunos, setAlunos] = useState([]);
+    const [alunoSel, setAlunoSel] = useState("");
+    const [contratos, setContratos] = useState([]);
+    const [parcelas, setParcelas] = useState({}); // { [contratoId]: [] }
+    const [expandido, setExpandido] = useState(null);
+    const [series, setSeries] = useState([]);
+    const [formasPagamento, setFormasPagamento] = useState([]);
+    const [modalContrato, setModalContrato] = useState(false);
+    const [modalBaixar, setModalBaixar] = useState(null); // { crId, valor }
+    const [formContrato, setFormContrato] = useState({ anoLetivo: String(anoLetivo), serieId:"", numParcelas:"12", desconto:"0", acrescimo:"0", mesInicio:"" });
+    const [formBaixar, setFormBaixar] = useState({ dataPagamento:"", valorPago:"", formaPagamentoId:"", observacoes:"" });
+    const [modalCRAvulsa, setModalCRAvulsa] = useState(false);
+    const [formCRAvulsa, setFormCRAvulsa] = useState({ descricao:"", valor:"", dataVencimento:"", pessoaId:"", formaPagamentoId:"", observacoes:"" });
+    const [msg, setMsg] = useState({ texto:"", tipo:"" });
+    const [salvando, setSalvando] = useState(false);
+
+    const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
+
+    useEffect(() => {
+        api.get("/usuarios/buscar", { params: { role:"ALUNO" } }).then(r => setAlunos(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+        api.get("/series").then(r => setSeries(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+        api.get("/fin/formas-pagamento", { params: { apenasAtivas: true } }).then(r => setFormasPagamento(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    }, []);
+
+    useEffect(() => {
+        if (!alunoSel) { setContratos([]); return; }
+        api.get(`/fin/contratos/aluno/${alunoSel}`).then(r => setContratos(Array.isArray(r.data) ? r.data : [])).catch(() => setContratos([]));
+    }, [alunoSel]);
+
+    const carregarParcelas = id => {
+        api.get("/fin/contas-receber", { params: { contratoId: id } }).then(r => setParcelas(p => ({ ...p, [id]: Array.isArray(r.data) ? r.data : [] }))).catch(() => {});
+    };
+
+    const toggleExpand = id => {
+        setExpandido(e => e === id ? null : id);
+        if (!parcelas[id]) carregarParcelas(id);
+    };
+
+    const criarContrato = async e => {
+        e.preventDefault();
+        setSalvando(true);
+        try {
+            await api.post("/fin/contratos", { ...formContrato, alunoId: Number(alunoSel), serieId: Number(formContrato.serieId), numParcelas: Number(formContrato.numParcelas), desconto: Number(formContrato.desconto||0), acrescimo: Number(formContrato.acrescimo||0) });
+            setModalContrato(false);
+            flash("Contrato criado!");
+            api.get(`/fin/contratos/aluno/${alunoSel}`).then(r => setContratos(Array.isArray(r.data) ? r.data : []));
+        } catch(err) { flash(err.response?.data || "Erro ao criar contrato.", "err"); }
+        finally { setSalvando(false); }
+    };
+
+    const baixarParcela = async e => {
+        e.preventDefault();
+        setSalvando(true);
+        try {
+            await api.patch(`/fin/contas-receber/${modalBaixar.crId}/baixar`, { ...formBaixar, valorPago: Number(formBaixar.valorPago), formaPagamentoId: formBaixar.formaPagamentoId ? Number(formBaixar.formaPagamentoId) : null });
+            setModalBaixar(null);
+            flash("Parcela baixada!");
+            carregarParcelas(modalBaixar.contratoId);
+        } catch(err) { flash(err.response?.data || "Erro.", "err"); }
+        finally { setSalvando(false); }
+    };
+
+    const cancelarParcela = async (crId, contratoId) => {
+        if (!window.confirm("Cancelar esta parcela?")) return;
+        try {
+            await api.patch(`/fin/contas-receber/${crId}/cancelar`);
+            flash("Parcela cancelada.");
+            carregarParcelas(contratoId);
+        } catch(err) { flash(err.response?.data || "Erro.", "err"); }
+    };
+
+    const criarCRAvulsa = async e => {
+        e.preventDefault();
+        setSalvando(true);
+        try {
+            await api.post("/fin/contas-receber", { ...formCRAvulsa, valor: Number(formCRAvulsa.valor), pessoaId: formCRAvulsa.pessoaId ? Number(formCRAvulsa.pessoaId) : null, formaPagamentoId: formCRAvulsa.formaPagamentoId ? Number(formCRAvulsa.formaPagamentoId) : null });
+            setModalCRAvulsa(false);
+            flash("CR avulsa criada!");
+        } catch(err) { flash(err.response?.data || "Erro.", "err"); }
+        finally { setSalvando(false); }
+    };
+
+    const computarStatus = cr => {
+        if (cr.status !== "PENDENTE") return cr.status;
+        if (cr.dataVencimento && cr.dataVencimento < new Date().toISOString().slice(0,10)) return "VENCIDO";
+        return "PENDENTE";
+    };
+
+    const fc = (k, v) => setFormContrato(f => ({ ...f, [k]: v }));
+
+    return (
+        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+            {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
+
+            <div style={{ display:"flex", gap:12, alignItems:"flex-end", flexWrap:"wrap" }}>
+                <div style={{ flex:1 }}>
+                    <label className="dd-label">Selecionar aluno</label>
+                    <select value={alunoSel} onChange={e => setAlunoSel(e.target.value)}
+                        style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
+                        <option value="">— Selecione um aluno —</option>
+                        {alunos.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
+                    </select>
+                </div>
+                {alunoSel && <button className="dd-btn-primary" onClick={() => { setFormContrato(f => ({ ...f, anoLetivo: String(anoLetivo), mesInicio: mesAtual() })); setModalContrato(true); }}>+ Novo Contrato</button>}
+                <button className="dd-btn-ghost" onClick={() => { setFormCRAvulsa({ descricao:"", valor:"", dataVencimento:"", pessoaId:"", formaPagamentoId:"", observacoes:"" }); setModalCRAvulsa(true); }}>+ CR Avulsa</button>
+            </div>
+
+            {alunoSel && (
+                <div className="dd-section">
+                    <div className="dd-section-header">
+                        <span className="dd-section-title">Contratos de {alunos.find(a=>String(a.id)===String(alunoSel))?.nome || ""}</span>
+                        <span className="dd-section-count">{contratos.length}</span>
+                    </div>
+                    {contratos.length === 0
+                        ? <p style={{ padding:20, fontSize:12, color:"#9aaa9f", textAlign:"center" }}>Nenhum contrato. Crie o primeiro acima.</p>
+                        : contratos.map(c => (
+                            <div key={c.id} style={{ borderBottom:"1px solid #eaeef2" }}>
+                                <div style={{ padding:"12px 20px", display:"flex", alignItems:"center", gap:12, cursor:"pointer", background: expandido===c.id?"#f8faf8":"white" }}
+                                    onClick={() => toggleExpand(c.id)}>
+                                    <ChevronRight size={14} style={{ transform: expandido===c.id?"rotate(90deg)":"none", transition:".2s", color:"#9aaa9f", flexShrink:0 }} />
+                                    <div style={{ flex:1 }}>
+                                        <span style={{ fontWeight:500, fontSize:13 }}>Contrato {c.anoLetivo} — {c.serieName||`Série ID ${c.serieId}`}</span>
+                                        <span style={{ marginLeft:12, fontSize:11, color:"#9aaa9f" }}>{c.numParcelas} parcelas</span>
+                                    </div>
+                                    <span style={{ fontSize:13, fontWeight:600, color:"#0d1f18" }}>{fmt(c.valorTotal)}</span>
+                                    <span className="dd-badge" style={{ background: c.status==="ATIVO"?"#f0f5f2":"#fdf0f0", color: c.status==="ATIVO"?"#2d6a4f":"#b94040", borderRadius:3, fontSize:10 }}>{c.status}</span>
+                                </div>
+
+                                {expandido === c.id && (
+                                    <div style={{ padding:"0 20px 16px", background:"#f8faf8" }}>
+                                        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:12, padding:"12px 0" }}>
+                                            {[["Valor Base", fmt(c.valorBase)], ["Desconto", fmt(c.desconto)], ["Acréscimo", fmt(c.acrescimo)], ["Total", fmt(c.valorTotal)]].map(([l,v]) => (
+                                                <div key={l}><span style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase" }}>{l}</span><br /><span style={{ fontSize:14, fontWeight:600 }}>{v}</span></div>
+                                            ))}
+                                        </div>
+                                        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                                            <thead><tr style={{ borderBottom:"1px solid #eaeef2" }}>
+                                                {["#","Vencimento","Valor","Status","Pago em","Valor Pago",""].map(h => (
+                                                    <th key={h} style={{ padding:"6px 10px", textAlign:"left", color:"#9aaa9f", fontSize:10, textTransform:"uppercase" }}>{h}</th>
+                                                ))}
+                                            </tr></thead>
+                                            <tbody>
+                                                {(parcelas[c.id]||[]).map((cr, idx) => {
+                                                    const st = computarStatus(cr);
+                                                    const sc = statusBadge(st);
+                                                    return (
+                                                        <tr key={cr.id} style={{ borderBottom:"1px solid #f2f5f2" }}>
+                                                            <td style={{ padding:"8px 10px", color:"#9aaa9f" }}>{idx+1}</td>
+                                                            <td style={{ padding:"8px 10px" }}>{fmtData(cr.dataVencimento)}</td>
+                                                            <td style={{ padding:"8px 10px", fontWeight:500 }}>{fmt(cr.valor)}</td>
+                                                            <td style={{ padding:"8px 10px" }}><span className="dd-badge" style={{ ...sc, borderRadius:3, fontSize:10 }}>{st}</span></td>
+                                                            <td style={{ padding:"8px 10px", color:"#9aaa9f" }}>{cr.dataPagamento ? fmtData(cr.dataPagamento) : "—"}</td>
+                                                            <td style={{ padding:"8px 10px" }}>{cr.valorPago ? fmt(cr.valorPago) : "—"}</td>
+                                                            <td style={{ padding:"8px 10px" }}>
+                                                                {st === "PENDENTE" || st === "VENCIDO" ? (
+                                                                    <div style={{ display:"flex", gap:4 }}>
+                                                                        <button className="dd-btn-edit" style={{ fontSize:10, padding:"3px 8px" }}
+                                                                            onClick={() => { setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(cr.valor), formaPagamentoId:"", observacoes:"" }); setModalBaixar({ crId: cr.id, contratoId: c.id, valor: cr.valor }); }}>Baixar</button>
+                                                                        <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => cancelarParcela(cr.id, c.id)}>Cancelar</button>
+                                                                    </div>
+                                                                ) : null}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        ))
+                    }
+                </div>
+            )}
+
+            {/* Modal Contrato */}
+            {modalContrato && (
+                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalContrato(false)}>
+                    <div className="dd-modal" style={{ maxWidth:440 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div><p className="dd-modal-title">Novo Contrato</p><p className="dd-modal-sub">Gera parcelas automaticamente</p></div>
+                            <button onClick={() => setModalContrato(false)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
+                        </div>
+                        <form onSubmit={criarContrato} style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                            <div>
+                                <label className="dd-label">Série *</label>
+                                <select value={formContrato.serieId} onChange={e => fc("serieId", e.target.value)} required
+                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
+                                    <option value="">Selecione a série...</option>
+                                    {series.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                                </select>
+                            </div>
+                            {[
+                                { k:"anoLetivo", label:"Ano Letivo *", type:"number", required:true },
+                                { k:"numParcelas", label:"Número de Parcelas *", type:"number", required:true },
+                                { k:"desconto", label:"Desconto (R$)", type:"number", step:"0.01" },
+                                { k:"acrescimo", label:"Acréscimo (R$)", type:"number", step:"0.01" },
+                                { k:"mesInicio", label:"Mês de início (1ª parcela) *", type:"month", required:true },
+                            ].map(f => (
+                                <div key={f.k}>
+                                    <label className="dd-label">{f.label}</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" type={f.type||"text"} step={f.step} required={f.required} value={formContrato[f.k]||""} onChange={e => fc(f.k, e.target.value)} />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                            ))}
+                            <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                                <button type="button" className="dd-btn-ghost" onClick={() => setModalContrato(false)}>Cancelar</button>
+                                <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando?"Criando...":"Criar Contrato"}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Baixar Parcela */}
+            {modalBaixar && (
+                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalBaixar(null)}>
+                    <div className="dd-modal" style={{ maxWidth:380 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div><p className="dd-modal-title">Dar Baixa</p><p className="dd-modal-sub">{fmt(modalBaixar.valor)}</p></div>
+                            <button onClick={() => setModalBaixar(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
+                        </div>
+                        <form onSubmit={baixarParcela} style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                            {[
+                                { k:"dataPagamento", label:"Data de Pagamento *", type:"date", required:true },
+                                { k:"valorPago", label:"Valor Pago (R$) *", type:"number", step:"0.01", required:true },
+                            ].map(f => (
+                                <div key={f.k}>
+                                    <label className="dd-label">{f.label}</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" type={f.type} step={f.step} required={f.required} value={formBaixar[f.k]||""} onChange={e => setFormBaixar(b => ({ ...b, [f.k]: e.target.value }))} />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                            ))}
+                            <div>
+                                <label className="dd-label">Forma de Pagamento</label>
+                                <select value={formBaixar.formaPagamentoId||""} onChange={e => setFormBaixar(b => ({ ...b, formaPagamentoId: e.target.value }))}
+                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
+                                    <option value="">— Não informar —</option>
+                                    {formasPagamento.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                                </select>
+                            </div>
+                            <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                                <button type="button" className="dd-btn-ghost" onClick={() => setModalBaixar(null)}>Cancelar</button>
+                                <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando?"Baixando...":"Confirmar Baixa"}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal CR Avulsa */}
+            {modalCRAvulsa && (
+                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalCRAvulsa(false)}>
+                    <div className="dd-modal" style={{ maxWidth:420 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div><p className="dd-modal-title">Nova CR Avulsa</p><p className="dd-modal-sub">Recebimento avulso</p></div>
+                            <button onClick={() => setModalCRAvulsa(false)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
+                        </div>
+                        <form onSubmit={criarCRAvulsa} style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                            {[
+                                { k:"descricao", label:"Descrição *", required:true },
+                                { k:"valor", label:"Valor (R$) *", type:"number", step:"0.01", required:true },
+                                { k:"dataVencimento", label:"Vencimento *", type:"date", required:true },
+                            ].map(f => (
+                                <div key={f.k}>
+                                    <label className="dd-label">{f.label}</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" type={f.type||"text"} step={f.step} required={f.required} value={formCRAvulsa[f.k]||""} onChange={e => setFormCRAvulsa(b => ({ ...b, [f.k]: e.target.value }))} />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                            ))}
+                            <div>
+                                <label className="dd-label">Pessoa (opcional)</label>
+                                <select value={formCRAvulsa.pessoaId||""} onChange={e => setFormCRAvulsa(b => ({ ...b, pessoaId: e.target.value }))}
+                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
+                                    <option value="">— Sem pessoa —</option>
+                                    {[...alunos.map(a => ({ id:a.id, nome:a.nome+" (aluno)" }))].map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                                </select>
+                            </div>
+                            <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                                <button type="button" className="dd-btn-ghost" onClick={() => setModalCRAvulsa(false)}>Cancelar</button>
+                                <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando?"Salvando...":"Criar"}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ---- FIN CONTAS A PAGAR ----
+function FinContasPagar() {
+    const [contas, setContas] = useState([]);
+    const [modelos, setModelos] = useState([]);
+    const [formasPagamento, setFormasPagamento] = useState([]);
+    const [filtros, setFiltros] = useState({ status:"", tipo:"", mesReferencia:"" });
+    const [modalBaixar, setModalBaixar] = useState(null);
+    const [modalGerarFolha, setModalGerarFolha] = useState(false);
+    const [modalGerarRec, setModalGerarRec] = useState(false);
+    const [modalModelo, setModalModelo] = useState(null);
+    const [mesFolha, setMesFolha] = useState(mesAtual());
+    const [mesRec, setMesRec] = useState(mesAtual());
+    const [formBaixar, setFormBaixar] = useState({ dataPagamento:"", valorPago:"", formaPagamentoId:"", observacoes:"" });
+    const [formModelo, setFormModelo] = useState({ descricao:"", categoria:"CONTA_FIXA", valor:"", diaVencimento:"", observacoes:"" });
+    const [mostrarModelos, setMostrarModelos] = useState(false);
+    const [msg, setMsg] = useState({ texto:"", tipo:"" });
+    const [salvando, setSalvando] = useState(false);
+
+    const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
+
+    const carregar = () => {
+        const params = {};
+        if (filtros.status) params.status = filtros.status;
+        if (filtros.tipo) params.tipo = filtros.tipo;
+        if (filtros.mesReferencia) params.mesReferencia = filtros.mesReferencia;
+        api.get("/fin/contas-pagar", { params }).then(r => setContas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    };
+
+    useEffect(() => { carregar(); }, [filtros]);
+    useEffect(() => {
+        api.get("/fin/formas-pagamento", { params: { apenasAtivas: true } }).then(r => setFormasPagamento(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+        api.get("/fin/contas-pagar-modelo").then(r => setModelos(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    }, []);
+
+    const baixarConta = async e => {
+        e.preventDefault();
+        setSalvando(true);
+        try {
+            await api.patch(`/fin/contas-pagar/${modalBaixar.id}/baixar`, { ...formBaixar, valorPago: Number(formBaixar.valorPago), formaPagamentoId: formBaixar.formaPagamentoId ? Number(formBaixar.formaPagamentoId) : null });
+            setModalBaixar(null);
+            flash("Conta baixada!");
+            carregar();
+        } catch(err) { flash(err.response?.data || "Erro.", "err"); }
+        finally { setSalvando(false); }
+    };
+
+    const cancelarConta = async id => {
+        if (!window.confirm("Cancelar esta conta?")) return;
+        try { await api.patch(`/fin/contas-pagar/${id}/cancelar`); flash("Cancelada."); carregar(); }
+        catch(err) { flash(err.response?.data || "Erro.", "err"); }
+    };
+
+    const gerarFolha = async () => {
+        setSalvando(true);
+        try {
+            const r = await api.post("/fin/contas-pagar/gerar-folha", { mes: mesFolha });
+            setModalGerarFolha(false);
+            flash(`Folha gerada: ${r.data.geradas} conta(s). ${r.data.ignoradas} já existia(m).`);
+            carregar();
+        } catch(err) { flash(err.response?.data || "Erro.", "err"); }
+        finally { setSalvando(false); }
+    };
+
+    const gerarRecorrentes = async () => {
+        setSalvando(true);
+        try {
+            const r = await api.post("/fin/contas-pagar/gerar-recorrentes", { mes: mesRec });
+            setModalGerarRec(false);
+            flash(`Recorrentes geradas: ${r.data.geradas} conta(s). ${r.data.ignoradas} já existia(m).`);
+            carregar();
+        } catch(err) { flash(err.response?.data || "Erro.", "err"); }
+        finally { setSalvando(false); }
+    };
+
+    const salvarModelo = async e => {
+        e.preventDefault();
+        setSalvando(true);
+        try {
+            if (modalModelo.modo === "criar") await api.post("/fin/contas-pagar-modelo", { ...formModelo, valor: Number(formModelo.valor), diaVencimento: formModelo.diaVencimento ? Number(formModelo.diaVencimento) : null });
+            else await api.put(`/fin/contas-pagar-modelo/${modalModelo.dados.id}`, { ...formModelo, valor: Number(formModelo.valor), diaVencimento: formModelo.diaVencimento ? Number(formModelo.diaVencimento) : null });
+            setModalModelo(null);
+            api.get("/fin/contas-pagar-modelo").then(r => setModelos(Array.isArray(r.data) ? r.data : []));
+        } catch(err) { flash(err.response?.data || "Erro.", "err"); }
+        finally { setSalvando(false); }
+    };
+
+    const deletarModelo = async id => {
+        if (!window.confirm("Remover modelo?")) return;
+        await api.delete(`/fin/contas-pagar-modelo/${id}`).catch(() => {});
+        api.get("/fin/contas-pagar-modelo").then(r => setModelos(Array.isArray(r.data) ? r.data : []));
+    };
+
+    const computarStatus = cp => {
+        if (cp.status !== "PENDENTE") return cp.status;
+        if (cp.dataVencimento && cp.dataVencimento < new Date().toISOString().slice(0,10)) return "VENCIDO";
+        return "PENDENTE";
+    };
+
+    const ff = (k, v) => setFiltros(f => ({ ...f, [k]: v }));
+
+    return (
+        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+            {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
+
+            {/* Filtros e ações */}
+            <div style={{ display:"flex", gap:10, alignItems:"flex-end", flexWrap:"wrap" }}>
+                {[
+                    { k:"status", opts:[["","Todos status"],["PENDENTE","Pendente"],["PAGO","Pago"],["CANCELADO","Cancelado"]] },
+                    { k:"tipo",   opts:[["","Todos tipos"],["SALARIO","Salário"],["CONTA_FIXA","Conta Fixa"],["FORNECEDOR","Fornecedor"],["OUTRO","Outro"]] },
+                ].map(f => (
+                    <select key={f.k} value={filtros[f.k]} onChange={e => ff(f.k, e.target.value)}
+                        style={{ fontSize:11, padding:"8px 10px", border:"1px solid #eaeef2", fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff", color:"#5a7060" }}>
+                        {f.opts.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                ))}
+                <input type="month" value={filtros.mesReferencia} onChange={e => ff("mesReferencia", e.target.value)}
+                    style={{ fontSize:11, padding:"8px 10px", border:"1px solid #eaeef2", fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }} />
+                <button className="dd-btn-ghost" onClick={() => setModalGerarFolha(true)}>Gerar Folha</button>
+                <button className="dd-btn-ghost" onClick={() => setModalGerarRec(true)}>Gerar Recorrentes</button>
+                <button className="dd-btn-ghost" onClick={() => setMostrarModelos(m => !m)}>{mostrarModelos?"Ocultar Modelos":"Ver Modelos"}</button>
+            </div>
+
+            {/* Tabela CP */}
+            <div className="dd-section">
+                <div className="dd-section-header">
+                    <span className="dd-section-title">Contas a Pagar</span>
+                    <span className="dd-section-count">{contas.length}</span>
+                </div>
+                <div className="dd-table-wrap">
+                    <table className="dd-table" style={{ width:"100%" }}>
+                        <thead><tr>
+                            <th>Descrição</th><th>Tipo</th><th>Valor</th><th>Vencimento</th><th>Mês Ref.</th><th>Status</th><th>Pessoa/Func.</th><th></th>
+                        </tr></thead>
+                        <tbody>
+                            {contas.length === 0 && <tr><td colSpan={8} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Nenhuma conta encontrada</td></tr>}
+                            {contas.map(cp => {
+                                const st = computarStatus(cp);
+                                const sc = statusBadge(st);
+                                return (
+                                    <tr key={cp.id}>
+                                        <td style={{ fontWeight:500 }}>{cp.descricao}</td>
+                                        <td style={{ fontSize:11 }}>{cp.tipo}</td>
+                                        <td style={{ fontWeight:500 }}>{fmt(cp.valor)}</td>
+                                        <td>{fmtData(cp.dataVencimento)}</td>
+                                        <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.mesReferencia||"—"}</td>
+                                        <td><span className="dd-badge" style={{ ...sc, borderRadius:3 }}>{st}</span></td>
+                                        <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.pessoaNome||cp.funcionarioNome||"—"}</td>
+                                        <td>
+                                            {(st==="PENDENTE"||st==="VENCIDO") && (
+                                                <div style={{ display:"flex", gap:6 }}>
+                                                    <button className="dd-btn-edit" style={{ fontSize:10 }} onClick={() => { setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(cp.valor), formaPagamentoId:"", observacoes:"" }); setModalBaixar(cp); }}>Baixar</button>
+                                                    <button className="dd-btn-danger" style={{ fontSize:10 }} onClick={() => cancelarConta(cp.id)}>Cancelar</button>
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Modelos */}
+            {mostrarModelos && (
+                <div className="dd-section">
+                    <div className="dd-section-header">
+                        <span className="dd-section-title">Modelos de Contas Fixas</span>
+                        <button className="dd-btn-primary" style={{ fontSize:11 }} onClick={() => { setFormModelo({ descricao:"", categoria:"CONTA_FIXA", valor:"", diaVencimento:"", observacoes:"" }); setModalModelo({ modo:"criar" }); }}>+ Novo Modelo</button>
+                    </div>
+                    <div className="dd-table-wrap">
+                        <table className="dd-table" style={{ width:"100%" }}>
+                            <thead><tr><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Dia Venc.</th><th>Ativo</th><th></th></tr></thead>
+                            <tbody>
+                                {modelos.length === 0 && <tr><td colSpan={6} style={{ textAlign:"center", color:"#9aaa9f", padding:16 }}>Nenhum modelo</td></tr>}
+                                {modelos.map(m => (
+                                    <tr key={m.id}>
+                                        <td style={{ fontWeight:500 }}>{m.descricao}</td>
+                                        <td style={{ fontSize:11 }}>{m.categoria}</td>
+                                        <td>{fmt(m.valor)}</td>
+                                        <td style={{ fontSize:12 }}>Dia {m.diaVencimento||"—"}</td>
+                                        <td><span style={{ fontSize:10, padding:"2px 8px", background: m.ativo?"#f0f5f2":"#fdf0f0", color: m.ativo?"#2d6a4f":"#b94040", borderRadius:3 }}>{m.ativo?"Sim":"Não"}</span></td>
+                                        <td><div style={{ display:"flex", gap:4 }}>
+                                            <button className="dd-btn-edit" style={{ fontSize:10 }} onClick={() => { setFormModelo({ descricao:m.descricao, categoria:m.categoria, valor:m.valor, diaVencimento:m.diaVencimento||"", observacoes:m.observacoes||"" }); setModalModelo({ modo:"editar", dados:m }); }}>Editar</button>
+                                            <button className="dd-btn-danger" style={{ fontSize:10 }} onClick={() => deletarModelo(m.id)}>Rem.</button>
+                                        </div></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Baixar CP */}
+            {modalBaixar && (
+                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalBaixar(null)}>
+                    <div className="dd-modal" style={{ maxWidth:380 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div><p className="dd-modal-title">Dar Baixa</p><p className="dd-modal-sub">{modalBaixar.descricao}</p></div>
+                            <button onClick={() => setModalBaixar(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
+                        </div>
+                        <form onSubmit={baixarConta} style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                            {[
+                                { k:"dataPagamento", label:"Data de Pagamento *", type:"date", required:true },
+                                { k:"valorPago", label:"Valor Pago (R$) *", type:"number", step:"0.01", required:true },
+                            ].map(f => (
+                                <div key={f.k}>
+                                    <label className="dd-label">{f.label}</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" type={f.type} step={f.step} required={f.required} value={formBaixar[f.k]||""} onChange={e => setFormBaixar(b => ({ ...b, [f.k]: e.target.value }))} />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                            ))}
+                            <div>
+                                <label className="dd-label">Forma de Pagamento</label>
+                                <select value={formBaixar.formaPagamentoId||""} onChange={e => setFormBaixar(b => ({ ...b, formaPagamentoId: e.target.value }))}
+                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
+                                    <option value="">— Não informar —</option>
+                                    {formasPagamento.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                                </select>
+                            </div>
+                            <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                                <button type="button" className="dd-btn-ghost" onClick={() => setModalBaixar(null)}>Cancelar</button>
+                                <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando?"Baixando...":"Confirmar"}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Gerar Folha */}
+            {modalGerarFolha && (
+                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalGerarFolha(false)}>
+                    <div className="dd-modal" style={{ maxWidth:340 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div><p className="dd-modal-title">Gerar Folha de Pagamento</p><p className="dd-modal-sub">Salários de todos os funcionários ativos</p></div>
+                            <button onClick={() => setModalGerarFolha(false)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
+                        </div>
+                        <div style={{ marginBottom:16 }}>
+                            <label className="dd-label">Mês de Referência</label>
+                            <input type="month" value={mesFolha} onChange={e => setMesFolha(e.target.value)}
+                                style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }} />
+                        </div>
+                        <div style={{ display:"flex", gap:8 }}>
+                            <button className="dd-btn-ghost" onClick={() => setModalGerarFolha(false)}>Cancelar</button>
+                            <button className="dd-btn-primary" disabled={salvando} onClick={gerarFolha}>{salvando?"Gerando...":"Gerar"}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Gerar Recorrentes */}
+            {modalGerarRec && (
+                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalGerarRec(false)}>
+                    <div className="dd-modal" style={{ maxWidth:340 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div><p className="dd-modal-title">Gerar Contas Recorrentes</p><p className="dd-modal-sub">Instâncias de todos os modelos ativos</p></div>
+                            <button onClick={() => setModalGerarRec(false)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
+                        </div>
+                        <div style={{ marginBottom:16 }}>
+                            <label className="dd-label">Mês de Referência</label>
+                            <input type="month" value={mesRec} onChange={e => setMesRec(e.target.value)}
+                                style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }} />
+                        </div>
+                        <div style={{ display:"flex", gap:8 }}>
+                            <button className="dd-btn-ghost" onClick={() => setModalGerarRec(false)}>Cancelar</button>
+                            <button className="dd-btn-primary" disabled={salvando} onClick={gerarRecorrentes}>{salvando?"Gerando...":"Gerar"}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Modelo */}
+            {modalModelo && (
+                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalModelo(null)}>
+                    <div className="dd-modal" style={{ maxWidth:400 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div><p className="dd-modal-title">{modalModelo.modo==="criar"?"Novo Modelo":"Editar Modelo"}</p></div>
+                            <button onClick={() => setModalModelo(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
+                        </div>
+                        <form onSubmit={salvarModelo} style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                            <div>
+                                <label className="dd-label">Categoria</label>
+                                <select value={formModelo.categoria} onChange={e => setFormModelo(m => ({ ...m, categoria: e.target.value }))}
+                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
+                                    {["CONTA_FIXA","FORNECEDOR","OUTRO"].map(c => <option key={c} value={c}>{c.replace("_"," ")}</option>)}
+                                </select>
+                            </div>
+                            {[
+                                { k:"descricao", label:"Descrição *", required:true },
+                                { k:"valor", label:"Valor (R$) *", type:"number", step:"0.01", required:true },
+                                { k:"diaVencimento", label:"Dia de Vencimento (1-31)", type:"number" },
+                            ].map(f => (
+                                <div key={f.k}>
+                                    <label className="dd-label">{f.label}</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" type={f.type||"text"} step={f.step} required={f.required} value={formModelo[f.k]||""} onChange={e => setFormModelo(m => ({ ...m, [f.k]: e.target.value }))} />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                            ))}
+                            <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                                <button type="button" className="dd-btn-ghost" onClick={() => setModalModelo(null)}>Cancelar</button>
+                                <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando?"Salvando...":"Salvar"}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ---- FIN MOVIMENTACOES ----
+function FinMovimentacoes() {
+    const [movimentacoes, setMovimentacoes] = useState([]);
+    const [resumo, setResumo] = useState({ entradas:0, saidas:0, saldo:0 });
+    const [mes, setMes] = useState(mesAtual());
+    const [formasPagamento, setFormasPagamento] = useState([]);
+    const [pessoas, setPessoas] = useState([]);
+    const [modal, setModal] = useState(false);
+    const [form, setForm] = useState({ tipo:"ENTRADA", descricao:"", valor:"", data:"", formaPagamentoId:"", pessoaId:"", observacoes:"" });
+    const [msg, setMsg] = useState({ texto:"", tipo:"" });
+    const [salvando, setSalvando] = useState(false);
+
+    const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
+
+    const carregar = () => {
+        const de = mes + "-01";
+        const ultimo = new Date(Number(mes.split("-")[0]), Number(mes.split("-")[1]), 0).getDate();
+        const ate = mes + "-" + String(ultimo).padStart(2,"0");
+        api.get("/fin/movimentacoes", { params: { de, ate } }).then(r => setMovimentacoes(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+        api.get("/fin/movimentacoes/resumo", { params: { de, ate } }).then(r => setResumo(r.data || {})).catch(() => {});
+    };
+
+    useEffect(() => { carregar(); }, [mes]);
+    useEffect(() => {
+        api.get("/fin/formas-pagamento", { params: { apenasAtivas: true } }).then(r => setFormasPagamento(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+        api.get("/fin/pessoas", { params: { ativo: true } }).then(r => setPessoas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    }, []);
+
+    const abrirModal = () => {
+        setForm({ tipo:"ENTRADA", descricao:"", valor:"", data: new Date().toISOString().slice(0,10), formaPagamentoId:"", pessoaId:"", observacoes:"" });
+        setModal(true);
+    };
+
+    const salvar = async e => {
+        e.preventDefault();
+        setSalvando(true);
+        try {
+            await api.post("/fin/movimentacoes", { ...form, valor: Number(form.valor), formaPagamentoId: form.formaPagamentoId ? Number(form.formaPagamentoId) : null, pessoaId: form.pessoaId ? Number(form.pessoaId) : null });
+            setModal(false);
+            flash("Movimentação registrada!");
+            carregar();
+        } catch(err) { flash(err.response?.data || "Erro.", "err"); }
+        finally { setSalvando(false); }
+    };
+
+    const deletar = async id => {
+        if (!window.confirm("Remover esta movimentação?")) return;
+        try { await api.delete(`/fin/movimentacoes/${id}`); flash("Removida."); carregar(); }
+        catch(err) { flash(err.response?.data || "Erro.", "err"); }
+    };
+
+    const ff = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+    return (
+        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+            {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
+
+            <div style={{ display:"flex", alignItems:"center", gap:12, flexWrap:"wrap" }}>
+                <div>
+                    <label className="dd-label" style={{ margin:0, marginRight:8 }}>Mês</label>
+                    <input type="month" value={mes} onChange={e => setMes(e.target.value)}
+                        style={{ border:"1px solid #eaeef2", padding:"6px 10px", fontFamily:"'DM Sans',sans-serif", fontSize:13, outline:"none", background:"#fff" }} />
+                </div>
+                <button className="dd-btn-primary" onClick={abrirModal}>+ Nova Movimentação</button>
+            </div>
+
+            {/* KPI cards */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
+                {[
+                    { label:"Entradas", valor: resumo.entradas, cor:"#2d6a4f" },
+                    { label:"Saídas",   valor: resumo.saidas,   cor:"#b94040" },
+                    { label:"Saldo",    valor: resumo.saldo,    cor: Number(resumo.saldo??0)>=0?"#2d6a4f":"#b94040" },
+                ].map(c => (
+                    <div key={c.label} className="dd-card" style={{ "--accent": c.cor, padding:"16px 20px" }}>
+                        <span className="dd-card-label">{c.label}</span>
+                        <div className="dd-card-num" style={{ color: c.cor, fontSize:20, marginTop:6 }}>{fmt(c.valor)}</div>
+                    </div>
+                ))}
+            </div>
+
+            <div className="dd-section">
+                <div className="dd-section-header">
+                    <span className="dd-section-title">Movimentações</span>
+                    <span className="dd-section-count">{movimentacoes.length}</span>
+                </div>
+                <div className="dd-table-wrap">
+                    <table className="dd-table" style={{ width:"100%" }}>
+                        <thead><tr>
+                            <th>Data</th><th>Tipo</th><th>Descrição</th><th>Valor</th><th>Forma Pgto</th><th>Pessoa</th><th>Por</th><th></th>
+                        </tr></thead>
+                        <tbody>
+                            {movimentacoes.length === 0 && <tr><td colSpan={8} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Nenhuma movimentação neste mês</td></tr>}
+                            {movimentacoes.map(m => (
+                                <tr key={m.id}>
+                                    <td>{fmtData(m.data)}</td>
+                                    <td><span className="dd-badge" style={{ background: m.tipo==="ENTRADA"?"#f0f5f2":"#fdf0f0", color: m.tipo==="ENTRADA"?"#2d6a4f":"#b94040", borderRadius:3 }}>{m.tipo}</span></td>
+                                    <td style={{ fontWeight:500 }}>{m.descricao}</td>
+                                    <td style={{ fontWeight:600, color: m.tipo==="ENTRADA"?"#2d6a4f":"#b94040" }}>{fmt(m.valor)}</td>
+                                    <td style={{ fontSize:11, color:"#9aaa9f" }}>{m.formaPagamentoNome||"—"}</td>
+                                    <td style={{ fontSize:11, color:"#9aaa9f" }}>{m.pessoaNome||"—"}</td>
+                                    <td style={{ fontSize:11, color:"#9aaa9f" }}>{m.createdBy||"—"}</td>
+                                    <td><button className="dd-btn-danger" style={{ fontSize:10 }} onClick={() => deletar(m.id)}>Rem.</button></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {modal && (
+                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModal(false)}>
+                    <div className="dd-modal" style={{ maxWidth:440 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div><p className="dd-modal-title">Nova Movimentação</p><p className="dd-modal-sub">Caixa rápido</p></div>
+                            <button onClick={() => setModal(false)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
+                        </div>
+                        <form onSubmit={salvar} style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                            <div>
+                                <label className="dd-label">Tipo *</label>
+                                <div style={{ display:"flex", gap:16, marginTop:4 }}>
+                                    {["ENTRADA","SAIDA"].map(t => (
+                                        <label key={t} style={{ display:"flex", alignItems:"center", gap:6, fontSize:13, cursor:"pointer" }}>
+                                            <input type="radio" name="tipo" value={t} checked={form.tipo===t} onChange={e => ff("tipo", e.target.value)} />
+                                            {t==="ENTRADA"?"Entrada":"Saída"}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                            {[
+                                { k:"descricao", label:"Descrição *", required:true },
+                                { k:"valor", label:"Valor (R$) *", type:"number", step:"0.01", required:true },
+                                { k:"data", label:"Data *", type:"date", required:true },
+                            ].map(f => (
+                                <div key={f.k}>
+                                    <label className="dd-label">{f.label}</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" type={f.type||"text"} step={f.step} required={f.required} value={form[f.k]||""} onChange={e => ff(f.k, e.target.value)} />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                            ))}
+                            <div>
+                                <label className="dd-label">Forma de Pagamento (opcional)</label>
+                                <select value={form.formaPagamentoId||""} onChange={e => ff("formaPagamentoId", e.target.value)}
+                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
+                                    <option value="">— Não informar —</option>
+                                    {formasPagamento.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="dd-label">Pessoa / Empresa (opcional)</label>
+                                <select value={form.pessoaId||""} onChange={e => ff("pessoaId", e.target.value)}
+                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
+                                    <option value="">— Sem pessoa —</option>
+                                    {pessoas.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="dd-label">Observações</label>
+                                <textarea value={form.observacoes||""} onChange={e => ff("observacoes", e.target.value)}
+                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", resize:"vertical", outline:"none", minHeight:56 }} />
+                            </div>
+                            <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                                <button type="button" className="dd-btn-ghost" onClick={() => setModal(false)}>Cancelar</button>
+                                <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando?"Salvando...":"Registrar"}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ---- FIN CONFIGURACOES ----
+function FinConfiguracoes({ anoLetivo }) {
+    const [config, setConfig] = useState(null);
+    const [formas, setFormas] = useState([]);
+    const [series, setSeries] = useState([]);
+    const [seriesValores, setSeriesValores] = useState({});
+    const [formConfig, setFormConfig] = useState({});
+    const [formForma, setFormForma] = useState({ nome:"" });
+    const [anoSeries, setAnoSeries] = useState(String(anoLetivo));
+    const [msg, setMsg] = useState({ texto:"", tipo:"" });
+    const [salvando, setSalvando] = useState(false);
+
+    const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
+
+    const carregarConfig = () => {
+        api.get("/fin/configuracao").then(r => { setConfig(r.data); setFormConfig({ numParcelasPadrao: r.data.numParcelasPadrao||12, jurosMensal: r.data.jurosMensal||0, multaAtraso: r.data.multaAtraso||0, diaVencimentoPadrao: r.data.diaVencimentoPadrao||10 }); }).catch(() => {});
+    };
+    const carregarFormas = () => {
+        api.get("/fin/formas-pagamento").then(r => setFormas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    };
+    const carregarSeriesValores = ano => {
+        api.get("/series").then(async r => {
+            const sers = Array.isArray(r.data) ? r.data : [];
+            setSeries(sers);
+            const res = await api.get("/fin/series-valores", { params: { anoLetivo: ano } }).catch(() => ({ data: [] }));
+            const mapa = {};
+            (Array.isArray(res.data) ? res.data : []).forEach(sv => { mapa[sv.serieId] = sv.valor; });
+            setSeriesValores(mapa);
+        }).catch(() => {});
+    };
+
+    useEffect(() => { carregarConfig(); carregarFormas(); carregarSeriesValores(anoSeries); }, []);
+    useEffect(() => { carregarSeriesValores(anoSeries); }, [anoSeries]);
+
+    const salvarConfig = async e => {
+        e.preventDefault();
+        setSalvando(true);
+        try {
+            await api.put("/fin/configuracao", { ...formConfig, numParcelasPadrao: Number(formConfig.numParcelasPadrao), jurosMensal: Number(formConfig.jurosMensal), multaAtraso: Number(formConfig.multaAtraso), diaVencimentoPadrao: Number(formConfig.diaVencimentoPadrao) });
+            flash("Configuração salva!");
+            carregarConfig();
+        } catch(err) { flash(err.response?.data || "Erro.", "err"); }
+        finally { setSalvando(false); }
+    };
+
+    const criarForma = async e => {
+        e.preventDefault();
+        try {
+            await api.post("/fin/formas-pagamento", formForma);
+            setFormForma({ nome:"" });
+            carregarFormas();
+        } catch(err) { flash(err.response?.data || "Erro ao criar forma.", "err"); }
+    };
+
+    const toggleForma = async id => {
+        await api.patch(`/fin/formas-pagamento/${id}/status`).catch(() => {});
+        carregarFormas();
+    };
+
+    const deletarForma = async id => {
+        if (!window.confirm("Remover forma de pagamento?")) return;
+        await api.delete(`/fin/formas-pagamento/${id}`).catch(err => flash(err.response?.data || "Erro.", "err"));
+        carregarFormas();
+    };
+
+    const salvarValorSerie = async (serieId, valor) => {
+        if (!valor && valor !== 0) return;
+        try {
+            await api.post("/fin/series-valores", { serieId: Number(serieId), anoLetivo: Number(anoSeries), valor: Number(valor) });
+            flash("Valor salvo!");
+        } catch(err) { flash(err.response?.data || "Erro.", "err"); }
+    };
+
+    const fc = (k, v) => setFormConfig(f => ({ ...f, [k]: v }));
+
+    return (
+        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+            {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
+
+            {/* Config Global */}
+            <div className="dd-section">
+                <div className="dd-section-header"><span className="dd-section-title">Configuração Global</span></div>
+                <div style={{ padding:24 }}>
+                    <form onSubmit={salvarConfig} style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+                        {[
+                            { k:"numParcelasPadrao",  label:"Parcelas Padrão",       type:"number" },
+                            { k:"diaVencimentoPadrao",label:"Dia Vencimento Padrão", type:"number" },
+                            { k:"jurosMensal",        label:"Juros Mensal (%)",      type:"number", step:"0.01" },
+                            { k:"multaAtraso",        label:"Multa por Atraso (%)",  type:"number", step:"0.01" },
+                        ].map(f => (
+                            <div key={f.k}>
+                                <label className="dd-label">{f.label}</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" type={f.type} step={f.step} value={formConfig[f.k]??""} onChange={e => fc(f.k, e.target.value)} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                        ))}
+                        <div style={{ gridColumn:"1/-1", marginTop:4 }}>
+                            <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando?"Salvando...":"Salvar Configuração"}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {/* Formas de Pagamento */}
+            <div className="dd-section">
+                <div className="dd-section-header">
+                    <span className="dd-section-title">Formas de Pagamento</span>
+                    <span className="dd-section-count">{formas.length}</span>
+                </div>
+                <div style={{ padding:"16px 20px" }}>
+                    <form onSubmit={criarForma} style={{ display:"flex", gap:8, alignItems:"flex-end", marginBottom:16 }}>
+                        <div style={{ flex:1 }}>
+                            <label className="dd-label">Nova Forma de Pagamento</label>
+                            <div className="dd-input-wrap">
+                                <input className="dd-input" value={formForma.nome} onChange={e => setFormForma({ nome: e.target.value })} placeholder="PIX, Dinheiro, Boleto..." required />
+                                <div className="dd-input-line" />
+                            </div>
+                        </div>
+                        <button type="submit" className="dd-btn-primary" style={{ fontSize:11 }}>Adicionar</button>
+                    </form>
+                    <table className="dd-table" style={{ width:"100%" }}>
+                        <thead><tr><th>Nome</th><th>Status</th><th></th></tr></thead>
+                        <tbody>
+                            {formas.length === 0 && <tr><td colSpan={3} style={{ textAlign:"center", color:"#9aaa9f", padding:16 }}>Nenhuma forma de pagamento</td></tr>}
+                            {formas.map(f => (
+                                <tr key={f.id}>
+                                    <td style={{ fontWeight:500 }}>{f.nome}</td>
+                                    <td><span style={{ fontSize:10, padding:"2px 8px", background: f.ativo?"#f0f5f2":"#fdf0f0", color: f.ativo?"#2d6a4f":"#b94040", borderRadius:3 }}>{f.ativo?"Ativa":"Inativa"}</span></td>
+                                    <td><div style={{ display:"flex", gap:6 }}>
+                                        <button className={f.ativo?"dd-btn-toggle-on":"dd-btn-toggle-off"} style={{ fontSize:10 }} onClick={() => toggleForma(f.id)}>{f.ativo?"Desativar":"Ativar"}</button>
+                                        <button className="dd-btn-danger" style={{ fontSize:10 }} onClick={() => deletarForma(f.id)}>Rem.</button>
+                                    </div></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Valores por Série */}
+            <div className="dd-section">
+                <div className="dd-section-header">
+                    <span className="dd-section-title">Valores de Mensalidade por Série</span>
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <label className="dd-label" style={{ margin:0 }}>Ano Letivo</label>
+                        <input type="number" value={anoSeries} onChange={e => setAnoSeries(e.target.value)}
+                            style={{ width:80, border:"1px solid #eaeef2", padding:"4px 8px", fontSize:12, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }} />
+                    </div>
+                </div>
+                <div style={{ padding:"16px 20px" }}>
+                    <table className="dd-table" style={{ width:"100%" }}>
+                        <thead><tr><th>Série</th><th>Valor Mensal (R$)</th><th></th></tr></thead>
+                        <tbody>
+                            {series.length === 0 && <tr><td colSpan={3} style={{ textAlign:"center", color:"#9aaa9f", padding:16 }}>Nenhuma série encontrada</td></tr>}
+                            {series.map(s => {
+                                const val = seriesValores[s.id] ?? "";
+                                return (
+                                    <tr key={s.id}>
+                                        <td style={{ fontWeight:500 }}>{s.nome}</td>
+                                        <td>
+                                            <input type="number" step="0.01" defaultValue={val}
+                                                id={`sv-${s.id}`}
+                                                style={{ width:140, border:"1px solid #eaeef2", padding:"6px 8px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none" }}
+                                                placeholder="Não definido" />
+                                        </td>
+                                        <td>
+                                            <button className="dd-btn-edit" style={{ fontSize:10 }}
+                                                onClick={() => {
+                                                    const el = document.getElementById(`sv-${s.id}`);
+                                                    if (el && el.value) salvarValorSerie(s.id, el.value);
+                                                }}>Salvar</button>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     );
 }

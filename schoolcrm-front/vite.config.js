@@ -9,11 +9,15 @@ export default defineConfig({
       '/usuarios': 'http://localhost:8080',
       '/turmas': 'http://localhost:8080',
       '/materias': 'http://localhost:8080',
+      '/series': 'http://localhost:8080',
       '/vinculos': 'http://localhost:8080',
       '/atrasos': 'http://localhost:8080',
       '/notas': 'http://localhost:8080',
       '/presencas': 'http://localhost:8080',
+      '/presenca': 'http://localhost:8080',
+      '/aulas': 'http://localhost:8080',
       '/horarios': 'http://localhost:8080',
+      '/fin': 'http://localhost:8080',
     }
   }
 })
