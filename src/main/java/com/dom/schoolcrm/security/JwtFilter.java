@@ -30,24 +30,7 @@ public class JwtFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        String path = request.getRequestURI();
-
-        if (!path.startsWith("/auth") &&
-                !path.startsWith("/turmas") &&
-                !path.startsWith("/materias") &&
-                !path.startsWith("/vinculos") &&
-                !path.startsWith("/usuarios")) {
-
-            filterChain.doFilter(request, response);
-            return;
-        }
-
         String header = request.getHeader("Authorization");
-
-        // ===== DEBUG TEMPORÁRIO - REMOVER DEPOIS =====
-        System.out.println(">>> [JwtFilter] Método: " + request.getMethod() + " | URI: " + request.getRequestURI());
-        System.out.println(">>> [JwtFilter] Authorization header: " + (header != null ? "PRESENTE" : "AUSENTE"));
-        // ==============================================
 
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
@@ -55,11 +38,6 @@ public class JwtFilter extends OncePerRequestFilter {
             if (jwtUtil.tokenValido(token)) {
                 String login = jwtUtil.extrairLogin(token);
                 String role = jwtUtil.extrairRole(token);
-
-                // ===== DEBUG TEMPORÁRIO =====
-                System.out.println(">>> [JwtFilter] Token válido! Login: " + login + " | Role: " + role);
-                System.out.println(">>> [JwtFilter] Authority setada: ROLE_" + role);
-                // ============================
 
                 var usuario = usuarioRepository.findByLogin(login);
 
@@ -70,15 +48,7 @@ public class JwtFilter extends OncePerRequestFilter {
                             List.of(new SimpleGrantedAuthority("ROLE_" + role))
                     );
                     SecurityContextHolder.getContext().setAuthentication(auth);
-                } else {
-                    // ===== DEBUG TEMPORÁRIO =====
-                    System.out.println(">>> [JwtFilter] USUÁRIO NÃO ENCONTRADO NO BANCO para login: " + login);
-                    // ============================
                 }
-            } else {
-                // ===== DEBUG TEMPORÁRIO =====
-                System.out.println(">>> [JwtFilter] TOKEN INVÁLIDO!");
-                // ============================
             }
         }
 
