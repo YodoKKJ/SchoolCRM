@@ -97,7 +97,11 @@ public class SecurityConfig {
                 new AntPathRequestMatcher("/assets/**"),
                 new AntPathRequestMatcher("/favicon.ico"),
                 new AntPathRequestMatcher("/vite.svg"),
-                new AntPathRequestMatcher("/error")
+                new AntPathRequestMatcher("/error"),
+                // Rotas SPA do React — navegação do browser não carrega JWT header
+                new AntPathRequestMatcher("/direcao"),
+                new AntPathRequestMatcher("/professor"),
+                new AntPathRequestMatcher("/aluno")
         );
     }
 
