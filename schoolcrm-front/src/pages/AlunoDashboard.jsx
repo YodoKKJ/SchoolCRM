@@ -129,7 +129,8 @@ function agruparPorMateria(notas) {
     return m;
 }
 
-const DIAS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"];
+const DIAS = ["SEG", "TER", "QUA", "QUI", "SEX"];
+const DIA_LABEL = { SEG: "Segunda-feira", TER: "Terça-feira", QUA: "Quarta-feira", QUI: "Quinta-feira", SEX: "Sexta-feira" };
 
 // ── Seção: Início ─────────────────────────────────────────────────────────────
 function Inicio({ vinculos, notas }) {
@@ -380,28 +381,28 @@ function Horarios() {
                 return (
                     <div key={dia} className="ad-section">
                         <div className="ad-section-header">
-                            <span className="ad-section-title">{dia}</span>
+                            <span className="ad-section-title">{DIA_LABEL[dia]}</span>
                             <span className="ad-section-count">{aulas.length} aula{aulas.length !== 1 ? "s" : ""}</span>
                         </div>
                         <div className="ad-table-wrap">
                             <table className="ad-table">
                                 <thead>
                                     <tr>
+                                        <th>Aula</th>
                                         <th>Horário</th>
                                         <th>Matéria</th>
                                         <th>Professor</th>
-                                        <th>Sala</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {aulas.sort((a, b) => (a.horaInicio || "").localeCompare(b.horaInicio || "")).map((h, i) => (
+                                    {aulas.sort((a, b) => (a.ordemAula ?? 0) - (b.ordemAula ?? 0)).map((h, i) => (
                                         <tr key={i}>
+                                            <td style={{ color:"#9aaa9f", fontWeight:500 }}>{h.ordemAula ?? "—"}ª</td>
                                             <td style={{ fontVariantNumeric:"tabular-nums", whiteSpace:"nowrap" }}>
-                                                {h.horaInicio ?? "—"}{h.horaFim ? ` – ${h.horaFim}` : ""}
+                                                {h.horarioInicio ?? "—"}
                                             </td>
                                             <td>{h.materiaNome ?? "—"}</td>
                                             <td>{h.professorNome ?? "—"}</td>
-                                            <td>{h.sala ?? "—"}</td>
                                         </tr>
                                     ))}
                                 </tbody>
