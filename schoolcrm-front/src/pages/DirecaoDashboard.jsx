@@ -318,6 +318,13 @@ const GLOBAL_STYLE = `
 `;
 
 // ---- RELATÓRIOS ----
+function calcSituacao(disciplinas, freqGeral) {
+    if (!disciplinas || disciplinas.length === 0) return "Cursando";
+    if (disciplinas.some(d => d.mediaAnual == null)) return "Cursando";
+    if ((freqGeral != null && Number(freqGeral) < 75) || disciplinas.some(d => Number(d.mediaAnual) < 6)) return "Reprovado";
+    return "Aprovado";
+}
+
 function Relatorios({ anoLetivo }) {
     const [turmas, setTurmas] = useState([]);
     const [turmaSel, setTurmaSel] = useState(null);
@@ -372,8 +379,20 @@ function Relatorios({ anoLetivo }) {
         return disc?.frequenciaMateria ?? null;
     };
 
-    const mediaClr = v => v === null ? "#ccc" : v < 6 ? "#b94040" : v < 7 ? "#c47a00" : "#2d6a4f";
-    const freqClr  = v => v === null ? "#ccc" : v < 75 ? "#b94040" : "#2d6a4f";
+    const mediaClr = v => v === null ? "#aaa" : v < 6 ? "#b94040" : v < 7 ? "#c47a00" : "#2d6a4f";
+    const freqClr  = v => v === null ? "#aaa" : v < 75 ? "#b94040" : "#2d6a4f";
+    const sitClr   = s => s === "Aprovado" ? "#2d6a4f" : s === "Reprovado" ? "#b94040" : "#888";
+
+    const tituloRel = tipoRel === "medias" ? "Médias"
+        : tipoRel === "frequencia" ? "Frequência"
+        : "Situação Final";
+
+    // Contadores para situação final
+    const contadores = relatorio && tipoRel === "situacao" ? relatorio.reduce((acc, b) => {
+        const sit = calcSituacao(b.disciplinas, b.frequenciaGeral);
+        acc[sit] = (acc[sit] || 0) + 1;
+        return acc;
+    }, {}) : null;
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
@@ -392,8 +411,9 @@ function Relatorios({ anoLetivo }) {
                         <label className="dd-label">Tipo</label>
                         <SearchSelect
                             options={[
-                                { value: "medias", label: "Médias por matéria" },
+                                { value: "medias",    label: "Médias por matéria" },
                                 { value: "frequencia", label: "Frequência" },
+                                { value: "situacao",  label: "Situação Final" },
                             ]}
                             value={tipoRel}
                             onChange={v => { setTipoRel(v); setRelatorio(null); }}
@@ -411,7 +431,8 @@ function Relatorios({ anoLetivo }) {
                             ]}
                             value={bimestreSel}
                             onChange={v => { setBimestreSel(v); setRelatorio(null); }}
-                            placeholder="" />
+                            placeholder=""
+                            disabled={tipoRel === "situacao"} />
                     </div>
                     <button className="dd-btn-primary" onClick={gerarRelatorio}
                             disabled={!turmaSel || carregando} style={{ height:40, alignSelf:"flex-end" }}>
@@ -425,25 +446,75 @@ function Relatorios({ anoLetivo }) {
                     <div className="dd-section-header">
                         <div style={{ display:"flex", alignItems:"baseline", gap:10 }}>
                             <span className="dd-section-title">
-                                {tipoRel === "medias" ? "Médias" : "Frequência"} — {turmaSel.nome}
+                                {tituloRel} — {turmaSel.nome}
                                 {tipoRel === "medias" && ` — ${bimestreSel === "0" ? "Ano completo" : `${bimestreSel}º Bimestre`}`}
                             </span>
                             <span className="dd-section-count">{relatorio.length} alunos</span>
                         </div>
                         <button className="dd-btn-edit" onClick={() => window.print()}>Imprimir / PDF</button>
                     </div>
+
+                    {/* ── Cartões de resumo (situação final) ── */}
+                    {tipoRel === "situacao" && contadores && (
+                        <div style={{ display:"flex", gap:12, padding:"12px 20px", borderBottom:"1px solid #eaeef2" }}>
+                            {[["Aprovado","#2d6a4f","#f0f5f2"],["Reprovado","#b94040","#fdf0f0"],["Cursando","#888","#f5f5f5"]].map(([sit, cor, bg]) => (
+                                contadores[sit] > 0 && (
+                                    <div key={sit} style={{ background:bg, border:`1px solid ${cor}22`, padding:"8px 18px", display:"flex", flexDirection:"column", alignItems:"center" }}>
+                                        <span style={{ fontSize:22, fontWeight:700, color:cor }}>{contadores[sit]}</span>
+                                        <span style={{ fontSize:10, letterSpacing:".08em", textTransform:"uppercase", color:cor }}>{sit}</span>
+                                    </div>
+                                )
+                            ))}
+                        </div>
+                    )}
+
                     <div style={{ overflowX:"auto" }}>
                         <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
                             <thead>
                                 <tr>
                                     <th style={{ textAlign:"left" }}>Aluno</th>
-                                    {materias.map(m => <th key={m.id} style={{ textAlign:"center" }}>{m.nome}</th>)}
-                                    <th style={{ textAlign:"center" }}>{tipoRel === "medias" ? "Média Geral" : "Freq. Geral"}</th>
+                                    {tipoRel === "situacao" ? (
+                                        <>
+                                            <th style={{ textAlign:"center" }}>Situação</th>
+                                            <th style={{ textAlign:"center" }}>Freq. Geral</th>
+                                            <th style={{ textAlign:"left" }}>Matérias em risco / reprovadas</th>
+                                        </>
+                                    ) : (
+                                        <>
+                                            {materias.map(m => <th key={m.id} style={{ textAlign:"center" }}>{m.nome}</th>)}
+                                            <th style={{ textAlign:"center" }}>{tipoRel === "medias" ? "Média Geral" : "Freq. Geral"}</th>
+                                        </>
+                                    )}
                                 </tr>
                             </thead>
                             <tbody>
                                 {relatorio.map(b => {
                                     const discs = b.disciplinas || [];
+
+                                    if (tipoRel === "situacao") {
+                                        const sit = calcSituacao(discs, b.frequenciaGeral);
+                                        const reprovadas = discs.filter(d => d.mediaAnual != null && Number(d.mediaAnual) < 6).map(d => d.materiaNome);
+                                        const emRisco    = discs.filter(d => d.mediaAnual != null && Number(d.mediaAnual) >= 6 && Number(d.mediaAnual) < 7).map(d => d.materiaNome);
+                                        const faltaFreq  = b.frequenciaGeral != null && Number(b.frequenciaGeral) < 75;
+                                        const problemas  = [
+                                            ...reprovadas.map(n => `${n} (nota)`),
+                                            ...(faltaFreq ? ["Frequência insuficiente"] : []),
+                                            ...(sit === "Cursando" ? [] : emRisco.map(n => `${n} (em risco)`)),
+                                        ];
+                                        return (
+                                            <tr key={b.aluno?.id}>
+                                                <td style={{ fontWeight:500 }}>{b.aluno?.nome ?? "—"}</td>
+                                                <td style={{ textAlign:"center", fontWeight:700, color:sitClr(sit) }}>{sit}</td>
+                                                <td style={{ textAlign:"center", fontWeight:600, color:freqClr(b.frequenciaGeral) }}>
+                                                    {b.frequenciaGeral != null ? `${Number(b.frequenciaGeral).toFixed(1)}%` : "—"}
+                                                </td>
+                                                <td style={{ fontSize:12, color:"#5a7060" }}>
+                                                    {problemas.length > 0 ? problemas.join(", ") : (sit === "Aprovado" ? "—" : "—")}
+                                                </td>
+                                            </tr>
+                                        );
+                                    }
+
                                     const geral = tipoRel === "medias"
                                         ? (() => {
                                             const vals = materias.map(m => getMedia(discs, m.id)).filter(v => v !== null);
@@ -464,7 +535,7 @@ function Relatorios({ anoLetivo }) {
                                             })}
                                             <td style={{ textAlign:"center", fontWeight:700,
                                                 color: tipoRel === "medias" ? mediaClr(geral !== null ? Number(geral) : null) : freqClr(geral) }}>
-                                                {geral !== null ? (tipoRel === "medias" ? geral : `${geral}%`) : "—"}
+                                                {geral !== null ? (tipoRel === "medias" ? geral : `${Number(geral).toFixed(1)}%`) : "—"}
                                             </td>
                                         </tr>
                                     );
@@ -472,9 +543,6 @@ function Relatorios({ anoLetivo }) {
                             </tbody>
                         </table>
                     </div>
-                    {tipoRel === "frequencia" && (
-                        <p style={{ fontSize:11, color:"#9aaa9f", padding:"8px 16px 4px" }}>* Frequência geral do ano letivo, independente do período selecionado.</p>
-                    )}
                 </div>
             )}
         </div>
