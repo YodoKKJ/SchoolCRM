@@ -15,7 +15,7 @@ export default function Login() {
         setErro("");
         setLoading(true);
         try {
-            const response = await axios.post("http://localhost:8080/auth/login", { login, senha, lembrar: lembrar ? "true" : "false" });
+            const response = await axios.post("/auth/login", { login, senha, lembrar: lembrar ? "true" : "false" });
             const { token, role, nome } = response.data;
             localStorage.setItem("token", token);
             localStorage.setItem("role", role);
