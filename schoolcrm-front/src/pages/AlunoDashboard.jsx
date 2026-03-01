@@ -165,66 +165,80 @@ function Inicio({ vinculos, notas }) {
 
 // ── Seção: Boletim ────────────────────────────────────────────────────────────
 function Boletim({ notas }) {
-    const [abertos, setAbertos] = useState({});
-    const toggle = id => setAbertos(p => ({ ...p, [id]: !p[id] }));
+    const porMateria = agruparPorMateria(notas);
 
     if (notas.length === 0) {
         return <div style={{ color:"#9aaa9f", fontSize:13, padding:"24px 0" }}>Nenhuma nota registrada.</div>;
     }
 
     return (
-        <div className="ad-section">
-            <div className="ad-section-header">
-                <span className="ad-section-title">Boletim escolar</span>
-                <span className="ad-section-count">{notas.length} matéria{notas.length !== 1 ? "s" : ""}</span>
-            </div>
-            {notas.map((n, i) => {
-                const open = !!abertos[i];
-                const media = n.media !== null && n.media !== undefined ? Number(n.media) : null;
-                const { bg, fg } = notaClr(media);
-                const bimestres = [
-                    { label: "1º Bim", value: n.nota1 },
-                    { label: "2º Bim", value: n.nota2 },
-                    { label: "3º Bim", value: n.nota3 },
-                    { label: "4º Bim", value: n.nota4 },
-                ];
-
+        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+            {Object.values(porMateria).map(({ materia, notas: nts }, idx) => {
+                const media = mediaMateria(nts);
+                const accent = CORES_MATERIA[idx % CORES_MATERIA.length];
                 return (
-                    <div key={i} className="ad-accordion-row">
-                        <button className="ad-accordion-btn" onClick={() => toggle(i)}>
-                            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                                <span>{n.materiaNome ?? `Matéria ${i + 1}`}</span>
-                                {media !== null && (
-                                    <span className="ad-badge" style={{ background:bg, color:fg }}>
-                                        {media.toFixed(1)} — {notaLabel(media)}
-                                    </span>
-                                )}
-                            </div>
-                            <ChevronDown size={14} style={{ flexShrink:0, opacity:.5, transform: open ? "rotate(180deg)" : "none", transition:"transform .2s" }} />
-                        </button>
-                        {open && (
-                            <div className="ad-accordion-body">
-                                <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8 }}>
-                                    {bimestres.map(b => {
-                                        const val = b.value !== null && b.value !== undefined ? Number(b.value) : null;
-                                        const c = notaClr(val);
-                                        return (
-                                            <div key={b.label} style={{ background:c.bg, padding:"10px 12px", textAlign:"center" }}>
-                                                <div style={{ fontSize:10, color:c.fg, letterSpacing:".06em", textTransform:"uppercase", marginBottom:4 }}>{b.label}</div>
-                                                <div style={{ fontSize:18, fontFamily:"'Playfair Display',serif", fontWeight:700, color:c.fg }}>
-                                                    {val !== null ? val.toFixed(1) : "—"}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                {n.recuperacao !== null && n.recuperacao !== undefined && (
-                                    <div style={{ marginTop:8, fontSize:12, color:"#9aaa9f" }}>
-                                        Recuperação: <strong style={{ color:"#0d1f18" }}>{Number(n.recuperacao).toFixed(1)}</strong>
+                    <div key={materia.id} className="ad-section" style={{ borderTop:`2px solid ${accent}`, overflow:"hidden" }}>
+                        {/* cabeçalho matéria */}
+                        <div className="ad-section-header">
+                            <span className="ad-section-title" style={{ color:accent, fontSize:15, fontWeight:600 }}>{materia.nome}</span>
+                            <span className="ad-badge" style={{ color:corNota(media), background:bgNota(media), fontSize:13 }}>
+                                Média: {fmt(media)}
+                            </span>
+                        </div>
+
+                        {/* bimestres sempre visíveis */}
+                        <div style={{ padding:"16px 20px", display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:12 }}>
+                            {[1,2,3,4].map(bim => {
+                                const nBim = nts.filter(n => (n.avaliacao?.bimestre ?? 1) === bim && !n.avaliacao?.bonificacao);
+                                const bonus = nts.filter(n => (n.avaliacao?.bimestre ?? 1) === bim && n.avaliacao?.bonificacao);
+                                const mBim = mediaMateria(nBim);
+                                return (
+                                    <div key={bim} style={{ background:"#f8faf8", border:"1px solid #eaeef2", borderRadius:8, padding:"12px 14px" }}>
+                                        <p style={{ fontSize:10, fontWeight:500, letterSpacing:".1em", textTransform:"uppercase", color:"#9aaa9f", marginBottom:10 }}>
+                                            {bim}º Bimestre
+                                        </p>
+                                        {nBim.length === 0 && bonus.length === 0 ? (
+                                            <p style={{ fontSize:12, color:"#9aaa9f" }}>Sem notas</p>
+                                        ) : (
+                                            <>
+                                                <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                                                    <tbody>
+                                                        {nBim.map(n => (
+                                                            <tr key={n.id}>
+                                                                <td style={{ fontSize:12, color:"#5a7060", paddingBottom:5, paddingRight:8 }}>
+                                                                    {n.avaliacao?.descricao || n.avaliacao?.tipo || "Avaliação"}
+                                                                </td>
+                                                                <td style={{ fontSize:13, fontWeight:600, color:corNota(parseFloat(n.valor)), textAlign:"right", paddingBottom:5 }}>
+                                                                    {fmt(n.valor)}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                        {bonus.map(n => (
+                                                            <tr key={n.id}>
+                                                                <td style={{ fontSize:12, color:"#7ec8a0", paddingBottom:5, paddingRight:8 }}>
+                                                                    +{n.avaliacao?.descricao || "Bônus"}
+                                                                </td>
+                                                                <td style={{ fontSize:13, fontWeight:600, color:"#7ec8a0", textAlign:"right", paddingBottom:5 }}>
+                                                                    +{fmt(n.valor)}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                                {nBim.length > 0 && (
+                                                    <div style={{ borderTop:"1px solid #eaeef2", paddingTop:7, marginTop:4, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                                                        <span style={{ fontSize:10, color:"#9aaa9f", letterSpacing:".06em", textTransform:"uppercase" }}>Média bim.</span>
+                                                        <span style={{ fontSize:14, fontWeight:700, color:corNota(mBim), fontFamily:"'Playfair Display',serif" }}>
+                                                            {fmt(mBim)}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
                                     </div>
-                                )}
-                            </div>
-                        )}
+                                );
+                            })}
+                        </div>
                     </div>
                 );
             })}
