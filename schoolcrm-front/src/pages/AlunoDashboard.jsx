@@ -83,40 +83,67 @@ const STYLE = `
 `;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-const notaClr = v => {
-    if (v === null || v === undefined) return { bg: "#f5f5f5", fg: "#9aaa9f" };
-    if (v >= 7) return { bg: "#f0f7f4", fg: "#2d6a4f" };
-    if (v >= 5) return { bg: "#fdf8ec", fg: "#92600a" };
-    return { bg: "#fdf0f0", fg: "#b94040" };
+const fmt = n => (n === null || n === undefined) ? "—" : parseFloat(n).toFixed(1);
+
+const corNota = v => {
+    if (v === null || v === undefined) return "#9aaa9f";
+    if (v >= 7) return "#3a6649";
+    if (v >= 5) return "#9a6c2a";
+    return "#b94040";
 };
-const notaLabel = v => {
-    if (v === null || v === undefined) return "—";
-    if (v >= 7) return "Aprovado";
-    if (v >= 5) return "Recuperação";
-    return "Reprovado";
+const bgNota = v => {
+    if (v === null || v === undefined) return "#f8faf8";
+    if (v >= 7) return "#f0f5f2";
+    if (v >= 5) return "#fdf6ed";
+    return "#fdf0f0";
 };
-const freqClr = v => {
-    if (v === null) return { bg: "#f5f5f5", fg: "#9aaa9f" };
-    if (v >= 75) return { bg: "#f0f7f4", fg: "#2d6a4f" };
-    if (v >= 60) return { bg: "#fdf8ec", fg: "#92600a" };
-    return { bg: "#fdf0f0", fg: "#b94040" };
+const corFreq = v => {
+    if (v >= 75) return "#3a6649";
+    if (v >= 60) return "#9a6c2a";
+    return "#b94040";
 };
+const bgFreq = v => {
+    if (v >= 75) return "#f0f5f2";
+    if (v >= 60) return "#fdf6ed";
+    return "#fdf0f0";
+};
+
+const CORES_MATERIA = ["#1a4d3a","#1A759F","#6d597a","#b56576","#457b9d","#2a9d8f","#e76f51","#264653"];
+
+function mediaMateria(notas) {
+    const normais = notas.filter(n => !n.avaliacao?.bonificacao);
+    if (!normais.length) return null;
+    const pesoTotal = normais.reduce((s, n) => s + (n.avaliacao?.peso ?? 1), 0);
+    if (!pesoTotal) return null;
+    return normais.reduce((s, n) => s + parseFloat(n.valor) * (n.avaliacao?.peso ?? 1), 0) / pesoTotal;
+}
+
+function agruparPorMateria(notas) {
+    const m = {};
+    notas.forEach(n => {
+        const mat = n.avaliacao?.materia;
+        if (!mat) return;
+        if (!m[mat.id]) m[mat.id] = { materia: mat, notas: [] };
+        m[mat.id].notas.push(n);
+    });
+    return m;
+}
+
 const DIAS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"];
 
 // ── Seção: Início ─────────────────────────────────────────────────────────────
 function Inicio({ vinculos, notas }) {
-    const totalMaterias = vinculos.length;
-    const notasValidas = notas.filter(n => n.media !== null && n.media !== undefined);
-    const mediaGeral = notasValidas.length
-        ? (notasValidas.reduce((s, n) => s + Number(n.media), 0) / notasValidas.length).toFixed(1)
-        : null;
-    const aprovadas = notasValidas.filter(n => Number(n.media) >= 7).length;
+    const porMateria = agruparPorMateria(notas);
+    const medias = Object.values(porMateria).map(m => mediaMateria(m.notas)).filter(v => v !== null);
+    const totalMaterias = Object.keys(porMateria).length;
+    const mediaGeral = medias.length ? (medias.reduce((a, b) => a + b, 0) / medias.length).toFixed(1) : null;
+    const aprovadas = medias.filter(m => m >= 7).length;
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
             <div className="ad-cards-grid">
                 <div className="ad-card" style={{ "--accent":"#7ec8a0" }}>
-                    <div className="ad-card-num">{totalMaterias}</div>
+                    <div className="ad-card-num">{totalMaterias || "—"}</div>
                     <div className="ad-card-label">Matérias</div>
                 </div>
                 <div className="ad-card" style={{ "--accent":"#52b69a" }}>
@@ -124,7 +151,7 @@ function Inicio({ vinculos, notas }) {
                     <div className="ad-card-label">Média Geral</div>
                 </div>
                 <div className="ad-card" style={{ "--accent":"#168aad" }}>
-                    <div className="ad-card-num">{aprovadas}/{notasValidas.length}</div>
+                    <div className="ad-card-num">{medias.length ? `${aprovadas}/${medias.length}` : "—"}</div>
                     <div className="ad-card-label">Aprovadas</div>
                 </div>
             </div>
@@ -140,18 +167,16 @@ function Inicio({ vinculos, notas }) {
                             <thead>
                                 <tr>
                                     <th>Turma</th>
-                                    <th>Matéria</th>
-                                    <th>Professor</th>
-                                    <th>Ano</th>
+                                    <th>Série</th>
+                                    <th>Ano Letivo</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {vinculos.map((v, i) => (
                                     <tr key={i}>
-                                        <td>{v.turmaNome ?? "—"}</td>
-                                        <td>{v.materiaNome ?? "—"}</td>
-                                        <td>{v.professorNome ?? "—"}</td>
-                                        <td>{v.anoLetivo ?? "—"}</td>
+                                        <td>{v.turma?.nome ?? "—"}</td>
+                                        <td>{v.turma?.serie?.nome ?? "—"}</td>
+                                        <td>{v.turma?.anoLetivo ?? "—"}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -247,50 +272,74 @@ function Boletim({ notas }) {
 }
 
 // ── Seção Frequência ──────────────────────────────────────────────
-function Frequencia({ frequencias, carregando }) {
+function Frequencia({ notas }) {
+    const [frequencias, setFrequencias] = useState({});
+    const [carregando, setCarregando] = useState(false);
+
+    useEffect(() => {
+        const porMateria = agruparPorMateria(notas);
+        const materias = Object.values(porMateria).map(m => m.materia);
+        const turmaId = notas[0]?.avaliacao?.turma?.id;
+        if (!turmaId || !materias.length) return;
+        setCarregando(true);
+        Promise.all(materias.map(mat =>
+            api.get(`/presencas/minhas/${turmaId}/${mat.id}`)
+               .then(r => ({ key: `${turmaId}_${mat.id}`, materiaNome: mat.nome, ...r.data }))
+               .catch(() => null)
+        )).then(res => {
+            const f = {};
+            res.filter(Boolean).forEach(x => { f[x.key] = x; });
+            setFrequencias(f);
+            setCarregando(false);
+        });
+    }, [notas]);
+
     if (carregando) return <div className="ad-section"><p className="ad-empty">Carregando...</p></div>;
 
-    const entries = Object.values(frequencias ?? {});
-
+    const entries = Object.values(frequencias);
     if (!entries.length) return <div className="ad-section"><p className="ad-empty">Nenhum registro de frequência encontrado.</p></div>;
 
     return (
         <div className="ad-section">
             <div className="ad-section-header">
-                <span className="ad-section-title">Frequência</span>
+                <span className="ad-section-title">Frequência por Matéria</span>
+                <span className="ad-section-count">Mínimo: 75%</span>
             </div>
             <div className="ad-table-wrap">
                 <table className="ad-table">
                     <thead>
                         <tr>
                             <th>Matéria</th>
-                            <th>Turma</th>
-                            <th>Frequência</th>
-                            <th style={{ minWidth:120 }}>Barra</th>
+                            <th>Aulas</th>
+                            <th>Presenças</th>
+                            <th>Faltas</th>
+                            <th>%</th>
+                            <th>Situação</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {vinculos.map((v, i) => {
-                            const key = `${v.turmaId}-${v.materiaId}`;
-                            const freq = frequencias[key];
-                            const pct = freq?.percentual !== null && freq?.percentual !== undefined ? Number(freq.percentual) : null;
-                            const { bg, fg } = freqClr(pct);
+                        {entries.map(f => {
+                            const pct = f.percentualPresenca ?? 0;
                             return (
-                                <tr key={i}>
-                                    <td>{v.materiaNome ?? "—"}</td>
-                                    <td>{v.turmaNome ?? "—"}</td>
+                                <tr key={f.key ?? f.materiaNome}>
+                                    <td style={{ fontWeight:500 }}>{f.materiaNome}</td>
+                                    <td style={{ color:"#9aaa9f" }}>{f.totalAulas}</td>
+                                    <td style={{ color:"#3a6649" }}>{f.presentes}</td>
+                                    <td style={{ color: f.faltas > 0 ? "#b94040" : "#9aaa9f" }}>{f.faltas}</td>
                                     <td>
-                                        {pct !== null ? (
-                                            <span className="ad-badge" style={{ background:bg, color:fg }}>{pct.toFixed(0)}%</span>
-                                        ) : <span style={{ color:"#9aaa9f" }}>—</span>}
+                                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                            <div style={{ width:72, height:6, background:"#eaeef2", borderRadius:3, overflow:"hidden" }}>
+                                                <div style={{ height:"100%", width:`${Math.min(pct,100)}%`, background: pct>=75?"#7ec8a0":pct>=60?"#e9c46a":"#e63946", borderRadius:3, transition:"width .4s" }} />
+                                            </div>
+                                            <span style={{ fontSize:12, fontWeight:600, color:corFreq(pct), minWidth:36 }}>
+                                                {fmt(pct)}%
+                                            </span>
+                                        </div>
                                     </td>
                                     <td>
-                                        {pct !== null && (
-                                            <div className="ad-progress-bar-bg">
-                                                <div className="ad-progress-bar-fill"
-                                                     style={{ width:`${Math.min(pct,100)}%`, background: pct >= 75 ? "#7ec8a0" : pct >= 60 ? "#f4a261" : "#e36464" }} />
-                                            </div>
-                                        )}
+                                        <span className="ad-badge" style={{ color:corFreq(pct), background:bgFreq(pct) }}>
+                                            {pct>=75?"Regular":pct>=60?"Atenção":"Irregular"}
+                                        </span>
                                     </td>
                                 </tr>
                             );
@@ -298,46 +347,6 @@ function Frequencia({ frequencias, carregando }) {
                     </tbody>
                 </table>
             </div>
-            <table className="ad-table">
-                <thead>
-                    <tr>
-                        <th>Matéria</th>
-                        <th>Aulas</th>
-                        <th>Presenças</th>
-                        <th>Faltas</th>
-                        <th>%</th>
-                        <th>Situação</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {entries.map(f => {
-                        const pct = f.percentualPresenca ?? 0;
-                        return (
-                            <tr key={f.key ?? f.materiaNome}>
-                                <td style={{ fontWeight:500 }}>{f.materiaNome}</td>
-                                <td style={{ color:"#9aaa9f" }}>{f.totalAulas}</td>
-                                <td style={{ color:"#3a6649" }}>{f.presentes}</td>
-                                <td style={{ color: f.faltas > 0 ? "#b94040" : "#9aaa9f" }}>{f.faltas}</td>
-                                <td>
-                                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                                        <div style={{ width:72, height:6, background:"#eaeef2", borderRadius:3, overflow:"hidden" }}>
-                                            <div style={{ height:"100%", width:`${Math.min(pct,100)}%`, background: pct>=75?"#7ec8a0":pct>=60?"#e9c46a":"#e63946", borderRadius:3, transition:"width .4s" }} />
-                                        </div>
-                                        <span style={{ fontSize:12, fontWeight:600, color:corFreq(pct), minWidth:36 }}>
-                                            {fmt(pct)}%
-                                        </span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <span className="ad-badge" style={{ color:corFreq(pct), background:bgFreq(pct) }}>
-                                        {pct>=75?"Regular":pct>=60?"Atenção":"Irregular"}
-                                    </span>
-                                </td>
-                            </tr>
-                        );
-                    })}
-                </tbody>
-            </table>
         </div>
     );
 }
@@ -516,7 +525,7 @@ export default function AlunoDashboard() {
                     <main className="ad-main" style={{ flex:1, padding:"28px 32px", display:"flex", flexDirection:"column", gap:20 }}>
                         {aba === "inicio"     && <Inicio vinculos={vinculos} notas={notas} />}
                         {aba === "boletim"    && <Boletim notas={notas} />}
-                        {aba === "frequencia" && <Frequencia vinculos={vinculos} />}
+                        {aba === "frequencia" && <Frequencia notas={notas} />}
                         {aba === "horarios"   && <Horarios />}
                     </main>
                 </div>
