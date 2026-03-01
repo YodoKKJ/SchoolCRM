@@ -4,20 +4,6 @@ A full-stack school management system built with **Java Spring Boot** and **Reac
 
 ---
 
-## 📋 Table of Contents
-
-- [Features](#-features)
-- [Tech Stack](#-tech-stack)
-- [User Roles](#-user-roles)
-- [Architecture](#-architecture)
-- [Getting Started](#-getting-started)
-- [Deploy (Railway)](#-deploy-railway)
-- [Database Setup](#-database-setup)
-- [API Reference](#-api-reference)
-- [Project Structure](#-project-structure)
-
----
-
 ## ✨ Features
 
 - **JWT authentication** with 7-day or 30-day tokens ("remember me")
@@ -39,11 +25,11 @@ A full-stack school management system built with **Java Spring Boot** and **Reac
 ### Backend
 | Technology | Version |
 |---|---|
-| Java | 17 |
+| Java | 21 |
 | Spring Boot | 3.2.5 |
 | Spring Security | 6.2.4 |
 | Spring Data JPA / Hibernate | 3.2.5 |
-| PostgreSQL | — |
+| PostgreSQL | 18 |
 | JWT (jjwt) | 0.11.5 |
 | BCrypt | via Spring Security |
 
