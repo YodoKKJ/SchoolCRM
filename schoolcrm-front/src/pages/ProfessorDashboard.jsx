@@ -1081,13 +1081,20 @@ function HorariosView() {
     const [loading, setLoading] = useState(true);
     const [filtroTurma, setFiltroTurma] = useState("todas");
     const [apenasMinhas, setApenasMinhas] = useState(false);
-    const myId = Number(localStorage.getItem("userId"));
+    const [myId, setMyId] = useState(() => Number(localStorage.getItem("userId")) || 0);
 
     useEffect(() => {
         setLoading(true);
-        api.get("/horarios/minhas")
-            .then(r => setHorarios(r.data || []))
-            .finally(() => setLoading(false));
+        Promise.all([
+            api.get("/horarios/minhas"),
+            myId === 0 ? api.get("/vinculos/professor-turma-materia/minhas") : Promise.resolve(null),
+        ]).then(([hRes, vRes]) => {
+            setHorarios(hRes.data || []);
+            if (vRes) {
+                const vid = vRes.data?.[0]?.professor?.id ?? vRes.data?.[0]?.id?.professorId ?? 0;
+                if (vid) setMyId(vid);
+            }
+        }).finally(() => setLoading(false));
     }, []);
 
     const turmaIds = [...new Set(horarios.map(h => h.turmaId))];
