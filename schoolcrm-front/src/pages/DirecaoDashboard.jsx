@@ -286,6 +286,35 @@ const GLOBAL_STYLE = `
   .print-section { display:block !important; position:fixed; inset:0; background:white; z-index:9999; padding:24px; }
   .print-section .dd-btn-edit { display:none; }
 }
+
+/* ── Responsivo ─────────────────────────────────────────────── */
+.dd-hamburger { display:none; background:none; border:none; cursor:pointer; padding:4px; align-items:center; justify-content:center; }
+.dd-cards-grid { display:grid; gap:12px; grid-template-columns:repeat(4,1fr); }
+.dd-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+@media (max-width: 767px) {
+  .dd-sidebar {
+    position: fixed !important;
+    top: 0; left: 0; bottom: 0;
+    z-index: 30;
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+    width: 210px !important;
+  }
+  .dd-sidebar.open { transform: translateX(0); }
+  .dd-hamburger { display: flex !important; }
+  .dd-header { padding: 14px 16px !important; }
+  .dd-main { padding: 16px !important; }
+  .dd-cards-grid { grid-template-columns: 1fr 1fr !important; }
+  .dd-modal { max-width: 100% !important; padding: 20px !important; }
+  .dd-search-wrap { flex-direction: column; align-items: stretch; }
+  .dd-table-wrap { overflow-x: auto; }
+  .dd-section { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .dd-table { min-width: 480px; }
+}
+@media (max-width: 479px) {
+  .dd-cards-grid { grid-template-columns: 1fr !important; }
+}
 `;
 
 // ---- RELATÓRIOS ----
@@ -508,7 +537,7 @@ export default function DirecaoDashboard() {
                 )}
 
                 {/* ── Sidebar ── */}
-                <aside className="dd-sidebar" style={{
+                <aside className={`dd-sidebar${sidebarAberta ? " open" : ""}`} style={{
                     width:210, flexShrink:0, display:"flex", flexDirection:"column",
                     position:"sticky", top:0, height:"100vh", overflowY:"auto",
                 }}>
@@ -591,9 +620,8 @@ export default function DirecaoDashboard() {
                     {/* header */}
                     <header className="dd-header" style={{ padding:"18px 32px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                         <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-                            <button style={{ display:"none", background:"none", border:"none", cursor:"pointer" }}
-                                    className="md:block" onClick={() => setSidebarAberta(true)}>
-                                <Menu size={18} color="#0d1f18" />
+                            <button className="dd-hamburger" onClick={() => setSidebarAberta(true)}>
+                                <Menu size={20} color="#0d1f18" />
                             </button>
                             <div>
                                 <h1 className="dd-page-title">{allMenuItems.find(m => m.id === aba)?.label}</h1>
@@ -605,7 +633,7 @@ export default function DirecaoDashboard() {
                         </div>
                     </header>
 
-                    <main style={{ flex:1, padding:"28px 32px", display:"flex", flexDirection:"column", gap:0 }}>
+                    <main className="dd-main" style={{ flex:1, padding:"28px 32px", display:"flex", flexDirection:"column", gap:0 }}>
                         {aba === "inicio" && <ErrorBoundary key={`inicio-${anoLetivo}`}><Inicio anoLetivo={anoLetivo} /></ErrorBoundary>}
                         {aba === "usuarios" && <ErrorBoundary key="usuarios"><Usuarios /></ErrorBoundary>}
                         {aba === "turmas" && <ErrorBoundary key={`turmas-${anoLetivo}`}><Turmas anoLetivo={anoLetivo} /></ErrorBoundary>}
@@ -655,7 +683,7 @@ function Inicio({ anoLetivo }) {
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:24 }}>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:16 }}>
+            <div className="dd-cards-grid" style={{ gap:16 }}>
                 {cards.map(card => (
                     <div key={card.label} className="dd-card" style={{ "--accent": card.accent, padding:"20px 20px 18px" }}>
                         <p className="dd-card-num">{card.value}</p>
