@@ -285,9 +285,10 @@ function Boletim({ notas }) {
 
 // ── Seção Frequência ──────────────────────────────────────────────
 function Frequencia({ frequencias, carregando }) {
-    const entries = Object.values(frequencias);
-
     if (carregando) return <div className="ad-section"><p className="ad-empty">Carregando...</p></div>;
+
+    const entries = Object.values(frequencias ?? {});
+
     if (!entries.length) return <div className="ad-section"><p className="ad-empty">Nenhum registro de frequência encontrado.</p></div>;
 
     return (
