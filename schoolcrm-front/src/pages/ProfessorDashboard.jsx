@@ -5,7 +5,7 @@ import {
     Menu, ChevronRight, Search, X, UserPlus, ArrowLeft, CalendarDays
 } from "lucide-react";
 
-const api = axios.create({ baseURL: "http://localhost:8080" });
+const api = axios.create({ baseURL: "" });
 api.interceptors.request.use(config => {
     config.headers.Authorization = `Bearer ${localStorage.getItem("token")}`;
     return config;
@@ -70,6 +70,27 @@ const STYLE = `
 .pd-search-input:focus { border-color:#0d1f18; }
 .pd-search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#9aaa9f; pointer-events:none; }
 .pd-search-clear { position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:#9aaa9f; cursor:pointer; padding:0; }
+
+/* ── Responsivo ─────────────────────────────────────────────── */
+.pd-hamburger { display:none; background:none; border:none; cursor:pointer; padding:4px; align-items:center; justify-content:center; }
+
+@media (max-width: 767px) {
+  .pd-sidebar {
+    position: fixed !important;
+    top: 0; left: 0; bottom: 0;
+    z-index: 30;
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+    width: 210px !important;
+  }
+  .pd-sidebar.open { transform: translateX(0); }
+  .pd-hamburger { display: flex !important; }
+  .pd-header { padding: 14px 16px !important; }
+  .pd-main { padding: 16px !important; }
+  .pd-modal { max-width: 100% !important; padding: 20px !important; }
+  .pd-section { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .pd-table { min-width: 480px; }
+}
 `;
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -173,7 +194,7 @@ export default function ProfessorDashboard() {
                 )}
 
                 {/* ── Sidebar ── */}
-                <aside className="pd-sidebar" style={{ width:210, flexShrink:0, display:"flex", flexDirection:"column",
+                <aside className={`pd-sidebar${sidebarAberta ? " open" : ""}`} style={{ width:210, flexShrink:0, display:"flex", flexDirection:"column",
                     position:"sticky", top:0, height:"100vh", overflowY:"auto" }}>
 
                     {/* logo */}
@@ -214,7 +235,7 @@ export default function ProfessorDashboard() {
                             const Icon = item.icon;
                             return (
                                 <button key={item.id} className={`pd-nav-btn${aba===item.id?" active":""}`}
-                                        onClick={() => setAba(item.id)}>
+                                        onClick={() => { setAba(item.id); setSidebarAberta(false); }}>
                                     <Icon size={14} style={{ flexShrink:0 }} />
                                     <span>{item.label}</span>
                                 </button>
@@ -232,12 +253,17 @@ export default function ProfessorDashboard() {
 
                 {/* ── Main ── */}
                 <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0 }}>
-                    <header style={{ background:"#fff", borderBottom:"1px solid #eaeef2", padding:"18px 32px",
+                    <header className="pd-header" style={{ background:"#fff", borderBottom:"1px solid #eaeef2", padding:"18px 32px",
                         display:"flex", alignItems:"center", justifyContent:"space-between",
                         position:"sticky", top:0, zIndex:10 }}>
-                        <div>
-                            <h1 className="pd-page-title">{menu.find(m => m.id===aba)?.label}</h1>
-                            <p className="pd-page-sub">DomGestão — Sistema Escolar</p>
+                        <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+                            <button className="pd-hamburger" onClick={() => setSidebarAberta(true)}>
+                                <Menu size={20} color="#0d1f18" />
+                            </button>
+                            <div>
+                                <h1 className="pd-page-title">{menu.find(m => m.id===aba)?.label}</h1>
+                                <p className="pd-page-sub">DomGestão — Sistema Escolar</p>
+                            </div>
                         </div>
                         <div style={{ width:32, height:32, background:"#0d1f18", display:"flex", alignItems:"center",
                             justifyContent:"center", fontSize:12, fontWeight:600, color:"#7ec8a0" }}>
@@ -245,7 +271,7 @@ export default function ProfessorDashboard() {
                         </div>
                     </header>
 
-                    <main style={{ flex:1, padding:"28px 32px" }}>
+                    <main className="pd-main" style={{ flex:1, padding:"28px 32px" }}>
                         {aba === "inicio"   && <Inicio />}
                         {aba === "notas"    && <LancarNotas />}
                         {aba === "presenca" && <Chamada />}
