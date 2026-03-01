@@ -16,10 +16,11 @@ export default function Login() {
         setLoading(true);
         try {
             const response = await axios.post("/auth/login", { login, senha, lembrar: lembrar ? "true" : "false" });
-            const { token, role, nome } = response.data;
+            const { token, role, nome, id } = response.data;
             localStorage.setItem("token", token);
             localStorage.setItem("role", role);
             localStorage.setItem("nome", nome);
+            localStorage.setItem("userId", String(id));
             if (role === "DIRECAO") window.location.href = "/direcao";
             else if (role === "PROFESSOR") window.location.href = "/professor";
             else if (role === "ALUNO") window.location.href = "/aluno";
