@@ -158,7 +158,7 @@ public class VinculoController {
     }
 
     @GetMapping("/aluno-turma/turma/{turmaId}")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR')")
     public ResponseEntity<?> listarAlunosPorTurma(@PathVariable Long turmaId) {
         return ResponseEntity.ok(
                 alunoTurmaRepository.findAll().stream()
