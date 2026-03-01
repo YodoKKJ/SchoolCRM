@@ -73,6 +73,10 @@ const STYLE = `
 
 /* ── Responsivo ─────────────────────────────────────────────── */
 .pd-hamburger { display:none; background:none; border:none; cursor:pointer; padding:4px; align-items:center; justify-content:center; }
+.pd-ano-selector { display:flex; gap:6px; }
+.pd-ano-btn { padding:4px 14px; border-radius:20px; border:1px solid #d0dbd4; background:#fff; font-size:12px; font-weight:600; color:#5a7060; cursor:pointer; transition:background .15s, color .15s; }
+.pd-ano-btn:hover { background:#f0f5f2; }
+.pd-ano-btn--active { background:#0d1f18; color:#fff; border-color:#0d1f18; }
 
 @media (max-width: 767px) {
   .pd-sidebar {
@@ -173,8 +177,25 @@ function SearchSelect({ options, value, onChange, placeholder }) {
 export default function ProfessorDashboard() {
     const [aba, setAba] = useState("inicio");
     const [sidebarAberta, setSidebarAberta] = useState(false);
+    const [vinculos, setVinculos] = useState([]);
+    const [anoSelecionado, setAnoSelecionado] = useState(null);
     const nome = localStorage.getItem("nome") || "Professor";
     const logout = () => { localStorage.clear(); window.location.href = "/"; };
+
+    useEffect(() => {
+        api.get("/vinculos/professor-turma-materia/minhas").then(r => {
+            const vs = r.data || [];
+            setVinculos(vs);
+            const maxAno = Math.max(0, ...vs.map(v => v.turma?.anoLetivo || 0));
+            if (maxAno > 0) setAnoSelecionado(maxAno);
+        });
+    }, []);
+
+    const anosDisponiveis = [...new Set(vinculos.map(v => v.turma?.anoLetivo).filter(Boolean))]
+        .sort((a, b) => b - a);
+    const vinculosFiltrados = anoSelecionado
+        ? vinculos.filter(v => v.turma?.anoLetivo === anoSelecionado)
+        : vinculos;
 
     const menu = [
         { id:"inicio",     label:"Início",      icon:Home },
@@ -271,10 +292,23 @@ export default function ProfessorDashboard() {
                         </div>
                     </header>
 
-                    <main className="pd-main" style={{ flex:1, padding:"28px 32px" }}>
-                        {aba === "inicio"   && <Inicio />}
-                        {aba === "notas"    && <LancarNotas />}
-                        {aba === "presenca" && <Chamada />}
+                    <main className="pd-main" style={{ flex:1, padding:"28px 32px", display:"flex", flexDirection:"column", gap:20 }}>
+                        {anosDisponiveis.length > 1 && (
+                            <div className="pd-ano-selector">
+                                {anosDisponiveis.map(ano => (
+                                    <button
+                                        key={ano}
+                                        className={`pd-ano-btn${ano === anoSelecionado ? " pd-ano-btn--active" : ""}`}
+                                        onClick={() => setAnoSelecionado(ano)}
+                                    >
+                                        {ano}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {aba === "inicio"   && <Inicio vinculos={vinculosFiltrados} />}
+                        {aba === "notas"    && <LancarNotas vinculos={vinculosFiltrados} />}
+                        {aba === "presenca" && <Chamada vinculos={vinculosFiltrados} />}
                         {aba === "horarios" && <HorariosView />}
                     </main>
                 </div>
@@ -286,13 +320,7 @@ export default function ProfessorDashboard() {
 // ═══════════════════════════════════════════════════════════════
 // INÍCIO — visão geral das turmas do professor
 // ═══════════════════════════════════════════════════════════════
-function Inicio() {
-    const [vinculos, setVinculos] = useState([]);
-
-    useEffect(() => {
-        api.get("/vinculos/professor-turma-materia/minhas").then(r => setVinculos(r.data || []));
-    }, []);
-
+function Inicio({ vinculos }) {
     // Agrupa por turma
     const porTurma = vinculos.reduce((acc, v) => {
         const key = v.turma?.id;
@@ -365,8 +393,7 @@ function Inicio() {
 // ═══════════════════════════════════════════════════════════════
 // LANÇAR NOTAS
 // ═══════════════════════════════════════════════════════════════
-function LancarNotas() {
-    const [vinculos, setVinculos] = useState([]);
+function LancarNotas({ vinculos }) {
     const [turmaId, setTurmaId] = useState("");
     const [materiaId, setMateriaId] = useState("");
     const [alunos, setAlunos] = useState([]);
@@ -377,10 +404,6 @@ function LancarNotas() {
     const [formAv, setFormAv] = useState({ tipo:"PROVA", descricao:"", peso:"1.0", bonificacao:false, bimestre:"1" });
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
     const [salvando, setSalvando] = useState(false);
-
-    useEffect(() => {
-        api.get("/vinculos/professor-turma-materia/minhas").then(r => setVinculos(r.data || []));
-    }, []);
 
     // turmas únicas do professor
     const turmas = [...new Map(vinculos.map(v => [v.turma?.id, v.turma])).values()].filter(Boolean);
@@ -683,8 +706,7 @@ function LancarNotas() {
 // ═══════════════════════════════════════════════════════════════
 // CHAMADA (PRESENÇA)
 // ═══════════════════════════════════════════════════════════════
-function Chamada() {
-    const [vinculos, setVinculos] = useState([]);
+function Chamada({ vinculos }) {
     const [turmaId, setTurmaId] = useState("");
     const [materiaId, setMateriaId] = useState("");
     const [alunos, setAlunos] = useState([]);
@@ -706,10 +728,6 @@ function Chamada() {
 
     const DIAS_SEMANA = ["DOM","SEG","TER","QUA","QUI","SEX","SAB"];
     const DIAS_LABEL_PT = { SEG:"Segunda",TER:"Terça",QUA:"Quarta",QUI:"Quinta",SEX:"Sexta",SAB:"Sábado",DOM:"Domingo" };
-
-    useEffect(() => {
-        api.get("/vinculos/professor-turma-materia/minhas").then(r => setVinculos(r.data || []));
-    }, []);
 
     const turmas = [...new Map(vinculos.map(v => [v.turma?.id, v.turma])).values()].filter(Boolean);
     const materiasDaTurma = vinculos
