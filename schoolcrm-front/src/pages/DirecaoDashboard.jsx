@@ -1163,8 +1163,10 @@ function Turmas({ anoLetivo }) {
     const [turmaSelecionada, setTurmaSelecionada] = useState(null);
     const [turmaParaPromover, setTurmaParaPromover] = useState(null);
     const [promovendo, setPromovendo] = useState(false);
-    const [reMatricular, setReMatricular] = useState(true);
     const [resultadoPromocao, setResultadoPromocao] = useState(null);
+    const [alunosPromocao, setAlunosPromocao] = useState([]);
+    const [carregandoPromocao, setCarregandoPromocao] = useState(false);
+    const [serieDestinoId, setSerieDestinoId] = useState("");
     const [campoBusca, setCampoBusca] = useState("nome");
     const [termoBusca, setTermoBusca] = useState("");
     const termoDebounced = useDebounce(termoBusca);
@@ -1213,26 +1215,70 @@ function Turmas({ anoLetivo }) {
         catch { setMsg({ texto: "Erro ao excluir. Há vínculos ativos nessa turma?", tipo: "erro" }); }
     };
 
+    const sortSeries = (a, b) => {
+        const parse = nome => {
+            const m = nome.match(/^(\d+)[º°o]?\s*(EF|EM)/i);
+            if (!m) return { tipo: "ZZ", num: 999 };
+            return { tipo: m[2].toUpperCase(), num: parseInt(m[1]) };
+        };
+        const pa = parse(a.nome), pb = parse(b.nome);
+        if (pa.tipo !== pb.tipo) return pa.tipo.localeCompare(pb.tipo);
+        return pa.num - pb.num;
+    };
+
+    const abrirModalPromocao = async (turma) => {
+        setTurmaParaPromover(turma);
+        setResultadoPromocao(null);
+        setAlunosPromocao([]);
+        setCarregandoPromocao(true);
+        const seriesOrdenadas = [...series].sort(sortSeries);
+        const idxAtual = seriesOrdenadas.findIndex(s => s.id === turma.serie.id);
+        const proxSerie = seriesOrdenadas[idxAtual + 1] || seriesOrdenadas[idxAtual];
+        setSerieDestinoId(String(proxSerie?.id || ""));
+        try {
+            const vincR = await api.get(`/vinculos/aluno-turma/turma/${turma.id}`);
+            const vinculos = Array.isArray(vincR.data) ? vincR.data : [];
+            const lista = await Promise.all(
+                vinculos.map(async v => {
+                    try {
+                        const bolR = await api.get(`/notas/boletim/${v.aluno.id}/${turma.id}`);
+                        const disc = bolR.data?.disciplinas || [];
+                        const vals = disc.filter(d => d.mediaAnual != null).map(d => Number(d.mediaAnual));
+                        const mediaGeral = vals.length > 0 ? vals.reduce((a, c) => a + c, 0) / vals.length : null;
+                        return { aluno: v.aluno, mediaGeral, selecionado: true };
+                    } catch {
+                        return { aluno: v.aluno, mediaGeral: null, selecionado: true };
+                    }
+                })
+            );
+            setAlunosPromocao(lista.sort((a, b) => (a.aluno.nome || "").localeCompare(b.aluno.nome || "")));
+        } catch {
+            alert("Erro ao carregar alunos da turma.");
+            setTurmaParaPromover(null);
+        } finally {
+            setCarregandoPromocao(false);
+        }
+    };
+
     const promoverTurma = async () => {
-        if (!turmaParaPromover) return;
+        if (!turmaParaPromover || !serieDestinoId) return;
+        const selecionados = alunosPromocao.filter(a => a.selecionado);
         setPromovendo(true);
         try {
             const novoAno = turmaParaPromover.anoLetivo + 1;
             const r = await api.post("/turmas", {
                 nome: turmaParaPromover.nome,
-                serieId: String(turmaParaPromover.serie.id),
+                serieId: serieDestinoId,
                 anoLetivo: String(novoAno),
             });
             const novaTurma = r.data;
             let matriculados = 0, jaMatriculados = 0;
-            if (reMatricular) {
-                const vincR = await api.get(`/vinculos/aluno-turma/turma/${turmaParaPromover.id}`);
-                const vinculos = Array.isArray(vincR.data) ? vincR.data : [];
+            if (selecionados.length > 0) {
                 const resultados = await Promise.all(
-                    vinculos.map(async v => {
+                    selecionados.map(async ({ aluno }) => {
                         try {
                             await api.post("/vinculos/aluno-turma", {
-                                alunoId: String(v.aluno.id),
+                                alunoId: String(aluno.id),
                                 turmaId: String(novaTurma.id),
                             });
                             return "ok";
@@ -1263,29 +1309,79 @@ function Turmas({ anoLetivo }) {
         <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
             {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
 
-            {/* Modal: confirmar promoção */}
+            {/* Modal: promoção de turma */}
             {turmaParaPromover && !resultadoPromocao && (
                 <div className="dd-modal-overlay">
-                    <div className="dd-modal" style={{ maxWidth:440 }}>
+                    <div className="dd-modal" style={{ maxWidth:560, width:"100%" }}>
+                        {/* Cabeçalho */}
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                             <div>
                                 <p className="dd-modal-title">Promover Turma</p>
-                                <p className="dd-modal-sub">{turmaParaPromover.nome} → {turmaParaPromover.anoLetivo + 1}</p>
+                                <p className="dd-modal-sub">{turmaParaPromover.nome} · {turmaParaPromover.serie?.nome} · {turmaParaPromover.anoLetivo} → {turmaParaPromover.anoLetivo + 1}</p>
                             </div>
                             <button onClick={() => setTurmaParaPromover(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f", padding:4 }}><X size={16} /></button>
                         </div>
-                        <div style={{ background:"#f8fafb", border:"1px solid #eef0ec", padding:14, marginBottom:20, fontSize:13, color:"#1a2332" }}>
-                            Será criada a turma <strong>{turmaParaPromover.nome}</strong> para o ano letivo <strong>{turmaParaPromover.anoLetivo + 1}</strong>, na série <strong>{turmaParaPromover.serie?.nome}</strong>.
+
+                        {/* Série destino */}
+                        <div style={{ marginBottom:20 }}>
+                            <label className="dd-label">Série de destino</label>
+                            <select value={serieDestinoId} onChange={e => setSerieDestinoId(e.target.value)}
+                                    style={{ width:"100%", padding:"8px 12px", border:"1px solid #eaeef2", background:"#fff", fontSize:13, color:"#0d1f18", outline:"none", fontFamily:"'DM Sans',sans-serif" }}>
+                                {[...series].sort(sortSeries).map(s => (
+                                    <option key={s.id} value={String(s.id)}>{s.nome}</option>
+                                ))}
+                            </select>
                         </div>
-                        <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer", marginBottom:24 }}>
-                            <input type="checkbox" checked={reMatricular} onChange={e => setReMatricular(e.target.checked)}
-                                   style={{ width:15, height:15, accentColor:"#0d1f18", cursor:"pointer" }} />
-                            <span style={{ fontSize:13, color:"#1a2332" }}>Re-matricular os alunos desta turma em {turmaParaPromover.anoLetivo + 1}</span>
-                        </label>
+
+                        {/* Lista de alunos */}
+                        <div style={{ marginBottom:16 }}>
+                            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+                                <label className="dd-label" style={{ margin:0 }}>
+                                    Alunos a matricular ({alunosPromocao.filter(a => a.selecionado).length}/{alunosPromocao.length})
+                                </label>
+                                {!carregandoPromocao && alunosPromocao.length > 0 && (
+                                    <div style={{ display:"flex", gap:8 }}>
+                                        <button className="dd-btn-ghost" style={{ padding:"4px 10px", fontSize:11 }}
+                                                onClick={() => setAlunosPromocao(p => p.map(a => ({ ...a, selecionado: true })))}>
+                                            Todos
+                                        </button>
+                                        <button className="dd-btn-ghost" style={{ padding:"4px 10px", fontSize:11 }}
+                                                onClick={() => setAlunosPromocao(p => p.map(a => ({ ...a, selecionado: false })))}>
+                                            Nenhum
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div style={{ border:"1px solid #eaeef2", maxHeight:260, overflowY:"auto" }}>
+                                {carregandoPromocao ? (
+                                    <div style={{ padding:"24px", textAlign:"center", color:"#9aaa9f", fontSize:13 }}>Carregando alunos...</div>
+                                ) : alunosPromocao.length === 0 ? (
+                                    <div style={{ padding:"24px", textAlign:"center", color:"#9aaa9f", fontSize:13 }}>Nenhum aluno nesta turma.</div>
+                                ) : alunosPromocao.map((a, i) => (
+                                    <label key={a.aluno.id} style={{
+                                        display:"flex", alignItems:"center", gap:12, padding:"10px 14px",
+                                        cursor:"pointer", borderBottom: i < alunosPromocao.length - 1 ? "1px solid #f2f5f2" : "none",
+                                        background: a.selecionado ? "#fafcfa" : "#fff",
+                                    }}>
+                                        <input type="checkbox" checked={a.selecionado}
+                                               onChange={() => setAlunosPromocao(p => p.map((x, j) => j === i ? { ...x, selecionado: !x.selecionado } : x))}
+                                               style={{ width:14, height:14, accentColor:"#0d1f18", cursor:"pointer", flexShrink:0 }} />
+                                        <span style={{ flex:1, fontSize:13, color:"#0d1f18", fontWeight:500 }}>{a.aluno.nome}</span>
+                                        <span style={{ fontSize:12, color: a.mediaGeral === null ? "#9aaa9f" : a.mediaGeral < 6 ? "#b94040" : "#2d6a4f", fontWeight:600, minWidth:60, textAlign:"right" }}>
+                                            {a.mediaGeral !== null ? `Média ${a.mediaGeral.toFixed(1)}` : "Sem notas"}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Ações */}
                         <div style={{ display:"flex", gap:8 }}>
                             <button onClick={() => setTurmaParaPromover(null)} className="dd-btn-ghost" style={{ flex:1 }}>Cancelar</button>
-                            <button onClick={promoverTurma} className="dd-btn-primary" style={{ flex:1 }} disabled={promovendo}>
-                                {promovendo ? "Promovendo..." : `Criar para ${turmaParaPromover.anoLetivo + 1} →`}
+                            <button onClick={promoverTurma} className="dd-btn-primary" style={{ flex:1 }}
+                                    disabled={promovendo || carregandoPromocao || !serieDestinoId}>
+                                {promovendo ? "Promovendo..." : `Promover ${alunosPromocao.filter(a => a.selecionado).length} aluno(s) →`}
                             </button>
                         </div>
                     </div>
@@ -1302,8 +1398,8 @@ function Turmas({ anoLetivo }) {
                         <p className="dd-modal-title" style={{ marginBottom:8 }}>Turma promovida!</p>
                         <p style={{ color:"#6b7a8d", fontSize:13, marginBottom:20 }}>
                             Turma <strong>{resultadoPromocao.criada.nome}</strong> criada para {resultadoPromocao.criada.anoLetivo}.
-                            {reMatricular && <><br/>{resultadoPromocao.matriculados} aluno(s) re-matriculados
-                            {resultadoPromocao.jaMatriculados > 0 && `, ${resultadoPromocao.jaMatriculados} já tinham turma em ${resultadoPromocao.criada.anoLetivo}`}.</>}
+                            <br/>{resultadoPromocao.matriculados} aluno(s) matriculado(s)
+                            {resultadoPromocao.jaMatriculados > 0 && `, ${resultadoPromocao.jaMatriculados} já tinham turma em ${resultadoPromocao.criada.anoLetivo}`}.
                         </p>
                         <button className="dd-btn-primary" style={{ width:"100%" }}
                                 onClick={() => { setResultadoPromocao(null); setTurmaParaPromover(null); }}>Fechar</button>
@@ -1422,7 +1518,7 @@ function Turmas({ anoLetivo }) {
                             <td style={{ color:"#9aaa9f" }}>{t.anoLetivo}</td>
                             <td style={{ textAlign:"right" }}>
                                 <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
-                                    <button className="dd-btn-edit" onClick={() => { setTurmaParaPromover(t); setResultadoPromocao(null); setReMatricular(true); }}>
+                                    <button className="dd-btn-edit" onClick={() => abrirModalPromocao(t)}>
                                         Promover
                                     </button>
                                     <button className="dd-btn-edit" onClick={() => setTurmaSelecionada(t)}>Gerenciar</button>
