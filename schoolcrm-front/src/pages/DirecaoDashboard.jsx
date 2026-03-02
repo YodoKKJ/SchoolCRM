@@ -4018,7 +4018,7 @@ function FinContratos({ anoLetivo }) {
 
     useEffect(() => {
         api.get("/usuarios/buscar", { params: { role:"ALUNO" } }).then(r => setAlunos(Array.isArray(r.data) ? r.data : [])).catch(() => {});
-        api.get("/series").then(r => setSeries(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+        api.get("/turmas/series").then(r => setSeries(Array.isArray(r.data) ? r.data : [])).catch(() => {});
         api.get("/fin/formas-pagamento", { params: { apenasAtivas: true } }).then(r => setFormasPagamento(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     }, []);
 
@@ -4804,10 +4804,10 @@ function FinConfiguracoes({ anoLetivo }) {
         api.get("/fin/formas-pagamento").then(r => setFormas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     };
     const carregarSeriesValores = ano => {
-        api.get("/series").then(async r => {
+        api.get("/turmas/series").then(async r => {
             const sers = Array.isArray(r.data) ? r.data : [];
             setSeries(sers);
-            const res = await api.get("/fin/series-valores", { params: { anoLetivo: ano } }).catch(() => ({ data: [] }));
+            const res = await api.get("/fin/serie-valores", { params: { anoLetivo: ano } }).catch(() => ({ data: [] }));
             const mapa = {};
             (Array.isArray(res.data) ? res.data : []).forEach(sv => { mapa[sv.serieId] = sv.valor; });
             setSeriesValores(mapa);
@@ -4851,7 +4851,7 @@ function FinConfiguracoes({ anoLetivo }) {
     const salvarValorSerie = async (serieId, valor) => {
         if (!valor && valor !== 0) return;
         try {
-            await api.post("/fin/series-valores", { serieId: Number(serieId), anoLetivo: Number(anoSeries), valor: Number(valor) });
+            await api.post("/fin/serie-valores", { serieId: Number(serieId), anoLetivo: Number(anoSeries), valor: Number(valor) });
             flash("Valor salvo!");
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
     };
