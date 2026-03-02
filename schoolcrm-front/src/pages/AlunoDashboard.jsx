@@ -65,7 +65,7 @@ const STYLE = `
 .ad-ano-btn:hover { background:#f0f5f2; }
 .ad-ano-btn--active { background:#0d1f18; color:#fff; border-color:#0d1f18; }
 
-@media (max-width: 767px) {
+@media (max-width: 640px) {
   .ad-sidebar {
     position: fixed !important;
     top: 0; left: 0; bottom: 0;
