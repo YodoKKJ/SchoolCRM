@@ -437,12 +437,7 @@ export default function AlunoDashboard() {
 
     useEffect(() => {
         api.get("/vinculos/aluno-turma/minhas")
-            .then(r => {
-                const vs = Array.isArray(r.data) ? r.data : [];
-                setVinculos(vs);
-                const maxAno = Math.max(0, ...vs.map(v => v.turma?.anoLetivo || 0));
-                if (maxAno > 0) setAnoSelecionado(maxAno);
-            })
+            .then(r => setVinculos(Array.isArray(r.data) ? r.data : []))
             .catch(() => setVinculos([]));
         api.get("/notas/minhas")
             .then(r => setNotas(Array.isArray(r.data) ? r.data : []))
@@ -452,10 +447,15 @@ export default function AlunoDashboard() {
     // Dados filtrados pelo ano selecionado
     const anosDisponiveis = [...new Set(vinculos.map(v => v.turma?.anoLetivo).filter(Boolean))]
         .sort((a, b) => b - a);
-    const vinculoAno = vinculos.find(v => v.turma?.anoLetivo === anoSelecionado);
-    const turmaIdAno = vinculoAno?.turma?.id ?? null;
-    const notasAno = notas.filter(n => n.avaliacao?.turma?.id === turmaIdAno);
-    const vinculosAno = vinculos.filter(v => v.turma?.anoLetivo === anoSelecionado);
+    // anoEfetivo: ano selecionado pelo usuário (se válido) ou o mais recente disponível
+    const anoEfetivo = (anoSelecionado != null && anosDisponiveis.includes(anoSelecionado))
+        ? anoSelecionado
+        : (anosDisponiveis[0] ?? null);
+    const vinculosAno = vinculos.filter(v => v.turma?.anoLetivo === anoEfetivo);
+    // Suporte a múltiplas turmas no mesmo ano
+    const turmaIdsAno = new Set(vinculosAno.map(v => v.turma?.id).filter(Boolean));
+    const turmaIdAno = [...turmaIdsAno][0] ?? null;
+    const notasAno = notas.filter(n => turmaIdsAno.has(n.avaliacao?.turma?.id));
 
     return (
         <>
@@ -541,12 +541,12 @@ export default function AlunoDashboard() {
                     </header>
 
                     <main className="ad-main" style={{ flex:1, padding:"28px 32px", display:"flex", flexDirection:"column", gap:20 }}>
-                        {anosDisponiveis.length > 1 && (
+                        {anosDisponiveis.length > 0 && (
                             <div className="ad-ano-selector">
                                 {anosDisponiveis.map(ano => (
                                     <button
                                         key={ano}
-                                        className={`ad-ano-btn${ano === anoSelecionado ? " ad-ano-btn--active" : ""}`}
+                                        className={`ad-ano-btn${ano === anoEfetivo ? " ad-ano-btn--active" : ""}`}
                                         onClick={() => setAnoSelecionado(ano)}
                                     >
                                         {ano}
