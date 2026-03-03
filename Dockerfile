@@ -2,6 +2,7 @@
 FROM node:20-alpine AS frontend
 WORKDIR /app
 COPY schoolcrm-front/package*.json ./
+ARG CACHEBUST=1
 RUN npm ci
 COPY schoolcrm-front/ ./
 # VITE_API_URL vazio = mesmo origin (frontend e backend na mesma URL do Railway)
