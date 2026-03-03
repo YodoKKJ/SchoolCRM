@@ -1798,6 +1798,7 @@ function Lancamentos({ anoLetivo }) {
     const [formAv, setFormAv] = useState({ tipo:"PROVA", descricao:"", peso:"1.0", bonificacao:false, bimestre:"1" });
     const [criandoAv, setCriandoAv] = useState(false);
     const [bimestroFiltro, setBimestroFiltro] = useState("");
+    const [notasComErro, setNotasComErro] = useState({});
     const [modalParticipantes, setModalParticipantes] = useState(null);
     const [participantesSel, setParticipantesSel] = useState(new Set());
     const [salvandoPart, setSalvandoPart] = useState(false);
@@ -1884,6 +1885,7 @@ function Lancamentos({ anoLetivo }) {
     // quando seleciona avaliação, preenche notas existentes
     const selecionarAvaliacao = (av) => {
         setAvaliacaoSel(av);
+        setNotasComErro({});
         const init = {};
         av.notas.forEach(n => init[n.alunoId] = String(n.valor));
         setNotasEdit(init);
@@ -1933,10 +1935,33 @@ function Lancamentos({ anoLetivo }) {
 
     const salvarNotas = async () => {
         if (!avaliacaoSel) return;
-        setSalvando(true);
         const alunosAlvo = avaliacaoSel.tipo === "RECUPERACAO"
             ? alunos.filter(a => (avaliacaoSel.recuperacaoParticipantes || []).some(p => p.alunoId === a.id))
             : alunos;
+
+        // Valida tudo antes de qualquer chamada à API
+        const errosValidacao = {};
+        for (const aluno of alunosAlvo) {
+            const val = notasEdit[aluno.id];
+            if (val === undefined || val === "") continue;
+            const num = parseFloat(val);
+            if (isNaN(num)) {
+                errosValidacao[aluno.id] = true;
+            } else if (avaliacaoSel.bonificacao) {
+                if (num < 0 || num > 1) errosValidacao[aluno.id] = true;
+            } else {
+                if (num < 0 || num > 10) errosValidacao[aluno.id] = true;
+            }
+        }
+        if (Object.keys(errosValidacao).length > 0) {
+            setNotasComErro(errosValidacao);
+            const nomes = alunosAlvo.filter(a => errosValidacao[a.id]).map(a => a.nome).join(", ");
+            flash(`Nota inválida — corrija antes de salvar: ${nomes}`, "erro");
+            return;
+        }
+
+        setNotasComErro({});
+        setSalvando(true);
         let erros = 0;
         for (const aluno of alunosAlvo) {
             const val = notasEdit[aluno.id];
@@ -2209,8 +2234,9 @@ function Lancamentos({ anoLetivo }) {
                                     {alunosNaTabela.map(aluno => {
                                         const val = notasEdit[aluno.id] ?? "";
                                         const temNota = avaliacaoSel.notas.some(n => n.alunoId === aluno.id);
+                                        const temErro = !!notasComErro[aluno.id];
                                         return (
-                                            <tr key={aluno.id}>
+                                            <tr key={aluno.id} style={{ background: temErro ? "#fff5f5" : undefined }}>
                                                 <td>
                                                     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                                                         <div style={{ width:26, height:26, background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color:"#7ec8a0", flexShrink:0 }}>
@@ -2226,16 +2252,23 @@ function Lancamentos({ anoLetivo }) {
                                                         max={avaliacaoSel.bonificacao ? 1 : 10}
                                                         step={avaliacaoSel.bonificacao ? 0.01 : 0.1}
                                                         value={val}
-                                                        onChange={e => setNotasEdit(prev => ({ ...prev, [aluno.id]: e.target.value }))}
+                                                        onChange={e => {
+                                                            setNotasEdit(prev => ({ ...prev, [aluno.id]: e.target.value }));
+                                                            if (notasComErro[aluno.id]) setNotasComErro(p => { const n = {...p}; delete n[aluno.id]; return n; });
+                                                        }}
                                                         placeholder="—"
                                                         className="dd-input"
-                                                        style={{ width:120, padding:"6px 0", fontSize:15, fontFamily:"'Playfair Display',serif", fontWeight:700 }}
+                                                        style={{ width:120, padding:"6px 0", fontSize:15, fontFamily:"'Playfair Display',serif", fontWeight:700,
+                                                            outline: temErro ? "2px solid #c0392b" : undefined,
+                                                            borderRadius: temErro ? 2 : undefined }}
                                                     />
                                                 </td>
                                                 <td>
-                                                    {temNota
-                                                        ? <span className="dd-badge" style={{ background:"#f0f5f2", color:"#2d6a4f" }}>Lançada</span>
-                                                        : <span className="dd-badge" style={{ background:"#f5f3ee", color:"#7a5c2e" }}>Pendente</span>
+                                                    {temErro
+                                                        ? <span className="dd-badge" style={{ background:"#fdf0f0", color:"#c0392b" }}>Inválida</span>
+                                                        : temNota
+                                                            ? <span className="dd-badge" style={{ background:"#f0f5f2", color:"#2d6a4f" }}>Lançada</span>
+                                                            : <span className="dd-badge" style={{ background:"#f5f3ee", color:"#7a5c2e" }}>Pendente</span>
                                                     }
                                                 </td>
                                             </tr>
