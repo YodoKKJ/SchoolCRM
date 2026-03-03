@@ -17,6 +17,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
+// v2 — suporte a RECUPERACAO (2026-03-03)
 @RestController
 @RequestMapping("/notas")
 public class NotaController {
