@@ -4076,6 +4076,9 @@ function FinContratos({ anoLetivo }) {
             await api.post("/fin/contas-receber", { ...formCRAvulsa, valor: Number(formCRAvulsa.valor), pessoaId: formCRAvulsa.pessoaId ? Number(formCRAvulsa.pessoaId) : null, formaPagamentoId: formCRAvulsa.formaPagamentoId ? Number(formCRAvulsa.formaPagamentoId) : null });
             setModalCRAvulsa(false);
             flash("CR avulsa criada!");
+            if (alunoSel) {
+                api.get(`/fin/contratos/aluno/${alunoSel}`).then(r => setContratos(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+            }
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
         finally { setSalvando(false); }
     };
@@ -4638,7 +4641,9 @@ function FinMovimentacoes() {
     }, []);
 
     const abrirModal = () => {
-        setForm({ tipo:"ENTRADA", descricao:"", valor:"", data: new Date().toISOString().slice(0,10), formaPagamentoId:"", pessoaId:"", observacoes:"" });
+        const hoje = new Date();
+        const dataHoje = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,"0")}-${String(hoje.getDate()).padStart(2,"0")}`;
+        setForm({ tipo:"ENTRADA", descricao:"", valor:"", dataMovimentacao: dataHoje, formaPagamentoId:"", pessoaId:"", observacoes:"" });
         setModal(true);
     };
 
@@ -4703,13 +4708,13 @@ function FinMovimentacoes() {
                             {movimentacoes.length === 0 && <tr><td colSpan={8} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Nenhuma movimentação neste mês</td></tr>}
                             {movimentacoes.map(m => (
                                 <tr key={m.id}>
-                                    <td>{fmtData(m.data)}</td>
+                                    <td>{fmtData(m.dataMovimentacao)}</td>
                                     <td><span className="dd-badge" style={{ background: m.tipo==="ENTRADA"?"#f0f5f2":"#fdf0f0", color: m.tipo==="ENTRADA"?"#2d6a4f":"#b94040", borderRadius:3 }}>{m.tipo}</span></td>
                                     <td style={{ fontWeight:500 }}>{m.descricao}</td>
                                     <td style={{ fontWeight:600, color: m.tipo==="ENTRADA"?"#2d6a4f":"#b94040" }}>{fmt(m.valor)}</td>
                                     <td style={{ fontSize:11, color:"#9aaa9f" }}>{m.formaPagamentoNome||"—"}</td>
                                     <td style={{ fontSize:11, color:"#9aaa9f" }}>{m.pessoaNome||"—"}</td>
-                                    <td style={{ fontSize:11, color:"#9aaa9f" }}>{m.createdBy||"—"}</td>
+                                    <td style={{ fontSize:11, color:"#9aaa9f" }}>{m.createdByNome||"—"}</td>
                                     <td><button className="dd-btn-danger" style={{ fontSize:10 }} onClick={() => deletar(m.id)}>Rem.</button></td>
                                 </tr>
                             ))}
@@ -4740,7 +4745,7 @@ function FinMovimentacoes() {
                             {[
                                 { k:"descricao", label:"Descrição *", required:true },
                                 { k:"valor", label:"Valor (R$) *", type:"number", step:"0.01", required:true },
-                                { k:"data", label:"Data *", type:"date", required:true },
+                                { k:"dataMovimentacao", label:"Data *", type:"date", required:true },
                             ].map(f => (
                                 <div key={f.k}>
                                     <label className="dd-label">{f.label}</label>
