@@ -22,16 +22,17 @@ public interface FinContaReceberRepository extends JpaRepository<FinContaReceber
     List<FinContaReceber> findByAlunoId(@Param("alunoId") Long alunoId);
 
     // Busca geral com filtros opcionais para a tela de listagem
-    @Query("""
-        SELECT cr FROM FinContaReceber cr
-        LEFT JOIN cr.contrato c
-        WHERE (:alunoId IS NULL OR c.aluno.id = :alunoId)
-          AND (:tipo IS NULL OR cr.tipo = :tipo)
-          AND (:status IS NULL OR cr.status = :status)
-          AND (:vencimentoDe IS NULL OR cr.dataVencimento >= :vencimentoDe)
-          AND (:vencimentoAte IS NULL OR cr.dataVencimento <= :vencimentoAte)
-        ORDER BY cr.dataVencimento ASC
-        """)
+    // Usa native SQL para evitar falha de inferência de tipo null no Hibernate + PostgreSQL
+    @Query(value = """
+        SELECT cr.* FROM fin_contas_receber cr
+        LEFT JOIN fin_contratos c ON cr.contrato_id = c.id
+        WHERE (cast(:alunoId as bigint) IS NULL OR c.aluno_id = cast(:alunoId as bigint))
+          AND (cast(:tipo as text) IS NULL OR cr.tipo = cast(:tipo as text))
+          AND (cast(:status as text) IS NULL OR cr.status = cast(:status as text))
+          AND (cast(:vencimentoDe as date) IS NULL OR cr.data_vencimento >= cast(:vencimentoDe as date))
+          AND (cast(:vencimentoAte as date) IS NULL OR cr.data_vencimento <= cast(:vencimentoAte as date))
+        ORDER BY cr.data_vencimento ASC
+        """, nativeQuery = true)
     List<FinContaReceber> buscar(
             @Param("alunoId") Long alunoId,
             @Param("tipo") String tipo,

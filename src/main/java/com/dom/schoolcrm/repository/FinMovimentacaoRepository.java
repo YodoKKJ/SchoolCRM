@@ -12,14 +12,15 @@ import java.util.List;
 public interface FinMovimentacaoRepository extends JpaRepository<FinMovimentacao, Long> {
 
     // Busca com filtros combinados para a tela de listagem
-    @Query("""
-        SELECT m FROM FinMovimentacao m
-        WHERE (:tipo IS NULL OR m.tipo = :tipo)
-          AND (:categoria IS NULL OR LOWER(m.categoria) LIKE LOWER(CONCAT('%', :categoria, '%')))
-          AND (:de IS NULL OR m.dataMovimentacao >= :de)
-          AND (:ate IS NULL OR m.dataMovimentacao <= :ate)
-        ORDER BY m.dataMovimentacao DESC, m.createdAt DESC
-        """)
+    // Usa native SQL para evitar falha de inferência de tipo null no Hibernate + PostgreSQL
+    @Query(value = """
+        SELECT * FROM fin_movimentacoes
+        WHERE (cast(:tipo as text) IS NULL OR tipo = cast(:tipo as text))
+          AND (cast(:categoria as text) IS NULL OR LOWER(categoria) LIKE LOWER(CONCAT('%', cast(:categoria as text), '%')))
+          AND (cast(:de as date) IS NULL OR data_movimentacao >= cast(:de as date))
+          AND (cast(:ate as date) IS NULL OR data_movimentacao <= cast(:ate as date))
+        ORDER BY data_movimentacao DESC, created_at DESC
+        """, nativeQuery = true)
     List<FinMovimentacao> buscar(
             @Param("tipo") String tipo,
             @Param("categoria") String categoria,

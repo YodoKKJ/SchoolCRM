@@ -12,16 +12,17 @@ import java.util.List;
 public interface FinContaPagarRepository extends JpaRepository<FinContaPagar, Long> {
 
     // Busca com filtros combinados para a tela de listagem
-    @Query("""
-        SELECT cp FROM FinContaPagar cp
-        WHERE (:tipo IS NULL OR cp.tipo = :tipo)
-          AND (:categoria IS NULL OR cp.categoria = :categoria)
-          AND (:status IS NULL OR cp.status = :status)
-          AND (:vencimentoDe IS NULL OR cp.dataVencimento >= :vencimentoDe)
-          AND (:vencimentoAte IS NULL OR cp.dataVencimento <= :vencimentoAte)
-          AND (:mesReferencia IS NULL OR cp.mesReferencia = :mesReferencia)
-        ORDER BY cp.dataVencimento ASC
-        """)
+    // Usa native SQL para evitar falha de inferência de tipo null no Hibernate + PostgreSQL
+    @Query(value = """
+        SELECT * FROM fin_contas_pagar
+        WHERE (cast(:tipo as text) IS NULL OR tipo = cast(:tipo as text))
+          AND (cast(:categoria as text) IS NULL OR categoria = cast(:categoria as text))
+          AND (cast(:status as text) IS NULL OR status = cast(:status as text))
+          AND (cast(:vencimentoDe as date) IS NULL OR data_vencimento >= cast(:vencimentoDe as date))
+          AND (cast(:vencimentoAte as date) IS NULL OR data_vencimento <= cast(:vencimentoAte as date))
+          AND (cast(:mesReferencia as text) IS NULL OR mes_referencia = cast(:mesReferencia as text))
+        ORDER BY data_vencimento ASC
+        """, nativeQuery = true)
     List<FinContaPagar> buscar(
             @Param("tipo") String tipo,
             @Param("categoria") String categoria,
