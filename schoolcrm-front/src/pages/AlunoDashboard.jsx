@@ -115,11 +115,19 @@ const bgFreq = v => {
 const CORES_MATERIA = ["#1a4d3a","#1A759F","#6d597a","#b56576","#457b9d","#2a9d8f","#e76f51","#264653"];
 
 function mediaMateria(notas) {
-    const normais = notas.filter(n => !n.avaliacao?.bonificacao);
-    if (!normais.length) return null;
-    const pesoTotal = normais.reduce((s, n) => s + (n.avaliacao?.peso ?? 1), 0);
-    if (!pesoTotal) return null;
-    return normais.reduce((s, n) => s + parseFloat(n.valor) * (n.avaliacao?.peso ?? 1), 0) / pesoTotal;
+    const normais = notas.filter(n => !n.avaliacao?.bonificacao && n.avaliacao?.tipo !== "RECUPERACAO");
+    const recuperacao = notas.find(n => n.avaliacao?.tipo === "RECUPERACAO");
+    if (!normais.length && !recuperacao) return null;
+    let media = null;
+    if (normais.length) {
+        const pesoTotal = normais.reduce((s, n) => s + (n.avaliacao?.peso ?? 1), 0);
+        if (pesoTotal) media = normais.reduce((s, n) => s + parseFloat(n.valor) * (n.avaliacao?.peso ?? 1), 0) / pesoTotal;
+    }
+    if (recuperacao) {
+        const recVal = parseFloat(recuperacao.valor);
+        media = media === null ? recVal : Math.max(media, recVal);
+    }
+    return media;
 }
 
 function agruparPorMateria(notas) {
@@ -219,15 +227,16 @@ function Boletim({ notas }) {
                         {/* bimestres sempre visíveis */}
                         <div style={{ padding:"16px 20px", display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:12 }}>
                             {[1,2,3,4].map(bim => {
-                                const nBim = nts.filter(n => (n.avaliacao?.bimestre ?? 1) === bim && !n.avaliacao?.bonificacao);
+                                const nBim = nts.filter(n => (n.avaliacao?.bimestre ?? 1) === bim && !n.avaliacao?.bonificacao && n.avaliacao?.tipo !== "RECUPERACAO");
                                 const bonus = nts.filter(n => (n.avaliacao?.bimestre ?? 1) === bim && n.avaliacao?.bonificacao);
-                                const mBim = mediaMateria(nBim);
+                                const recBim = nts.filter(n => (n.avaliacao?.bimestre ?? 1) === bim && n.avaliacao?.tipo === "RECUPERACAO");
+                                const mBim = mediaMateria([...nBim, ...recBim]);
                                 return (
                                     <div key={bim} style={{ background:"#f8faf8", border:"1px solid #eaeef2", borderRadius:8, padding:"12px 14px" }}>
                                         <p style={{ fontSize:10, fontWeight:500, letterSpacing:".1em", textTransform:"uppercase", color:"#9aaa9f", marginBottom:10 }}>
                                             {bim}º Bimestre
                                         </p>
-                                        {nBim.length === 0 && bonus.length === 0 ? (
+                                        {nBim.length === 0 && bonus.length === 0 && recBim.length === 0 ? (
                                             <p style={{ fontSize:12, color:"#9aaa9f" }}>Sem notas</p>
                                         ) : (
                                             <>
@@ -243,6 +252,22 @@ function Boletim({ notas }) {
                                                                 </td>
                                                             </tr>
                                                         ))}
+                                                        {recBim.map(n => {
+                                                            const recVal = parseFloat(n.valor);
+                                                            const mediaBase = mediaMateria(nBim);
+                                                            const aplicou = mediaBase === null || recVal >= mediaBase;
+                                                            return (
+                                                                <tr key={n.id}>
+                                                                    <td style={{ fontSize:12, color:"#b45309", paddingBottom:5, paddingRight:8 }}>
+                                                                        ↩ {n.avaliacao?.descricao || "Recuperação"}
+                                                                        {aplicou && <span style={{ fontSize:10, marginLeft:4, color:"#b45309" }}>✓</span>}
+                                                                    </td>
+                                                                    <td style={{ fontSize:13, fontWeight:600, color:"#b45309", textAlign:"right", paddingBottom:5 }}>
+                                                                        {fmt(recVal)}
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
                                                         {bonus.map(n => (
                                                             <tr key={n.id}>
                                                                 <td style={{ fontSize:12, color:"#7ec8a0", paddingBottom:5, paddingRight:8 }}>
@@ -255,7 +280,7 @@ function Boletim({ notas }) {
                                                         ))}
                                                     </tbody>
                                                 </table>
-                                                {nBim.length > 0 && (
+                                                {(nBim.length > 0 || recBim.length > 0) && (
                                                     <div style={{ borderTop:"1px solid #eaeef2", paddingTop:7, marginTop:4, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                                                         <span style={{ fontSize:10, color:"#9aaa9f", letterSpacing:".06em", textTransform:"uppercase" }}>Média bim.</span>
                                                         <span style={{ fontSize:14, fontWeight:700, color:corNota(mBim), fontFamily:"'Playfair Display',serif" }}>

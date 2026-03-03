@@ -39,6 +39,9 @@ public class NotaController {
     @Autowired
     private com.dom.schoolcrm.repository.PresencaRepository presencaRepository;
 
+    @Autowired
+    private RecuperacaoParticipanteRepository recuperacaoParticipanteRepository;
+
     @PostMapping("/avaliacao")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO')")
     public ResponseEntity<?> criarAvaliacao(@RequestBody Map<String, String> body) {
@@ -51,8 +54,8 @@ public class NotaController {
 
         if (turma.isEmpty()) return ResponseEntity.badRequest().body("Turma não encontrada");
         if (materia.isEmpty()) return ResponseEntity.badRequest().body("Matéria não encontrada");
-        if (!List.of("PROVA", "TRABALHO", "SIMULADO").contains(tipo)) {
-            return ResponseEntity.badRequest().body("Tipo inválido. Use PROVA, TRABALHO ou SIMULADO");
+        if (!List.of("PROVA", "TRABALHO", "SIMULADO", "RECUPERACAO").contains(tipo)) {
+            return ResponseEntity.badRequest().body("Tipo inválido. Use PROVA, TRABALHO, SIMULADO ou RECUPERACAO");
         }
 
         Avaliacao avaliacao = new Avaliacao();
@@ -61,9 +64,16 @@ public class NotaController {
         avaliacao.setTipo(tipo);
         avaliacao.setDescricao(body.get("descricao"));
         avaliacao.setDataAplicacao(LocalDate.now());
-        String pesoStr = body.get("peso");
-        avaliacao.setPeso(pesoStr != null && !pesoStr.isBlank() ? new BigDecimal(pesoStr) : new BigDecimal("1.0"));
-        avaliacao.setBonificacao(tipo.equals("SIMULADO"));
+
+        if ("RECUPERACAO".equals(tipo) || "SIMULADO".equals(tipo)) {
+            avaliacao.setPeso(new BigDecimal("1.0"));
+            avaliacao.setBonificacao("SIMULADO".equals(tipo));
+        } else {
+            String pesoStr = body.get("peso");
+            avaliacao.setPeso(pesoStr != null && !pesoStr.isBlank() ? new BigDecimal(pesoStr) : new BigDecimal("1.0"));
+            avaliacao.setBonificacao(false);
+        }
+
         String bimestreStr = body.get("bimestre");
         if (bimestreStr != null && !bimestreStr.isBlank()) {
             avaliacao.setBimestre(Integer.parseInt(bimestreStr));
@@ -71,6 +81,34 @@ public class NotaController {
         avaliacaoRepository.save(avaliacao);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(avaliacao);
+    }
+
+    @PutMapping("/avaliacao/{id}/participantes")
+    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO')")
+    @Transactional
+    public ResponseEntity<?> atualizarParticipantes(@PathVariable Long id,
+                                                     @RequestBody Map<String, List<Long>> body) {
+        Optional<Avaliacao> avOpt = avaliacaoRepository.findById(id);
+        if (avOpt.isEmpty()) return ResponseEntity.notFound().build();
+        if (!"RECUPERACAO".equals(avOpt.get().getTipo()))
+            return ResponseEntity.badRequest().body("Apenas avaliações do tipo RECUPERACAO têm participantes");
+
+        List<Long> alunoIds = body.getOrDefault("alunoIds", List.of());
+
+        recuperacaoParticipanteRepository.deleteByAvaliacaoId(id);
+
+        List<Map<String, Object>> resultado = new ArrayList<>();
+        for (Long alunoId : alunoIds) {
+            Optional<Usuario> alunoOpt = usuarioRepository.findById(alunoId);
+            if (alunoOpt.isEmpty()) continue;
+            RecuperacaoParticipante rp = new RecuperacaoParticipante();
+            rp.setAvaliacao(avOpt.get());
+            rp.setAluno(alunoOpt.get());
+            recuperacaoParticipanteRepository.save(rp);
+            resultado.add(Map.of("alunoId", alunoId, "alunoNome", alunoOpt.get().getNome()));
+        }
+
+        return ResponseEntity.ok(Map.of("participantes", resultado));
     }
 
     @PostMapping("/lancar")
@@ -163,6 +201,18 @@ public class NotaController {
                     "valor", n.getValor(),
                     "notaId", n.getId()
             )).toList());
+
+            if ("RECUPERACAO".equals(av.getTipo())) {
+                List<RecuperacaoParticipante> participantes =
+                        recuperacaoParticipanteRepository.findByAvaliacaoId(av.getId());
+                item.put("recuperacaoParticipantes", participantes.stream().map(rp -> Map.of(
+                        "alunoId", rp.getAluno().getId(),
+                        "alunoNome", rp.getAluno().getNome()
+                )).toList());
+            } else {
+                item.put("recuperacaoParticipantes", List.of());
+            }
+
             resultado.add(item);
         }
         return ResponseEntity.ok(resultado);
@@ -176,18 +226,15 @@ public class NotaController {
         if (alunoOpt.isEmpty() || turmaOpt.isEmpty())
             return ResponseEntity.badRequest().body("Aluno ou turma não encontrado");
 
-        // Busca todas as notas do aluno nessa turma
         List<Nota> todasNotas = notaRepository.findByAlunoId(alunoId).stream()
                 .filter(n -> n.getAvaliacao().getTurma().getId().equals(turmaId))
                 .toList();
 
-        // Busca todas as presenças do aluno nessa turma
         List<com.dom.schoolcrm.entity.Presenca> todasPresencas = presencaRepository
                 .findAll().stream()
                 .filter(p -> p.getAluno().getId().equals(alunoId) && p.getTurma().getId().equals(turmaId))
                 .toList();
 
-        // Agrupa por matéria
         Map<Long, Map<String, Object>> porMateria = new LinkedHashMap<>();
 
         for (Nota nota : todasNotas) {
@@ -223,12 +270,10 @@ public class NotaController {
             ));
         }
 
-        // Conta faltas por matéria/bimestre (simplificado: conta por data/matéria)
         for (com.dom.schoolcrm.entity.Presenca p : todasPresencas) {
             if (!p.getPresente()) {
                 Long matId = p.getMateria().getId();
                 if (porMateria.containsKey(matId)) {
-                    // faltas totais por matéria (sem bimestre)
                     Map<String,Object> mat = porMateria.get(matId);
                     int faltas = mat.containsKey("totalFaltas") ? (int) mat.get("totalFaltas") : 0;
                     mat.put("totalFaltas", faltas + 1);
@@ -236,7 +281,6 @@ public class NotaController {
             }
         }
 
-        // Calcula médias por bimestre e média anual
         for (Map<String,Object> mat : porMateria.values()) {
             @SuppressWarnings("unchecked")
             java.util.TreeMap<Integer, Map<String,Object>> bimestres =
@@ -244,7 +288,6 @@ public class NotaController {
 
             BigDecimal somaMedias = BigDecimal.ZERO;
             int countBim = 0;
-            BigDecimal bonusTotal = BigDecimal.ZERO;
 
             for (Map.Entry<Integer, Map<String,Object>> entry : bimestres.entrySet()) {
                 @SuppressWarnings("unchecked")
@@ -253,25 +296,42 @@ public class NotaController {
                 BigDecimal somaPonderada = BigDecimal.ZERO;
                 BigDecimal somaPesos = BigDecimal.ZERO;
                 BigDecimal bonus = BigDecimal.ZERO;
+                BigDecimal recuperacaoNota = null;
 
                 for (Map<String,Object> n : notas) {
+                    String tipo = (String) n.get("tipo");
                     boolean isBon = (boolean) n.get("bonificacao");
                     BigDecimal val = (BigDecimal) n.get("valor");
                     BigDecimal peso = (BigDecimal) n.get("peso");
-                    if (isBon) { bonus = bonus.add(val); }
-                    else { somaPonderada = somaPonderada.add(val.multiply(peso)); somaPesos = somaPesos.add(peso); }
+
+                    if ("RECUPERACAO".equals(tipo)) {
+                        recuperacaoNota = val;
+                    } else if (isBon) {
+                        bonus = bonus.add(val);
+                    } else {
+                        somaPonderada = somaPonderada.add(val.multiply(peso));
+                        somaPesos = somaPesos.add(peso);
+                    }
                 }
 
                 BigDecimal media = somaPesos.compareTo(BigDecimal.ZERO) > 0
                         ? somaPonderada.divide(somaPesos, 2, RoundingMode.HALF_UP)
                         : BigDecimal.ZERO;
+
+                // Recuperação: mantém a maior entre média do bimestre e nota de recuperação
+                if (recuperacaoNota != null) {
+                    media = media.max(recuperacaoNota);
+                }
+
                 BigDecimal mediaComBonus = media.add(bonus)
                         .min(BigDecimal.TEN)
                         .setScale(1, RoundingMode.HALF_UP);
 
                 entry.getValue().put("media", mediaComBonus);
-                bonusTotal = bonusTotal.add(bonus);
-                if (somaPesos.compareTo(BigDecimal.ZERO) > 0) { somaMedias = somaMedias.add(mediaComBonus); countBim++; }
+                if (somaPesos.compareTo(BigDecimal.ZERO) > 0 || recuperacaoNota != null) {
+                    somaMedias = somaMedias.add(mediaComBonus);
+                    countBim++;
+                }
             }
 
             BigDecimal mediaAnual = countBim > 0
@@ -280,7 +340,6 @@ public class NotaController {
             mat.put("mediaAnual", mediaAnual);
             mat.put("totalFaltas", mat.getOrDefault("totalFaltas", 0));
 
-            // frequência por matéria
             long totalAulas = todasPresencas.stream()
                     .filter(p -> p.getMateria().getId().equals(mat.get("materiaId")))
                     .count();
@@ -295,7 +354,6 @@ public class NotaController {
             mat.put("frequenciaMateria", freqMateria);
         }
 
-        // Frequência geral
         long totalAulasGeral = todasPresencas.size();
         long faltasGeral = todasPresencas.stream().filter(p -> !p.getPresente()).count();
         double freqGeral = totalAulasGeral > 0 ? Math.round((totalAulasGeral - faltasGeral) * 1000.0 / totalAulasGeral) / 10.0 : 100.0;
@@ -318,6 +376,7 @@ public class NotaController {
         if (!avaliacaoRepository.existsById(id))
             return ResponseEntity.notFound().build();
 
+        recuperacaoParticipanteRepository.deleteByAvaliacaoId(id);
         notaRepository.deleteAll(notaRepository.findByAvaliacaoId(id));
         avaliacaoRepository.deleteById(id);
 
