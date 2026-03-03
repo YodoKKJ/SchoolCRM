@@ -1798,6 +1798,9 @@ function Lancamentos({ anoLetivo }) {
     const [formAv, setFormAv] = useState({ tipo:"PROVA", descricao:"", peso:"1.0", bonificacao:false, bimestre:"1" });
     const [criandoAv, setCriandoAv] = useState(false);
     const [bimestroFiltro, setBimestroFiltro] = useState("");
+    const [modalParticipantes, setModalParticipantes] = useState(null);
+    const [participantesSel, setParticipantesSel] = useState(new Set());
+    const [salvandoPart, setSalvandoPart] = useState(false);
 
     // ── presença
     const [dataAula, setDataAula] = useState(new Date().toISOString().slice(0,10));
@@ -1886,23 +1889,56 @@ function Lancamentos({ anoLetivo }) {
         setNotasEdit(init);
     };
 
+    const abrirModalParticipantes = (av) => {
+        setModalParticipantes(av);
+        const ids = new Set((av.recuperacaoParticipantes || []).map(p => p.alunoId));
+        setParticipantesSel(ids.size > 0 ? ids : new Set(alunos.map(a => a.id)));
+    };
+
+    const salvarParticipantes = async () => {
+        if (!modalParticipantes) return;
+        setSalvandoPart(true);
+        try {
+            await api.put(`/notas/avaliacao/${modalParticipantes.id}/participantes`, {
+                alunoIds: [...participantesSel]
+            });
+            flash("Participantes salvos!");
+            const r = await api.get("/notas/avaliacoes", { params: { turmaId, materiaId } });
+            setAvaliacoes(r.data || []);
+            if (avaliacaoSel?.id === modalParticipantes.id) {
+                const updated = (r.data || []).find(a => a.id === modalParticipantes.id);
+                if (updated) selecionarAvaliacao(updated);
+            }
+            setModalParticipantes(null);
+        } catch { flash("Erro ao salvar participantes.", "erro"); }
+        setSalvandoPart(false);
+    };
+
     const criarAvaliacao = async (e) => {
         e.preventDefault();
         try {
-            await api.post("/notas/avaliacao", { turmaId: String(turmaId), materiaId: String(materiaId), ...formAv, bimestre: formAv.bimestre });
+            const resp = await api.post("/notas/avaliacao", { turmaId: String(turmaId), materiaId: String(materiaId), ...formAv, bimestre: formAv.bimestre });
+            const novaAv = resp.data;
             flash("Avaliação criada!");
             setCriandoAv(false);
             setFormAv({ tipo:"PROVA", descricao:"", peso:"1.0", bonificacao:false, bimestre:"1" });
             const r = await api.get("/notas/avaliacoes", { params: { turmaId, materiaId } });
             setAvaliacoes(r.data || []);
+            if (formAv.tipo === "RECUPERACAO") {
+                const avCriada = (r.data || []).find(a => a.id === novaAv.id);
+                if (avCriada) abrirModalParticipantes(avCriada);
+            }
         } catch { flash("Erro ao criar avaliação.", "erro"); }
     };
 
     const salvarNotas = async () => {
         if (!avaliacaoSel) return;
         setSalvando(true);
+        const alunosAlvo = avaliacaoSel.tipo === "RECUPERACAO"
+            ? alunos.filter(a => (avaliacaoSel.recuperacaoParticipantes || []).some(p => p.alunoId === a.id))
+            : alunos;
         let erros = 0;
-        for (const aluno of alunos) {
+        for (const aluno of alunosAlvo) {
             const val = notasEdit[aluno.id];
             if (val === undefined || val === "") continue;
             try {
@@ -1960,8 +1996,11 @@ function Lancamentos({ anoLetivo }) {
         setHistoricoPresenca(r.data || {});
     };
 
-    const tipoLabel = { PROVA:"Prova", TRABALHO:"Trabalho", SIMULADO:"Simulado (bônus)" };
-    const tipoColor = { PROVA:{ bg:"#f0f5f2", color:"#2d6a4f" }, TRABALHO:{ bg:"#f5f3ee", color:"#7a5c2e" }, SIMULADO:{ bg:"#f0f0f8", color:"#4a4a8a" } };
+    const tipoLabel = { PROVA:"Prova", TRABALHO:"Trabalho", SIMULADO:"Simulado (bônus)", RECUPERACAO:"Recuperação" };
+    const tipoColor = { PROVA:{ bg:"#f0f5f2", color:"#2d6a4f" }, TRABALHO:{ bg:"#f5f3ee", color:"#7a5c2e" }, SIMULADO:{ bg:"#f0f0f8", color:"#4a4a8a" }, RECUPERACAO:{ bg:"#fff3e0", color:"#b45309" } };
+    const alunosNaTabela = avaliacaoSel?.tipo === "RECUPERACAO"
+        ? alunos.filter(a => (avaliacaoSel.recuperacaoParticipantes || []).some(p => p.alunoId === a.id))
+        : alunos;
 
     // ── render seletor ──────────────────────────────────────────────────────
     const semSelecao = !turmaId || !materiaId;
@@ -2063,7 +2102,7 @@ function Lancamentos({ anoLetivo }) {
                                     {lista.map(av => {
                                         const tc = tipoColor[av.tipo] || tipoColor.PROVA;
                                         const ativa = avaliacaoSel?.id === av.id;
-                                        const lancadas = av.notas.length;
+                                        const isRec = av.tipo === "RECUPERACAO";
                                         return (
                                             <div key={av.id} onClick={() => selecionarAvaliacao(av)}
                                                  style={{ padding:"14px 20px", display:"flex", alignItems:"center", gap:16,
@@ -2071,7 +2110,7 @@ function Lancamentos({ anoLetivo }) {
                                                      background: ativa ? "#f8faf8" : "white",
                                                      borderLeft: ativa ? "3px solid #0d1f18" : "3px solid transparent" }}>
                                                 <span className="dd-badge" style={{ background:tc.bg, color:tc.color, flexShrink:0 }}>
-                                                    {tipoLabel[av.tipo]}
+                                                    {tipoLabel[av.tipo] || av.tipo}
                                                 </span>
                                                 <span style={{ fontSize:10, fontWeight:600, color:"#1A759F", background:"#e8f3fb",
                                                     padding:"2px 7px", letterSpacing:".04em", flexShrink:0 }}>
@@ -2082,23 +2121,38 @@ function Lancamentos({ anoLetivo }) {
                                                         {av.descricao || tipoLabel[av.tipo]}
                                                     </p>
                                                     <p style={{ fontSize:11, color:"#9aaa9f", marginTop:2 }}>
-                                                        Peso {av.peso} · {av.dataAplicacao || "sem data"}
-                                                        {av.bonificacao && " · ✦ Bônus"}
+                                                        {isRec
+                                                            ? "Substitui a média do bimestre se a nota for maior"
+                                                            : `Peso ${av.peso} · ${av.dataAplicacao || "sem data"}${av.bonificacao ? " · ✦ Bônus" : ""}`
+                                                        }
                                                     </p>
                                                 </div>
-                                                <span style={{ fontSize:11, color:"#9aaa9f" }}>
-                                                    {lancadas}/{alunos.length} notas
-                                                </span>
-                                                <button
-                                                    onClick={(e) => deletarAvaliacao(av, e)}
-                                                    title="Excluir avaliação"
-                                                    style={{ background:"none", border:"none", cursor:"pointer",
-                                                        color:"#c0392b", padding:"4px 6px", borderRadius:4,
-                                                        fontSize:14, lineHeight:1, flexShrink:0,
-                                                        opacity: 0.6 }}
-                                                    onMouseEnter={e => e.currentTarget.style.opacity = "1"}
-                                                    onMouseLeave={e => e.currentTarget.style.opacity = "0.6"}
-                                                >✕</button>
+                                                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                                    {isRec && (
+                                                        <button
+                                                            onClick={e => { e.stopPropagation(); abrirModalParticipantes(av); }}
+                                                            style={{ fontSize:11, padding:"4px 10px", border:"1px solid #f0c070",
+                                                                background:"#fff8e8", color:"#b45309", borderRadius:4, cursor:"pointer" }}>
+                                                            Participantes ({(av.recuperacaoParticipantes || []).length})
+                                                        </button>
+                                                    )}
+                                                    <span style={{ fontSize:11, color:"#9aaa9f" }}>
+                                                        {isRec
+                                                            ? `${av.notas.length}/${(av.recuperacaoParticipantes || []).length} notas`
+                                                            : `${av.notas.length}/${alunos.length} notas`
+                                                        }
+                                                    </span>
+                                                    <button
+                                                        onClick={(e) => deletarAvaliacao(av, e)}
+                                                        title="Excluir avaliação"
+                                                        style={{ background:"none", border:"none", cursor:"pointer",
+                                                            color:"#c0392b", padding:"4px 6px", borderRadius:4,
+                                                            fontSize:14, lineHeight:1, flexShrink:0,
+                                                            opacity: 0.6 }}
+                                                        onMouseEnter={e => e.currentTarget.style.opacity = "1"}
+                                                        onMouseLeave={e => e.currentTarget.style.opacity = "0.6"}
+                                                    >✕</button>
+                                                </div>
                                             </div>
                                         );
                                     })}
@@ -2114,61 +2168,82 @@ function Lancamentos({ anoLetivo }) {
                                 <div>
                                     <span className="dd-section-title">{avaliacaoSel.descricao || tipoLabel[avaliacaoSel.tipo]}</span>
                                     <p style={{ fontSize:11, color:"#9aaa9f", marginTop:2 }}>
-                                        {avaliacaoSel.bonificacao
-                                            ? "Bônus — valor entre 0.00 e 1.00, não entra no denominador da média"
-                                            : `Peso ${avaliacaoSel.peso} — nota de 0 a 10`}
+                                        {avaliacaoSel.tipo === "RECUPERACAO"
+                                            ? `Recuperação · ${avaliacaoSel.bimestre}º Bimestre · nota de 0 a 10`
+                                            : avaliacaoSel.bonificacao
+                                                ? "Bônus — valor entre 0.00 e 1.00, não entra no denominador da média"
+                                                : `Peso ${avaliacaoSel.peso} — nota de 0 a 10`}
                                     </p>
                                 </div>
-                                <button className="dd-btn-primary" onClick={salvarNotas} disabled={salvando}>
-                                    {salvando ? "Salvando..." : "Salvar Notas →"}
-                                </button>
+                                <div style={{ display:"flex", gap:8 }}>
+                                    {avaliacaoSel.tipo === "RECUPERACAO" && (
+                                        <button className="dd-btn-ghost" style={{ fontSize:12 }}
+                                                onClick={() => abrirModalParticipantes(avaliacaoSel)}>
+                                            Editar Participantes
+                                        </button>
+                                    )}
+                                    <button className="dd-btn-primary" onClick={salvarNotas} disabled={salvando}>
+                                        {salvando ? "Salvando..." : "Salvar Notas →"}
+                                    </button>
+                                </div>
                             </div>
-                            <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
-                                <thead>
-                                <tr>
-                                    <th>Aluno</th>
-                                    <th style={{ width:180 }}>Nota {avaliacaoSel.bonificacao ? "(0.00–1.00)" : "(0–10)"}</th>
-                                    <th style={{ width:80 }}>Status</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {alunos.map(aluno => {
-                                    const val = notasEdit[aluno.id] ?? "";
-                                    const temNota = avaliacaoSel.notas.some(n => n.alunoId === aluno.id);
-                                    return (
-                                        <tr key={aluno.id}>
-                                            <td>
-                                                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                                                    <div style={{ width:26, height:26, background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color:"#7ec8a0", flexShrink:0 }}>
-                                                        {aluno.nome.charAt(0)}
+                            {avaliacaoSel.tipo === "RECUPERACAO" && alunosNaTabela.length === 0 && (
+                                <div style={{ padding:"32px", textAlign:"center", fontSize:12, color:"#9aaa9f" }}>
+                                    Nenhum participante selecionado.{" "}
+                                    <button onClick={() => abrirModalParticipantes(avaliacaoSel)}
+                                            style={{ background:"none", border:"none", color:"#b45309", cursor:"pointer", fontSize:12, textDecoration:"underline" }}>
+                                        Adicionar participantes
+                                    </button>
+                                </div>
+                            )}
+                            {alunosNaTabela.length > 0 && (
+                                <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
+                                    <thead>
+                                    <tr>
+                                        <th>Aluno</th>
+                                        <th style={{ width:180 }}>Nota {avaliacaoSel.bonificacao ? "(0.00–1.00)" : "(0–10)"}</th>
+                                        <th style={{ width:80 }}>Status</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {alunosNaTabela.map(aluno => {
+                                        const val = notasEdit[aluno.id] ?? "";
+                                        const temNota = avaliacaoSel.notas.some(n => n.alunoId === aluno.id);
+                                        return (
+                                            <tr key={aluno.id}>
+                                                <td>
+                                                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                                        <div style={{ width:26, height:26, background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color:"#7ec8a0", flexShrink:0 }}>
+                                                            {aluno.nome.charAt(0)}
+                                                        </div>
+                                                        <span style={{ fontWeight:500, fontSize:13 }}>{aluno.nome}</span>
                                                     </div>
-                                                    <span style={{ fontWeight:500, fontSize:13 }}>{aluno.nome}</span>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <input
-                                                    type="number"
-                                                    min={0}
-                                                    max={avaliacaoSel.bonificacao ? 1 : 10}
-                                                    step={avaliacaoSel.bonificacao ? 0.01 : 0.1}
-                                                    value={val}
-                                                    onChange={e => setNotasEdit(prev => ({ ...prev, [aluno.id]: e.target.value }))}
-                                                    placeholder="—"
-                                                    className="dd-input"
-                                                    style={{ width:120, padding:"6px 0", fontSize:15, fontFamily:"'Playfair Display',serif", fontWeight:700 }}
-                                                />
-                                            </td>
-                                            <td>
-                                                {temNota
-                                                    ? <span className="dd-badge" style={{ background:"#f0f5f2", color:"#2d6a4f" }}>Lançada</span>
-                                                    : <span className="dd-badge" style={{ background:"#f5f3ee", color:"#7a5c2e" }}>Pendente</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                                </tbody>
-                            </table>
+                                                </td>
+                                                <td>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        max={avaliacaoSel.bonificacao ? 1 : 10}
+                                                        step={avaliacaoSel.bonificacao ? 0.01 : 0.1}
+                                                        value={val}
+                                                        onChange={e => setNotasEdit(prev => ({ ...prev, [aluno.id]: e.target.value }))}
+                                                        placeholder="—"
+                                                        className="dd-input"
+                                                        style={{ width:120, padding:"6px 0", fontSize:15, fontFamily:"'Playfair Display',serif", fontWeight:700 }}
+                                                    />
+                                                </td>
+                                                <td>
+                                                    {temNota
+                                                        ? <span className="dd-badge" style={{ background:"#f0f5f2", color:"#2d6a4f" }}>Lançada</span>
+                                                        : <span className="dd-badge" style={{ background:"#f5f3ee", color:"#7a5c2e" }}>Pendente</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                    </tbody>
+                                </table>
+                            )}
                         </div>
                     )}
                 </div>
@@ -2356,14 +2431,15 @@ function Lancamentos({ anoLetivo }) {
                         <form onSubmit={criarAvaliacao} style={{ display:"flex", flexDirection:"column", gap:20 }}>
                             <div>
                                 <label className="dd-label">Tipo</label>
-                                <div style={{ display:"flex", gap:0 }}>
-                                    {["PROVA","TRABALHO","SIMULADO"].map(t => (
+                                <div style={{ display:"flex", gap:0, flexWrap:"wrap" }}>
+                                    {["PROVA","TRABALHO","SIMULADO","RECUPERACAO"].map((t, i, arr) => (
                                         <button key={t} type="button" onClick={() => setFormAv(p => ({...p, tipo:t, bonificacao: t==="SIMULADO"}))}
-                                                style={{ flex:1, padding:"9px", border:"1px solid #eaeef2", borderRight: t!=="SIMULADO"?"none":"1px solid #eaeef2",
-                                                    background: formAv.tipo===t ? "#0d1f18" : "white",
-                                                    color: formAv.tipo===t ? "#7ec8a0" : "#9aaa9f",
+                                                style={{ flex:"1 0 auto", padding:"9px", border:"1px solid #eaeef2",
+                                                    borderRight: i < arr.length - 1 ? "none" : "1px solid #eaeef2",
+                                                    background: formAv.tipo===t ? (t==="RECUPERACAO" ? "#7a3800" : "#0d1f18") : "white",
+                                                    color: formAv.tipo===t ? (t==="RECUPERACAO" ? "#ffd08a" : "#7ec8a0") : "#9aaa9f",
                                                     fontSize:11, fontWeight:500, letterSpacing:".06em", textTransform:"uppercase", cursor:"pointer" }}>
-                                            {t==="SIMULADO" ? "Bônus" : t}
+                                            {t==="SIMULADO" ? "Bônus" : t==="RECUPERACAO" ? "Recup." : t}
                                         </button>
                                     ))}
                                 </div>
@@ -2393,7 +2469,7 @@ function Lancamentos({ anoLetivo }) {
                                     <div className="dd-input-line" />
                                 </div>
                             </div>
-                            {formAv.tipo !== "SIMULADO" && (
+                            {formAv.tipo !== "SIMULADO" && formAv.tipo !== "RECUPERACAO" && (
                                 <div>
                                     <label className="dd-label">Peso</label>
                                     <div className="dd-input-wrap">
@@ -2408,11 +2484,87 @@ function Lancamentos({ anoLetivo }) {
                                     ✦ Bônus — a nota (0.00 a 1.00) é somada à média final sem entrar no denominador.
                                 </div>
                             )}
+                            {formAv.tipo === "RECUPERACAO" && (
+                                <div style={{ background:"#fff8e8", border:"1px solid #f0c070", borderRadius:6, padding:"12px 14px", fontSize:12, color:"#7a4800" }}>
+                                    ↩ Recuperação — substitui a média do bimestre se a nota for maior. Após criar, você escolherá quais alunos participam.
+                                </div>
+                            )}
                             <div style={{ display:"flex", gap:8, marginTop:4 }}>
                                 <button type="button" onClick={() => setCriandoAv(false)} className="dd-btn-ghost" style={{ flex:1 }}>Cancelar</button>
                                 <button type="submit" className="dd-btn-primary" style={{ flex:1 }}>Criar Avaliação →</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal participantes da recuperação */}
+            {modalParticipantes && (
+                <div className="dd-modal-overlay">
+                    <div className="dd-modal" style={{ maxWidth:480 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div>
+                                <p className="dd-modal-title">Participantes da Recuperação</p>
+                                <p className="dd-modal-sub">
+                                    {modalParticipantes.bimestre}º Bimestre · {modalParticipantes.descricao || "Recuperação"}
+                                </p>
+                            </div>
+                            <button onClick={() => setModalParticipantes(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}>
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+                            <button type="button" className="dd-btn-ghost" style={{ fontSize:11 }}
+                                    onClick={() => setParticipantesSel(new Set(alunos.map(a => a.id)))}>
+                                Selecionar todos
+                            </button>
+                            <button type="button" className="dd-btn-ghost" style={{ fontSize:11 }}
+                                    onClick={() => setParticipantesSel(new Set())}>
+                                Desmarcar todos
+                            </button>
+                        </div>
+
+                        <div style={{ display:"flex", flexDirection:"column", gap:8, maxHeight:340, overflowY:"auto", marginBottom:20 }}>
+                            {alunos.map(aluno => {
+                                const marcado = participantesSel.has(aluno.id);
+                                return (
+                                    <label key={aluno.id}
+                                           style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 12px",
+                                               border:"1px solid", borderColor: marcado ? "#f0c070" : "#eaeef2",
+                                               borderRadius:6, cursor:"pointer",
+                                               background: marcado ? "#fff8e8" : "white" }}>
+                                        <input type="checkbox" checked={marcado}
+                                               onChange={() => setParticipantesSel(prev => {
+                                                   const next = new Set(prev);
+                                                   next.has(aluno.id) ? next.delete(aluno.id) : next.add(aluno.id);
+                                                   return next;
+                                               })}
+                                               style={{ accentColor:"#b45309", width:15, height:15, flexShrink:0 }} />
+                                        <div style={{ width:26, height:26, background:"#0d1f18", display:"flex",
+                                            alignItems:"center", justifyContent:"center", fontSize:11,
+                                            fontWeight:600, color:"#7ec8a0", flexShrink:0 }}>
+                                            {aluno.nome.charAt(0)}
+                                        </div>
+                                        <span style={{ fontSize:13, fontWeight:500, color:"#0d1f18" }}>{aluno.nome}</span>
+                                    </label>
+                                );
+                            })}
+                        </div>
+
+                        <p style={{ fontSize:11, color:"#9aaa9f", marginBottom:16 }}>
+                            {participantesSel.size} de {alunos.length} aluno(s) selecionado(s)
+                        </p>
+
+                        <div style={{ display:"flex", gap:8 }}>
+                            <button type="button" onClick={() => setModalParticipantes(null)} className="dd-btn-ghost" style={{ flex:1 }}>
+                                Cancelar
+                            </button>
+                            <button type="button" onClick={salvarParticipantes} className="dd-btn-primary"
+                                    disabled={salvandoPart} style={{ flex:1 }}>
+                                {salvandoPart ? "Salvando..." : "Salvar Participantes →"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
