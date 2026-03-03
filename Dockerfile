@@ -2,7 +2,7 @@
 FROM node:20-alpine AS frontend
 WORKDIR /app
 COPY schoolcrm-front/package*.json ./
-ARG CACHEBUST=1
+ARG CACHEBUST=2
 RUN npm ci
 COPY schoolcrm-front/ ./
 # VITE_API_URL vazio = mesmo origin (frontend e backend na mesma URL do Railway)
@@ -14,6 +14,7 @@ WORKDIR /app
 COPY pom.xml ./
 # Baixa dependências antes (melhor uso de cache)
 RUN mvn dependency:go-offline -q
+ARG CACHEBUST=2
 COPY src ./src
 # Copia o build do frontend para dentro dos recursos estáticos do Spring Boot
 COPY --from=frontend /app/dist ./src/main/resources/static
