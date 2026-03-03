@@ -404,6 +404,10 @@ function LancarNotas({ vinculos }) {
     const [formAv, setFormAv] = useState({ tipo:"PROVA", descricao:"", peso:"1.0", bonificacao:false, bimestre:"1" });
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
     const [salvando, setSalvando] = useState(false);
+    const [notasComErro, setNotasComErro] = useState({});
+    const [modalParticipantes, setModalParticipantes] = useState(null); // avaliação RECUPERACAO sendo editada
+    const [participantesSel, setParticipantesSel] = useState(new Set());
+    const [salvandoPart, setSalvandoPart] = useState(false);
 
     // turmas únicas do professor
     const turmas = [...new Map(vinculos.map(v => [v.turma?.id, v.turma])).values()].filter(Boolean);
@@ -426,28 +430,88 @@ function LancarNotas({ vinculos }) {
 
     const selecionarAv = (av) => {
         setAvaliacaoSel(av);
+        setNotasComErro({});
         const init = {};
         av.notas.forEach(n => init[n.alunoId] = String(n.valor));
         setNotasEdit(init);
     };
 
+    const abrirModalParticipantes = (av) => {
+        setModalParticipantes(av);
+        const ids = new Set((av.recuperacaoParticipantes || []).map(p => p.alunoId));
+        // Se não tem participantes ainda, seleciona todos por padrão
+        setParticipantesSel(ids.size > 0 ? ids : new Set(alunos.map(a => a.id)));
+    };
+
+    const salvarParticipantes = async () => {
+        if (!modalParticipantes) return;
+        setSalvandoPart(true);
+        try {
+            await api.put(`/notas/avaliacao/${modalParticipantes.id}/participantes`, {
+                alunoIds: [...participantesSel]
+            });
+            flash(setMsg, "Participantes salvos!");
+            const r = await api.get("/notas/avaliacoes", { params: { turmaId, materiaId } });
+            setAvaliacoes(r.data || []);
+            // Atualiza a avaliação selecionada se for a mesma
+            if (avaliacaoSel?.id === modalParticipantes.id) {
+                const updated = (r.data || []).find(a => a.id === modalParticipantes.id);
+                if (updated) selecionarAv(updated);
+            }
+            setModalParticipantes(null);
+        } catch { flash(setMsg, "Erro ao salvar participantes.", "erro"); }
+        setSalvandoPart(false);
+    };
+
     const criarAvaliacao = async (e) => {
         e.preventDefault();
         try {
-            await api.post("/notas/avaliacao", { turmaId: String(turmaId), materiaId: String(materiaId), ...formAv, bimestre: formAv.bimestre });
+            const resp = await api.post("/notas/avaliacao", { turmaId: String(turmaId), materiaId: String(materiaId), ...formAv, bimestre: formAv.bimestre });
+            const novaAv = resp.data;
             flash(setMsg, "Avaliação criada!");
             setCriandoAv(false);
             setFormAv({ tipo:"PROVA", descricao:"", peso:"1.0", bonificacao:false, bimestre:"1" });
             const r = await api.get("/notas/avaliacoes", { params: { turmaId, materiaId } });
             setAvaliacoes(r.data || []);
+            // Para RECUPERACAO, abre o modal de participantes automaticamente
+            if (formAv.tipo === "RECUPERACAO") {
+                const avCriada = (r.data || []).find(a => a.id === novaAv.id);
+                if (avCriada) abrirModalParticipantes(avCriada);
+            }
         } catch { flash(setMsg, "Erro ao criar avaliação.", "erro"); }
     };
 
     const salvarNotas = async () => {
         if (!avaliacaoSel) return;
+        const alunosAlvo = avaliacaoSel.tipo === "RECUPERACAO"
+            ? alunos.filter(a => (avaliacaoSel.recuperacaoParticipantes || []).some(p => p.alunoId === a.id))
+            : alunos;
+
+        // Valida tudo antes de qualquer chamada à API
+        const errosValidacao = {};
+        for (const aluno of alunosAlvo) {
+            const val = notasEdit[aluno.id];
+            if (val === undefined || val === "") continue;
+            const num = parseFloat(val);
+            if (isNaN(num)) {
+                errosValidacao[aluno.id] = true;
+            } else if (avaliacaoSel.bonificacao) {
+                if (num < 0 || num > 1) errosValidacao[aluno.id] = true;
+            } else {
+                if (num < 0 || num > 10) errosValidacao[aluno.id] = true;
+            }
+        }
+        if (Object.keys(errosValidacao).length > 0) {
+            setNotasComErro(errosValidacao);
+            const nomes = alunosAlvo.filter(a => errosValidacao[a.id]).map(a => a.nome).join(", ");
+            flash(setMsg, `Nota inválida — corrija antes de salvar: ${nomes}`, "erro");
+            return;
+        }
+
+        setNotasComErro({});
         setSalvando(true);
         let erros = 0;
-        for (const aluno of alunos) {
+        for (const aluno of alunosAlvo) {
             const val = notasEdit[aluno.id];
             if (val === undefined || val === "") continue;
             try {
@@ -468,10 +532,20 @@ function LancarNotas({ vinculos }) {
         }
     };
 
-    const tipoLabel = { PROVA:"Prova", TRABALHO:"Trabalho", SIMULADO:"Bônus" };
-    const tipoColor = { PROVA:{ bg:"#f0f5f2", color:"#2d6a4f" }, TRABALHO:{ bg:"#f5f3ee", color:"#7a5c2e" }, SIMULADO:{ bg:"#f0f0f8", color:"#4a4a8a" } };
+    const tipoLabel = { PROVA:"Prova", TRABALHO:"Trabalho", SIMULADO:"Bônus", RECUPERACAO:"Recuperação" };
+    const tipoColor = {
+        PROVA:{ bg:"#f0f5f2", color:"#2d6a4f" },
+        TRABALHO:{ bg:"#f5f3ee", color:"#7a5c2e" },
+        SIMULADO:{ bg:"#f0f0f8", color:"#4a4a8a" },
+        RECUPERACAO:{ bg:"#fff3e0", color:"#b45309" }
+    };
 
     const semSelecao = !turmaId || !materiaId;
+
+    // Alunos visíveis na tabela de notas
+    const alunosNaTabela = avaliacaoSel?.tipo === "RECUPERACAO"
+        ? alunos.filter(a => (avaliacaoSel.recuperacaoParticipantes || []).some(p => p.alunoId === a.id))
+        : alunos;
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
@@ -525,6 +599,7 @@ function LancarNotas({ vinculos }) {
                             : avaliacoes.map(av => {
                                 const tc = tipoColor[av.tipo] || tipoColor.PROVA;
                                 const ativa = avaliacaoSel?.id === av.id;
+                                const isRec = av.tipo === "RECUPERACAO";
                                 return (
                                     <div key={av.id} onClick={() => selecionarAv(av)}
                                          style={{ padding:"14px 20px", display:"flex", alignItems:"center", gap:16,
@@ -539,13 +614,28 @@ function LancarNotas({ vinculos }) {
                                                 {av.descricao || tipoLabel[av.tipo]}
                                             </p>
                                             <p style={{ fontSize:11, color:"#9aaa9f", marginTop:2 }}>
-                                                Peso {av.peso} · {av.dataAplicacao || "sem data"}
-                                                {av.bonificacao && " · ✦ Bônus"}
+                                                {isRec
+                                                    ? `${av.bimestre}º Bimestre · substitui média se maior`
+                                                    : `Peso ${av.peso} · ${av.dataAplicacao || "sem data"}${av.bonificacao ? " · ✦ Bônus" : ""}`
+                                                }
                                             </p>
                                         </div>
-                                        <span style={{ fontSize:11, color:"#9aaa9f" }}>
-                                            {av.notas.length}/{alunos.length} notas
-                                        </span>
+                                        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                                            {isRec && (
+                                                <button
+                                                    onClick={e => { e.stopPropagation(); abrirModalParticipantes(av); }}
+                                                    style={{ fontSize:11, padding:"4px 10px", border:"1px solid #f0c070",
+                                                        background:"#fff8e8", color:"#b45309", borderRadius:4, cursor:"pointer" }}>
+                                                    Participantes ({(av.recuperacaoParticipantes || []).length})
+                                                </button>
+                                            )}
+                                            <span style={{ fontSize:11, color:"#9aaa9f" }}>
+                                                {isRec
+                                                    ? `${av.notas.length}/${(av.recuperacaoParticipantes || []).length} notas`
+                                                    : `${av.notas.length}/${alunos.length} notas`
+                                                }
+                                            </span>
+                                        </div>
                                     </div>
                                 );
                             })
@@ -559,60 +649,90 @@ function LancarNotas({ vinculos }) {
                                 <div>
                                     <span className="pd-section-title">{avaliacaoSel.descricao || tipoLabel[avaliacaoSel.tipo]}</span>
                                     <p style={{ fontSize:11, color:"#9aaa9f", marginTop:2 }}>
-                                        {avaliacaoSel.bonificacao
-                                            ? "Bônus — valor entre 0.00 e 1.00"
-                                            : `Peso ${avaliacaoSel.peso} — nota de 0 a 10`}
+                                        {avaliacaoSel.tipo === "RECUPERACAO"
+                                            ? `Recuperação · ${avaliacaoSel.bimestre}º Bimestre · nota de 0 a 10`
+                                            : avaliacaoSel.bonificacao
+                                                ? "Bônus — valor entre 0.00 e 1.00"
+                                                : `Peso ${avaliacaoSel.peso} — nota de 0 a 10`}
                                     </p>
                                 </div>
-                                <button className="pd-btn-primary" onClick={salvarNotas} disabled={salvando}>
-                                    {salvando ? "Salvando..." : "Salvar Notas →"}
-                                </button>
+                                <div style={{ display:"flex", gap:8 }}>
+                                    {avaliacaoSel.tipo === "RECUPERACAO" && (
+                                        <button className="pd-btn-ghost"
+                                                onClick={() => abrirModalParticipantes(avaliacaoSel)}
+                                                style={{ fontSize:12 }}>
+                                            Editar Participantes
+                                        </button>
+                                    )}
+                                    <button className="pd-btn-primary" onClick={salvarNotas} disabled={salvando}>
+                                        {salvando ? "Salvando..." : "Salvar Notas →"}
+                                    </button>
+                                </div>
                             </div>
-                            <table className="pd-table">
-                                <thead>
-                                <tr>
-                                    <th>Aluno</th>
-                                    <th style={{ width:200 }}>Nota {avaliacaoSel.bonificacao ? "(0.00–1.00)" : "(0–10)"}</th>
-                                    <th style={{ width:100 }}>Status</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {alunos.map(aluno => {
-                                    const val = notasEdit[aluno.id] ?? "";
-                                    const temNota = avaliacaoSel.notas.some(n => n.alunoId === aluno.id);
-                                    return (
-                                        <tr key={aluno.id}>
-                                            <td>
-                                                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                                                    <div style={{ width:26, height:26, background:"#0d1f18", display:"flex",
-                                                        alignItems:"center", justifyContent:"center", fontSize:11,
-                                                        fontWeight:600, color:"#7ec8a0", flexShrink:0 }}>
-                                                        {aluno.nome.charAt(0)}
+                            {avaliacaoSel.tipo === "RECUPERACAO" && alunosNaTabela.length === 0 && (
+                                <div style={{ padding:"32px", textAlign:"center", fontSize:12, color:"#9aaa9f" }}>
+                                    Nenhum participante selecionado.{" "}
+                                    <button onClick={() => abrirModalParticipantes(avaliacaoSel)}
+                                            style={{ background:"none", border:"none", color:"#b45309", cursor:"pointer", fontSize:12, textDecoration:"underline" }}>
+                                        Adicionar participantes
+                                    </button>
+                                </div>
+                            )}
+                            {alunosNaTabela.length > 0 && (
+                                <table className="pd-table">
+                                    <thead>
+                                    <tr>
+                                        <th>Aluno</th>
+                                        <th style={{ width:200 }}>Nota {avaliacaoSel.bonificacao ? "(0.00–1.00)" : "(0–10)"}</th>
+                                        <th style={{ width:100 }}>Status</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+                                    {alunosNaTabela.map(aluno => {
+                                        const val = notasEdit[aluno.id] ?? "";
+                                        const temNota = avaliacaoSel.notas.some(n => n.alunoId === aluno.id);
+                                        const temErro = !!notasComErro[aluno.id];
+                                        return (
+                                            <tr key={aluno.id} style={{ background: temErro ? "#fff5f5" : undefined }}>
+                                                <td>
+                                                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                                        <div style={{ width:26, height:26, background:"#0d1f18", display:"flex",
+                                                            alignItems:"center", justifyContent:"center", fontSize:11,
+                                                            fontWeight:600, color:"#7ec8a0", flexShrink:0 }}>
+                                                            {aluno.nome.charAt(0)}
+                                                        </div>
+                                                        <span style={{ fontWeight:500 }}>{aluno.nome}</span>
                                                     </div>
-                                                    <span style={{ fontWeight:500 }}>{aluno.nome}</span>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <input type="number"
-                                                       min={0} max={avaliacaoSel.bonificacao ? 1 : 10}
-                                                       step={avaliacaoSel.bonificacao ? 0.01 : 0.1}
-                                                       value={val}
-                                                       onChange={e => setNotasEdit(p => ({ ...p, [aluno.id]: e.target.value }))}
-                                                       placeholder="—"
-                                                       className="pd-input"
-                                                       style={{ width:120, fontSize:16, fontFamily:"'Playfair Display',serif", fontWeight:700 }} />
-                                            </td>
-                                            <td>
-                                                {temNota
-                                                    ? <span className="pd-badge" style={{ background:"#f0f5f2", color:"#2d6a4f" }}>Lançada</span>
-                                                    : <span className="pd-badge" style={{ background:"#f5f3ee", color:"#7a5c2e" }}>Pendente</span>
-                                                }
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                                </tbody>
-                            </table>
+                                                </td>
+                                                <td>
+                                                    <input type="number"
+                                                           min={0} max={avaliacaoSel.bonificacao ? 1 : 10}
+                                                           step={avaliacaoSel.bonificacao ? 0.01 : 0.1}
+                                                           value={val}
+                                                           onChange={e => {
+                                                               setNotasEdit(p => ({ ...p, [aluno.id]: e.target.value }));
+                                                               if (notasComErro[aluno.id]) setNotasComErro(p => { const n = {...p}; delete n[aluno.id]; return n; });
+                                                           }}
+                                                           placeholder="—"
+                                                           className="pd-input"
+                                                           style={{ width:120, fontSize:16, fontFamily:"'Playfair Display',serif", fontWeight:700,
+                                                               outline: temErro ? "2px solid #c0392b" : undefined,
+                                                               borderRadius: temErro ? 2 : undefined }} />
+                                                </td>
+                                                <td>
+                                                    {temErro
+                                                        ? <span className="pd-badge" style={{ background:"#fdf0f0", color:"#c0392b" }}>Inválida</span>
+                                                        : temNota
+                                                            ? <span className="pd-badge" style={{ background:"#f0f5f2", color:"#2d6a4f" }}>Lançada</span>
+                                                            : <span className="pd-badge" style={{ background:"#f5f3ee", color:"#7a5c2e" }}>Pendente</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                    </tbody>
+                                </table>
+                            )}
                         </div>
                     )}
                 </div>
@@ -653,17 +773,17 @@ function LancarNotas({ vinculos }) {
                             </div>
                             <div>
                                 <label className="pd-label">Tipo</label>
-                                <div style={{ display:"flex" }}>
-                                    {["PROVA","TRABALHO","SIMULADO"].map((t, i) => (
+                                <div style={{ display:"flex", flexWrap:"wrap", gap:0 }}>
+                                    {["PROVA","TRABALHO","SIMULADO","RECUPERACAO"].map((t, i, arr) => (
                                         <button key={t} type="button"
                                                 onClick={() => setFormAv(p => ({ ...p, tipo:t, bonificacao: t==="SIMULADO" }))}
-                                                style={{ flex:1, padding:"9px", border:"1px solid #eaeef2",
-                                                    borderRight: i < 2 ? "none" : "1px solid #eaeef2",
-                                                    background: formAv.tipo===t ? "#0d1f18" : "white",
-                                                    color: formAv.tipo===t ? "#7ec8a0" : "#9aaa9f",
+                                                style={{ flex:"1 0 auto", padding:"9px", border:"1px solid #eaeef2",
+                                                    borderRight: i < arr.length - 1 ? "none" : "1px solid #eaeef2",
+                                                    background: formAv.tipo===t ? (t==="RECUPERACAO" ? "#7a3800" : "#0d1f18") : "white",
+                                                    color: formAv.tipo===t ? (t==="RECUPERACAO" ? "#ffd08a" : "#7ec8a0") : "#9aaa9f",
                                                     fontSize:11, fontWeight:500, letterSpacing:".06em",
                                                     textTransform:"uppercase", cursor:"pointer" }}>
-                                            {t==="SIMULADO" ? "Bônus" : t}
+                                            {t==="SIMULADO" ? "Bônus" : t==="RECUPERACAO" ? "Recup." : t}
                                         </button>
                                     ))}
                                 </div>
@@ -677,7 +797,7 @@ function LancarNotas({ vinculos }) {
                                     <div className="pd-input-line" />
                                 </div>
                             </div>
-                            {formAv.tipo !== "SIMULADO" && (
+                            {formAv.tipo !== "SIMULADO" && formAv.tipo !== "RECUPERACAO" && (
                                 <div>
                                     <label className="pd-label">Peso</label>
                                     <div className="pd-input-wrap">
@@ -691,11 +811,87 @@ function LancarNotas({ vinculos }) {
                             {formAv.tipo === "SIMULADO" && (
                                 <div className="pd-ok">✦ Bônus — somado à média final sem entrar no denominador.</div>
                             )}
+                            {formAv.tipo === "RECUPERACAO" && (
+                                <div style={{ background:"#fff8e8", border:"1px solid #f0c070", borderRadius:6, padding:"12px 14px", fontSize:12, color:"#7a4800" }}>
+                                    ↩ Recuperação — substitui a média do bimestre se a nota for maior. Após criar, você escolherá quais alunos participam.
+                                </div>
+                            )}
                             <div style={{ display:"flex", gap:8, marginTop:4 }}>
                                 <button type="button" onClick={() => setCriandoAv(false)} className="pd-btn-ghost" style={{ flex:1 }}>Cancelar</button>
                                 <button type="submit" className="pd-btn-primary" style={{ flex:1 }}>Criar →</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal participantes da recuperação */}
+            {modalParticipantes && (
+                <div className="pd-modal-overlay">
+                    <div className="pd-modal" style={{ maxWidth:480 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div>
+                                <p className="pd-modal-title">Participantes da Recuperação</p>
+                                <p className="pd-modal-sub">
+                                    {modalParticipantes.bimestre}º Bimestre · {modalParticipantes.descricao || "Recuperação"}
+                                </p>
+                            </div>
+                            <button onClick={() => setModalParticipantes(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}>
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+                            <button type="button" className="pd-btn-ghost" style={{ fontSize:11 }}
+                                    onClick={() => setParticipantesSel(new Set(alunos.map(a => a.id)))}>
+                                Selecionar todos
+                            </button>
+                            <button type="button" className="pd-btn-ghost" style={{ fontSize:11 }}
+                                    onClick={() => setParticipantesSel(new Set())}>
+                                Desmarcar todos
+                            </button>
+                        </div>
+
+                        <div style={{ display:"flex", flexDirection:"column", gap:8, maxHeight:340, overflowY:"auto", marginBottom:20 }}>
+                            {alunos.map(aluno => {
+                                const marcado = participantesSel.has(aluno.id);
+                                return (
+                                    <label key={aluno.id}
+                                           style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 12px",
+                                               border:"1px solid", borderColor: marcado ? "#f0c070" : "#eaeef2",
+                                               borderRadius:6, cursor:"pointer",
+                                               background: marcado ? "#fff8e8" : "white" }}>
+                                        <input type="checkbox" checked={marcado}
+                                               onChange={() => setParticipantesSel(prev => {
+                                                   const next = new Set(prev);
+                                                   next.has(aluno.id) ? next.delete(aluno.id) : next.add(aluno.id);
+                                                   return next;
+                                               })}
+                                               style={{ accentColor:"#b45309", width:15, height:15, flexShrink:0 }} />
+                                        <div style={{ width:26, height:26, background:"#0d1f18", display:"flex",
+                                            alignItems:"center", justifyContent:"center", fontSize:11,
+                                            fontWeight:600, color:"#7ec8a0", flexShrink:0 }}>
+                                            {aluno.nome.charAt(0)}
+                                        </div>
+                                        <span style={{ fontSize:13, fontWeight:500, color:"#0d1f18" }}>{aluno.nome}</span>
+                                    </label>
+                                );
+                            })}
+                        </div>
+
+                        <p style={{ fontSize:11, color:"#9aaa9f", marginBottom:16 }}>
+                            {participantesSel.size} de {alunos.length} aluno(s) selecionado(s)
+                        </p>
+
+                        <div style={{ display:"flex", gap:8 }}>
+                            <button type="button" onClick={() => setModalParticipantes(null)} className="pd-btn-ghost" style={{ flex:1 }}>
+                                Cancelar
+                            </button>
+                            <button type="button" onClick={salvarParticipantes} className="pd-btn-primary"
+                                    disabled={salvandoPart} style={{ flex:1 }}>
+                                {salvandoPart ? "Salvando..." : "Salvar Participantes →"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
