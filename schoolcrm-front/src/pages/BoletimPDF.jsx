@@ -248,6 +248,7 @@ export function BotaoGerarPDF({ boletim, logo }) {
                 scale: 2,
                 useCORS: true,
                 backgroundColor: "#fff",
+                windowWidth: 794,
             });
 
             const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -290,7 +291,7 @@ export function BotaoGerarPDF({ boletim, logo }) {
         <>
             {/* Preview oculto para captura pelo html2canvas */}
             <div style={{ position: "fixed", left: -9999, top: 0, zIndex: -1 }}>
-                <div ref={ref}>
+                <div ref={ref} style={{ width: 794 }}>
                     <BoletimImpresso boletim={boletim} logo={logo} />
                 </div>
             </div>
