@@ -251,9 +251,9 @@ export function BotaoGerarPDF({ boletim, logo }) {
                 windowWidth: 794,
             });
 
-            const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-            const pdfW = pdf.internal.pageSize.getWidth();   // 210mm
-            const pdfH = pdf.internal.pageSize.getHeight();  // 297mm
+            const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [210, 297] });
+            const pdfW = 210;
+            const pdfH = 297;
 
             // Pixels per mm based on canvas width
             const pxPerMm = canvas.width / pdfW;
