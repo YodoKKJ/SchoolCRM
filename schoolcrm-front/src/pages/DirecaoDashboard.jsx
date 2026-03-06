@@ -3820,7 +3820,14 @@ function FinPessoas() {
         api.get("/fin/pessoas", { params }).then(r => setPessoas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     };
 
-    useEffect(() => { carregar(); }, [termoD, filtraTipo, refreshKey]);
+    useEffect(() => {
+        const params = {};
+        if (termoD) params[campoBusca] = termoD;
+        if (filtraTipo) params.tipoPessoa = filtraTipo;
+        api.get("/fin/pessoas", { params })
+            .then(r => setPessoas(Array.isArray(r.data) ? r.data : []))
+            .catch(() => {});
+    }, [termoD, filtraTipo, refreshKey]);
     useEffect(() => {
         api.get("/usuarios/buscar").then(r => setUsuarios(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     }, []);
@@ -3857,7 +3864,7 @@ function FinPessoas() {
 
     const toggleAtivo = async p => {
         await api.patch(`/fin/pessoas/${p.id}/status`).catch(() => {});
-        carregar();
+        setRefreshKey(k => k + 1);
     };
 
     const deletar = async p => {
@@ -3865,7 +3872,7 @@ function FinPessoas() {
         try {
             await api.delete(`/fin/pessoas/${p.id}`);
             flash("Pessoa removida.");
-            carregar();
+            setRefreshKey(k => k + 1);
         } catch(err) {
             flash(err.response?.data || "Erro ao remover.", "err");
         }
