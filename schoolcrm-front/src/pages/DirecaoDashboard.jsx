@@ -3768,6 +3768,35 @@ function FinDashboard() {
 }
 
 // ---- FIN PESSOAS ----
+function validarCPF(cpf) {
+    cpf = cpf.replace(/\D/g, '');
+    if (cpf.length !== 11) return false;
+    if (/^(\d)\1{10}$/.test(cpf)) return false;
+    let sum = 0;
+    for (let i = 0; i < 9; i++) sum += parseInt(cpf[i]) * (10 - i);
+    let r = (sum * 10) % 11;
+    if (r === 10 || r === 11) r = 0;
+    if (r !== parseInt(cpf[9])) return false;
+    sum = 0;
+    for (let i = 0; i < 10; i++) sum += parseInt(cpf[i]) * (11 - i);
+    r = (sum * 10) % 11;
+    if (r === 10 || r === 11) r = 0;
+    return r === parseInt(cpf[10]);
+}
+function validarCNPJ(cnpj) {
+    cnpj = cnpj.replace(/\D/g, '');
+    if (cnpj.length !== 14) return false;
+    if (/^(\d)\1{13}$/.test(cnpj)) return false;
+    let sum = 0, pos = 5;
+    for (let i = 0; i < 12; i++) { sum += parseInt(cnpj[i]) * pos--; if (pos < 2) pos = 9; }
+    let r = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+    if (r !== parseInt(cnpj[12])) return false;
+    sum = 0; pos = 6;
+    for (let i = 0; i < 13; i++) { sum += parseInt(cnpj[i]) * pos--; if (pos < 2) pos = 9; }
+    r = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+    return r === parseInt(cnpj[13]);
+}
+
 function FinPessoas() {
     const [pessoas, setPessoas] = useState([]);
     const [usuarios, setUsuarios] = useState([]);
@@ -3780,6 +3809,7 @@ function FinPessoas() {
     const [form, setForm] = useState({});
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
     const [salvando, setSalvando] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
 
     const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
 
@@ -3790,7 +3820,7 @@ function FinPessoas() {
         api.get("/fin/pessoas", { params }).then(r => setPessoas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     };
 
-    useEffect(() => { carregar(); }, [termoD, filtraTipo]);
+    useEffect(() => { carregar(); }, [termoD, filtraTipo, refreshKey]);
     useEffect(() => {
         api.get("/usuarios/buscar").then(r => setUsuarios(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     }, []);
@@ -3806,6 +3836,12 @@ function FinPessoas() {
 
     const salvar = async e => {
         e.preventDefault();
+        if (form.tipoPessoa === "FISICA" && form.cpf) {
+            if (!validarCPF(form.cpf)) { flash("CPF inválido. Verifique os 11 dígitos.", "err"); return; }
+        }
+        if (form.tipoPessoa === "JURIDICA" && form.cnpj) {
+            if (!validarCNPJ(form.cnpj)) { flash("CNPJ inválido. Verifique os 14 dígitos.", "err"); return; }
+        }
         setSalvando(true);
         try {
             const body = { ...form, usuarioId: form.usuarioId ? Number(form.usuarioId) : null };
@@ -3813,7 +3849,7 @@ function FinPessoas() {
             else await api.put(`/fin/pessoas/${modal.dados.id}`, body);
             setModal(null);
             flash("Pessoa salva com sucesso!");
-            carregar();
+            setRefreshKey(k => k + 1);
         } catch(err) {
             flash(err.response?.data || "Erro ao salvar.", "err");
         } finally { setSalvando(false); }
@@ -3914,8 +3950,8 @@ function FinPessoas() {
                             </div>
                             {[
                                 { k:"nome", label:"Nome *", span:2 },
-                                { k:"cpf", label:"CPF", show: form.tipoPessoa==="FISICA" },
-                                { k:"cnpj", label:"CNPJ", show: form.tipoPessoa==="JURIDICA" },
+                                { k:"cpf", label:"CPF (somente números)", show: form.tipoPessoa==="FISICA", onlyDigits:true, maxLength:11, placeholder:"00000000000" },
+                                { k:"cnpj", label:"CNPJ (somente números)", show: form.tipoPessoa==="JURIDICA", onlyDigits:true, maxLength:14, placeholder:"00000000000000" },
                                 { k:"email", label:"E-mail" },
                                 { k:"telefone", label:"Telefone" },
                                 { k:"cep", label:"CEP" },
@@ -3926,7 +3962,10 @@ function FinPessoas() {
                                 <div key={f.k} style={{ gridColumn: f.span===2?"1/-1":"auto" }}>
                                     <label className="dd-label">{f.label}</label>
                                     <div className="dd-input-wrap">
-                                        <input className="dd-input" value={form[f.k]||""} onChange={e => ff(f.k, e.target.value)} />
+                                        <input className="dd-input" value={form[f.k]||""}
+                                            onChange={e => ff(f.k, f.onlyDigits ? e.target.value.replace(/\D/g, '') : e.target.value)}
+                                            maxLength={f.maxLength} inputMode={f.onlyDigits ? "numeric" : "text"}
+                                            placeholder={f.placeholder || ""} />
                                         <div className="dd-input-line" />
                                     </div>
                                 </div>
