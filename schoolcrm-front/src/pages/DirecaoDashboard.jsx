@@ -3632,10 +3632,11 @@ const fmt = v => Number(v ?? 0).toLocaleString("pt-BR", { style: "currency", cur
 const fmtData = d => d ? new Date(d + "T12:00").toLocaleDateString("pt-BR") : "—";
 const mesAtual = () => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`; };
 const statusColors = {
-    PENDENTE:  { bg:"#fff8e1", color:"#c47a00" },
-    PAGO:      { bg:"#f0f5f2", color:"#2d6a4f" },
-    CANCELADO: { bg:"#f5f5f5", color:"#9aaa9f" },
-    VENCIDO:   { bg:"#fdf0f0", color:"#b94040" },
+    PENDENTE:           { bg:"#fff8e1", color:"#c47a00" },
+    PAGO:               { bg:"#f0f5f2", color:"#2d6a4f" },
+    CANCELADO:          { bg:"#f5f5f5", color:"#9aaa9f" },
+    VENCIDO:            { bg:"#fdf0f0", color:"#b94040" },
+    PARCIALMENTE_PAGO:  { bg:"#e8f0ff", color:"#2563eb" },
 };
 const statusBadge = s => statusColors[s] ?? { bg:"#f5f5f5", color:"#9aaa9f" };
 
@@ -4265,6 +4266,7 @@ function FinContratos({ anoLetivo }) {
     const [refreshKey, setRefreshKey] = useState(0);
     const [serieValores, setSerieValores] = useState({}); // { [serieId]: valorPadrao }
     const [avulsas, setAvulsas] = useState([]);
+    const [filtroAvulsa, setFiltroAvulsa] = useState({ busca:"", status:"", pessoaId:"" });
 
     const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
 
@@ -4353,9 +4355,13 @@ function FinContratos({ anoLetivo }) {
         const vp = Number(formBaixar.valorPago);
         const juros = Number(formBaixar.jurosAplicado||0);
         const multa = Number(formBaixar.multaAplicada||0);
-        const maxEsperado = Number(modalBaixar.valor) + juros + multa;
+        const jaFoiPago = Number(modalBaixar.jaFoiPago||0);
+        // Pagamento parcial: limite é o saldo devedor já calculado pelo servidor
+        const maxEsperado = jaFoiPago > 0
+            ? Number(modalBaixar.saldoDevedor)
+            : Number(modalBaixar.valor) + juros + multa;
         if (vp > maxEsperado + 0.001) {
-            flash(`Valor pago (${fmt(vp)}) não pode ser maior que o total esperado (${fmt(maxEsperado)}).`, "err");
+            flash(`Valor pago (${fmt(vp)}) não pode ser maior que o saldo devedor (${fmt(maxEsperado)}).`, "err");
             return;
         }
         setSalvando(true);
@@ -4429,9 +4435,24 @@ function FinContratos({ anoLetivo }) {
     const pessoaIdsContrato = new Set(
         contratos.flatMap(c => [c.responsavelPrincipalId, c.responsavelSecundarioId].filter(Boolean).map(String))
     );
-    const avulsasFiltradas = alunoSel && pessoaIdsContrato.size > 0
+    const avulsasPorAluno = alunoSel && pessoaIdsContrato.size > 0
         ? avulsas.filter(cr => cr.pessoaId != null && pessoaIdsContrato.has(String(cr.pessoaId)))
         : avulsas;
+
+    // Aplica filtros de busca/status/pessoa sobre a lista já filtrada por aluno
+    const avulsasFiltradas = avulsasPorAluno.filter(cr => {
+        const st = computarStatus(cr);
+        if (filtroAvulsa.status && st !== filtroAvulsa.status) return false;
+        if (filtroAvulsa.pessoaId && String(cr.pessoaId) !== filtroAvulsa.pessoaId) return false;
+        if (filtroAvulsa.busca) {
+            const b = filtroAvulsa.busca.toLowerCase();
+            const match = (cr.descricao||"").toLowerCase().includes(b)
+                || (cr.pessoaNome||"").toLowerCase().includes(b)
+                || String(cr.valor||"").includes(b);
+            if (!match) return false;
+        }
+        return true;
+    });
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
@@ -4537,10 +4558,15 @@ function FinContratos({ anoLetivo }) {
                                                             <td style={{ padding:"8px 10px", color:"#9aaa9f" }}>{cr.dataPagamento ? fmtData(cr.dataPagamento) : "—"}</td>
                                                             <td style={{ padding:"8px 10px", color: cr.valorPago ? "#2d6a4f" : "#9aaa9f", fontWeight: cr.valorPago ? 600 : 400 }}>{cr.valorPago ? fmt(cr.valorPago) : "—"}</td>
                                                             <td style={{ padding:"8px 10px" }}>
-                                                                {(st === "PENDENTE" || st === "VENCIDO") && (
+                                                                {(st === "PENDENTE" || st === "VENCIDO" || st === "PARCIALMENTE_PAGO") && (
                                                                     <div style={{ display:"flex", gap:4 }}>
                                                                         <button className="dd-btn-edit" style={{ fontSize:10, padding:"3px 8px" }}
-                                                                            onClick={() => { setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(cr.valor), formaPagamentoId:"", jurosAplicado:"", multaAplicada:"", observacoes:"" }); setModalBaixar({ crId: cr.id, contratoId: c.id, valor: cr.valor, isVencido: st==="VENCIDO" }); }}>Baixar</button>
+                                                                            onClick={() => {
+                                                                                const saldo = cr.saldoDevedor ?? cr.valor;
+                                                                                const jaFoiPago = Number(cr.valorPago||0);
+                                                                                setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(saldo), formaPagamentoId:"", jurosAplicado:"", multaAplicada:"", observacoes:"" });
+                                                                                setModalBaixar({ crId: cr.id, contratoId: c.id, valor: cr.valor, isVencido: st==="VENCIDO", jaFoiPago, saldoDevedor: saldo });
+                                                                            }}>Baixar</button>
                                                                         <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => cancelarParcela(cr.id, c.id)}>Cancelar</button>
                                                                     </div>
                                                                 )}
@@ -4568,12 +4594,42 @@ function FinContratos({ anoLetivo }) {
                     </span>
                     <span className="dd-section-count">{avulsasFiltradas.filter(cr => cr.status !== "CANCELADO").length}</span>
                 </div>
+                {/* Barra de filtros */}
+                <div style={{ padding:"8px 20px", display:"flex", gap:8, flexWrap:"wrap", borderBottom:"1px solid #eaeef2", background:"#fafcfa" }}>
+                    <input
+                        type="text"
+                        placeholder="Buscar por descrição, pessoa ou valor..."
+                        value={filtroAvulsa.busca}
+                        onChange={e => setFiltroAvulsa(f => ({ ...f, busca: e.target.value }))}
+                        style={{ flex:1, minWidth:180, border:"1px solid #eaeef2", padding:"5px 10px", fontSize:12, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff", borderRadius:4 }}
+                    />
+                    <select
+                        value={filtroAvulsa.status}
+                        onChange={e => setFiltroAvulsa(f => ({ ...f, status: e.target.value }))}
+                        style={{ border:"1px solid #eaeef2", padding:"5px 10px", fontSize:12, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff", borderRadius:4 }}>
+                        <option value="">Todos os status</option>
+                        {["PENDENTE","VENCIDO","PARCIALMENTE_PAGO","PAGO","CANCELADO"].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    <select
+                        value={filtroAvulsa.pessoaId}
+                        onChange={e => setFiltroAvulsa(f => ({ ...f, pessoaId: e.target.value }))}
+                        style={{ border:"1px solid #eaeef2", padding:"5px 10px", fontSize:12, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff", borderRadius:4 }}>
+                        <option value="">Todas as pessoas</option>
+                        {responsaveis.map(p => <option key={p.id} value={String(p.id)}>{p.nome}</option>)}
+                    </select>
+                    {(filtroAvulsa.busca || filtroAvulsa.status || filtroAvulsa.pessoaId) && (
+                        <button onClick={() => setFiltroAvulsa({ busca:"", status:"", pessoaId:"" })}
+                            style={{ border:"1px solid #eaeef2", padding:"5px 10px", fontSize:12, fontFamily:"'DM Sans',sans-serif", cursor:"pointer", background:"#fff", borderRadius:4, color:"#9aaa9f" }}>
+                            Limpar
+                        </button>
+                    )}
+                </div>
                 {avulsasFiltradas.length === 0
                     ? <p style={{ padding:20, fontSize:12, color:"#9aaa9f", textAlign:"center" }}>Nenhum recebimento avulso {alunoSel && pessoaIdsContrato.size > 0 ? "para os responsáveis deste aluno" : "cadastrado"}.</p>
                     : <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
                         <thead>
                             <tr style={{ borderBottom:"1px solid #eaeef2" }}>
-                                {["Descrição","Tipo","Vencimento","Valor","Status","Pessoa",""].map(h => (
+                                {["Descrição","Tipo","Vencimento","Valor","Pago","Saldo","Status","Pessoa",""].map(h => (
                                     <th key={h} style={{ padding:"8px 20px", textAlign:"left", color:"#9aaa9f", fontSize:10, textTransform:"uppercase" }}>{h}</th>
                                 ))}
                             </tr>
@@ -4588,13 +4644,20 @@ function FinContratos({ anoLetivo }) {
                                         <td style={{ padding:"8px 20px", color:"#9aaa9f", fontSize:11 }}>{cr.tipo}</td>
                                         <td style={{ padding:"8px 20px" }}>{fmtData(cr.dataVencimento)}</td>
                                         <td style={{ padding:"8px 20px", fontWeight:500 }}>{fmt(cr.valor)}</td>
+                                        <td style={{ padding:"8px 20px", color: cr.valorPago ? "#2d6a4f" : "#9aaa9f", fontWeight: cr.valorPago ? 600 : 400 }}>{cr.valorPago ? fmt(cr.valorPago) : "—"}</td>
+                                        <td style={{ padding:"8px 20px", color: Number(cr.saldoDevedor||0) > 0 ? "#c47a00" : "#9aaa9f" }}>{Number(cr.saldoDevedor||0) > 0 ? fmt(cr.saldoDevedor) : "—"}</td>
                                         <td style={{ padding:"8px 20px" }}><span className="dd-badge" style={{ ...sc, borderRadius:3, fontSize:10 }}>{st}</span></td>
                                         <td style={{ padding:"8px 20px", color:"#9aaa9f", fontSize:11 }}>{cr.pessoaNome || "—"}</td>
                                         <td style={{ padding:"8px 20px" }}>
                                             <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
-                                                {(st === "PENDENTE" || st === "VENCIDO") && (<>
+                                                {(st === "PENDENTE" || st === "VENCIDO" || st === "PARCIALMENTE_PAGO") && (<>
                                                     <button className="dd-btn-edit" style={{ fontSize:10, padding:"3px 8px" }}
-                                                        onClick={() => { setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(cr.valor), formaPagamentoId:"", jurosAplicado:"", multaAplicada:"", observacoes:"" }); setModalBaixar({ crId: cr.id, contratoId: null, valor: cr.valor, isVencido: st==="VENCIDO" }); }}>Baixar</button>
+                                                        onClick={() => {
+                                                            const saldo = cr.saldoDevedor ?? cr.valor;
+                                                            const jaFoiPago = Number(cr.valorPago||0);
+                                                            setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(saldo), formaPagamentoId:"", jurosAplicado:"", multaAplicada:"", observacoes:"" });
+                                                            setModalBaixar({ crId: cr.id, contratoId: null, valor: cr.valor, isVencido: st==="VENCIDO", jaFoiPago, saldoDevedor: saldo });
+                                                        }}>Baixar</button>
                                                     <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => cancelarAvulsa(cr.id)}>Cancelar</button>
                                                 </>)}
                                                 {st !== "PAGO" && (
@@ -4689,7 +4752,17 @@ function FinContratos({ anoLetivo }) {
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                             <div>
                                 <p className="dd-modal-title">Dar Baixa</p>
-                                <p className="dd-modal-sub">Título: {fmt(modalBaixar.valor)}{modalBaixar.isVencido && <span style={{ color:"#b94040", marginLeft:6, fontSize:10, fontWeight:600 }}>VENCIDO</span>}</p>
+                                <p className="dd-modal-sub">
+                                    Título: {fmt(modalBaixar.valor)}
+                                    {modalBaixar.isVencido && <span style={{ color:"#b94040", marginLeft:6, fontSize:10, fontWeight:600 }}>VENCIDO</span>}
+                                    {Number(modalBaixar.jaFoiPago||0) > 0 && <span style={{ color:"#2563eb", marginLeft:6, fontSize:10, fontWeight:600 }}>PARCIALMENTE PAGO</span>}
+                                </p>
+                                {Number(modalBaixar.jaFoiPago||0) > 0 && (
+                                    <div style={{ display:"flex", gap:16, marginTop:4, fontSize:11 }}>
+                                        <span style={{ color:"#9aaa9f" }}>Já pago: <strong style={{ color:"#2d6a4f" }}>{fmt(modalBaixar.jaFoiPago)}</strong></span>
+                                        <span style={{ color:"#9aaa9f" }}>Saldo: <strong style={{ color:"#2563eb" }}>{fmt(modalBaixar.saldoDevedor)}</strong></span>
+                                    </div>
+                                )}
                             </div>
                             <button onClick={() => setModalBaixar(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
                         </div>
@@ -4701,7 +4774,7 @@ function FinContratos({ anoLetivo }) {
                                     <div className="dd-input-line" />
                                 </div>
                             </div>
-                            {modalBaixar.isVencido && (
+                            {modalBaixar.isVencido && !Number(modalBaixar.jaFoiPago||0) && (
                                 <div style={{ display:"flex", gap:10 }}>
                                     <div style={{ flex:1 }}>
                                         <label className="dd-label">Juros (R$)</label>
@@ -4719,25 +4792,33 @@ function FinContratos({ anoLetivo }) {
                                     </div>
                                 </div>
                             )}
-                            {/* Preview total esperado */}
+                            {/* Preview total esperado / saldo devedor */}
                             {(() => {
                                 const juros = Number(formBaixar.jurosAplicado||0);
                                 const multa = Number(formBaixar.multaAplicada||0);
-                                const totalEsp = Number(modalBaixar.valor) + juros + multa;
+                                const jaFoiPago = Number(modalBaixar.jaFoiPago||0);
+                                const isParcial = jaFoiPago > 0;
+                                const saldoDevedor = isParcial
+                                    ? Number(modalBaixar.saldoDevedor)
+                                    : Number(modalBaixar.valor) + juros + multa;
                                 const vp = Number(formBaixar.valorPago||0);
-                                const acima = vp > totalEsp + 0.001;
+                                const acima = vp > saldoDevedor + 0.001;
                                 return (
                                     <div style={{ background: acima?"#fff5f5":"#f0f5f2", border:`1px solid ${acima?"#f8c8c8":"#d4e8d8"}`, borderRadius:6, padding:"8px 14px", fontSize:12 }}>
                                         <div style={{ display:"flex", justifyContent:"space-between" }}>
                                             <span style={{ color:"#6b8f7a" }}>Valor do título</span>
                                             <span style={{ fontWeight:600 }}>{fmt(modalBaixar.valor)}</span>
                                         </div>
-                                        {(juros > 0 || multa > 0) && <>
+                                        {!isParcial && (juros > 0 || multa > 0) && <>
                                             {juros > 0 && <div style={{ display:"flex", justifyContent:"space-between", color:"#b94040", fontSize:11 }}><span>+ Juros</span><span>{fmt(juros)}</span></div>}
                                             {multa > 0 && <div style={{ display:"flex", justifyContent:"space-between", color:"#b94040", fontSize:11 }}><span>+ Multa</span><span>{fmt(multa)}</span></div>}
-                                            <div style={{ display:"flex", justifyContent:"space-between", borderTop:"1px solid #d4e8d8", marginTop:4, paddingTop:4, fontWeight:600 }}><span>Total esperado</span><span>{fmt(totalEsp)}</span></div>
+                                            <div style={{ display:"flex", justifyContent:"space-between", borderTop:"1px solid #d4e8d8", marginTop:4, paddingTop:4, fontWeight:600 }}><span>Total esperado</span><span>{fmt(saldoDevedor)}</span></div>
                                         </>}
-                                        {acima && <p style={{ color:"#b94040", margin:"4px 0 0", fontSize:11 }}>Valor pago acima do total esperado.</p>}
+                                        {isParcial && <>
+                                            <div style={{ display:"flex", justifyContent:"space-between", color:"#6b8f7a", fontSize:11, marginTop:3 }}><span>Já pago</span><span style={{ color:"#2d6a4f" }}>- {fmt(jaFoiPago)}</span></div>
+                                            <div style={{ display:"flex", justifyContent:"space-between", borderTop:"1px solid #d4e8d8", marginTop:4, paddingTop:4, fontWeight:600, color:"#2563eb" }}><span>Saldo devedor</span><span>{fmt(saldoDevedor)}</span></div>
+                                        </>}
+                                        {acima && <p style={{ color:"#b94040", margin:"4px 0 0", fontSize:11 }}>Valor pago acima do saldo devedor.</p>}
                                     </div>
                                 );
                             })()}
