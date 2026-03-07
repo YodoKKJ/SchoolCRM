@@ -8,9 +8,7 @@ COPY schoolcrm-front/ ./
 RUN VITE_API_URL="" npm run build
 
 # ── Stage 2: build do backend (Spring Boot) ──────────────────────────
-FROM maven:3.9-eclipse-temurin-21 AS backend
-ARG CACHEBUST=20260307b
-RUN echo "cache bust: $CACHEBUST"
+FROM maven:3.9-eclipse-temurin-21-jammy AS backend
 WORKDIR /app
 COPY pom.xml ./
 COPY src ./src
