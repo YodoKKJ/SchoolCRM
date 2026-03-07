@@ -4353,7 +4353,7 @@ function FinContratos({ anoLetivo }) {
                     </select>
                 </div>
                 {alunoSel && <button className="dd-btn-primary" onClick={() => { setFormContrato(f => ({ ...f, anoLetivo: String(anoLetivo), mesInicio: mesAtual() })); setModalContrato(true); }}>+ Novo Contrato</button>}
-                <button className="dd-btn-ghost" onClick={() => { setFormCRAvulsa({ descricao:"", valor:"", dataVencimento:"", pessoaId:"", formaPagamentoId:"", observacoes:"" }); setModalCRAvulsa(true); }}>+ CR Avulsa</button>
+                <button className="dd-btn-ghost" onClick={() => { setFormCRAvulsa({ tipo:"OUTRO", descricao:"", valor:"", dataVencimento:"", pessoaId:"", formaPagamentoId:"", observacoes:"" }); setModalCRAvulsa(true); }}>+ CR Avulsa</button>
             </div>
 
             {alunoSel && (
@@ -4512,6 +4512,13 @@ function FinContratos({ anoLetivo }) {
                             <button onClick={() => setModalCRAvulsa(false)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
                         </div>
                         <form onSubmit={criarCRAvulsa} style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                            <div>
+                                <label className="dd-label">Tipo *</label>
+                                <select value={formCRAvulsa.tipo||"OUTRO"} onChange={e => setFormCRAvulsa(b => ({ ...b, tipo: e.target.value }))}
+                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
+                                    {["MENSALIDADE","MATRICULA","UNIFORME","EVENTO","OUTRO"].map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                            </div>
                             {[
                                 { k:"descricao", label:"Descrição *", required:true },
                                 { k:"valor", label:"Valor (R$) *", type:"number", step:"0.01", required:true },
