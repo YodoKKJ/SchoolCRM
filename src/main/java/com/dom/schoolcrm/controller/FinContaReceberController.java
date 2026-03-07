@@ -194,6 +194,27 @@ public class FinContaReceberController {
         return ResponseEntity.ok(toMap(crRepository.save(cr), LocalDate.now()));
     }
 
+    // ─── Excluir CR avulsa (apenas avulsas não pagas) ─────────────────────────
+
+    @DeleteMapping("/{id}")
+    @Transactional
+    public ResponseEntity<?> excluir(@PathVariable Long id) {
+        FinContaReceber cr = crRepository.findById(id).orElse(null);
+        if (cr == null) return ResponseEntity.notFound().build();
+
+        if (cr.getContrato() != null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Parcelas de contrato não podem ser excluídas. Use 'Cancelar' para desativá-las.");
+        }
+        if ("PAGO".equals(cr.getStatus())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Recebimentos já pagos não podem ser excluídos.");
+        }
+
+        crRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
     // ─── Editar parcela ───────────────────────────────────────────────────────
 
     @PutMapping("/{id}")

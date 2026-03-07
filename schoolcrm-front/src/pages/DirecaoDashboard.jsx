@@ -4395,6 +4395,15 @@ function FinContratos({ anoLetivo }) {
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
     };
 
+    const excluirAvulsa = async id => {
+        if (!window.confirm("Excluir permanentemente este recebimento? Esta ação não pode ser desfeita.")) return;
+        try {
+            await api.delete(`/fin/contas-receber/${id}`);
+            flash("Recebimento excluído.");
+            setRefreshKey(k => k + 1);
+        } catch(err) { flash(err.response?.data || "Erro ao excluir.", "err"); }
+    };
+
     const criarCRAvulsa = async e => {
         e.preventDefault();
         setSalvando(true);
@@ -4582,13 +4591,16 @@ function FinContratos({ anoLetivo }) {
                                         <td style={{ padding:"8px 20px" }}><span className="dd-badge" style={{ ...sc, borderRadius:3, fontSize:10 }}>{st}</span></td>
                                         <td style={{ padding:"8px 20px", color:"#9aaa9f", fontSize:11 }}>{cr.pessoaNome || "—"}</td>
                                         <td style={{ padding:"8px 20px" }}>
-                                            {(st === "PENDENTE" || st === "VENCIDO") && (
-                                                <div style={{ display:"flex", gap:4 }}>
+                                            <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+                                                {(st === "PENDENTE" || st === "VENCIDO") && (<>
                                                     <button className="dd-btn-edit" style={{ fontSize:10, padding:"3px 8px" }}
                                                         onClick={() => { setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(cr.valor), formaPagamentoId:"", jurosAplicado:"", multaAplicada:"", observacoes:"" }); setModalBaixar({ crId: cr.id, contratoId: null, valor: cr.valor, isVencido: st==="VENCIDO" }); }}>Baixar</button>
                                                     <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => cancelarAvulsa(cr.id)}>Cancelar</button>
-                                                </div>
-                                            )}
+                                                </>)}
+                                                {st !== "PAGO" && (
+                                                    <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px", opacity:0.75 }} onClick={() => excluirAvulsa(cr.id)}>Excluir</button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 );
@@ -4808,6 +4820,7 @@ function FinContasPagar() {
     const [modelos, setModelos] = useState([]);
     const [formasPagamento, setFormasPagamento] = useState([]);
     const [filtros, setFiltros] = useState({ status:"", tipo:"", mesReferencia:"" });
+    const [refreshKey, setRefreshKey] = useState(0);
     const [modalBaixar, setModalBaixar] = useState(null);
     const [modalGerarFolha, setModalGerarFolha] = useState(false);
     const [modalGerarRec, setModalGerarRec] = useState(false);
@@ -4830,7 +4843,7 @@ function FinContasPagar() {
         api.get("/fin/contas-pagar", { params }).then(r => setContas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     };
 
-    useEffect(() => { carregar(); }, [filtros]);
+    useEffect(() => { carregar(); }, [filtros, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => {
         api.get("/fin/formas-pagamento", { params: { apenasAtivas: true } }).then(r => setFormasPagamento(Array.isArray(r.data) ? r.data : [])).catch(() => {});
         api.get("/fin/modelos-cp").then(r => setModelos(Array.isArray(r.data) ? r.data : [])).catch(() => {});
@@ -4843,14 +4856,14 @@ function FinContasPagar() {
             await api.patch(`/fin/contas-pagar/${modalBaixar.id}/baixar`, { ...formBaixar, valorPago: Number(formBaixar.valorPago), formaPagamentoId: formBaixar.formaPagamentoId ? Number(formBaixar.formaPagamentoId) : null });
             setModalBaixar(null);
             flash("Conta baixada!");
-            carregar();
+            setRefreshKey(k => k + 1);
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
         finally { setSalvando(false); }
     };
 
     const cancelarConta = async id => {
         if (!window.confirm("Cancelar esta conta?")) return;
-        try { await api.patch(`/fin/contas-pagar/${id}/cancelar`); flash("Cancelada."); carregar(); }
+        try { await api.patch(`/fin/contas-pagar/${id}/cancelar`); flash("Cancelada."); setRefreshKey(k => k + 1); }
         catch(err) { flash(err.response?.data || "Erro.", "err"); }
     };
 
@@ -4860,7 +4873,7 @@ function FinContasPagar() {
             const r = await api.post("/fin/contas-pagar/gerar-folha", { mes: mesFolha });
             setModalGerarFolha(false);
             flash(`Folha gerada: ${r.data.geradas} conta(s). ${r.data.ignoradas} já existia(m).`);
-            carregar();
+            setRefreshKey(k => k + 1);
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
         finally { setSalvando(false); }
     };
@@ -4871,7 +4884,7 @@ function FinContasPagar() {
             const r = await api.post("/fin/contas-pagar/gerar-recorrentes", { mes: mesRec });
             setModalGerarRec(false);
             flash(`Recorrentes geradas: ${r.data.geradas} conta(s). ${r.data.ignoradas} já existia(m).`);
-            carregar();
+            setRefreshKey(k => k + 1);
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
         finally { setSalvando(false); }
     };
@@ -4883,6 +4896,7 @@ function FinContasPagar() {
             if (modalModelo.modo === "criar") await api.post("/fin/modelos-cp", { ...formModelo, valor: Number(formModelo.valor), diaVencimento: formModelo.diaVencimento ? Number(formModelo.diaVencimento) : null });
             else await api.put(`/fin/modelos-cp/${modalModelo.dados.id}`, { ...formModelo, valor: Number(formModelo.valor), diaVencimento: formModelo.diaVencimento ? Number(formModelo.diaVencimento) : null });
             setModalModelo(null);
+            flash("Modelo salvo!");
             api.get("/fin/modelos-cp").then(r => setModelos(Array.isArray(r.data) ? r.data : []));
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
         finally { setSalvando(false); }
@@ -4890,8 +4904,8 @@ function FinContasPagar() {
 
     const deletarModelo = async id => {
         if (!window.confirm("Remover modelo?")) return;
-        await api.delete(`/fin/modelos-cp/${id}`).catch(() => {});
-        api.get("/fin/modelos-cp").then(r => setModelos(Array.isArray(r.data) ? r.data : []));
+        try { await api.delete(`/fin/modelos-cp/${id}`); flash("Modelo removido."); api.get("/fin/modelos-cp").then(r => setModelos(Array.isArray(r.data) ? r.data : [])); }
+        catch(err) { flash(err.response?.data || "Erro.", "err"); }
     };
 
     const computarStatus = cp => {
@@ -5122,6 +5136,7 @@ function FinMovimentacoes() {
     const [movimentacoes, setMovimentacoes] = useState([]);
     const [resumo, setResumo] = useState({ entradas:0, saidas:0, saldo:0 });
     const [mes, setMes] = useState(mesAtual());
+    const [refreshKey, setRefreshKey] = useState(0);
     const [formasPagamento, setFormasPagamento] = useState([]);
     const [pessoas, setPessoas] = useState([]);
     const [modal, setModal] = useState(false);
@@ -5139,7 +5154,7 @@ function FinMovimentacoes() {
         api.get("/fin/movimentacoes/resumo", { params: { de, ate } }).then(r => setResumo(r.data || {})).catch(() => {});
     };
 
-    useEffect(() => { carregar(); }, [mes]);
+    useEffect(() => { carregar(); }, [mes, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => {
         api.get("/fin/formas-pagamento", { params: { apenasAtivas: true } }).then(r => setFormasPagamento(Array.isArray(r.data) ? r.data : [])).catch(() => {});
         api.get("/fin/pessoas", { params: { ativo: true } }).then(r => setPessoas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
@@ -5159,14 +5174,14 @@ function FinMovimentacoes() {
             await api.post("/fin/movimentacoes", { ...form, valor: Number(form.valor), formaPagamentoId: form.formaPagamentoId ? Number(form.formaPagamentoId) : null, pessoaId: form.pessoaId ? Number(form.pessoaId) : null });
             setModal(false);
             flash("Movimentação registrada!");
-            carregar();
+            setRefreshKey(k => k + 1);
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
         finally { setSalvando(false); }
     };
 
     const deletar = async id => {
         if (!window.confirm("Remover esta movimentação?")) return;
-        try { await api.delete(`/fin/movimentacoes/${id}`); flash("Removida."); carregar(); }
+        try { await api.delete(`/fin/movimentacoes/${id}`); flash("Removida."); setRefreshKey(k => k + 1); }
         catch(err) { flash(err.response?.data || "Erro.", "err"); }
     };
 
