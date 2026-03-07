@@ -4379,73 +4379,107 @@ function FinContratos({ anoLetivo }) {
         <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
             {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
 
-            <div style={{ display:"flex", gap:12, alignItems:"flex-end", flexWrap:"wrap" }}>
-                <div style={{ flex:1 }}>
-                    <label className="dd-label">Selecionar aluno</label>
-                    <select value={alunoSel} onChange={e => setAlunoSel(e.target.value)}
-                        style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
-                        <option value="">— Selecione um aluno —</option>
-                        {alunos.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
-                    </select>
+            {/* Cabeçalho: seletor de aluno + botões + stats */}
+            <div style={{ background:"#fff", border:"1px solid #eaeef2", borderRadius:8, padding:16 }}>
+                <div style={{ display:"flex", gap:12, alignItems:"flex-end", flexWrap:"wrap" }}>
+                    <div style={{ flex:1, minWidth:200 }}>
+                        <label className="dd-label">Aluno</label>
+                        <select value={alunoSel} onChange={e => setAlunoSel(e.target.value)}
+                            style={{ width:"100%", border:"1px solid #eaeef2", borderRadius:4, padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
+                            <option value="">— Selecione um aluno —</option>
+                            {alunos.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
+                        </select>
+                    </div>
+                    {alunoSel && <button className="dd-btn-primary" onClick={() => { setFormContrato(f => ({ ...f, anoLetivo: String(anoLetivo), mesInicio: mesAtual(), serieId:"", responsavelPrincipalId:"", numParcelas:"12", desconto:"0", acrescimo:"0" })); setModalContrato(true); }}>+ Novo Contrato</button>}
+                    <button className="dd-btn-ghost" onClick={() => { setFormCRAvulsa({ tipo:"OUTRO", descricao:"", valor:"", dataVencimento:"", pessoaId:"", formaPagamentoId:"", observacoes:"" }); setModalCRAvulsa(true); }}>+ CR Avulsa</button>
                 </div>
-                {alunoSel && <button className="dd-btn-primary" onClick={() => { setFormContrato(f => ({ ...f, anoLetivo: String(anoLetivo), mesInicio: mesAtual(), responsavelPrincipalId:"" })); setModalContrato(true); }}>+ Novo Contrato</button>}
-                <button className="dd-btn-ghost" onClick={() => { setFormCRAvulsa({ tipo:"OUTRO", descricao:"", valor:"", dataVencimento:"", pessoaId:"", formaPagamentoId:"", observacoes:"" }); setModalCRAvulsa(true); }}>+ CR Avulsa</button>
+                {alunoSel && contratos.length > 0 && (() => {
+                    const totalValor = contratos.reduce((s, c) => s + Number(c.valorTotal||0), 0);
+                    const nomeAluno = alunos.find(a=>String(a.id)===String(alunoSel))?.nome || "";
+                    return (
+                        <div style={{ marginTop:14, paddingTop:14, borderTop:"1px solid #eaeef2", display:"flex", gap:16, flexWrap:"wrap" }}>
+                            <div><span style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.5px" }}>Aluno</span><br /><span style={{ fontWeight:600, fontSize:13 }}>{nomeAluno}</span></div>
+                            <div><span style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.5px" }}>Contratos</span><br /><span style={{ fontWeight:600, fontSize:13 }}>{contratos.length}</span></div>
+                            <div><span style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.5px" }}>Valor Total Contratado</span><br /><span style={{ fontWeight:600, fontSize:13, color:"#2d6a4f" }}>{fmt(totalValor)}</span></div>
+                        </div>
+                    );
+                })()}
             </div>
 
+            {/* Lista de contratos */}
             {alunoSel && (
                 <div className="dd-section">
                     <div className="dd-section-header">
-                        <span className="dd-section-title">Contratos de {alunos.find(a=>String(a.id)===String(alunoSel))?.nome || ""}</span>
+                        <span className="dd-section-title">Contratos</span>
                         <span className="dd-section-count">{contratos.length}</span>
                     </div>
                     {contratos.length === 0
-                        ? <p style={{ padding:20, fontSize:12, color:"#9aaa9f", textAlign:"center" }}>Nenhum contrato. Crie o primeiro acima.</p>
-                        : contratos.map(c => (
+                        ? <div style={{ padding:"32px 20px", textAlign:"center" }}>
+                            <p style={{ fontSize:13, color:"#9aaa9f", margin:0 }}>Nenhum contrato para este aluno.</p>
+                            <p style={{ fontSize:11, color:"#c0c8c4", marginTop:4 }}>Clique em "+ Novo Contrato" para criar.</p>
+                          </div>
+                        : contratos.map(c => {
+                            const plist = parcelas[c.id] || [];
+                            const pagas = plist.filter(p => p.status === "PAGO").length;
+                            const vencidas = plist.filter(p => computarStatus(p) === "VENCIDO").length;
+                            return (
                             <div key={c.id} style={{ borderBottom:"1px solid #eaeef2" }}>
-                                <div style={{ padding:"12px 20px", display:"flex", alignItems:"center", gap:12, cursor:"pointer", background: expandido===c.id?"#f8faf8":"white" }}
+                                <div style={{ padding:"14px 20px", display:"flex", alignItems:"center", gap:12, cursor:"pointer", background: expandido===c.id?"#f8faf8":"white" }}
                                     onClick={() => toggleExpand(c.id)}>
                                     <ChevronRight size={14} style={{ transform: expandido===c.id?"rotate(90deg)":"none", transition:".2s", color:"#9aaa9f", flexShrink:0 }} />
                                     <div style={{ flex:1 }}>
-                                        <span style={{ fontWeight:500, fontSize:13 }}>Contrato {c.anoLetivo} — {c.serieName||`Série ID ${c.serieId}`}</span>
-                                        <span style={{ marginLeft:12, fontSize:11, color:"#9aaa9f" }}>{c.numParcelas} parcelas</span>
+                                        <div style={{ fontWeight:600, fontSize:13, color:"#0d1f18" }}>{c.anoLetivo} — {c.serieName || `Série ${c.serieId}`}</div>
+                                        <div style={{ fontSize:11, color:"#9aaa9f", marginTop:2 }}>
+                                            {c.numParcelas} parcelas · Resp.: {c.responsavelNome || "—"}
+                                            {plist.length > 0 && <span style={{ marginLeft:8 }}>{pagas}/{c.numParcelas} pagas{vencidas > 0 && <span style={{ color:"#b94040", marginLeft:4 }}>· {vencidas} vencida{vencidas>1?"s":""}</span>}</span>}
+                                        </div>
                                     </div>
-                                    <span style={{ fontSize:13, fontWeight:600, color:"#0d1f18" }}>{fmt(c.valorTotal)}</span>
-                                    <span className="dd-badge" style={{ background: c.status==="ATIVO"?"#f0f5f2":"#fdf0f0", color: c.status==="ATIVO"?"#2d6a4f":"#b94040", borderRadius:3, fontSize:10 }}>{c.status}</span>
+                                    <div style={{ textAlign:"right" }}>
+                                        <div style={{ fontWeight:700, fontSize:14, color:"#0d1f18" }}>{fmt(c.valorTotal)}</div>
+                                        {(Number(c.desconto||0) > 0 || Number(c.acrescimo||0) > 0) && (
+                                            <div style={{ fontSize:10, color:"#9aaa9f" }}>base {fmt(c.valorBase)}</div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {expandido === c.id && (
-                                    <div style={{ padding:"0 20px 16px", background:"#f8faf8" }}>
-                                        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:12, padding:"12px 0" }}>
-                                            {[["Valor Base", fmt(c.valorBase)], ["Desconto", fmt(c.desconto)], ["Acréscimo", fmt(c.acrescimo)], ["Total", fmt(c.valorTotal)]].map(([l,v]) => (
-                                                <div key={l}><span style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase" }}>{l}</span><br /><span style={{ fontSize:14, fontWeight:600 }}>{v}</span></div>
+                                    <div style={{ padding:"0 20px 20px", background:"#f8faf8" }}>
+                                        <div style={{ display:"flex", gap:16, flexWrap:"wrap", padding:"12px 0 16px", borderBottom:"1px solid #eaeef2", marginBottom:12 }}>
+                                            {[["Valor Base", fmt(c.valorBase), "#0d1f18"], ["Desconto", fmt(c.desconto), "#b94040"], ["Acréscimo", fmt(c.acrescimo), "#2d6a4f"], ["Total Mensal", fmt(c.valorTotal), "#2563eb"]].map(([l,v,col]) => (
+                                                <div key={l} style={{ minWidth:80 }}>
+                                                    <div style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.4px" }}>{l}</div>
+                                                    <div style={{ fontSize:15, fontWeight:700, color:col, marginTop:2 }}>{v}</div>
+                                                </div>
                                             ))}
                                         </div>
                                         <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
-                                            <thead><tr style={{ borderBottom:"1px solid #eaeef2" }}>
-                                                {["#","Vencimento","Valor","Status","Pago em","Valor Pago",""].map(h => (
-                                                    <th key={h} style={{ padding:"6px 10px", textAlign:"left", color:"#9aaa9f", fontSize:10, textTransform:"uppercase" }}>{h}</th>
-                                                ))}
-                                            </tr></thead>
+                                            <thead>
+                                                <tr style={{ background:"#f0f4f0" }}>
+                                                    {["#","Vencimento","Valor","Status","Pago em","Vlr. Pago","Ações"].map(h => (
+                                                        <th key={h} style={{ padding:"7px 10px", textAlign:"left", color:"#6b8f7a", fontSize:10, textTransform:"uppercase", letterSpacing:"0.4px", fontWeight:600 }}>{h}</th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
                                             <tbody>
-                                                {(parcelas[c.id]||[]).map((cr, idx) => {
+                                                {plist.map((cr, idx) => {
                                                     const st = computarStatus(cr);
                                                     const sc = statusBadge(st);
                                                     return (
-                                                        <tr key={cr.id} style={{ borderBottom:"1px solid #f2f5f2" }}>
-                                                            <td style={{ padding:"8px 10px", color:"#9aaa9f" }}>{idx+1}</td>
-                                                            <td style={{ padding:"8px 10px" }}>{fmtData(cr.dataVencimento)}</td>
-                                                            <td style={{ padding:"8px 10px", fontWeight:500 }}>{fmt(cr.valor)}</td>
-                                                            <td style={{ padding:"8px 10px" }}><span className="dd-badge" style={{ ...sc, borderRadius:3, fontSize:10 }}>{st}</span></td>
+                                                        <tr key={cr.id} style={{ borderBottom:"1px solid #eaeef2", background: st==="VENCIDO"?"#fff8f8": st==="PAGO"?"#f8fffe":"white" }}>
+                                                            <td style={{ padding:"8px 10px", color:"#9aaa9f", fontWeight:500 }}>{idx+1}</td>
+                                                            <td style={{ padding:"8px 10px", color: st==="VENCIDO"?"#b94040":"#0d1f18" }}>{fmtData(cr.dataVencimento)}</td>
+                                                            <td style={{ padding:"8px 10px", fontWeight:600 }}>{fmt(cr.valor)}</td>
+                                                            <td style={{ padding:"8px 10px" }}><span className="dd-badge" style={{ ...sc, borderRadius:4, fontSize:10, padding:"2px 7px" }}>{st}</span></td>
                                                             <td style={{ padding:"8px 10px", color:"#9aaa9f" }}>{cr.dataPagamento ? fmtData(cr.dataPagamento) : "—"}</td>
-                                                            <td style={{ padding:"8px 10px" }}>{cr.valorPago ? fmt(cr.valorPago) : "—"}</td>
+                                                            <td style={{ padding:"8px 10px", color: cr.valorPago ? "#2d6a4f" : "#9aaa9f", fontWeight: cr.valorPago ? 600 : 400 }}>{cr.valorPago ? fmt(cr.valorPago) : "—"}</td>
                                                             <td style={{ padding:"8px 10px" }}>
-                                                                {st === "PENDENTE" || st === "VENCIDO" ? (
+                                                                {(st === "PENDENTE" || st === "VENCIDO") && (
                                                                     <div style={{ display:"flex", gap:4 }}>
                                                                         <button className="dd-btn-edit" style={{ fontSize:10, padding:"3px 8px" }}
                                                                             onClick={() => { setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(cr.valor), formaPagamentoId:"", observacoes:"" }); setModalBaixar({ crId: cr.id, contratoId: c.id, valor: cr.valor }); }}>Baixar</button>
                                                                         <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => cancelarParcela(cr.id, c.id)}>Cancelar</button>
                                                                     </div>
-                                                                ) : null}
+                                                                )}
                                                             </td>
                                                         </tr>
                                                     );
@@ -4455,7 +4489,8 @@ function FinContratos({ anoLetivo }) {
                                     </div>
                                 )}
                             </div>
-                        ))
+                            );
+                        })
                     }
                 </div>
             )}
