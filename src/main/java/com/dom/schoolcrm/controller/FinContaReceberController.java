@@ -127,41 +127,57 @@ public class FinContaReceberController {
         Object valorPagoRaw = body.get("valorPago");
         if (valorPagoRaw == null) return ResponseEntity.badRequest().body("valorPago é obrigatório.");
 
-        BigDecimal valorPago = new BigDecimal(valorPagoRaw.toString());
+        BigDecimal novoPagamento = new BigDecimal(valorPagoRaw.toString());
+        if (novoPagamento.compareTo(BigDecimal.ZERO) <= 0) {
+            return ResponseEntity.badRequest().body("Valor pago deve ser maior que zero.");
+        }
 
-        // Juros e multa: pode vir do body ou ser calculado automaticamente
-        BigDecimal juros = BigDecimal.ZERO;
-        BigDecimal multa = BigDecimal.ZERO;
+        // Acumula com pagamentos anteriores (suporte a baixa parcial)
+        BigDecimal jaFoiPago = cr.getValorPago() != null ? cr.getValorPago() : BigDecimal.ZERO;
+        BigDecimal totalPago = jaFoiPago.add(novoPagamento);
+
+        // Juros e multa: aplica apenas no primeiro pagamento (se ainda não foram definidos)
+        BigDecimal juros = cr.getJurosAplicado() != null ? cr.getJurosAplicado() : BigDecimal.ZERO;
+        BigDecimal multa = cr.getMultaAplicada() != null ? cr.getMultaAplicada() : BigDecimal.ZERO;
 
         LocalDate hoje = LocalDate.now();
         boolean estaVencida = cr.getDataVencimento().isBefore(hoje);
+        boolean primeirosPagamento = cr.getJurosAplicado() == null && cr.getMultaAplicada() == null;
 
-        if (estaVencida) {
-            FinConfiguracao config = configuracaoRepository.findAll().stream().findFirst().orElse(null);
-            if (config != null) {
-                // Calcula juros e multa sobre o valor original
-                if (body.containsKey("jurosAplicado") && body.get("jurosAplicado") != null) {
+        if (primeirosPagamento) {
+            if (estaVencida) {
+                FinConfiguracao config = configuracaoRepository.findAll().stream().findFirst().orElse(null);
+                if (config != null) {
+                    if (body.containsKey("jurosAplicado") && body.get("jurosAplicado") != null) {
+                        juros = new BigDecimal(body.get("jurosAplicado").toString());
+                    } else if (config.getJurosAtrasoPct() != null) {
+                        juros = cr.getValor()
+                                .multiply(config.getJurosAtrasoPct())
+                                .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                    }
+                    if (body.containsKey("multaAplicada") && body.get("multaAplicada") != null) {
+                        multa = new BigDecimal(body.get("multaAplicada").toString());
+                    } else if (config.getMultaAtrasoPct() != null) {
+                        multa = cr.getValor()
+                                .multiply(config.getMultaAtrasoPct())
+                                .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                    }
+                }
+            } else {
+                if (body.containsKey("jurosAplicado") && body.get("jurosAplicado") != null)
                     juros = new BigDecimal(body.get("jurosAplicado").toString());
-                } else if (config.getJurosAtrasoPct() != null) {
-                    juros = cr.getValor()
-                            .multiply(config.getJurosAtrasoPct())
-                            .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
-                }
-
-                if (body.containsKey("multaAplicada") && body.get("multaAplicada") != null) {
+                if (body.containsKey("multaAplicada") && body.get("multaAplicada") != null)
                     multa = new BigDecimal(body.get("multaAplicada").toString());
-                } else if (config.getMultaAtrasoPct() != null) {
-                    multa = cr.getValor()
-                            .multiply(config.getMultaAtrasoPct())
-                            .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
-                }
             }
         }
 
-        // Data de pagamento (usa hoje se não informada)
+        // Data de pagamento (preserva a existente em pagamentos subsequentes)
         String dataPagStr = (String) body.get("dataPagamento");
-        cr.setDataPagamento(dataPagStr != null && !dataPagStr.isBlank()
-                ? LocalDate.parse(dataPagStr) : hoje);
+        if (dataPagStr != null && !dataPagStr.isBlank()) {
+            cr.setDataPagamento(LocalDate.parse(dataPagStr));
+        } else if (cr.getDataPagamento() == null) {
+            cr.setDataPagamento(hoje);
+        }
 
         // Forma de pagamento (opcional)
         Long fpId = parseLong(body.get("formaPagamentoId"));
@@ -169,12 +185,14 @@ public class FinContaReceberController {
             formaPagamentoRepository.findById(fpId).ifPresent(cr::setFormaPagamento);
         }
 
-        cr.setValorPago(valorPago);
+        cr.setValorPago(totalPago);
         cr.setJurosAplicado(juros.compareTo(BigDecimal.ZERO) > 0 ? juros : null);
         cr.setMultaAplicada(multa.compareTo(BigDecimal.ZERO) > 0 ? multa : null);
-        cr.setStatus("PAGO");
-
         if (body.containsKey("observacoes")) cr.setObservacoes((String) body.get("observacoes"));
+
+        // Status: PAGO se totalPago cobre o total devido; senão PARCIALMENTE_PAGO
+        BigDecimal totalDevido = cr.getValor().add(juros).add(multa);
+        cr.setStatus(totalPago.compareTo(totalDevido) >= 0 ? "PAGO" : "PARCIALMENTE_PAGO");
 
         return ResponseEntity.ok(toMap(crRepository.save(cr), hoje));
     }
@@ -249,6 +267,13 @@ public class FinContaReceberController {
         m.put("totalParcelas",  cr.getTotalParcelas());
         m.put("valor",          cr.getValor());
         m.put("valorPago",      cr.getValorPago());
+        // saldoDevedor = valor + juros + multa - totalPago
+        BigDecimal totalDevido = cr.getValor()
+                .add(cr.getJurosAplicado() != null ? cr.getJurosAplicado() : BigDecimal.ZERO)
+                .add(cr.getMultaAplicada() != null ? cr.getMultaAplicada() : BigDecimal.ZERO);
+        BigDecimal pago = cr.getValorPago() != null ? cr.getValorPago() : BigDecimal.ZERO;
+        BigDecimal saldo = totalDevido.subtract(pago);
+        m.put("saldoDevedor",   saldo.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : saldo);
         m.put("dataVencimento", cr.getDataVencimento());
         m.put("dataPagamento",  cr.getDataPagamento());
         m.put("status",         statusEfetivo(cr, hoje));
