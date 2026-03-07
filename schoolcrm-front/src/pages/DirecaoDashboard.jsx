@@ -4076,20 +4076,24 @@ function FinFuncionarios() {
 
     const adicionarBeneficio = async e => {
         e.preventDefault();
+        if (Number(formBenef.valor) <= 0) { flash("O valor do benefício deve ser maior que zero.", "err"); return; }
         try {
             await api.post(`/fin/funcionarios/${formBenef.funcionarioId}/beneficios`, { ...formBenef, valor: Number(formBenef.valor) });
             setFormBenef(b => ({ ...b, tipo:"VALE_REFEICAO", valor:"", descricao:"" }));
             setBenefRefreshKey(k => k + 1);
+            setRefreshKey(k => k + 1);
         } catch(err) { flash(err.response?.data || "Erro ao adicionar benefício.", "err"); }
     };
 
     const toggleBeneficio = async (b, funcId) => {
         await api.patch(`/fin/beneficios/${b.id}/status`).catch(() => {});
         setBenefRefreshKey(k => k + 1);
+        setRefreshKey(k => k + 1);
     };
     const deletarBeneficio = async (b, funcId) => {
         await api.delete(`/fin/beneficios/${b.id}`).catch(() => {});
         setBenefRefreshKey(k => k + 1);
+        setRefreshKey(k => k + 1);
     };
 
     const ff = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -4173,7 +4177,7 @@ function FinFuncionarios() {
                                                     </div>
                                                     <div>
                                                         <label className="dd-label">Valor</label>
-                                                        <input type="number" step="0.01" value={formBenef.valor} onChange={e => setFormBenef(b => ({ ...b, valor: e.target.value }))}
+                                                        <input type="number" step="0.01" min="0.01" value={formBenef.valor} onChange={e => setFormBenef(b => ({ ...b, valor: e.target.value }))}
                                                             placeholder="0,00" required
                                                             style={{ fontSize:12, padding:"6px 8px", border:"1px solid #eaeef2", fontFamily:"'DM Sans',sans-serif", outline:"none", width:100 }} />
                                                     </div>
