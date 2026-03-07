@@ -22,15 +22,16 @@ import java.util.stream.Collectors;
 /**
  * Gestão de contratos financeiros e geração automática de parcelas.
  *
- * GET  /fin/contratos?alunoId=&anoLetivo=      → listar contratos
- * GET  /fin/contratos/{id}                      → detalhe com parcelas
- * POST /fin/contratos                           → criar contrato + gerar parcelas
- * DELETE /fin/contratos/{id}                    → cancelar (apenas se sem parcelas pagas)
+ * GET    /fin/contratos?alunoId=&anoLetivo=      → listar contratos
+ * GET    /fin/contratos/{id}                      → detalhe com parcelas
+ * POST   /fin/contratos                           → criar contrato + gerar parcelas
+ * DELETE /fin/contratos/{id}                      → cancelar (apenas se sem parcelas pagas)
  *
  * Lógica de geração de parcelas:
  *  - valorParcela = valorTotal / numParcelas  (2 casas, arredonda HALF_UP)
  *  - A última parcela absorve o centavo de diferença (para bater exato o total)
  *  - diaVencimento e mesInicio vêm do body; se não informados, usa configuração global
+ *  - valorTotal deve ser > 0 (desconto não pode superar valorBase + acrescimo)
  */
 @RestController
 @RequestMapping("/fin/contratos")

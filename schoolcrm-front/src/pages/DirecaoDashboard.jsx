@@ -4308,6 +4308,12 @@ function FinContratos({ anoLetivo }) {
 
     const criarContrato = async e => {
         e.preventDefault();
+        // Bloqueia se o valor total previsto for negativo ou zero
+        const vb = formContrato.serieId ? Number(serieValores[String(formContrato.serieId)] ?? 0) : 0;
+        if (vb > 0) {
+            const vt = vb - Number(formContrato.desconto||0) + Number(formContrato.acrescimo||0);
+            if (vt <= 0) { flash("Valor total não pode ser zero ou negativo. Reduza o desconto.", "err"); return; }
+        }
         setSalvando(true);
         try {
             await api.post("/fin/contratos", { ...formContrato, alunoId: Number(alunoSel), serieId: Number(formContrato.serieId), responsavelPrincipalId: Number(formContrato.responsavelPrincipalId), numParcelas: Number(formContrato.numParcelas), desconto: Number(formContrato.desconto||0), acrescimo: Number(formContrato.acrescimo||0) });
