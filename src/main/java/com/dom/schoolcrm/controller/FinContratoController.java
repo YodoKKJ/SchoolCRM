@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/fin/contratos")
 @PreAuthorize("hasRole('DIRECAO')")
+@Transactional
 public class FinContratoController {
 
     @Autowired private FinContratoRepository contratoRepository;
@@ -81,7 +82,6 @@ public class FinContratoController {
     // ─── Criar contrato + gerar parcelas ─────────────────────────────────────
 
     @PostMapping
-    @Transactional
     public ResponseEntity<?> criar(@RequestBody Map<String, Object> body) {
 
         // ── Validações de campos obrigatórios ──
@@ -197,7 +197,6 @@ public class FinContratoController {
     // ─── Cancelar contrato ────────────────────────────────────────────────────
 
     @DeleteMapping("/{id}")
-    @Transactional
     public ResponseEntity<?> cancelar(@PathVariable Long id) {
         FinContrato contrato = contratoRepository.findById(id).orElse(null);
         if (contrato == null) return ResponseEntity.notFound().build();
