@@ -4263,6 +4263,8 @@ function FinContratos({ anoLetivo }) {
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
     const [salvando, setSalvando] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [serieValores, setSerieValores] = useState({}); // { [serieId]: valorPadrao }
+    const [avulsas, setAvulsas] = useState([]);
 
     const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
 
@@ -4277,6 +4279,23 @@ function FinContratos({ anoLetivo }) {
         if (!alunoSel) { setContratos([]); return; }
         api.get(`/fin/contratos`, { params: { alunoId: alunoSel } }).then(r => setContratos(Array.isArray(r.data) ? r.data : [])).catch(() => setContratos([]));
     }, [alunoSel, refreshKey]);
+
+    useEffect(() => {
+        api.get("/fin/serie-valores", { params: { anoLetivo } })
+            .then(r => {
+                const map = {};
+                (Array.isArray(r.data) ? r.data : []).forEach(sv => {
+                    if (sv.valorPadrao != null) map[String(sv.serieId)] = sv.valorPadrao;
+                });
+                setSerieValores(map);
+            }).catch(() => {});
+    }, [anoLetivo]);
+
+    useEffect(() => {
+        api.get("/fin/contas-receber")
+            .then(r => setAvulsas((Array.isArray(r.data) ? r.data : []).filter(cr => !cr.contratoId)))
+            .catch(() => setAvulsas([]));
+    }, [refreshKey]);
 
     const carregarParcelas = id => {
         api.get("/fin/contas-receber", { params: { contratoId: id } }).then(r => setParcelas(p => ({ ...p, [id]: Array.isArray(r.data) ? r.data : [] }))).catch(() => {});
@@ -4305,8 +4324,9 @@ function FinContratos({ anoLetivo }) {
         try {
             await api.patch(`/fin/contas-receber/${modalBaixar.crId}/baixar`, { ...formBaixar, valorPago: Number(formBaixar.valorPago), formaPagamentoId: formBaixar.formaPagamentoId ? Number(formBaixar.formaPagamentoId) : null });
             setModalBaixar(null);
-            flash("Parcela baixada!");
-            carregarParcelas(modalBaixar.contratoId);
+            flash("Pagamento registrado!");
+            if (modalBaixar.contratoId) carregarParcelas(modalBaixar.contratoId);
+            else setRefreshKey(k => k + 1);
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
         finally { setSalvando(false); }
     };
@@ -4317,6 +4337,15 @@ function FinContratos({ anoLetivo }) {
             await api.patch(`/fin/contas-receber/${crId}/cancelar`);
             flash("Parcela cancelada.");
             carregarParcelas(contratoId);
+        } catch(err) { flash(err.response?.data || "Erro.", "err"); }
+    };
+
+    const cancelarAvulsa = async id => {
+        if (!window.confirm("Cancelar este recebimento avulso?")) return;
+        try {
+            await api.patch(`/fin/contas-receber/${id}/cancelar`);
+            flash("Recebimento cancelado.");
+            setRefreshKey(k => k + 1);
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
     };
 
@@ -4425,6 +4454,51 @@ function FinContratos({ anoLetivo }) {
                 </div>
             )}
 
+            {/* Recebimentos Avulsos */}
+            <div className="dd-section">
+                <div className="dd-section-header">
+                    <span className="dd-section-title">Recebimentos Avulsos</span>
+                    <span className="dd-section-count">{avulsas.filter(cr => cr.status !== "CANCELADO").length}</span>
+                </div>
+                {avulsas.length === 0
+                    ? <p style={{ padding:20, fontSize:12, color:"#9aaa9f", textAlign:"center" }}>Nenhum recebimento avulso cadastrado.</p>
+                    : <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                        <thead>
+                            <tr style={{ borderBottom:"1px solid #eaeef2" }}>
+                                {["Descrição","Tipo","Vencimento","Valor","Status","Pessoa",""].map(h => (
+                                    <th key={h} style={{ padding:"8px 20px", textAlign:"left", color:"#9aaa9f", fontSize:10, textTransform:"uppercase" }}>{h}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {avulsas.map(cr => {
+                                const st = computarStatus(cr);
+                                const sc = statusBadge(st);
+                                return (
+                                    <tr key={cr.id} style={{ borderBottom:"1px solid #f2f5f2" }}>
+                                        <td style={{ padding:"8px 20px" }}>{cr.descricao}</td>
+                                        <td style={{ padding:"8px 20px", color:"#9aaa9f", fontSize:11 }}>{cr.tipo}</td>
+                                        <td style={{ padding:"8px 20px" }}>{fmtData(cr.dataVencimento)}</td>
+                                        <td style={{ padding:"8px 20px", fontWeight:500 }}>{fmt(cr.valor)}</td>
+                                        <td style={{ padding:"8px 20px" }}><span className="dd-badge" style={{ ...sc, borderRadius:3, fontSize:10 }}>{st}</span></td>
+                                        <td style={{ padding:"8px 20px", color:"#9aaa9f", fontSize:11 }}>{cr.pessoaNome || "—"}</td>
+                                        <td style={{ padding:"8px 20px" }}>
+                                            {(st === "PENDENTE" || st === "VENCIDO") && (
+                                                <div style={{ display:"flex", gap:4 }}>
+                                                    <button className="dd-btn-edit" style={{ fontSize:10, padding:"3px 8px" }}
+                                                        onClick={() => { setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(cr.valor), formaPagamentoId:"", observacoes:"" }); setModalBaixar({ crId: cr.id, contratoId: null, valor: cr.valor }); }}>Baixar</button>
+                                                    <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => cancelarAvulsa(cr.id)}>Cancelar</button>
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                }
+            </div>
+
             {/* Modal Contrato */}
             {modalContrato && (
                 <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalContrato(false)}>
@@ -4465,6 +4539,29 @@ function FinContratos({ anoLetivo }) {
                                     </div>
                                 </div>
                             ))}
+                            {(() => {
+                                const vb = formContrato.serieId ? Number(serieValores[String(formContrato.serieId)] ?? 0) : null;
+                                const vt = vb != null ? vb - Number(formContrato.desconto||0) + Number(formContrato.acrescimo||0) : null;
+                                if (vb == null) return null;
+                                return (
+                                    <div style={{ background:"#f0f5f2", border:"1px solid #d4e8d8", borderRadius:6, padding:"10px 14px", fontSize:12 }}>
+                                        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                                            <span style={{ color:"#6b8f7a" }}>Valor base da série</span>
+                                            <span style={{ fontWeight:600 }}>{fmt(vb)}</span>
+                                        </div>
+                                        {(Number(formContrato.desconto||0) > 0 || Number(formContrato.acrescimo||0) > 0) && (
+                                            <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#6b8f7a", marginBottom:4 }}>
+                                                <span>Desconto / Acréscimo</span>
+                                                <span>- {fmt(Number(formContrato.desconto||0))} / + {fmt(Number(formContrato.acrescimo||0))}</span>
+                                            </div>
+                                        )}
+                                        <div style={{ display:"flex", justifyContent:"space-between", borderTop:"1px solid #c8e0cc", paddingTop:6, marginTop:4 }}>
+                                            <span style={{ fontWeight:600, color:"#0d1f18" }}>Total previsto por mês</span>
+                                            <span style={{ fontWeight:700, fontSize:14, color: vt > 0 ? "#2d6a4f" : "#b94040" }}>{fmt(vt)}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                             <div style={{ display:"flex", gap:8, marginTop:8 }}>
                                 <button type="button" className="dd-btn-ghost" onClick={() => setModalContrato(false)}>Cancelar</button>
                                 <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando?"Criando...":"Criar Contrato"}</button>
