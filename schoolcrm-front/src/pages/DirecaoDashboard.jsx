@@ -4365,6 +4365,7 @@ function FinContratos({ anoLetivo }) {
             await api.patch(`/fin/contas-receber/${crId}/cancelar`);
             flash("Parcela cancelada.");
             carregarParcelas(contratoId);
+            setRefreshKey(k => k + 1);
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
     };
 
@@ -4396,6 +4397,15 @@ function FinContratos({ anoLetivo }) {
     };
 
     const fc = (k, v) => setFormContrato(f => ({ ...f, [k]: v }));
+
+    // Quando um aluno está selecionado e tem contratos, filtra avulsas
+    // apenas pelas FinPessoas vinculadas como responsáveis nesse(s) contrato(s)
+    const pessoaIdsContrato = new Set(
+        contratos.flatMap(c => [c.responsavelPrincipalId, c.responsavelSecundarioId].filter(Boolean).map(String))
+    );
+    const avulsasFiltradas = alunoSel && pessoaIdsContrato.size > 0
+        ? avulsas.filter(cr => cr.pessoaId != null && pessoaIdsContrato.has(String(cr.pessoaId)))
+        : avulsas;
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
@@ -4450,9 +4460,9 @@ function FinContratos({ anoLetivo }) {
                                     onClick={() => toggleExpand(c.id)}>
                                     <ChevronRight size={14} style={{ transform: expandido===c.id?"rotate(90deg)":"none", transition:".2s", color:"#9aaa9f", flexShrink:0 }} />
                                     <div style={{ flex:1 }}>
-                                        <div style={{ fontWeight:600, fontSize:13, color:"#0d1f18" }}>{c.anoLetivo} — {c.serieName || `Série ${c.serieId}`}</div>
+                                        <div style={{ fontWeight:600, fontSize:13, color:"#0d1f18" }}>{c.anoLetivo} — {c.serieNome || `Série ${c.serieId}`}</div>
                                         <div style={{ fontSize:11, color:"#9aaa9f", marginTop:2 }}>
-                                            {c.numParcelas} parcelas · Resp.: {c.responsavelNome || "—"}
+                                            {c.numParcelas} parcelas · Resp.: {c.responsavelPrincipalNome || "—"}
                                             {plist.length > 0 && <span style={{ marginLeft:8 }}>{pagas}/{c.numParcelas} pagas{vencidas > 0 && <span style={{ color:"#b94040", marginLeft:4 }}>· {vencidas} vencida{vencidas>1?"s":""}</span>}</span>}
                                         </div>
                                     </div>
@@ -4520,11 +4530,14 @@ function FinContratos({ anoLetivo }) {
             {/* Recebimentos Avulsos */}
             <div className="dd-section">
                 <div className="dd-section-header">
-                    <span className="dd-section-title">Recebimentos Avulsos</span>
-                    <span className="dd-section-count">{avulsas.filter(cr => cr.status !== "CANCELADO").length}</span>
+                    <span className="dd-section-title">
+                        Recebimentos Avulsos
+                        {alunoSel && pessoaIdsContrato.size > 0 && <span style={{ fontSize:10, color:"#9aaa9f", fontWeight:400, marginLeft:6 }}>(responsáveis do aluno)</span>}
+                    </span>
+                    <span className="dd-section-count">{avulsasFiltradas.filter(cr => cr.status !== "CANCELADO").length}</span>
                 </div>
-                {avulsas.length === 0
-                    ? <p style={{ padding:20, fontSize:12, color:"#9aaa9f", textAlign:"center" }}>Nenhum recebimento avulso cadastrado.</p>
+                {avulsasFiltradas.length === 0
+                    ? <p style={{ padding:20, fontSize:12, color:"#9aaa9f", textAlign:"center" }}>Nenhum recebimento avulso {alunoSel && pessoaIdsContrato.size > 0 ? "para os responsáveis deste aluno" : "cadastrado"}.</p>
                     : <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
                         <thead>
                             <tr style={{ borderBottom:"1px solid #eaeef2" }}>
@@ -4534,7 +4547,7 @@ function FinContratos({ anoLetivo }) {
                             </tr>
                         </thead>
                         <tbody>
-                            {avulsas.map(cr => {
+                            {avulsasFiltradas.map(cr => {
                                 const st = computarStatus(cr);
                                 const sc = statusBadge(st);
                                 return (
