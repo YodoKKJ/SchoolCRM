@@ -4252,15 +4252,17 @@ function FinContratos({ anoLetivo }) {
     const [parcelas, setParcelas] = useState({}); // { [contratoId]: [] }
     const [expandido, setExpandido] = useState(null);
     const [series, setSeries] = useState([]);
+    const [responsaveis, setResponsaveis] = useState([]);
     const [formasPagamento, setFormasPagamento] = useState([]);
     const [modalContrato, setModalContrato] = useState(false);
     const [modalBaixar, setModalBaixar] = useState(null); // { crId, valor }
-    const [formContrato, setFormContrato] = useState({ anoLetivo: String(anoLetivo), serieId:"", numParcelas:"12", desconto:"0", acrescimo:"0", mesInicio:"" });
+    const [formContrato, setFormContrato] = useState({ anoLetivo: String(anoLetivo), serieId:"", responsavelPrincipalId:"", numParcelas:"12", desconto:"0", acrescimo:"0", mesInicio:"" });
     const [formBaixar, setFormBaixar] = useState({ dataPagamento:"", valorPago:"", formaPagamentoId:"", observacoes:"" });
     const [modalCRAvulsa, setModalCRAvulsa] = useState(false);
     const [formCRAvulsa, setFormCRAvulsa] = useState({ descricao:"", valor:"", dataVencimento:"", pessoaId:"", formaPagamentoId:"", observacoes:"" });
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
     const [salvando, setSalvando] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
 
     const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
 
@@ -4268,12 +4270,13 @@ function FinContratos({ anoLetivo }) {
         api.get("/usuarios/buscar", { params: { role:"ALUNO" } }).then(r => setAlunos(Array.isArray(r.data) ? r.data : [])).catch(() => {});
         api.get("/turmas/series").then(r => setSeries(Array.isArray(r.data) ? r.data : [])).catch(() => {});
         api.get("/fin/formas-pagamento", { params: { apenasAtivas: true } }).then(r => setFormasPagamento(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+        api.get("/fin/pessoas").then(r => setResponsaveis(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     }, []);
 
     useEffect(() => {
         if (!alunoSel) { setContratos([]); return; }
-        api.get(`/fin/contratos/aluno/${alunoSel}`).then(r => setContratos(Array.isArray(r.data) ? r.data : [])).catch(() => setContratos([]));
-    }, [alunoSel]);
+        api.get(`/fin/contratos`, { params: { alunoId: alunoSel } }).then(r => setContratos(Array.isArray(r.data) ? r.data : [])).catch(() => setContratos([]));
+    }, [alunoSel, refreshKey]);
 
     const carregarParcelas = id => {
         api.get("/fin/contas-receber", { params: { contratoId: id } }).then(r => setParcelas(p => ({ ...p, [id]: Array.isArray(r.data) ? r.data : [] }))).catch(() => {});
@@ -4288,10 +4291,10 @@ function FinContratos({ anoLetivo }) {
         e.preventDefault();
         setSalvando(true);
         try {
-            await api.post("/fin/contratos", { ...formContrato, alunoId: Number(alunoSel), serieId: Number(formContrato.serieId), numParcelas: Number(formContrato.numParcelas), desconto: Number(formContrato.desconto||0), acrescimo: Number(formContrato.acrescimo||0) });
+            await api.post("/fin/contratos", { ...formContrato, alunoId: Number(alunoSel), serieId: Number(formContrato.serieId), responsavelPrincipalId: Number(formContrato.responsavelPrincipalId), numParcelas: Number(formContrato.numParcelas), desconto: Number(formContrato.desconto||0), acrescimo: Number(formContrato.acrescimo||0) });
             setModalContrato(false);
             flash("Contrato criado!");
-            api.get(`/fin/contratos/aluno/${alunoSel}`).then(r => setContratos(Array.isArray(r.data) ? r.data : []));
+            setRefreshKey(k => k + 1);
         } catch(err) { flash(err.response?.data || "Erro ao criar contrato.", "err"); }
         finally { setSalvando(false); }
     };
@@ -4324,9 +4327,7 @@ function FinContratos({ anoLetivo }) {
             await api.post("/fin/contas-receber", { ...formCRAvulsa, valor: Number(formCRAvulsa.valor), pessoaId: formCRAvulsa.pessoaId ? Number(formCRAvulsa.pessoaId) : null, formaPagamentoId: formCRAvulsa.formaPagamentoId ? Number(formCRAvulsa.formaPagamentoId) : null });
             setModalCRAvulsa(false);
             flash("CR avulsa criada!");
-            if (alunoSel) {
-                api.get(`/fin/contratos/aluno/${alunoSel}`).then(r => setContratos(Array.isArray(r.data) ? r.data : [])).catch(() => {});
-            }
+            setRefreshKey(k => k + 1);
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
         finally { setSalvando(false); }
     };
@@ -4352,7 +4353,7 @@ function FinContratos({ anoLetivo }) {
                         {alunos.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
                     </select>
                 </div>
-                {alunoSel && <button className="dd-btn-primary" onClick={() => { setFormContrato(f => ({ ...f, anoLetivo: String(anoLetivo), mesInicio: mesAtual() })); setModalContrato(true); }}>+ Novo Contrato</button>}
+                {alunoSel && <button className="dd-btn-primary" onClick={() => { setFormContrato(f => ({ ...f, anoLetivo: String(anoLetivo), mesInicio: mesAtual(), responsavelPrincipalId:"" })); setModalContrato(true); }}>+ Novo Contrato</button>}
                 <button className="dd-btn-ghost" onClick={() => { setFormCRAvulsa({ tipo:"OUTRO", descricao:"", valor:"", dataVencimento:"", pessoaId:"", formaPagamentoId:"", observacoes:"" }); setModalCRAvulsa(true); }}>+ CR Avulsa</button>
             </div>
 
@@ -4439,6 +4440,14 @@ function FinContratos({ anoLetivo }) {
                                     style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
                                     <option value="">Selecione a série...</option>
                                     {series.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="dd-label">Responsável Principal *</label>
+                                <select value={formContrato.responsavelPrincipalId} onChange={e => fc("responsavelPrincipalId", e.target.value)} required
+                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
+                                    <option value="">Selecione o responsável...</option>
+                                    {responsaveis.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
                                 </select>
                             </div>
                             {[
@@ -4583,7 +4592,7 @@ function FinContasPagar() {
     useEffect(() => { carregar(); }, [filtros]);
     useEffect(() => {
         api.get("/fin/formas-pagamento", { params: { apenasAtivas: true } }).then(r => setFormasPagamento(Array.isArray(r.data) ? r.data : [])).catch(() => {});
-        api.get("/fin/contas-pagar-modelo").then(r => setModelos(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+        api.get("/fin/modelos-cp").then(r => setModelos(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     }, []);
 
     const baixarConta = async e => {
@@ -4630,18 +4639,18 @@ function FinContasPagar() {
         e.preventDefault();
         setSalvando(true);
         try {
-            if (modalModelo.modo === "criar") await api.post("/fin/contas-pagar-modelo", { ...formModelo, valor: Number(formModelo.valor), diaVencimento: formModelo.diaVencimento ? Number(formModelo.diaVencimento) : null });
-            else await api.put(`/fin/contas-pagar-modelo/${modalModelo.dados.id}`, { ...formModelo, valor: Number(formModelo.valor), diaVencimento: formModelo.diaVencimento ? Number(formModelo.diaVencimento) : null });
+            if (modalModelo.modo === "criar") await api.post("/fin/modelos-cp", { ...formModelo, valor: Number(formModelo.valor), diaVencimento: formModelo.diaVencimento ? Number(formModelo.diaVencimento) : null });
+            else await api.put(`/fin/modelos-cp/${modalModelo.dados.id}`, { ...formModelo, valor: Number(formModelo.valor), diaVencimento: formModelo.diaVencimento ? Number(formModelo.diaVencimento) : null });
             setModalModelo(null);
-            api.get("/fin/contas-pagar-modelo").then(r => setModelos(Array.isArray(r.data) ? r.data : []));
+            api.get("/fin/modelos-cp").then(r => setModelos(Array.isArray(r.data) ? r.data : []));
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
         finally { setSalvando(false); }
     };
 
     const deletarModelo = async id => {
         if (!window.confirm("Remover modelo?")) return;
-        await api.delete(`/fin/contas-pagar-modelo/${id}`).catch(() => {});
-        api.get("/fin/contas-pagar-modelo").then(r => setModelos(Array.isArray(r.data) ? r.data : []));
+        await api.delete(`/fin/modelos-cp/${id}`).catch(() => {});
+        api.get("/fin/modelos-cp").then(r => setModelos(Array.isArray(r.data) ? r.data : []));
     };
 
     const computarStatus = cp => {
