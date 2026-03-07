@@ -4308,9 +4308,26 @@ function FinContratos({ anoLetivo }) {
         api.get("/fin/contas-receber", { params: { contratoId: id } }).then(r => setParcelas(p => ({ ...p, [id]: Array.isArray(r.data) ? r.data : [] }))).catch(() => {});
     };
 
+    // Recarrega parcelas do contrato expandido sempre que refreshKey mudar
+    useEffect(() => {
+        if (expandido) carregarParcelas(expandido);
+    }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
     const toggleExpand = id => {
-        setExpandido(e => e === id ? null : id);
-        if (!parcelas[id]) carregarParcelas(id);
+        const novoId = expandido === id ? null : id;
+        setExpandido(novoId);
+        if (novoId) carregarParcelas(novoId); // sempre carrega fresco ao expandir
+    };
+
+    const cancelarContrato = async (contratoId, e) => {
+        e.stopPropagation();
+        if (!window.confirm("Cancelar este contrato? Todas as parcelas pendentes serão canceladas.\nContratos com parcelas já pagas não podem ser cancelados.")) return;
+        try {
+            await api.delete(`/fin/contratos/${contratoId}`);
+            flash("Contrato cancelado.");
+            if (expandido === contratoId) setExpandido(null);
+            setRefreshKey(k => k + 1);
+        } catch(err) { flash(err.response?.data || "Erro ao cancelar contrato.", "err"); }
     };
 
     const criarContrato = async e => {
@@ -4466,11 +4483,17 @@ function FinContratos({ anoLetivo }) {
                                             {plist.length > 0 && <span style={{ marginLeft:8 }}>{pagas}/{c.numParcelas} pagas{vencidas > 0 && <span style={{ color:"#b94040", marginLeft:4 }}>· {vencidas} vencida{vencidas>1?"s":""}</span>}</span>}
                                         </div>
                                     </div>
-                                    <div style={{ textAlign:"right" }}>
-                                        <div style={{ fontWeight:700, fontSize:14, color:"#0d1f18" }}>{fmt(c.valorTotal)}</div>
-                                        {(Number(c.desconto||0) > 0 || Number(c.acrescimo||0) > 0) && (
-                                            <div style={{ fontSize:10, color:"#9aaa9f" }}>base {fmt(c.valorBase)}</div>
-                                        )}
+                                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                        <div style={{ textAlign:"right" }}>
+                                            <div style={{ fontWeight:700, fontSize:14, color:"#0d1f18" }}>{fmt(c.valorTotal)}</div>
+                                            {(Number(c.desconto||0) > 0 || Number(c.acrescimo||0) > 0) && (
+                                                <div style={{ fontSize:10, color:"#9aaa9f" }}>base {fmt(c.valorBase)}</div>
+                                            )}
+                                        </div>
+                                        <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 10px", flexShrink:0 }}
+                                            onClick={e => cancelarContrato(c.id, e)}>
+                                            Cancelar
+                                        </button>
                                     </div>
                                 </div>
 
