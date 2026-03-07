@@ -4323,7 +4323,7 @@ function FinContratos({ anoLetivo }) {
         }
         setSalvando(true);
         try {
-            await api.post("/fin/contratos", { ...formContrato, alunoId: Number(alunoSel), serieId: Number(formContrato.serieId), responsavelPrincipalId: Number(formContrato.responsavelPrincipalId), numParcelas: Number(formContrato.numParcelas), desconto: Number(formContrato.desconto||0), acrescimo: Number(formContrato.acrescimo||0) });
+            await api.post("/fin/contratos", { ...formContrato, alunoId: Number(alunoSel), anoLetivo: Number(formContrato.anoLetivo), serieId: Number(formContrato.serieId), responsavelPrincipalId: Number(formContrato.responsavelPrincipalId), responsavelSecundarioId: formContrato.responsavelSecundarioId ? Number(formContrato.responsavelSecundarioId) : null, numParcelas: Number(formContrato.numParcelas), desconto: Number(formContrato.desconto||0), acrescimo: Number(formContrato.acrescimo||0) });
             setModalContrato(false);
             flash("Contrato criado!");
             setRefreshKey(k => k + 1);
