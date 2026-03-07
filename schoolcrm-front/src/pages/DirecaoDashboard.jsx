@@ -5164,7 +5164,7 @@ function FinConfiguracoes({ anoLetivo }) {
     const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
 
     const carregarConfig = () => {
-        api.get("/fin/configuracao").then(r => { setConfig(r.data); setFormConfig({ numParcelasPadrao: r.data.numParcelasPadrao||12, jurosMensal: r.data.jurosMensal||0, multaAtraso: r.data.multaAtraso||0, diaVencimentoPadrao: r.data.diaVencimentoPadrao||10 }); }).catch(() => {});
+        api.get("/fin/configuracoes").then(r => { setConfig(r.data); setFormConfig({ numParcelasPadrao: r.data.numParcelasPadrao||12, jurosMensal: r.data.jurosMensal||0, multaAtraso: r.data.multaAtraso||0, diaVencimentoPadrao: r.data.diaVencimentoPadrao||10 }); }).catch(() => {});
     };
     const carregarFormas = () => {
         api.get("/fin/formas-pagamento").then(r => setFormas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
@@ -5175,7 +5175,7 @@ function FinConfiguracoes({ anoLetivo }) {
             setSeries(sers);
             const res = await api.get("/fin/serie-valores", { params: { anoLetivo: ano } }).catch(() => ({ data: [] }));
             const mapa = {};
-            (Array.isArray(res.data) ? res.data : []).forEach(sv => { mapa[sv.serieId] = sv.valor; });
+            (Array.isArray(res.data) ? res.data : []).forEach(sv => { mapa[sv.serieId] = sv.valorPadrao; });
             setSeriesValores(mapa);
         }).catch(() => {});
     };
@@ -5187,7 +5187,7 @@ function FinConfiguracoes({ anoLetivo }) {
         e.preventDefault();
         setSalvando(true);
         try {
-            await api.put("/fin/configuracao", { ...formConfig, numParcelasPadrao: Number(formConfig.numParcelasPadrao), jurosMensal: Number(formConfig.jurosMensal), multaAtraso: Number(formConfig.multaAtraso), diaVencimentoPadrao: Number(formConfig.diaVencimentoPadrao) });
+            await api.put("/fin/configuracoes", { ...formConfig, numParcelasPadrao: Number(formConfig.numParcelasPadrao), jurosMensal: Number(formConfig.jurosMensal), multaAtraso: Number(formConfig.multaAtraso), diaVencimentoPadrao: Number(formConfig.diaVencimentoPadrao) });
             flash("Configuração salva!");
             carregarConfig();
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
@@ -5219,6 +5219,7 @@ function FinConfiguracoes({ anoLetivo }) {
         try {
             await api.post("/fin/serie-valores", { serieId: Number(serieId), anoLetivo: Number(anoSeries), valorPadrao: Number(valor) });
             flash("Valor salvo!");
+            carregarSeriesValores(anoSeries);
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
     };
 
@@ -5312,6 +5313,7 @@ function FinConfiguracoes({ anoLetivo }) {
                                         <td style={{ fontWeight:500 }}>{s.nome}</td>
                                         <td>
                                             <input type="number" step="0.01" defaultValue={val}
+                                                key={`sv-${s.id}-${val}`}
                                                 id={`sv-${s.id}`}
                                                 style={{ width:140, border:"1px solid #eaeef2", padding:"6px 8px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none" }}
                                                 placeholder="Não definido" />
