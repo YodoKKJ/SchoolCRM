@@ -4278,6 +4278,13 @@ function FinContratos({ anoLetivo }) {
     useEffect(() => {
         if (!alunoSel) { setContratos([]); return; }
         api.get(`/fin/contratos`, { params: { alunoId: alunoSel } }).then(r => setContratos(Array.isArray(r.data) ? r.data : [])).catch(() => setContratos([]));
+        // Auto-preenche série do aluno no ano letivo corrente
+        api.get("/vinculos/aluno-turma", { params: { alunoId: alunoSel, anoLetivo } })
+            .then(r => {
+                const vinculo = Array.isArray(r.data) && r.data.length > 0 ? r.data[0] : null;
+                if (vinculo) setFormContrato(f => ({ ...f, serieId: String(vinculo.serieId) }));
+                else setFormContrato(f => ({ ...f, serieId: "" }));
+            }).catch(() => {});
     }, [alunoSel, refreshKey]);
 
     useEffect(() => {
@@ -4405,7 +4412,7 @@ function FinContratos({ anoLetivo }) {
                             {alunos.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
                         </select>
                     </div>
-                    {alunoSel && <button className="dd-btn-primary" onClick={() => { setFormContrato(f => ({ ...f, anoLetivo: String(anoLetivo), mesInicio: mesAtual(), serieId:"", responsavelPrincipalId:"", numParcelas:"12", desconto:"0", acrescimo:"0" })); setModalContrato(true); }}>+ Novo Contrato</button>}
+                    {alunoSel && <button className="dd-btn-primary" onClick={() => { setFormContrato(f => ({ ...f, anoLetivo: String(anoLetivo), mesInicio: mesAtual(), responsavelPrincipalId:"", numParcelas:"12", desconto:"0", acrescimo:"0" })); setModalContrato(true); }}>+ Novo Contrato</button>}
                     <button className="dd-btn-ghost" onClick={() => { setFormCRAvulsa({ tipo:"OUTRO", descricao:"", valor:"", dataVencimento:"", pessoaId:"", formaPagamentoId:"", observacoes:"" }); setModalCRAvulsa(true); }}>+ CR Avulsa</button>
                 </div>
                 {alunoSel && contratos.length > 0 && (() => {
