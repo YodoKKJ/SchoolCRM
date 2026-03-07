@@ -4020,7 +4020,7 @@ function FinFuncionarios() {
         api.get("/fin/funcionarios").then(r => setFuncionarios(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     };
     const carregarBeneficios = id => {
-        api.get(`/fin/beneficios/funcionario/${id}`).then(r => setBeneficios(b => ({ ...b, [id]: Array.isArray(r.data) ? r.data : [] }))).catch(() => {});
+        api.get(`/fin/funcionarios/${id}/beneficios`).then(r => setBeneficios(b => ({ ...b, [id]: Array.isArray(r.data) ? r.data : [] }))).catch(() => {});
     };
 
     useEffect(() => {
@@ -4064,7 +4064,7 @@ function FinFuncionarios() {
     const adicionarBeneficio = async e => {
         e.preventDefault();
         try {
-            await api.post("/fin/beneficios", { ...formBenef, valor: Number(formBenef.valor) });
+            await api.post(`/fin/funcionarios/${formBenef.funcionarioId}/beneficios`, { ...formBenef, valor: Number(formBenef.valor) });
             setFormBenef(b => ({ ...b, tipo:"VALE_REFEICAO", valor:"", descricao:"" }));
             carregarBeneficios(formBenef.funcionarioId);
         } catch(err) { flash(err.response?.data || "Erro ao adicionar benefício.", "err"); }
