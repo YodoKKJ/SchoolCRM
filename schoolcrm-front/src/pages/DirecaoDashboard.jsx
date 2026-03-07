@@ -4255,9 +4255,9 @@ function FinContratos({ anoLetivo }) {
     const [responsaveis, setResponsaveis] = useState([]);
     const [formasPagamento, setFormasPagamento] = useState([]);
     const [modalContrato, setModalContrato] = useState(false);
-    const [modalBaixar, setModalBaixar] = useState(null); // { crId, valor }
+    const [modalBaixar, setModalBaixar] = useState(null); // { crId, contratoId, valor, isVencido }
     const [formContrato, setFormContrato] = useState({ anoLetivo: String(anoLetivo), serieId:"", responsavelPrincipalId:"", numParcelas:"12", desconto:"0", acrescimo:"0", mesInicio:"" });
-    const [formBaixar, setFormBaixar] = useState({ dataPagamento:"", valorPago:"", formaPagamentoId:"", observacoes:"" });
+    const [formBaixar, setFormBaixar] = useState({ dataPagamento:"", valorPago:"", formaPagamentoId:"", jurosAplicado:"", multaAplicada:"", observacoes:"" });
     const [modalCRAvulsa, setModalCRAvulsa] = useState(false);
     const [formCRAvulsa, setFormCRAvulsa] = useState({ descricao:"", valor:"", dataVencimento:"", pessoaId:"", formaPagamentoId:"", observacoes:"" });
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
@@ -4326,13 +4326,28 @@ function FinContratos({ anoLetivo }) {
 
     const baixarParcela = async e => {
         e.preventDefault();
+        const vp = Number(formBaixar.valorPago);
+        const juros = Number(formBaixar.jurosAplicado||0);
+        const multa = Number(formBaixar.multaAplicada||0);
+        const maxEsperado = Number(modalBaixar.valor) + juros + multa;
+        if (vp > maxEsperado + 0.001) {
+            flash(`Valor pago (${fmt(vp)}) não pode ser maior que o total esperado (${fmt(maxEsperado)}).`, "err");
+            return;
+        }
         setSalvando(true);
         try {
-            await api.patch(`/fin/contas-receber/${modalBaixar.crId}/baixar`, { ...formBaixar, valorPago: Number(formBaixar.valorPago), formaPagamentoId: formBaixar.formaPagamentoId ? Number(formBaixar.formaPagamentoId) : null });
+            await api.patch(`/fin/contas-receber/${modalBaixar.crId}/baixar`, {
+                ...formBaixar,
+                valorPago: vp,
+                formaPagamentoId: formBaixar.formaPagamentoId ? Number(formBaixar.formaPagamentoId) : null,
+                jurosAplicado: juros > 0 ? juros : null,
+                multaAplicada: multa > 0 ? multa : null,
+            });
+            const cid = modalBaixar.contratoId;
             setModalBaixar(null);
             flash("Pagamento registrado!");
-            if (modalBaixar.contratoId) carregarParcelas(modalBaixar.contratoId);
-            else setRefreshKey(k => k + 1);
+            setRefreshKey(k => k + 1);
+            if (cid) carregarParcelas(cid);
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
         finally { setSalvando(false); }
     };
@@ -4476,7 +4491,7 @@ function FinContratos({ anoLetivo }) {
                                                                 {(st === "PENDENTE" || st === "VENCIDO") && (
                                                                     <div style={{ display:"flex", gap:4 }}>
                                                                         <button className="dd-btn-edit" style={{ fontSize:10, padding:"3px 8px" }}
-                                                                            onClick={() => { setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(cr.valor), formaPagamentoId:"", observacoes:"" }); setModalBaixar({ crId: cr.id, contratoId: c.id, valor: cr.valor }); }}>Baixar</button>
+                                                                            onClick={() => { setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(cr.valor), formaPagamentoId:"", jurosAplicado:"", multaAplicada:"", observacoes:"" }); setModalBaixar({ crId: cr.id, contratoId: c.id, valor: cr.valor, isVencido: st==="VENCIDO" }); }}>Baixar</button>
                                                                         <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => cancelarParcela(cr.id, c.id)}>Cancelar</button>
                                                                     </div>
                                                                 )}
@@ -4527,7 +4542,7 @@ function FinContratos({ anoLetivo }) {
                                             {(st === "PENDENTE" || st === "VENCIDO") && (
                                                 <div style={{ display:"flex", gap:4 }}>
                                                     <button className="dd-btn-edit" style={{ fontSize:10, padding:"3px 8px" }}
-                                                        onClick={() => { setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(cr.valor), formaPagamentoId:"", observacoes:"" }); setModalBaixar({ crId: cr.id, contratoId: null, valor: cr.valor }); }}>Baixar</button>
+                                                        onClick={() => { setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(cr.valor), formaPagamentoId:"", jurosAplicado:"", multaAplicada:"", observacoes:"" }); setModalBaixar({ crId: cr.id, contratoId: null, valor: cr.valor, isVencido: st==="VENCIDO" }); }}>Baixar</button>
                                                     <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => cancelarAvulsa(cr.id)}>Cancelar</button>
                                                 </div>
                                             )}
@@ -4615,24 +4630,69 @@ function FinContratos({ anoLetivo }) {
             {/* Modal Baixar Parcela */}
             {modalBaixar && (
                 <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalBaixar(null)}>
-                    <div className="dd-modal" style={{ maxWidth:380 }}>
+                    <div className="dd-modal" style={{ maxWidth:400 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
-                            <div><p className="dd-modal-title">Dar Baixa</p><p className="dd-modal-sub">{fmt(modalBaixar.valor)}</p></div>
+                            <div>
+                                <p className="dd-modal-title">Dar Baixa</p>
+                                <p className="dd-modal-sub">Título: {fmt(modalBaixar.valor)}{modalBaixar.isVencido && <span style={{ color:"#b94040", marginLeft:6, fontSize:10, fontWeight:600 }}>VENCIDO</span>}</p>
+                            </div>
                             <button onClick={() => setModalBaixar(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
                         </div>
                         <form onSubmit={baixarParcela} style={{ display:"flex", flexDirection:"column", gap:14 }}>
-                            {[
-                                { k:"dataPagamento", label:"Data de Pagamento *", type:"date", required:true },
-                                { k:"valorPago", label:"Valor Pago (R$) *", type:"number", step:"0.01", required:true },
-                            ].map(f => (
-                                <div key={f.k}>
-                                    <label className="dd-label">{f.label}</label>
-                                    <div className="dd-input-wrap">
-                                        <input className="dd-input" type={f.type} step={f.step} required={f.required} value={formBaixar[f.k]||""} onChange={e => setFormBaixar(b => ({ ...b, [f.k]: e.target.value }))} />
-                                        <div className="dd-input-line" />
+                            <div>
+                                <label className="dd-label">Data de Pagamento *</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" type="date" required value={formBaixar.dataPagamento||""} onChange={e => setFormBaixar(b => ({ ...b, dataPagamento: e.target.value }))} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            {modalBaixar.isVencido && (
+                                <div style={{ display:"flex", gap:10 }}>
+                                    <div style={{ flex:1 }}>
+                                        <label className="dd-label">Juros (R$)</label>
+                                        <div className="dd-input-wrap">
+                                            <input className="dd-input" type="number" step="0.01" min="0" value={formBaixar.jurosAplicado||""} onChange={e => setFormBaixar(b => ({ ...b, jurosAplicado: e.target.value }))} />
+                                            <div className="dd-input-line" />
+                                        </div>
+                                    </div>
+                                    <div style={{ flex:1 }}>
+                                        <label className="dd-label">Multa (R$)</label>
+                                        <div className="dd-input-wrap">
+                                            <input className="dd-input" type="number" step="0.01" min="0" value={formBaixar.multaAplicada||""} onChange={e => setFormBaixar(b => ({ ...b, multaAplicada: e.target.value }))} />
+                                            <div className="dd-input-line" />
+                                        </div>
                                     </div>
                                 </div>
-                            ))}
+                            )}
+                            {/* Preview total esperado */}
+                            {(() => {
+                                const juros = Number(formBaixar.jurosAplicado||0);
+                                const multa = Number(formBaixar.multaAplicada||0);
+                                const totalEsp = Number(modalBaixar.valor) + juros + multa;
+                                const vp = Number(formBaixar.valorPago||0);
+                                const acima = vp > totalEsp + 0.001;
+                                return (
+                                    <div style={{ background: acima?"#fff5f5":"#f0f5f2", border:`1px solid ${acima?"#f8c8c8":"#d4e8d8"}`, borderRadius:6, padding:"8px 14px", fontSize:12 }}>
+                                        <div style={{ display:"flex", justifyContent:"space-between" }}>
+                                            <span style={{ color:"#6b8f7a" }}>Valor do título</span>
+                                            <span style={{ fontWeight:600 }}>{fmt(modalBaixar.valor)}</span>
+                                        </div>
+                                        {(juros > 0 || multa > 0) && <>
+                                            {juros > 0 && <div style={{ display:"flex", justifyContent:"space-between", color:"#b94040", fontSize:11 }}><span>+ Juros</span><span>{fmt(juros)}</span></div>}
+                                            {multa > 0 && <div style={{ display:"flex", justifyContent:"space-between", color:"#b94040", fontSize:11 }}><span>+ Multa</span><span>{fmt(multa)}</span></div>}
+                                            <div style={{ display:"flex", justifyContent:"space-between", borderTop:"1px solid #d4e8d8", marginTop:4, paddingTop:4, fontWeight:600 }}><span>Total esperado</span><span>{fmt(totalEsp)}</span></div>
+                                        </>}
+                                        {acima && <p style={{ color:"#b94040", margin:"4px 0 0", fontSize:11 }}>Valor pago acima do total esperado.</p>}
+                                    </div>
+                                );
+                            })()}
+                            <div>
+                                <label className="dd-label">Valor Pago (R$) *</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" type="number" step="0.01" min="0.01" required value={formBaixar.valorPago||""} onChange={e => setFormBaixar(b => ({ ...b, valorPago: e.target.value }))} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
                             <div>
                                 <label className="dd-label">Forma de Pagamento</label>
                                 <select value={formBaixar.formaPagamentoId||""} onChange={e => setFormBaixar(b => ({ ...b, formaPagamentoId: e.target.value }))}
