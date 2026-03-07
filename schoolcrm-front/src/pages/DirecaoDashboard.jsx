@@ -5325,7 +5325,7 @@ function FinConfiguracoes({ anoLetivo }) {
     const salvarValorSerie = async (serieId, valor) => {
         if (!valor && valor !== 0) return;
         try {
-            await api.post("/fin/serie-valores", { serieId: Number(serieId), anoLetivo: Number(anoSeries), valor: Number(valor) });
+            await api.post("/fin/serie-valores", { serieId: Number(serieId), anoLetivo: Number(anoSeries), valorPadrao: Number(valor) });
             flash("Valor salvo!");
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
     };
