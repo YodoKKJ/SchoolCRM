@@ -244,8 +244,16 @@ public class FinContratoService {
         return cr.getStatus();
     }
 
-    private Long parseLong(Object v) { return v == null ? null : ((Number) v).longValue(); }
-    private Integer parseInteger(Object v) { return v == null ? null : ((Number) v).intValue(); }
+    private Long parseLong(Object v) {
+        if (v == null) return null;
+        if (v instanceof Number) return ((Number) v).longValue();
+        try { return Long.parseLong(v.toString().trim()); } catch (NumberFormatException e) { return null; }
+    }
+    private Integer parseInteger(Object v) {
+        if (v == null) return null;
+        if (v instanceof Number) return ((Number) v).intValue();
+        try { return Integer.parseInt(v.toString().trim()); } catch (NumberFormatException e) { return null; }
+    }
     private BigDecimal parseBigDecimal(Object v) {
         if (v == null) return BigDecimal.ZERO;
         BigDecimal result = new BigDecimal(v.toString());
