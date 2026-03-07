@@ -4764,7 +4764,7 @@ function FinContratos({ anoLetivo }) {
                                 <select value={formCRAvulsa.pessoaId||""} onChange={e => setFormCRAvulsa(b => ({ ...b, pessoaId: e.target.value }))}
                                     style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
                                     <option value="">— Sem pessoa —</option>
-                                    {[...alunos.map(a => ({ id:a.id, nome:a.nome+" (aluno)" }))].map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                                    {responsaveis.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
                                 </select>
                             </div>
                             <div style={{ display:"flex", gap:8, marginTop:8 }}>
