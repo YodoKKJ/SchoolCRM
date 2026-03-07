@@ -4013,6 +4013,8 @@ function FinFuncionarios() {
     const [formBenef, setFormBenef] = useState({ funcionarioId:"", tipo:"VALE_REFEICAO", valor:"", descricao:"" });
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
     const [salvando, setSalvando] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
+    const [benefRefreshKey, setBenefRefreshKey] = useState(0);
 
     const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
 
@@ -4024,9 +4026,20 @@ function FinFuncionarios() {
     };
 
     useEffect(() => {
-        carregar();
+        api.get("/fin/funcionarios").then(r => setFuncionarios(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    }, [refreshKey]);
+
+    useEffect(() => {
         api.get("/fin/pessoas", { params: { ativo: true } }).then(r => setPessoas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     }, []);
+
+    useEffect(() => {
+        if (expandido) {
+            api.get(`/fin/funcionarios/${expandido}/beneficios`)
+                .then(r => setBeneficios(b => ({ ...b, [expandido]: Array.isArray(r.data) ? r.data : [] })))
+                .catch(() => {});
+        }
+    }, [expandido, benefRefreshKey]);
 
     const toggleExpand = id => {
         setExpandido(e => e === id ? null : id);
@@ -4051,14 +4064,14 @@ function FinFuncionarios() {
             else await api.put(`/fin/funcionarios/${modal.dados.id}`, body);
             setModal(null);
             flash("Funcionário salvo!");
-            carregar();
+            setRefreshKey(k => k + 1);
         } catch(err) { flash(err.response?.data || "Erro ao salvar.", "err"); }
         finally { setSalvando(false); }
     };
 
     const toggleAtivo = async f => {
         await api.patch(`/fin/funcionarios/${f.id}/status`).catch(() => {});
-        carregar();
+        setRefreshKey(k => k + 1);
     };
 
     const adicionarBeneficio = async e => {
@@ -4066,17 +4079,17 @@ function FinFuncionarios() {
         try {
             await api.post(`/fin/funcionarios/${formBenef.funcionarioId}/beneficios`, { ...formBenef, valor: Number(formBenef.valor) });
             setFormBenef(b => ({ ...b, tipo:"VALE_REFEICAO", valor:"", descricao:"" }));
-            carregarBeneficios(formBenef.funcionarioId);
+            setBenefRefreshKey(k => k + 1);
         } catch(err) { flash(err.response?.data || "Erro ao adicionar benefício.", "err"); }
     };
 
     const toggleBeneficio = async (b, funcId) => {
         await api.patch(`/fin/beneficios/${b.id}/status`).catch(() => {});
-        carregarBeneficios(funcId);
+        setBenefRefreshKey(k => k + 1);
     };
     const deletarBeneficio = async (b, funcId) => {
         await api.delete(`/fin/beneficios/${b.id}`).catch(() => {});
-        carregarBeneficios(funcId);
+        setBenefRefreshKey(k => k + 1);
     };
 
     const ff = (k, v) => setForm(f => ({ ...f, [k]: v }));
