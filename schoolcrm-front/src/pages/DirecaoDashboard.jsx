@@ -4255,6 +4255,7 @@ function FinContratos({ anoLetivo }) {
     const [modalBaixar, setModalBaixar] = useState(null); // { crId, contratoId, valor, isVencido }
     const [formContrato, setFormContrato] = useState({ anoLetivo: String(anoLetivo), serieId:"", responsavelPrincipalId:"", numParcelas:"12", desconto:"0", acrescimo:"0", mesInicio:"" });
     const [formBaixar, setFormBaixar] = useState({ dataPagamento:"", valorPago:"", formaPagamentoId:"", jurosAplicado:"", multaAplicada:"", observacoes:"" });
+    const [configFin, setConfigFin] = useState(null);
     const [modalCRAvulsa, setModalCRAvulsa] = useState(false);
     const [formCRAvulsa, setFormCRAvulsa] = useState({ descricao:"", valor:"", dataVencimento:"", pessoaId:"", formaPagamentoId:"", observacoes:"" });
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
@@ -4265,11 +4266,23 @@ function FinContratos({ anoLetivo }) {
 
     const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
 
+    // Calcula juros e multa sugeridos para uma parcela vencida (primeiro pagamento) com base na config
+    const calcEncargos = (valorCr) => {
+        if (!configFin) return { juros: "", multa: "" };
+        const jPct = Number(configFin.jurosAtrasoPct || 0);
+        const mPct = Number(configFin.multaAtrasoPct || 0);
+        return {
+            juros: jPct > 0 ? String((Number(valorCr) * jPct / 100).toFixed(2)) : "",
+            multa: mPct > 0 ? String((Number(valorCr) * mPct / 100).toFixed(2)) : "",
+        };
+    };
+
     useEffect(() => {
         api.get("/usuarios/buscar", { params: { role:"ALUNO" } }).then(r => setAlunos(Array.isArray(r.data) ? r.data : [])).catch(() => {});
         api.get("/turmas/series").then(r => setSeries(Array.isArray(r.data) ? r.data : [])).catch(() => {});
         api.get("/fin/formas-pagamento", { params: { apenasAtivas: true } }).then(r => setFormasPagamento(Array.isArray(r.data) ? r.data : [])).catch(() => {});
         api.get("/fin/pessoas").then(r => setResponsaveis(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+        api.get("/fin/configuracoes").then(r => setConfigFin(r.data)).catch(() => {});
     }, []);
 
     const carregarContratos = () => {
@@ -4397,10 +4410,14 @@ function FinContratos({ anoLetivo }) {
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
     };
 
-    const excluirAvulsa = async id => {
+    const excluirAvulsa = async cr => {
+        if (cr.status === "PARCIALMENTE_PAGO") {
+            flash("Não é possível excluir um título parcialmente baixado. Cancele-o em vez de excluir.", "err");
+            return;
+        }
         if (!window.confirm("Excluir permanentemente este recebimento? Esta ação não pode ser desfeita.")) return;
         try {
-            await api.delete(`/fin/contas-receber/${id}`);
+            await api.delete(`/fin/contas-receber/${cr.id}`);
             flash("Recebimento excluído.");
             carregarAvulsas();
         } catch(err) { flash(err.response?.data || "Erro ao excluir.", "err"); }
@@ -4560,8 +4577,13 @@ function FinContratos({ anoLetivo }) {
                                                                             onClick={() => {
                                                                                 const saldo = cr.saldoDevedor ?? cr.valor;
                                                                                 const jaFoiPago = Number(cr.valorPago||0);
-                                                                                setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(saldo), formaPagamentoId:"", jurosAplicado:"", multaAplicada:"", observacoes:"" });
-                                                                                setModalBaixar({ crId: cr.id, contratoId: c.id, valor: cr.valor, isVencido: st==="VENCIDO", jaFoiPago, saldoDevedor: saldo });
+                                                                                const isVencido = st === "VENCIDO";
+                                                                                const enc = (isVencido && !jaFoiPago) ? calcEncargos(cr.valor) : { juros:"", multa:"" };
+                                                                                const totalPreencher = (isVencido && !jaFoiPago)
+                                                                                    ? String((Number(cr.valor) + Number(enc.juros||0) + Number(enc.multa||0)).toFixed(2))
+                                                                                    : String(saldo);
+                                                                                setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: totalPreencher, formaPagamentoId:"", jurosAplicado: enc.juros, multaAplicada: enc.multa, observacoes:"" });
+                                                                                setModalBaixar({ crId: cr.id, contratoId: c.id, valor: cr.valor, isVencido, jaFoiPago, saldoDevedor: saldo });
                                                                             }}>Baixar</button>
                                                                         <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => cancelarParcela(cr.id, c.id)}>Cancelar</button>
                                                                     </div>
@@ -4651,13 +4673,18 @@ function FinContratos({ anoLetivo }) {
                                                         onClick={() => {
                                                             const saldo = cr.saldoDevedor ?? cr.valor;
                                                             const jaFoiPago = Number(cr.valorPago||0);
-                                                            setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(saldo), formaPagamentoId:"", jurosAplicado:"", multaAplicada:"", observacoes:"" });
-                                                            setModalBaixar({ crId: cr.id, contratoId: null, valor: cr.valor, isVencido: st==="VENCIDO", jaFoiPago, saldoDevedor: saldo });
+                                                            const isVencido = st === "VENCIDO";
+                                                            const enc = (isVencido && !jaFoiPago) ? calcEncargos(cr.valor) : { juros:"", multa:"" };
+                                                            const totalPreencher = (isVencido && !jaFoiPago)
+                                                                ? String((Number(cr.valor) + Number(enc.juros||0) + Number(enc.multa||0)).toFixed(2))
+                                                                : String(saldo);
+                                                            setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: totalPreencher, formaPagamentoId:"", jurosAplicado: enc.juros, multaAplicada: enc.multa, observacoes:"" });
+                                                            setModalBaixar({ crId: cr.id, contratoId: null, valor: cr.valor, isVencido, jaFoiPago, saldoDevedor: saldo });
                                                         }}>Baixar</button>
                                                     <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => cancelarAvulsa(cr.id)}>Cancelar</button>
                                                 </>)}
-                                                {st !== "PAGO" && (
-                                                    <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px", opacity:0.75 }} onClick={() => excluirAvulsa(cr.id)}>Excluir</button>
+                                                {(st !== "PAGO" && st !== "PARCIALMENTE_PAGO") && (
+                                                    <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px", opacity:0.75 }} onClick={() => excluirAvulsa(cr)}>Excluir</button>
                                                 )}
                                             </div>
                                         </td>
@@ -5051,18 +5078,24 @@ function FinContasPagar() {
             </div>
 
             {abaCP === "contas" && <>
-                {/* Aviso: modelos ativos mas recorrentes não geradas no mês atual */}
-                {modelos.some(m => m.ativo) && !contas.some(cp => cp.modeloId && cp.mesReferencia === mesAtual()) && (
+                {/* Aviso: modelos ativos mas recorrentes não geradas para o mês visualizado */}
+                {(() => {
+                    const mesRef = filtros.mesReferencia || mesAtual();
+                    const jaGerou = contas.some(cp => cp.modeloId && cp.mesReferencia === mesRef);
+                    if (!modelos.some(m => m.ativo) || jaGerou) return null;
+                    const nomeMes = new Date(mesRef + "-15").toLocaleDateString("pt-BR", { month:"long", year:"numeric" });
+                    return (
                     <div style={{ display:"flex", alignItems:"center", gap:10, background:"#fff8e1", border:"1px solid #ffe082", borderRadius:6, padding:"10px 14px" }}>
                         <AlertCircle size={16} color="#c47a00" style={{ flexShrink:0 }} />
                         <span style={{ fontSize:12, color:"#c47a00", flex:1 }}>
-                            Você tem modelos ativos mas ainda não gerou as contas recorrentes de <strong>{new Date().toLocaleDateString("pt-BR",{month:"long",year:"numeric"})}</strong>.
+                            Você tem modelos ativos mas ainda não gerou as contas recorrentes de <strong>{nomeMes}</strong>.
                         </span>
-                        <button className="dd-btn-ghost" style={{ fontSize:11, whiteSpace:"nowrap" }} onClick={() => { setMesRec(mesAtual()); setModalGerarRec(true); }}>
+                        <button className="dd-btn-ghost" style={{ fontSize:11, whiteSpace:"nowrap" }} onClick={() => { setMesRec(mesRef); setModalGerarRec(true); }}>
                             Gerar agora
                         </button>
                     </div>
-                )}
+                    );
+                })()}
                 {/* Barra: filtros à esquerda, ações à direita */}
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
@@ -5480,7 +5513,7 @@ function FinConfiguracoes({ anoLetivo }) {
     const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
 
     const carregarConfig = () => {
-        api.get("/fin/configuracoes").then(r => { setConfig(r.data); setFormConfig({ numParcelasPadrao: r.data.numParcelasPadrao||12, jurosMensal: r.data.jurosMensal||0, multaAtraso: r.data.multaAtraso||0, diaVencimentoPadrao: r.data.diaVencimentoPadrao||10 }); }).catch(() => {});
+        api.get("/fin/configuracoes").then(r => { setConfig(r.data); setFormConfig({ numParcelasPadrao: r.data.numParcelasPadrao||12, jurosAtrasoPct: r.data.jurosAtrasoPct||0, multaAtrasoPct: r.data.multaAtrasoPct||0, diaVencimentoPadrao: r.data.diaVencimentoPadrao||10 }); }).catch(() => {});
     };
     const carregarFormas = () => {
         api.get("/fin/formas-pagamento").then(r => setFormas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
@@ -5503,7 +5536,7 @@ function FinConfiguracoes({ anoLetivo }) {
         e.preventDefault();
         setSalvando(true);
         try {
-            await api.put("/fin/configuracoes", { ...formConfig, numParcelasPadrao: Number(formConfig.numParcelasPadrao), jurosMensal: Number(formConfig.jurosMensal), multaAtraso: Number(formConfig.multaAtraso), diaVencimentoPadrao: Number(formConfig.diaVencimentoPadrao) });
+            await api.put("/fin/configuracoes", { ...formConfig, numParcelasPadrao: Number(formConfig.numParcelasPadrao), jurosAtrasoPct: Number(formConfig.jurosAtrasoPct), multaAtrasoPct: Number(formConfig.multaAtrasoPct), diaVencimentoPadrao: Number(formConfig.diaVencimentoPadrao) });
             flash("Configuração salva!");
             carregarConfig();
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
@@ -5553,8 +5586,8 @@ function FinConfiguracoes({ anoLetivo }) {
                         {[
                             { k:"numParcelasPadrao",  label:"Parcelas Padrão",       type:"number" },
                             { k:"diaVencimentoPadrao",label:"Dia Vencimento Padrão", type:"number" },
-                            { k:"jurosMensal",        label:"Juros Mensal (%)",      type:"number", step:"0.01" },
-                            { k:"multaAtraso",        label:"Multa por Atraso (%)",  type:"number", step:"0.01" },
+                            { k:"jurosAtrasoPct",     label:"Juros por Atraso (%)",  type:"number", step:"0.01" },
+                            { k:"multaAtrasoPct",     label:"Multa por Atraso (%)",  type:"number", step:"0.01" },
                         ].map(f => (
                             <div key={f.k}>
                                 <label className="dd-label">{f.label}</label>
