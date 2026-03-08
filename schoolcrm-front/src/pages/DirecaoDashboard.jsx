@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, Component } from "react";
 import axios from "axios";
-import { BoletimImpresso } from "./BoletimPDF";
 import {
     Home, Users, School, BookOpen, LogOut,
     GraduationCap, UserCheck, LayoutGrid, BookMarked, Menu,
@@ -468,7 +467,23 @@ function Relatorios({ anoLetivo }) {
                             </span>
                             <span className="dd-section-count">{relatorio.length} alunos</span>
                         </div>
-                        <button className="dd-btn-edit" onClick={() => window.print()}>Imprimir / PDF</button>
+                        <button className="dd-btn-edit" onClick={async () => {
+                            try {
+                                const bimParam = tipoRel === "situacao" ? 0 : bimestreSel;
+                                const resp = await fetch(
+                                    `/relatorios/turma/${turmaSel.id}?tipo=${tipoRel}&bimestre=${bimParam}`,
+                                    { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+                                );
+                                if (!resp.ok) throw new Error("Erro ao gerar PDF");
+                                const blob = await resp.blob();
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = `relatorio_${tipoRel}_${turmaSel.nome}.pdf`;
+                                a.click();
+                                URL.revokeObjectURL(url);
+                            } catch { alert("Erro ao gerar PDF."); }
+                        }}>Baixar PDF →</button>
                     </div>
 
                     {/* ── Cartões de resumo (situação final) ── */}
@@ -2922,102 +2937,40 @@ function Boletins({ anoLetivo }) {
     const [turmas, setTurmas] = useState([]);
     const [alunoId, setAlunoId] = useState("");
     const [turmaId, setTurmaId] = useState("");
-    const [boletim, setBoletim] = useState(null);
-    const [carregando, setCarregando] = useState(false);
-    const [logo, setLogo] = useState(() => localStorage.getItem("escola_logo") || null);
     const [gerando, setGerando] = useState(false);
-    const [preview, setPreview] = useState(false);
-    const boletimRef = useRef(null);
 
     useEffect(() => {
         api.get("/usuarios").then(r => setAlunos((r.data || []).filter(u => u.role === "ALUNO" && u.ativo)));
         api.get("/turmas").then(r => setTurmas(r.data || []));
     }, []);
 
-    const handleLogo = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            const dataUrl = ev.target.result;
-            setLogo(dataUrl);
-            localStorage.setItem("escola_logo", dataUrl);
-        };
-        reader.readAsDataURL(file);
-    };
-
-    const gerarBoletim = async () => {
+    const baixarBoletim = async () => {
         if (!alunoId || !turmaId) return;
-        setCarregando(true);
-        setBoletim(null);
-        setPreview(false);
-        try {
-            const r = await api.get(`/notas/boletim/${alunoId}/${turmaId}`);
-            setBoletim(r.data);
-            setPreview(true);
-        } catch (e) {
-            alert("Erro ao gerar boletim.");
-        } finally {
-            setCarregando(false);
-        }
-    };
-
-    const baixarPDF = async () => {
-        if (!boletimRef.current) return;
         setGerando(true);
         try {
-            const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
-                import("jspdf"),
-                import("html2canvas"),
-            ]);
-            const canvas = await html2canvas(boletimRef.current, {
-                scale: 2, useCORS: true, backgroundColor: "#fff",
-            });
-            const imgData = canvas.toDataURL("image/png");
-            const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-            const pdfW = pdf.internal.pageSize.getWidth();
-            const pdfH = (canvas.height * pdfW) / canvas.width;
-            pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
-            const nome = (boletim?.aluno?.nome || "aluno").replace(/\s+/g,"_").toLowerCase();
-            pdf.save(`boletim_${nome}.pdf`);
-        } catch (e) {
-            alert("Erro ao gerar PDF.\nInstale as dependências:\nnpm install jspdf html2canvas");
+            const resp = await fetch(
+                `/relatorios/boletim/${alunoId}/${turmaId}`,
+                { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+            );
+            if (!resp.ok) throw new Error("Erro ao gerar PDF");
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            const nomeAluno = (alunos.find(a => String(a.id) === String(alunoId))?.nome || "aluno")
+                .replace(/\s+/g, "_").toLowerCase();
+            a.download = `boletim_${nomeAluno}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch {
+            alert("Erro ao gerar boletim PDF.");
+        } finally {
+            setGerando(false);
         }
-        setGerando(false);
     };
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
-
-            {/* Configuração do logo */}
-            <div className="dd-section" style={{ padding:24 }}>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-                    <p className="dd-section-title">Logo da Escola</p>
-                    {logo && (
-                        <button onClick={() => { setLogo(null); localStorage.removeItem("escola_logo"); }}
-                                className="dd-btn-ghost" style={{ fontSize:10 }}>Remover logo</button>
-                    )}
-                </div>
-                <div style={{ display:"flex", alignItems:"center", gap:20 }}>
-                    <div style={{ width:100, height:64, border:"1px solid #eaeef2", display:"flex",
-                        alignItems:"center", justifyContent:"center", overflow:"hidden", background:"#f8faf8" }}>
-                        {logo
-                            ? <img src={logo} style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain" }} alt="logo" />
-                            : <span style={{ fontSize:10, color:"#9aaa9f", textAlign:"center" }}>Sem logo</span>
-                        }
-                    </div>
-                    <div>
-                        <label className="dd-label">Carregar imagem (PNG, JPG)</label>
-                        <input type="file" accept="image/*" onChange={handleLogo}
-                               style={{ fontSize:12, color:"#0d1f18", fontFamily:"'DM Sans',sans-serif" }} />
-                        <p style={{ fontSize:11, color:"#9aaa9f", marginTop:4 }}>
-                            Salvo localmente no navegador. Recomendado: fundo transparente, proporção ~3:2.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Seletor aluno + turma */}
             <div className="dd-section" style={{ padding:24 }}>
                 <p className="dd-section-title" style={{ marginBottom:20 }}>Gerar Boletim</p>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:16, alignItems:"flex-end" }}>
@@ -3035,41 +2988,15 @@ function Boletins({ anoLetivo }) {
                             value={turmaId} onChange={setTurmaId}
                             placeholder="Selecione a turma..." />
                     </div>
-                    <button onClick={gerarBoletim} disabled={!alunoId || !turmaId || carregando}
+                    <button onClick={baixarBoletim} disabled={!alunoId || !turmaId || gerando}
                             className="dd-btn-primary" style={{ whiteSpace:"nowrap" }}>
-                        {carregando ? "Carregando..." : "Gerar →"}
+                        {gerando ? "Gerando..." : "Baixar PDF →"}
                     </button>
                 </div>
+                <p style={{ fontSize:11, color:"#9aaa9f", marginTop:12 }}>
+                    O PDF será gerado pelo servidor e baixado automaticamente.
+                </p>
             </div>
-
-            {/* Preview + PDF */}
-            {preview && boletim && (
-                <div className="dd-section">
-                    <div className="dd-section-header">
-                        <div>
-                            <span className="dd-section-title">{boletim.aluno?.nome}</span>
-                            <p style={{ fontSize:11, color:"#9aaa9f", marginTop:2 }}>
-                                {boletim.turma?.nome} · {boletim.turma?.anoLetivo}
-                            </p>
-                        </div>
-                        <div style={{ display:"flex", gap:8 }}>
-                            <button className="dd-btn-ghost" onClick={() => setPreview(p => !p)}>
-                                {preview ? "Ocultar preview" : "Ver preview"}
-                            </button>
-                            <button className="dd-btn-primary" onClick={baixarPDF} disabled={gerando}>
-                                {gerando ? "Gerando..." : "Baixar PDF →"}
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Preview visual */}
-                    <div style={{ padding:20, background:"#f2f4f2", overflowX:"auto" }}>
-                        <div ref={boletimRef} style={{ transformOrigin:"top left" }}>
-                            <BoletimImpresso boletim={boletim} logo={logo} />
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
