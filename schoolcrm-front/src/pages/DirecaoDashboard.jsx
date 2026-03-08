@@ -4397,10 +4397,14 @@ function FinContratos({ anoLetivo }) {
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
     };
 
-    const excluirAvulsa = async id => {
+    const excluirAvulsa = async cr => {
+        if (cr.status === "PARCIALMENTE_PAGO") {
+            flash("Não é possível excluir um título parcialmente baixado. Cancele-o em vez de excluir.", "err");
+            return;
+        }
         if (!window.confirm("Excluir permanentemente este recebimento? Esta ação não pode ser desfeita.")) return;
         try {
-            await api.delete(`/fin/contas-receber/${id}`);
+            await api.delete(`/fin/contas-receber/${cr.id}`);
             flash("Recebimento excluído.");
             carregarAvulsas();
         } catch(err) { flash(err.response?.data || "Erro ao excluir.", "err"); }
@@ -4656,8 +4660,8 @@ function FinContratos({ anoLetivo }) {
                                                         }}>Baixar</button>
                                                     <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => cancelarAvulsa(cr.id)}>Cancelar</button>
                                                 </>)}
-                                                {st !== "PAGO" && (
-                                                    <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px", opacity:0.75 }} onClick={() => excluirAvulsa(cr.id)}>Excluir</button>
+                                                {(st !== "PAGO" && st !== "PARCIALMENTE_PAGO") && (
+                                                    <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px", opacity:0.75 }} onClick={() => excluirAvulsa(cr)}>Excluir</button>
                                                 )}
                                             </div>
                                         </td>
