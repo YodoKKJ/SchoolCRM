@@ -148,16 +148,24 @@ public class FinContaReceberController {
             if (estaVencida) {
                 FinConfiguracao config = configuracaoRepository.findAll().stream().findFirst().orElse(null);
                 if (config != null) {
-                    if (body.containsKey("jurosAplicado") && body.get("jurosAplicado") != null) {
-                        juros = new BigDecimal(body.get("jurosAplicado").toString());
-                    } else if (config.getJurosAtrasoPct() != null) {
+                    // Se a chave existe no body (mesmo que null), usa o valor enviado (null = zero explícito).
+                    // Só auto-calcula quando a chave NÃO foi enviada pelo cliente.
+                    if (body.containsKey("jurosAplicado")) {
+                        juros = body.get("jurosAplicado") != null
+                                ? new BigDecimal(body.get("jurosAplicado").toString())
+                                : BigDecimal.ZERO;
+                    } else if (config.getJurosAtrasoPct() != null
+                            && config.getJurosAtrasoPct().compareTo(BigDecimal.ZERO) > 0) {
                         juros = cr.getValor()
                                 .multiply(config.getJurosAtrasoPct())
                                 .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
                     }
-                    if (body.containsKey("multaAplicada") && body.get("multaAplicada") != null) {
-                        multa = new BigDecimal(body.get("multaAplicada").toString());
-                    } else if (config.getMultaAtrasoPct() != null) {
+                    if (body.containsKey("multaAplicada")) {
+                        multa = body.get("multaAplicada") != null
+                                ? new BigDecimal(body.get("multaAplicada").toString())
+                                : BigDecimal.ZERO;
+                    } else if (config.getMultaAtrasoPct() != null
+                            && config.getMultaAtrasoPct().compareTo(BigDecimal.ZERO) > 0) {
                         multa = cr.getValor()
                                 .multiply(config.getMultaAtrasoPct())
                                 .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
