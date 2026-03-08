@@ -10,13 +10,6 @@
               topMargin="20" bottomMargin="20"
               whenNoDataType="AllSectionsNoDetail">
 
-    <!-- ═══ SUBDATASET for crosstab ══════════════════════════════════════ -->
-    <subDataset name="CrosstabDS">
-        <field name="alunoNome"   class="java.lang.String"/>
-        <field name="materiaNome" class="java.lang.String"/>
-        <field name="valor"       class="java.lang.Double"/>
-    </subDataset>
-
     <!-- ═══ STYLES ═══════════════════════════════════════════════════════ -->
     <style name="default" isDefault="true" fontName="SansSerif" fontSize="8"/>
 
@@ -34,6 +27,13 @@
             <style forecolor="#2d6a4f"/>
         </conditionalStyle>
     </style>
+
+    <!-- ═══ SUBDATASET for crosstab ══════════════════════════════════════ -->
+    <subDataset name="CrosstabDS">
+        <field name="alunoNome"   class="java.lang.String"/>
+        <field name="materiaNome" class="java.lang.String"/>
+        <field name="valor"       class="java.lang.Double"/>
+    </subDataset>
 
     <!-- ═══ PARAMETERS ═══════════════════════════════════════════════════ -->
     <parameter name="TURMA_NOME"   class="java.lang.String"/>

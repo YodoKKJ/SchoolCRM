@@ -474,7 +474,11 @@ function Relatorios({ anoLetivo }) {
                                     `/relatorios/turma/${turmaSel.id}?tipo=${tipoRel}&bimestre=${bimParam}`,
                                     { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
                                 );
-                                if (!resp.ok) throw new Error("Erro ao gerar PDF");
+                                if (!resp.ok) {
+                                    const err = await resp.text().catch(() => "");
+                                    alert("Erro ao gerar PDF" + (err ? ":\n" + err : "."));
+                                    return;
+                                }
                                 const blob = await resp.blob();
                                 const url = URL.createObjectURL(blob);
                                 const a = document.createElement("a");
@@ -482,7 +486,7 @@ function Relatorios({ anoLetivo }) {
                                 a.download = `relatorio_${tipoRel}_${turmaSel.nome}.pdf`;
                                 a.click();
                                 URL.revokeObjectURL(url);
-                            } catch { alert("Erro ao gerar PDF."); }
+                            } catch (e) { alert("Erro ao gerar PDF: " + e.message); }
                         }}>Baixar PDF →</button>
                     </div>
 
@@ -2952,7 +2956,11 @@ function Boletins({ anoLetivo }) {
                 `/relatorios/boletim/${alunoId}/${turmaId}`,
                 { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
             );
-            if (!resp.ok) throw new Error("Erro ao gerar PDF");
+            if (!resp.ok) {
+                const err = await resp.text().catch(() => "");
+                alert("Erro ao gerar boletim PDF" + (err ? ":\n" + err : "."));
+                return;
+            }
             const blob = await resp.blob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
@@ -2962,8 +2970,8 @@ function Boletins({ anoLetivo }) {
             a.download = `boletim_${nomeAluno}.pdf`;
             a.click();
             URL.revokeObjectURL(url);
-        } catch {
-            alert("Erro ao gerar boletim PDF.");
+        } catch (e) {
+            alert("Erro ao gerar boletim PDF: " + e.message);
         } finally {
             setGerando(false);
         }
