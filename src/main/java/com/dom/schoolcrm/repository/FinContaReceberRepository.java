@@ -54,10 +54,11 @@ public interface FinContaReceberRepository extends JpaRepository<FinContaReceber
             @Param("ate") LocalDate ate
     );
 
-    // Inadimplentes: PENDENTE com vencimento antes de hoje
+    // Inadimplentes: PENDENTE ou PARCIALMENTE_PAGO com vencimento antes de hoje
+    // Inclui parcialmente pagas porque ainda há saldo devedor em aberto
     @Query("""
         SELECT cr FROM FinContaReceber cr
-        WHERE cr.status = 'PENDENTE'
+        WHERE cr.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
           AND cr.dataVencimento < :hoje
         ORDER BY cr.dataVencimento ASC
         """)
@@ -66,20 +67,27 @@ public interface FinContaReceberRepository extends JpaRepository<FinContaReceber
     // Verifica se já existe alguma parcela PAGA de um contrato (para impedir cancelamento)
     boolean existsByContratoIdAndStatus(Long contratoId, String status);
 
-    // Dashboard: soma das CR PENDENTE cujo vencimento ainda não passou (a receber futuro)
+    // Dashboard: saldo a receber de CR PENDENTE ou PARCIALMENTE_PAGO cujo vencimento ainda não passou
+    // Usa (valor - valorPago) para refletir o que ainda falta pagar em parciais
     @Query("""
-        SELECT COALESCE(SUM(cr.valor), 0)
+        SELECT COALESCE(SUM(cr.valor - COALESCE(cr.valorPago, 0)), 0)
         FROM FinContaReceber cr
-        WHERE cr.status = 'PENDENTE'
+        WHERE cr.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
           AND cr.dataVencimento >= :hoje
         """)
     java.math.BigDecimal somarPendentesNaoVencidos(@Param("hoje") LocalDate hoje);
 
-    // Dashboard: soma das CR PENDENTE já vencidas (inadimplência em valor)
+    // Dashboard: inadimplência real = saldo devedor (valor + juros + multa - valorPago)
+    // de CRs PENDENTE ou PARCIALMENTE_PAGO já vencidas
     @Query("""
-        SELECT COALESCE(SUM(cr.valor), 0)
+        SELECT COALESCE(SUM(
+            cr.valor
+            + COALESCE(cr.jurosAplicado, 0)
+            + COALESCE(cr.multaAplicada, 0)
+            - COALESCE(cr.valorPago, 0)
+        ), 0)
         FROM FinContaReceber cr
-        WHERE cr.status = 'PENDENTE'
+        WHERE cr.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
           AND cr.dataVencimento < :hoje
         """)
     java.math.BigDecimal somarVencidos(@Param("hoje") LocalDate hoje);
