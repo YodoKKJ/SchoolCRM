@@ -13,6 +13,14 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 const api = axios.create({ baseURL: "" });
 
+// Evita cache do browser em requisições GET — garante dados sempre frescos após CRUD
+api.interceptors.request.use(config => {
+    if (config.method === "get") {
+        config.params = { ...config.params, _t: Date.now() };
+    }
+    return config;
+});
+
 let redirectingTo401 = false;
 
 // Hook debounce — espera Xms após parar de digitar
