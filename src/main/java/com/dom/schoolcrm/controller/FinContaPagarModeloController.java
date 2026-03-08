@@ -57,6 +57,26 @@ public class FinContaPagarModeloController {
     public ResponseEntity<?> editar(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         var opt = modeloRepository.findById(id);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
+
+        // Valida os campos que foram enviados: se presente, não pode ser vazio/inválido
+        if (body.containsKey("descricao") && (body.get("descricao") == null || body.get("descricao").toString().isBlank()))
+            return ResponseEntity.badRequest().body("descricao não pode ser vazia.");
+        if (body.containsKey("categoria") && (body.get("categoria") == null || body.get("categoria").toString().isBlank()))
+            return ResponseEntity.badRequest().body("categoria não pode ser vazia.");
+        if (body.containsKey("valor") && body.get("valor") != null) {
+            try {
+                if (new java.math.BigDecimal(body.get("valor").toString()).compareTo(java.math.BigDecimal.ZERO) <= 0)
+                    return ResponseEntity.badRequest().body("valor deve ser maior que zero.");
+            } catch (NumberFormatException e) {
+                return ResponseEntity.badRequest().body("valor inválido.");
+            }
+        }
+        if (body.containsKey("diaVencimento") && body.get("diaVencimento") != null) {
+            int dia = ((Number) body.get("diaVencimento")).intValue();
+            if (dia < 1 || dia > 28)
+                return ResponseEntity.badRequest().body("diaVencimento deve ser entre 1 e 28.");
+        }
+
         preencher(opt.get(), body);
         return ResponseEntity.ok(toMap(modeloRepository.save(opt.get())));
     }

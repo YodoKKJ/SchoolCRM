@@ -78,9 +78,11 @@ public interface FinContaPagarRepository extends JpaRepository<FinContaPagar, Lo
         """)
     BigDecimal somarVencidos(@Param("hoje") LocalDate hoje);
 
-    // Dashboard: CP pendentes com vencimento num intervalo (próximos vencimentos)
+    // Dashboard: CP pendentes com vencimento num intervalo.
+    // JOIN FETCH em pessoa evita N+1 queries no dashboard.
     @Query("""
         SELECT cp FROM FinContaPagar cp
+        LEFT JOIN FETCH cp.pessoa
         WHERE cp.status = 'PENDENTE'
           AND cp.dataVencimento BETWEEN :de AND :ate
         ORDER BY cp.dataVencimento ASC

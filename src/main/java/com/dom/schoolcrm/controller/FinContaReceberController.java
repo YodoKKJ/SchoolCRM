@@ -236,6 +236,7 @@ public class FinContaReceberController {
         FinContaReceber cr = crRepository.findById(id).orElse(null);
         if (cr == null) return ResponseEntity.notFound().build();
 
+        // Mensagens de erro descritivas com base no estado atual
         if (cr.getContrato() != null) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body("Parcelas de contrato não podem ser excluídas. Use 'Cancelar' para desativá-las.");
@@ -244,8 +245,18 @@ public class FinContaReceberController {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body("Recebimentos já pagos não podem ser excluídos.");
         }
+        if ("PARCIALMENTE_PAGO".equals(cr.getStatus())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Recebimentos com pagamento parcial não podem ser excluídos. Use 'Cancelar'.");
+        }
 
-        crRepository.deleteById(id);
+        // Delete atômico: re-verifica as condições diretamente no banco para eliminar
+        // race condition entre a leitura acima e a deleção efetiva.
+        int deletados = crRepository.deleteAvulsaNaoPaga(id);
+        if (deletados == 0) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Não foi possível excluir: o status da parcela foi alterado por outra operação.");
+        }
         return ResponseEntity.noContent().build();
     }
 
