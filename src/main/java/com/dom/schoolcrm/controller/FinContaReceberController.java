@@ -2,6 +2,7 @@ package com.dom.schoolcrm.controller;
 
 import com.dom.schoolcrm.entity.*;
 import com.dom.schoolcrm.repository.*;
+import com.dom.schoolcrm.util.FinUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -230,7 +231,7 @@ public class FinContaReceberController {
         m.put("valorPago",      cr.getValorPago());
         m.put("dataVencimento", cr.getDataVencimento());
         m.put("dataPagamento",  cr.getDataPagamento());
-        m.put("status",         statusEfetivo(cr, hoje));
+        m.put("status",         FinUtil.statusEfetivo(cr, hoje));
         m.put("jurosAplicado",  cr.getJurosAplicado());
         m.put("multaAplicada",  cr.getMultaAplicada());
         m.put("observacoes",    cr.getObservacoes());
@@ -254,11 +255,6 @@ public class FinContaReceberController {
         }
 
         return m;
-    }
-
-    private String statusEfetivo(FinContaReceber cr, LocalDate hoje) {
-        if ("PENDENTE".equals(cr.getStatus()) && cr.getDataVencimento().isBefore(hoje)) return "VENCIDO";
-        return cr.getStatus();
     }
 
     private Long parseLong(Object v) { return v == null ? null : ((Number) v).longValue(); }
