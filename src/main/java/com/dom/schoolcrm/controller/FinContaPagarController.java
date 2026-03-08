@@ -67,6 +67,11 @@ public class FinContaPagarController {
         LocalDate de  = vencimentoDe  != null ? LocalDate.parse(vencimentoDe)  : null;
         LocalDate ate = vencimentoAte != null ? LocalDate.parse(vencimentoAte) : null;
 
+        // B1: período inválido (de > ate) — falha silenciosa seria confusa para o usuário
+        if (de != null && ate != null && de.isAfter(ate)) {
+            return ResponseEntity.badRequest().body(null);
+        }
+
         String tipoF   = blank(tipo)    ? null : tipo.toUpperCase();
         String catF    = blank(categoria) ? null : categoria.toUpperCase();
         String mesF    = blank(mesReferencia) ? null : mesReferencia;
@@ -154,6 +159,7 @@ public class FinContaPagarController {
     // ─── Baixar (registrar pagamento) ─────────────────────────────────────────
 
     @PatchMapping("/{id}/baixar")
+    @Transactional  // B3: múltiplos saves (cp + forma de pagamento) devem ser atômicos
     public ResponseEntity<?> baixar(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         FinContaPagar cp = cpRepository.findById(id).orElse(null);
         if (cp == null) return ResponseEntity.notFound().build();
@@ -162,7 +168,13 @@ public class FinContaPagarController {
 
         if (body.get("valorPago") == null) return ResponseEntity.badRequest().body("valorPago é obrigatório.");
 
-        cp.setValorPago(new BigDecimal(body.get("valorPago").toString()));
+        BigDecimal valorPago = new BigDecimal(body.get("valorPago").toString());
+        // B5: garante que valorPago não é negativo ou zero
+        if (valorPago.compareTo(BigDecimal.ZERO) <= 0) {
+            return ResponseEntity.badRequest().body("Valor pago deve ser maior que zero.");
+        }
+
+        cp.setValorPago(valorPago);
         cp.setStatus("PAGO");
 
         String dataPagStr = str(body.get("dataPagamento"));
@@ -204,7 +216,8 @@ public class FinContaPagarController {
 
         String nomeMes = ym.getMonth().getDisplayName(TextStyle.FULL, new Locale("pt", "BR"));
         nomeMes = nomeMes.substring(0, 1).toUpperCase() + nomeMes.substring(1);
-        LocalDate vencimento = ym.atEndOfMonth(); // vencimento no último dia do mês
+        LocalDate inicioMes   = ym.atDay(1);
+        LocalDate vencimento  = ym.atEndOfMonth(); // vencimento no último dia do mês
 
         List<Map<String, Object>> geradas = new ArrayList<>();
         List<String> ignoradas = new ArrayList<>();
@@ -212,6 +225,18 @@ public class FinContaPagarController {
         for (FinFuncionario func : funcionarios) {
             if (cpRepository.existsByFuncionarioIdAndMesReferencia(func.getId(), mes)) {
                 ignoradas.add(func.getPessoa().getNome() + " (já gerado)");
+                continue;
+            }
+
+            // B4: valida vínculo empregatício no mês da folha.
+            // Admissão após o último dia do mês → ainda não estava empregado.
+            if (func.getDataAdmissao() != null && func.getDataAdmissao().isAfter(vencimento)) {
+                ignoradas.add(func.getPessoa().getNome() + " (admissão posterior ao mês)");
+                continue;
+            }
+            // Demissão antes do primeiro dia do mês → já havia saído.
+            if (func.getDataDemissao() != null && func.getDataDemissao().isBefore(inicioMes)) {
+                ignoradas.add(func.getPessoa().getNome() + " (demitido antes do mês)");
                 continue;
             }
 
