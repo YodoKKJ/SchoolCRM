@@ -80,16 +80,16 @@
                 <textFieldExpression><![CDATA[$P{PERIODO}]]></textFieldExpression>
             </textField>
             <textField>
-                <reportElement x="600" y="24" width="202" height="10"/>
+                <reportElement x="600" y="24" width="202" height="10" forecolor="#555555"/>
                 <textElement textAlignment="Right">
-                    <font fontName="SansSerif" size="7" forecolor="#555555"/>
+                    <font fontName="SansSerif" size="7"/>
                 </textElement>
                 <textFieldExpression><![CDATA["Emissão: " + $P{DATA_EMISSAO}]]></textFieldExpression>
             </textField>
 
             <staticText>
-                <reportElement x="4" y="38" width="796" height="10"/>
-                <textElement><font fontName="SansSerif" size="7" forecolor="#555555"/></textElement>
+                <reportElement x="4" y="38" width="796" height="10" forecolor="#555555"/>
+                <textElement><font fontName="SansSerif" size="7"/></textElement>
                 <text><![CDATA[Cores: verde ≥ 7,0  |  laranja 6,0–6,9  |  vermelho < 6,0]]></text>
             </staticText>
         </band>
@@ -170,9 +170,9 @@
                             <pen lineWidth="0.3" lineColor="#cccccc"/>
                         </box>
                         <staticText>
-                            <reportElement x="0" y="3" width="80" height="12"/>
+                            <reportElement x="0" y="3" width="80" height="12" forecolor="#aaaaaa"/>
                             <textElement textAlignment="Center">
-                                <font fontName="SansSerif" size="8" forecolor="#aaaaaa"/>
+                                <font fontName="SansSerif" size="8"/>
                             </textElement>
                             <text><![CDATA[—]]></text>
                         </staticText>

@@ -115,9 +115,9 @@
 
             <!-- Emission date -->
             <textField>
-                <reportElement x="380" y="22" width="175" height="10"/>
+                <reportElement x="380" y="22" width="175" height="10" forecolor="#555555"/>
                 <textElement textAlignment="Right">
-                    <font fontName="SansSerif" size="7" forecolor="#555555"/>
+                    <font fontName="SansSerif" size="7"/>
                 </textElement>
                 <textFieldExpression><![CDATA["Emissão: " + $P{DATA_EMISSAO}]]></textFieldExpression>
             </textField>
@@ -547,8 +547,8 @@
                 <graphicElement><pen lineWidth="0.3" lineColor="#dddddd"/></graphicElement>
             </rectangle>
             <staticText>
-                <reportElement x="4" y="37" width="551" height="10"/>
-                <textElement><font fontName="SansSerif" size="6" forecolor="#555555"/></textElement>
+                <reportElement x="4" y="37" width="551" height="10" forecolor="#555555"/>
+                <textElement><font fontName="SansSerif" size="6"/></textElement>
                 <text><![CDATA[F = Faltas no bimestre  |  T.F = Total de Faltas  |  Freq% = Frequência  |  Aprovado: Média ≥ 6,0 e Frequência ≥ 75%]]></text>
             </staticText>
 
@@ -558,8 +558,8 @@
                 <graphicElement><pen lineStyle="Dashed" lineWidth="0.5" lineColor="#aaaaaa"/></graphicElement>
             </line>
             <staticText>
-                <reportElement x="0" y="58" width="555" height="10"/>
-                <textElement textAlignment="Center"><font fontName="SansSerif" size="7" forecolor="#aaaaaa"/></textElement>
+                <reportElement x="0" y="58" width="555" height="10" forecolor="#aaaaaa"/>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="7"/></textElement>
                 <text><![CDATA[✂ RECORTE AQUI ✂]]></text>
             </staticText>
 

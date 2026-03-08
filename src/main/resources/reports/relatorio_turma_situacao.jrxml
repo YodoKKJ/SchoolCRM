@@ -88,9 +88,9 @@
                 <textFieldExpression><![CDATA[$P{TURMA_NOME} + " — " + $P{SERIE_NOME} + " (" + $P{ANO_LETIVO} + ")"]]></textFieldExpression>
             </textField>
             <textField>
-                <reportElement x="380" y="24" width="175" height="10"/>
+                <reportElement x="380" y="24" width="175" height="10" forecolor="#555555"/>
                 <textElement textAlignment="Right">
-                    <font fontName="SansSerif" size="7" forecolor="#555555"/>
+                    <font fontName="SansSerif" size="7"/>
                 </textElement>
                 <textFieldExpression><![CDATA["Emissão: " + $P{DATA_EMISSAO}]]></textFieldExpression>
             </textField>
@@ -101,16 +101,16 @@
                 <graphicElement><pen lineWidth="0.5" lineColor="#2d6a4f"/></graphicElement>
             </rectangle>
             <textField>
-                <reportElement x="0" y="42" width="168" height="16"/>
+                <reportElement x="0" y="42" width="168" height="16" forecolor="#2d6a4f"/>
                 <textElement textAlignment="Center">
-                    <font fontName="SansSerif" size="14" isBold="true" forecolor="#2d6a4f"/>
+                    <font fontName="SansSerif" size="14" isBold="true"/>
                 </textElement>
                 <textFieldExpression><![CDATA[String.valueOf($P{TOTAL_APROVADOS})]]></textFieldExpression>
             </textField>
             <staticText>
-                <reportElement x="0" y="60" width="168" height="10"/>
+                <reportElement x="0" y="60" width="168" height="10" forecolor="#2d6a4f"/>
                 <textElement textAlignment="Center">
-                    <font fontName="SansSerif" size="7" isBold="true" forecolor="#2d6a4f"/>
+                    <font fontName="SansSerif" size="7" isBold="true"/>
                 </textElement>
                 <text><![CDATA[APROVADOS]]></text>
             </staticText>
@@ -120,16 +120,16 @@
                 <graphicElement><pen lineWidth="0.5" lineColor="#b94040"/></graphicElement>
             </rectangle>
             <textField>
-                <reportElement x="194" y="42" width="168" height="16"/>
+                <reportElement x="194" y="42" width="168" height="16" forecolor="#b94040"/>
                 <textElement textAlignment="Center">
-                    <font fontName="SansSerif" size="14" isBold="true" forecolor="#b94040"/>
+                    <font fontName="SansSerif" size="14" isBold="true"/>
                 </textElement>
                 <textFieldExpression><![CDATA[String.valueOf($P{TOTAL_REPROVADOS})]]></textFieldExpression>
             </textField>
             <staticText>
-                <reportElement x="194" y="60" width="168" height="10"/>
+                <reportElement x="194" y="60" width="168" height="10" forecolor="#b94040"/>
                 <textElement textAlignment="Center">
-                    <font fontName="SansSerif" size="7" isBold="true" forecolor="#b94040"/>
+                    <font fontName="SansSerif" size="7" isBold="true"/>
                 </textElement>
                 <text><![CDATA[REPROVADOS]]></text>
             </staticText>
@@ -139,16 +139,16 @@
                 <graphicElement><pen lineWidth="0.5" lineColor="#888888"/></graphicElement>
             </rectangle>
             <textField>
-                <reportElement x="388" y="42" width="167" height="16"/>
+                <reportElement x="388" y="42" width="167" height="16" forecolor="#888888"/>
                 <textElement textAlignment="Center">
-                    <font fontName="SansSerif" size="14" isBold="true" forecolor="#888888"/>
+                    <font fontName="SansSerif" size="14" isBold="true"/>
                 </textElement>
                 <textFieldExpression><![CDATA[String.valueOf($P{TOTAL_CURSANDO})]]></textFieldExpression>
             </textField>
             <staticText>
-                <reportElement x="388" y="60" width="167" height="10"/>
+                <reportElement x="388" y="60" width="167" height="10" forecolor="#888888"/>
                 <textElement textAlignment="Center">
-                    <font fontName="SansSerif" size="7" isBold="true" forecolor="#888888"/>
+                    <font fontName="SansSerif" size="7" isBold="true"/>
                 </textElement>
                 <text><![CDATA[EM CURSO]]></text>
             </staticText>
@@ -220,8 +220,8 @@
             </textField>
 
             <textField isStretchWithOverflow="true">
-                <reportElement x="342" y="2" width="211" height="10"/>
-                <textElement><font fontName="SansSerif" size="7" forecolor="#5a7060"/></textElement>
+                <reportElement x="342" y="2" width="211" height="10" forecolor="#5a7060"/>
+                <textElement><font fontName="SansSerif" size="7"/></textElement>
                 <textFieldExpression><![CDATA[$F{materiaRisco}]]></textFieldExpression>
             </textField>
 
