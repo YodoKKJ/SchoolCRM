@@ -4896,7 +4896,8 @@ function FinContasPagar() {
     const [mesFolha, setMesFolha] = useState(mesAtual());
     const [mesRec, setMesRec] = useState(mesAtual());
     const [formBaixar, setFormBaixar] = useState({ dataPagamento:"", valorPago:"", formaPagamentoId:"", observacoes:"" });
-    const [formModelo, setFormModelo] = useState({ descricao:"", categoria:"CONTA_FIXA", valor:"", diaVencimento:"", observacoes:"" });
+    const [formModelo, setFormModelo] = useState({ descricao:"", categoria:"CONTA_FIXA", valor:"", diaVencimento:"", pessoaId:"", observacoes:"" });
+    const [pessoas, setPessoas] = useState([]);
     const [abaCP, setAbaCP] = useState("contas");
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
     const [salvando, setSalvando] = useState(false);
@@ -4915,6 +4916,7 @@ function FinContasPagar() {
     useEffect(() => {
         api.get("/fin/formas-pagamento", { params: { apenasAtivas: true } }).then(r => setFormasPagamento(Array.isArray(r.data) ? r.data : [])).catch(() => {});
         api.get("/fin/modelos-cp").then(r => setModelos(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+        api.get("/fin/pessoas", { params: { ativo: true } }).then(r => setPessoas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     }, []);
 
     const baixarConta = async e => {
@@ -4961,8 +4963,9 @@ function FinContasPagar() {
         e.preventDefault();
         setSalvando(true);
         try {
-            if (modalModelo.modo === "criar") await api.post("/fin/modelos-cp", { ...formModelo, valor: Number(formModelo.valor), diaVencimento: formModelo.diaVencimento ? Number(formModelo.diaVencimento) : null });
-            else await api.put(`/fin/modelos-cp/${modalModelo.dados.id}`, { ...formModelo, valor: Number(formModelo.valor), diaVencimento: formModelo.diaVencimento ? Number(formModelo.diaVencimento) : null });
+            const payload = { ...formModelo, valor: Number(formModelo.valor), diaVencimento: Number(formModelo.diaVencimento), pessoaId: formModelo.pessoaId ? Number(formModelo.pessoaId) : null };
+            if (modalModelo.modo === "criar") await api.post("/fin/modelos-cp", payload);
+            else await api.put(`/fin/modelos-cp/${modalModelo.dados.id}`, payload);
             setModalModelo(null);
             flash("Modelo salvo!");
             api.get("/fin/modelos-cp").then(r => setModelos(Array.isArray(r.data) ? r.data : []));
@@ -4973,6 +4976,11 @@ function FinContasPagar() {
     const deletarModelo = async id => {
         if (!window.confirm("Remover modelo?")) return;
         try { await api.delete(`/fin/modelos-cp/${id}`); flash("Modelo removido."); api.get("/fin/modelos-cp").then(r => setModelos(Array.isArray(r.data) ? r.data : [])); }
+        catch(err) { flash(err.response?.data || "Erro.", "err"); }
+    };
+
+    const toggleAtivo = async id => {
+        try { await api.patch(`/fin/modelos-cp/${id}/status`); api.get("/fin/modelos-cp").then(r => setModelos(Array.isArray(r.data) ? r.data : [])); }
         catch(err) { flash(err.response?.data || "Erro.", "err"); }
     };
 
@@ -5035,6 +5043,18 @@ function FinContasPagar() {
             </div>
 
             {abaCP === "contas" && <>
+                {/* Aviso: modelos ativos mas recorrentes não geradas no mês atual */}
+                {modelos.some(m => m.ativo) && !contas.some(cp => cp.modeloId && cp.mesReferencia === mesAtual()) && (
+                    <div style={{ display:"flex", alignItems:"center", gap:10, background:"#fff8e1", border:"1px solid #ffe082", borderRadius:6, padding:"10px 14px" }}>
+                        <AlertCircle size={16} color="#c47a00" style={{ flexShrink:0 }} />
+                        <span style={{ fontSize:12, color:"#c47a00", flex:1 }}>
+                            Você tem modelos ativos mas ainda não gerou as contas recorrentes de <strong>{new Date().toLocaleDateString("pt-BR",{month:"long",year:"numeric"})}</strong>.
+                        </span>
+                        <button className="dd-btn-ghost" style={{ fontSize:11, whiteSpace:"nowrap" }} onClick={() => { setMesRec(mesAtual()); setModalGerarRec(true); }}>
+                            Gerar agora
+                        </button>
+                    </div>
+                )}
                 {/* Barra: filtros à esquerda, ações à direita */}
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
@@ -5102,18 +5122,26 @@ function FinContasPagar() {
                     </div>
                     <div className="dd-table-wrap">
                         <table className="dd-table" style={{ width:"100%" }}>
-                            <thead><tr><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Dia Venc.</th><th>Ativo</th><th></th></tr></thead>
+                            <thead><tr><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Dia Venc.</th><th>Fornecedor</th><th>Ativo</th><th></th></tr></thead>
                             <tbody>
-                                {modelos.length === 0 && <tr><td colSpan={6} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Nenhum modelo cadastrado</td></tr>}
+                                {modelos.length === 0 && <tr><td colSpan={7} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Nenhum modelo cadastrado</td></tr>}
                                 {modelos.map(m => (
                                     <tr key={m.id}>
                                         <td style={{ fontWeight:500 }}>{m.descricao}</td>
-                                        <td style={{ fontSize:11 }}>{m.categoria}</td>
+                                        <td style={{ fontSize:11 }}>{m.categoria.replace("_"," ")}</td>
                                         <td>{fmt(m.valor)}</td>
                                         <td style={{ fontSize:12 }}>Dia {m.diaVencimento||"—"}</td>
-                                        <td><span style={{ fontSize:10, padding:"2px 8px", background: m.ativo?"#f0f5f2":"#fdf0f0", color: m.ativo?"#2d6a4f":"#b94040", borderRadius:3 }}>{m.ativo?"Sim":"Não"}</span></td>
+                                        <td style={{ fontSize:11, color:"#9aaa9f" }}>{m.pessoaNome||"—"}</td>
+                                        <td>
+                                            <button onClick={() => toggleAtivo(m.id)}
+                                                style={{ fontSize:10, padding:"2px 10px", border:"none", cursor:"pointer", borderRadius:3,
+                                                    background: m.ativo?"#f0f5f2":"#fdf0f0",
+                                                    color: m.ativo?"#2d6a4f":"#b94040" }}>
+                                                {m.ativo?"Ativo":"Inativo"}
+                                            </button>
+                                        </td>
                                         <td><div style={{ display:"flex", gap:4 }}>
-                                            <button className="dd-btn-edit" style={{ fontSize:10 }} onClick={() => { setFormModelo({ descricao:m.descricao, categoria:m.categoria, valor:m.valor, diaVencimento:m.diaVencimento||"", observacoes:m.observacoes||"" }); setModalModelo({ modo:"editar", dados:m }); }}>Editar</button>
+                                            <button className="dd-btn-edit" style={{ fontSize:10 }} onClick={() => { setFormModelo({ descricao:m.descricao, categoria:m.categoria, valor:m.valor, diaVencimento:m.diaVencimento||"", pessoaId: m.pessoaId||"", observacoes:m.observacoes||"" }); setModalModelo({ modo:"editar", dados:m }); }}>Editar</button>
                                             <button className="dd-btn-danger" style={{ fontSize:10 }} onClick={() => deletarModelo(m.id)}>Rem.</button>
                                         </div></td>
                                     </tr>
@@ -5223,7 +5251,7 @@ function FinContasPagar() {
                             {[
                                 { k:"descricao", label:"Descrição *", required:true },
                                 { k:"valor", label:"Valor (R$) *", type:"number", step:"0.01", required:true },
-                                { k:"diaVencimento", label:"Dia de Vencimento (1-31)", type:"number" },
+                                { k:"diaVencimento", label:"Dia de Vencimento (1-28) *", type:"number", required:true },
                             ].map(f => (
                                 <div key={f.k}>
                                     <label className="dd-label">{f.label}</label>
@@ -5233,6 +5261,14 @@ function FinContasPagar() {
                                     </div>
                                 </div>
                             ))}
+                            <div>
+                                <label className="dd-label">Fornecedor / Pessoa <span style={{ color:"#9aaa9f", fontWeight:400 }}>(opcional)</span></label>
+                                <select value={formModelo.pessoaId||""} onChange={e => setFormModelo(m => ({ ...m, pessoaId: e.target.value }))}
+                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
+                                    <option value="">— Nenhum —</option>
+                                    {pessoas.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                                </select>
+                            </div>
                             <div style={{ display:"flex", gap:8, marginTop:8 }}>
                                 <button type="button" className="dd-btn-ghost" onClick={() => setModalModelo(null)}>Cancelar</button>
                                 <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando?"Salvando...":"Salvar"}</button>
