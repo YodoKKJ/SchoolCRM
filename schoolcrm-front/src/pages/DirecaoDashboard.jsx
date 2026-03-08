@@ -4897,7 +4897,7 @@ function FinContasPagar() {
     const [mesRec, setMesRec] = useState(mesAtual());
     const [formBaixar, setFormBaixar] = useState({ dataPagamento:"", valorPago:"", formaPagamentoId:"", observacoes:"" });
     const [formModelo, setFormModelo] = useState({ descricao:"", categoria:"CONTA_FIXA", valor:"", diaVencimento:"", observacoes:"" });
-    const [mostrarModelos, setMostrarModelos] = useState(false);
+    const [abaCP, setAbaCP] = useState("contas");
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
     const [salvando, setSalvando] = useState(false);
 
@@ -4984,71 +4984,117 @@ function FinContasPagar() {
 
     const ff = (k, v) => setFiltros(f => ({ ...f, [k]: v }));
 
+    /* --- resumo calculado a partir da lista atual --- */
+    const resumoCP = (() => {
+        let pendente = 0, vencido = 0, pago = 0, nVencido = 0;
+        contas.forEach(cp => {
+            const st = computarStatus(cp);
+            const v = Number(cp.valor || 0);
+            if (st === "PAGO") pago += v;
+            else if (st === "VENCIDO") { vencido += v; nVencido++; }
+            else if (st === "PENDENTE") pendente += v;
+        });
+        return { pendente, vencido, pago, nVencido };
+    })();
+
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
             {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
 
-            {/* Filtros e ações */}
-            <div style={{ display:"flex", gap:10, alignItems:"flex-end", flexWrap:"wrap" }}>
+            {/* Cards de resumo */}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12 }}>
                 {[
-                    { k:"status", opts:[["","Todos status"],["PENDENTE","Pendente"],["PAGO","Pago"],["CANCELADO","Cancelado"]] },
-                    { k:"tipo",   opts:[["","Todos tipos"],["SALARIO","Salário"],["CONTA_FIXA","Conta Fixa"],["FORNECEDOR","Fornecedor"],["OUTRO","Outro"]] },
-                ].map(f => (
-                    <select key={f.k} value={filtros[f.k]} onChange={e => ff(f.k, e.target.value)}
-                        style={{ fontSize:11, padding:"8px 10px", border:"1px solid #eaeef2", fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff", color:"#5a7060" }}>
-                        {f.opts.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
-                    </select>
+                    { label:"A Pagar (Pendente)", valor: resumoCP.pendente, cor:"#c47a00", bg:"#fff8e1", icon: <Clock size={18} color="#c47a00" /> },
+                    { label:`Vencidas (${resumoCP.nVencido})`,  valor: resumoCP.vencido,  cor:"#b94040", bg:"#fdf0f0", icon: <AlertCircle size={18} color="#b94040" /> },
+                    { label:"Pagas (período)",    valor: resumoCP.pago,    cor:"#2d6a4f", bg:"#f0f5f2", icon: <CheckCircle2 size={18} color="#2d6a4f" /> },
+                ].map(c => (
+                    <div key={c.label} style={{ background:c.bg, borderRadius:8, padding:"14px 18px", display:"flex", alignItems:"center", gap:12 }}>
+                        <div style={{ flexShrink:0 }}>{c.icon}</div>
+                        <div>
+                            <div style={{ fontSize:10, color:c.cor, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.5px" }}>{c.label}</div>
+                            <div style={{ fontSize:18, fontWeight:700, color:c.cor }}>{fmt(c.valor)}</div>
+                        </div>
+                    </div>
                 ))}
-                <input type="month" value={filtros.mesReferencia} onChange={e => ff("mesReferencia", e.target.value)}
-                    style={{ fontSize:11, padding:"8px 10px", border:"1px solid #eaeef2", fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }} />
-                <button className="dd-btn-ghost" onClick={() => setModalGerarFolha(true)}>Gerar Folha</button>
-                <button className="dd-btn-ghost" onClick={() => setModalGerarRec(true)}>Gerar Recorrentes</button>
-                <button className="dd-btn-ghost" onClick={() => setMostrarModelos(m => !m)}>{mostrarModelos?"Ocultar Modelos":"Ver Modelos"}</button>
             </div>
 
-            {/* Tabela CP */}
-            <div className="dd-section">
-                <div className="dd-section-header">
-                    <span className="dd-section-title">Contas a Pagar</span>
-                    <span className="dd-section-count">{contas.length}</span>
-                </div>
-                <div className="dd-table-wrap">
-                    <table className="dd-table" style={{ width:"100%" }}>
-                        <thead><tr>
-                            <th>Descrição</th><th>Tipo</th><th>Valor</th><th>Vencimento</th><th>Mês Ref.</th><th>Status</th><th>Pessoa/Func.</th><th></th>
-                        </tr></thead>
-                        <tbody>
-                            {contas.length === 0 && <tr><td colSpan={8} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Nenhuma conta encontrada</td></tr>}
-                            {contas.map(cp => {
-                                const st = computarStatus(cp);
-                                const sc = statusBadge(st);
-                                return (
-                                    <tr key={cp.id}>
-                                        <td style={{ fontWeight:500 }}>{cp.descricao}</td>
-                                        <td style={{ fontSize:11 }}>{cp.tipo}</td>
-                                        <td style={{ fontWeight:500 }}>{fmt(cp.valor)}</td>
-                                        <td>{fmtData(cp.dataVencimento)}</td>
-                                        <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.mesReferencia||"—"}</td>
-                                        <td><span className="dd-badge" style={{ ...sc, borderRadius:3 }}>{st}</span></td>
-                                        <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.pessoaNome||cp.funcionarioNome||"—"}</td>
-                                        <td>
-                                            {(st==="PENDENTE"||st==="VENCIDO") && (
-                                                <div style={{ display:"flex", gap:6 }}>
-                                                    <button className="dd-btn-edit" style={{ fontSize:10 }} onClick={() => { setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(cp.valor), formaPagamentoId:"", observacoes:"" }); setModalBaixar(cp); }}>Baixar</button>
-                                                    <button className="dd-btn-danger" style={{ fontSize:10 }} onClick={() => cancelarConta(cp.id)}>Cancelar</button>
-                                                </div>
-                                            )}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
+            {/* Abas: Contas | Modelos */}
+            <div style={{ display:"flex", borderBottom:"2px solid #eaeef2", gap:0 }}>
+                {[
+                    { id:"contas",  label:`Contas (${contas.length})` },
+                    { id:"modelos", label:`Modelos (${modelos.length})` },
+                ].map(t => (
+                    <button key={t.id} onClick={() => setAbaCP(t.id)}
+                        style={{ background:"none", border:"none", cursor:"pointer", padding:"10px 20px", fontSize:13, fontWeight:600,
+                            color: abaCP===t.id ? "#2d6a4f" : "#9aaa9f",
+                            borderBottom: abaCP===t.id ? "2px solid #2d6a4f" : "2px solid transparent",
+                            marginBottom:-2, fontFamily:"'DM Sans',sans-serif" }}>
+                        {t.label}
+                    </button>
+                ))}
             </div>
 
-            {/* Modelos */}
-            {mostrarModelos && (
+            {abaCP === "contas" && <>
+                {/* Barra: filtros à esquerda, ações à direita */}
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                        {[
+                            { k:"status", opts:[["","Todos status"],["PENDENTE","Pendente"],["PAGO","Pago"],["CANCELADO","Cancelado"]] },
+                            { k:"tipo",   opts:[["","Todos tipos"],["SALARIO","Salário"],["CONTA_FIXA","Conta Fixa"],["FORNECEDOR","Fornecedor"],["OUTRO","Outro"]] },
+                        ].map(f => (
+                            <select key={f.k} value={filtros[f.k]} onChange={e => ff(f.k, e.target.value)}
+                                style={{ fontSize:12, padding:"7px 10px", border:"1px solid #eaeef2", fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff", color:"#5a7060", borderRadius:4 }}>
+                                {f.opts.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+                            </select>
+                        ))}
+                        <input type="month" value={filtros.mesReferencia} onChange={e => ff("mesReferencia", e.target.value)}
+                            style={{ fontSize:12, padding:"7px 10px", border:"1px solid #eaeef2", fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff", borderRadius:4 }} />
+                    </div>
+                    <div style={{ display:"flex", gap:8 }}>
+                        <button className="dd-btn-ghost" style={{ fontSize:12 }} onClick={() => setModalGerarFolha(true)}>Gerar Folha</button>
+                        <button className="dd-btn-ghost" style={{ fontSize:12 }} onClick={() => setModalGerarRec(true)}>Gerar Recorrentes</button>
+                    </div>
+                </div>
+
+                {/* Tabela CP */}
+                <div className="dd-section">
+                    <div className="dd-table-wrap">
+                        <table className="dd-table" style={{ width:"100%" }}>
+                            <thead><tr>
+                                <th>Descrição</th><th>Tipo</th><th>Valor</th><th>Vencimento</th><th>Mês Ref.</th><th>Status</th><th>Pessoa/Func.</th><th></th>
+                            </tr></thead>
+                            <tbody>
+                                {contas.length === 0 && <tr><td colSpan={8} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Nenhuma conta encontrada</td></tr>}
+                                {contas.map(cp => {
+                                    const st = computarStatus(cp);
+                                    const sc = statusBadge(st);
+                                    return (
+                                        <tr key={cp.id}>
+                                            <td style={{ fontWeight:500 }}>{cp.descricao}</td>
+                                            <td style={{ fontSize:11 }}>{cp.tipo}</td>
+                                            <td style={{ fontWeight:500 }}>{fmt(cp.valor)}</td>
+                                            <td>{fmtData(cp.dataVencimento)}</td>
+                                            <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.mesReferencia||"—"}</td>
+                                            <td><span className="dd-badge" style={{ ...sc, borderRadius:3 }}>{st}</span></td>
+                                            <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.pessoaNome||cp.funcionarioNome||"—"}</td>
+                                            <td>
+                                                {(st==="PENDENTE"||st==="VENCIDO") && (
+                                                    <div style={{ display:"flex", gap:6 }}>
+                                                        <button className="dd-btn-edit" style={{ fontSize:10 }} onClick={() => { setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(cp.valor), formaPagamentoId:"", observacoes:"" }); setModalBaixar(cp); }}>Baixar</button>
+                                                        <button className="dd-btn-danger" style={{ fontSize:10 }} onClick={() => cancelarConta(cp.id)}>Cancelar</button>
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </>}
+
+            {abaCP === "modelos" && (
                 <div className="dd-section">
                     <div className="dd-section-header">
                         <span className="dd-section-title">Modelos de Contas Fixas</span>
@@ -5058,7 +5104,7 @@ function FinContasPagar() {
                         <table className="dd-table" style={{ width:"100%" }}>
                             <thead><tr><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Dia Venc.</th><th>Ativo</th><th></th></tr></thead>
                             <tbody>
-                                {modelos.length === 0 && <tr><td colSpan={6} style={{ textAlign:"center", color:"#9aaa9f", padding:16 }}>Nenhum modelo</td></tr>}
+                                {modelos.length === 0 && <tr><td colSpan={6} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Nenhum modelo cadastrado</td></tr>}
                                 {modelos.map(m => (
                                     <tr key={m.id}>
                                         <td style={{ fontWeight:500 }}>{m.descricao}</td>
