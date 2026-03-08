@@ -51,6 +51,11 @@ public class FinContaReceberController {
         LocalDate de  = vencimentoDe  != null ? LocalDate.parse(vencimentoDe)  : null;
         LocalDate ate = vencimentoAte != null ? LocalDate.parse(vencimentoAte) : null;
 
+        // B1: período inválido (de > ate) — falha silenciosa seria confusa para o usuário
+        if (de != null && ate != null && de.isAfter(ate)) {
+            return ResponseEntity.badRequest().body(null);
+        }
+
         String tipoFiltro   = (tipo   != null && !tipo.isBlank())   ? tipo.toUpperCase()   : null;
         // VENCIDO é calculado em runtime — filtramos PENDENTE e depois aplicamos lógica
         String statusFiltro = (status != null && !status.isBlank()) ? status.toUpperCase() : null;
@@ -222,6 +227,13 @@ public class FinContaReceberController {
 
         if ("PAGO".equals(cr.getStatus())) {
             return ResponseEntity.badRequest().body("Não é possível cancelar uma parcela já paga.");
+        }
+        // B2: parcela com pagamento parcial registrado não pode ser cancelada;
+        // o valor já recebido precisaria de estorno — operação fora do escopo do sistema.
+        if ("PARCIALMENTE_PAGO".equals(cr.getStatus())) {
+            return ResponseEntity.badRequest().body(
+                    "Não é possível cancelar uma parcela com pagamento parcial registrado. " +
+                    "Realize o estorno manualmente antes de cancelar.");
         }
 
         cr.setStatus("CANCELADO");
