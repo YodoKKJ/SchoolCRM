@@ -179,6 +179,14 @@ public class FinContaReceberController {
             }
         }
 
+        // Valida: não permite pagar mais do que o saldo devedor restante
+        BigDecimal saldoRestante = cr.getValor().add(juros).add(multa).subtract(jaFoiPago);
+        if (novoPagamento.compareTo(saldoRestante) > 0) {
+            return ResponseEntity.badRequest().body(
+                    String.format("Valor pago (R$ %.2f) supera o saldo devedor (R$ %.2f).",
+                            novoPagamento, saldoRestante));
+        }
+
         // Data de pagamento (preserva a existente em pagamentos subsequentes)
         String dataPagStr = (String) body.get("dataPagamento");
         if (dataPagStr != null && !dataPagStr.isBlank()) {

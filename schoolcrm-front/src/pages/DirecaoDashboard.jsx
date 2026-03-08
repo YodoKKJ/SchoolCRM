@@ -4435,11 +4435,9 @@ function FinContratos({ anoLetivo }) {
         finally { setSalvando(false); }
     };
 
-    const computarStatus = cr => {
-        if (cr.status !== "PENDENTE") return cr.status;
-        if (cr.dataVencimento && cr.dataVencimento < new Date().toISOString().slice(0,10)) return "VENCIDO";
-        return "PENDENTE";
-    };
+    // O backend já converte PENDENTE+vencida → "VENCIDO" em statusEfetivo().
+    // Não duplicamos a lógica aqui para evitar divergência futura.
+    const computarStatus = cr => cr.status;
 
     const fc = (k, v) => setFormContrato(f => ({ ...f, [k]: v }));
 
@@ -5019,11 +5017,9 @@ function FinContasPagar() {
         catch(err) { flash(err.response?.data || "Erro.", "err"); }
     };
 
-    const computarStatus = cp => {
-        if (cp.status !== "PENDENTE") return cp.status;
-        if (cp.dataVencimento && cp.dataVencimento < new Date().toISOString().slice(0,10)) return "VENCIDO";
-        return "PENDENTE";
-    };
+    // O backend já converte PENDENTE+vencida → "VENCIDO" em statusEfetivo().
+    // Não duplicamos a lógica aqui para evitar divergência futura.
+    const computarStatus = cp => cp.status;
 
     const ff = (k, v) => setFiltros(f => ({ ...f, [k]: v }));
 
