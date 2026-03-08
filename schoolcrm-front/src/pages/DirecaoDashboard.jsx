@@ -5081,14 +5081,24 @@ function FinContasPagar() {
                 {/* Aviso: modelos ativos mas recorrentes não geradas para o mês visualizado */}
                 {(() => {
                     const mesRef = filtros.mesReferencia || mesAtual();
-                    const jaGerou = contas.some(cp => cp.modeloId && cp.mesReferencia === mesRef);
-                    if (!modelos.some(m => m.ativo) || jaGerou) return null;
+                    const modelosAtivos = modelos.filter(m => m.ativo);
+                    if (modelosAtivos.length === 0) return null;
+                    // IDs dos modelos que JÁ geraram CP no mês filtrado
+                    const idsGerados = new Set(
+                        contas.filter(cp => cp.modeloId && cp.mesReferencia === mesRef).map(cp => cp.modeloId)
+                    );
+                    // Modelos que ainda NÃO foram gerados neste mês
+                    const pendentes = modelosAtivos.filter(m => !idsGerados.has(m.id));
+                    if (pendentes.length === 0) return null;
                     const nomeMes = new Date(mesRef + "-15").toLocaleDateString("pt-BR", { month:"long", year:"numeric" });
+                    const detalhe = pendentes.length === modelosAtivos.length
+                        ? "nenhuma conta recorrente foi gerada"
+                        : `${pendentes.length} de ${modelosAtivos.length} modelos ainda não gerados (${pendentes.map(m => m.descricao).join(", ")})`;
                     return (
                     <div style={{ display:"flex", alignItems:"center", gap:10, background:"#fff8e1", border:"1px solid #ffe082", borderRadius:6, padding:"10px 14px" }}>
                         <AlertCircle size={16} color="#c47a00" style={{ flexShrink:0 }} />
                         <span style={{ fontSize:12, color:"#c47a00", flex:1 }}>
-                            Você tem modelos ativos mas ainda não gerou as contas recorrentes de <strong>{nomeMes}</strong>.
+                            <strong>{nomeMes}:</strong> {detalhe}.
                         </span>
                         <button className="dd-btn-ghost" style={{ fontSize:11, whiteSpace:"nowrap" }} onClick={() => { setMesRec(mesRef); setModalGerarRec(true); }}>
                             Gerar agora
