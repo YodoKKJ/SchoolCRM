@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports
+                http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="relatorio_turma_situacao"
+              pageWidth="595" pageHeight="842"
+              columnWidth="555" leftMargin="20" rightMargin="20"
+              topMargin="20" bottomMargin="20"
+              whenNoDataType="AllSectionsNoDetail">
+
+    <!-- ═══ STYLES ═══════════════════════════════════════════════════════ -->
+    <style name="default" isDefault="true" fontName="DejaVu Sans" fontSize="8"/>
+
+    <style name="sitStyle" fontName="DejaVu Sans" fontSize="8" isBold="true">
+        <conditionalStyle>
+            <conditionExpression><![CDATA["Aprovado".equals($F{situacao})]]></conditionExpression>
+            <style forecolor="#2d6a4f"/>
+        </conditionalStyle>
+        <conditionalStyle>
+            <conditionExpression><![CDATA["Reprovado".equals($F{situacao})]]></conditionExpression>
+            <style forecolor="#b94040"/>
+        </conditionalStyle>
+        <conditionalStyle>
+            <conditionExpression><![CDATA["Em curso".equals($F{situacao})]]></conditionExpression>
+            <style forecolor="#888888"/>
+        </conditionalStyle>
+    </style>
+
+    <style name="freqStyle" fontName="DejaVu Sans" fontSize="8" isBold="true">
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$F{frequenciaGeralDouble} != null && $F{frequenciaGeralDouble} < 75.0]]></conditionExpression>
+            <style forecolor="#b94040"/>
+        </conditionalStyle>
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$F{frequenciaGeralDouble} != null && $F{frequenciaGeralDouble} >= 75.0]]></conditionExpression>
+            <style forecolor="#2d6a4f"/>
+        </conditionalStyle>
+    </style>
+
+    <!-- ═══ PARAMETERS ═══════════════════════════════════════════════════ -->
+    <parameter name="TURMA_NOME"       class="java.lang.String"/>
+    <parameter name="SERIE_NOME"       class="java.lang.String"/>
+    <parameter name="ANO_LETIVO"       class="java.lang.Integer"/>
+    <parameter name="DATA_EMISSAO"     class="java.lang.String"/>
+    <parameter name="TOTAL_APROVADOS"  class="java.lang.Integer"/>
+    <parameter name="TOTAL_REPROVADOS" class="java.lang.Integer"/>
+    <parameter name="TOTAL_CURSANDO"   class="java.lang.Integer"/>
+
+    <!-- ═══ FIELDS ═══════════════════════════════════════════════════════ -->
+    <field name="alunoNome"             class="java.lang.String"/>
+    <field name="situacao"              class="java.lang.String"/>
+    <field name="frequenciaGeral"       class="java.lang.String"/>
+    <field name="materiaRisco"          class="java.lang.String"/>
+    <field name="frequenciaGeralDouble" class="java.lang.Double"/>
+
+    <!-- ═══ VARIABLES ════════════════════════════════════════════════════ -->
+    <variable name="ROW_COUNT" class="java.lang.Integer" calculation="Count">
+        <variableExpression><![CDATA[1]]></variableExpression>
+    </variable>
+
+    <!-- ═══ TITLE ════════════════════════════════════════════════════════ -->
+    <title>
+        <band height="90" splitType="Stretch">
+
+            <!-- Title bar -->
+            <rectangle>
+                <reportElement x="0" y="0" width="555" height="20" backcolor="#d0d0d0" mode="Opaque"/>
+                <graphicElement><pen lineWidth="0.5"/></graphicElement>
+            </rectangle>
+            <staticText>
+                <reportElement x="0" y="3" width="555" height="14"/>
+                <textElement textAlignment="Center">
+                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                </textElement>
+                <text><![CDATA[RELATÓRIO DE SITUAÇÃO FINAL]]></text>
+            </staticText>
+
+            <!-- Info row -->
+            <staticText>
+                <reportElement x="4" y="24" width="50" height="10"/>
+                <textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement>
+                <text><![CDATA[Turma:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="56" y="24" width="200" height="10"/>
+                <textElement><font fontName="DejaVu Sans" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{TURMA_NOME} + " — " + $P{SERIE_NOME} + " (" + $P{ANO_LETIVO} + ")"]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="380" y="24" width="175" height="10"/>
+                <textElement textAlignment="Right">
+                    <font fontName="DejaVu Sans" size="7" forecolor="#555555"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Emissão: " + $P{DATA_EMISSAO}]]></textFieldExpression>
+            </textField>
+
+            <!-- Summary cards -->
+            <rectangle>
+                <reportElement x="0" y="38" width="168" height="34" backcolor="#f0f5f2" mode="Opaque"/>
+                <graphicElement><pen lineWidth="0.5" lineColor="#2d6a4f"/></graphicElement>
+            </rectangle>
+            <textField>
+                <reportElement x="0" y="42" width="168" height="16"/>
+                <textElement textAlignment="Center">
+                    <font fontName="DejaVu Sans" size="14" isBold="true" forecolor="#2d6a4f"/>
+                </textElement>
+                <textFieldExpression><![CDATA[String.valueOf($P{TOTAL_APROVADOS})]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="0" y="60" width="168" height="10"/>
+                <textElement textAlignment="Center">
+                    <font fontName="DejaVu Sans" size="7" isBold="true" forecolor="#2d6a4f"/>
+                </textElement>
+                <text><![CDATA[APROVADOS]]></text>
+            </staticText>
+
+            <rectangle>
+                <reportElement x="194" y="38" width="168" height="34" backcolor="#fdf0f0" mode="Opaque"/>
+                <graphicElement><pen lineWidth="0.5" lineColor="#b94040"/></graphicElement>
+            </rectangle>
+            <textField>
+                <reportElement x="194" y="42" width="168" height="16"/>
+                <textElement textAlignment="Center">
+                    <font fontName="DejaVu Sans" size="14" isBold="true" forecolor="#b94040"/>
+                </textElement>
+                <textFieldExpression><![CDATA[String.valueOf($P{TOTAL_REPROVADOS})]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="194" y="60" width="168" height="10"/>
+                <textElement textAlignment="Center">
+                    <font fontName="DejaVu Sans" size="7" isBold="true" forecolor="#b94040"/>
+                </textElement>
+                <text><![CDATA[REPROVADOS]]></text>
+            </staticText>
+
+            <rectangle>
+                <reportElement x="388" y="38" width="167" height="34" backcolor="#f5f5f5" mode="Opaque"/>
+                <graphicElement><pen lineWidth="0.5" lineColor="#888888"/></graphicElement>
+            </rectangle>
+            <textField>
+                <reportElement x="388" y="42" width="167" height="16"/>
+                <textElement textAlignment="Center">
+                    <font fontName="DejaVu Sans" size="14" isBold="true" forecolor="#888888"/>
+                </textElement>
+                <textFieldExpression><![CDATA[String.valueOf($P{TOTAL_CURSANDO})]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="388" y="60" width="167" height="10"/>
+                <textElement textAlignment="Center">
+                    <font fontName="DejaVu Sans" size="7" isBold="true" forecolor="#888888"/>
+                </textElement>
+                <text><![CDATA[EM CURSO]]></text>
+            </staticText>
+        </band>
+    </title>
+
+    <!-- ═══ COLUMN HEADER ════════════════════════════════════════════════ -->
+    <columnHeader>
+        <band height="16" splitType="Stretch">
+            <rectangle>
+                <reportElement x="0" y="0" width="555" height="16" backcolor="#e8e8e8" mode="Opaque"/>
+                <graphicElement><pen lineWidth="0.5"/></graphicElement>
+            </rectangle>
+            <staticText>
+                <reportElement x="2" y="3" width="180" height="10"/>
+                <textElement><font fontName="DejaVu Sans" size="7" isBold="true"/></textElement>
+                <text><![CDATA[Aluno]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="182" y="3" width="80" height="10"/>
+                <textElement textAlignment="Center"><font fontName="DejaVu Sans" size="7" isBold="true"/></textElement>
+                <text><![CDATA[Situação]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="262" y="3" width="80" height="10"/>
+                <textElement textAlignment="Center"><font fontName="DejaVu Sans" size="7" isBold="true"/></textElement>
+                <text><![CDATA[Freq. Geral]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="342" y="3" width="213" height="10"/>
+                <textElement><font fontName="DejaVu Sans" size="7" isBold="true"/></textElement>
+                <text><![CDATA[Matérias em risco / reprovadas]]></text>
+            </staticText>
+        </band>
+    </columnHeader>
+
+    <!-- ═══ DETAIL ═══════════════════════════════════════════════════════ -->
+    <detail>
+        <band height="14" splitType="Stretch">
+
+            <!-- Alternating background -->
+            <rectangle>
+                <reportElement x="0" y="0" width="555" height="14" backcolor="#f5f5f5" mode="Opaque">
+                    <printWhenExpression><![CDATA[$V{ROW_COUNT} % 2 == 0]]></printWhenExpression>
+                </reportElement>
+                <graphicElement><pen lineWidth="0"/></graphicElement>
+            </rectangle>
+            <line>
+                <reportElement x="0" y="13" width="555" height="0"/>
+                <graphicElement><pen lineWidth="0.3" lineColor="#dddddd"/></graphicElement>
+            </line>
+
+            <textField>
+                <reportElement x="2" y="2" width="178" height="10"/>
+                <textElement><font fontName="DejaVu Sans" size="7" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{alunoNome}]]></textFieldExpression>
+            </textField>
+
+            <textField style="sitStyle">
+                <reportElement x="182" y="2" width="80" height="10"/>
+                <textElement textAlignment="Center"><font fontName="DejaVu Sans" size="7" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{situacao}]]></textFieldExpression>
+            </textField>
+
+            <textField style="freqStyle">
+                <reportElement x="262" y="2" width="80" height="10"/>
+                <textElement textAlignment="Center"><font fontName="DejaVu Sans" size="7" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$F{frequenciaGeral}]]></textFieldExpression>
+            </textField>
+
+            <textField isStretchWithOverflow="true">
+                <reportElement x="342" y="2" width="211" height="10"/>
+                <textElement><font fontName="DejaVu Sans" size="7" forecolor="#5a7060"/></textElement>
+                <textFieldExpression><![CDATA[$F{materiaRisco}]]></textFieldExpression>
+            </textField>
+
+            <!-- Column separators -->
+            <line>
+                <reportElement x="182" y="0" width="0" height="14"/>
+                <graphicElement><pen lineWidth="0.3" lineColor="#cccccc"/></graphicElement>
+            </line>
+            <line>
+                <reportElement x="262" y="0" width="0" height="14"/>
+                <graphicElement><pen lineWidth="0.3" lineColor="#cccccc"/></graphicElement>
+            </line>
+            <line>
+                <reportElement x="342" y="0" width="0" height="14"/>
+                <graphicElement><pen lineWidth="0.3" lineColor="#cccccc"/></graphicElement>
+            </line>
+        </band>
+    </detail>
+
+</jasperReport>
