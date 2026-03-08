@@ -77,6 +77,12 @@ public class FinContaPagar {
     @Column(columnDefinition = "TEXT")
     private String observacoes;
 
+    @Column(name = "juros_aplicado", precision = 10, scale = 2)
+    private BigDecimal jurosAplicado;
+
+    @Column(name = "multa_aplicada", precision = 10, scale = 2)
+    private BigDecimal multaAplicada;
+
     public Long getId() { return id; }
     public FinContaPagarModelo getModelo() { return modelo; }
     public FinFuncionario getFuncionario() { return funcionario; }
@@ -108,4 +114,8 @@ public class FinContaPagar {
     public void setFormaPagamento(FinFormaPagamento formaPagamento) { this.formaPagamento = formaPagamento; }
     public void setMesReferencia(String mesReferencia) { this.mesReferencia = mesReferencia; }
     public void setObservacoes(String observacoes) { this.observacoes = observacoes; }
+    public BigDecimal getJurosAplicado() { return jurosAplicado; }
+    public void setJurosAplicado(BigDecimal jurosAplicado) { this.jurosAplicado = jurosAplicado; }
+    public BigDecimal getMultaAplicada() { return multaAplicada; }
+    public void setMultaAplicada(BigDecimal multaAplicada) { this.multaAplicada = multaAplicada; }
 }

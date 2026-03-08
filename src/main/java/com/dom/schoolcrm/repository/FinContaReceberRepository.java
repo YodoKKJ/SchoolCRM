@@ -24,10 +24,18 @@ public interface FinContaReceberRepository extends JpaRepository<FinContaReceber
 
     // Busca geral com filtros opcionais para a tela de listagem
     // Usa native SQL para evitar falha de inferência de tipo null no Hibernate + PostgreSQL
+    // Quando alunoId é informado, inclui tanto CRs de contrato quanto avulsas vinculadas
+    // à FinPessoa do aluno (via usuario_id na tabela fin_pessoas)
     @Query(value = """
         SELECT cr.* FROM fin_contas_receber cr
         LEFT JOIN fin_contratos c ON cr.contrato_id = c.id
-        WHERE (cast(:alunoId as bigint) IS NULL OR c.aluno_id = cast(:alunoId as bigint))
+        WHERE (
+            cast(:alunoId as bigint) IS NULL
+            OR (cr.contrato_id IS NOT NULL AND c.aluno_id = cast(:alunoId as bigint))
+            OR (cr.contrato_id IS NULL AND cr.pessoa_id IN (
+                SELECT p.id FROM fin_pessoas p WHERE p.usuario_id = cast(:alunoId as bigint)
+            ))
+        )
           AND (cast(:tipo as text) IS NULL OR cr.tipo = cast(:tipo as text))
           AND (cast(:status as text) IS NULL OR cr.status = cast(:status as text))
           AND (cast(:vencimentoDe as date) IS NULL OR cr.data_vencimento >= cast(:vencimentoDe as date))

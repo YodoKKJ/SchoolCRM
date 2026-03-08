@@ -2,6 +2,7 @@ package com.dom.schoolcrm.service;
 
 import com.dom.schoolcrm.entity.*;
 import com.dom.schoolcrm.repository.*;
+import com.dom.schoolcrm.util.FinUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -140,12 +141,12 @@ public class FinContratoService {
                     .body("Contrato possui parcelas já pagas e não pode ser excluído.");
         }
 
+        // Exclui as parcelas primeiro para evitar violação de FK, depois o contrato
         List<FinContaReceber> parcelas = crRepository.findByContratoIdOrderByNumParcelaAsc(id);
-        parcelas.forEach(p -> p.setStatus("CANCELADO"));
-        crRepository.saveAll(parcelas);
+        crRepository.deleteAll(parcelas);
         contratoRepository.deleteById(id);
 
-        return ResponseEntity.ok(Map.of("mensagem", "Contrato e parcelas pendentes cancelados."));
+        return ResponseEntity.ok(Map.of("mensagem", "Contrato e parcelas cancelados."));
     }
 
     private List<FinContaReceber> gerarParcelas(
@@ -214,7 +215,7 @@ public class FinContratoService {
                 pm.put("valorPago",       p.getValorPago());
                 pm.put("dataVencimento",  p.getDataVencimento());
                 pm.put("dataPagamento",   p.getDataPagamento());
-                pm.put("status",          statusEfetivo(p, hoje));
+                pm.put("status",          FinUtil.statusEfetivo(p, hoje));
                 pm.put("jurosAplicado",   p.getJurosAplicado());
                 pm.put("multaAplicada",   p.getMultaAplicada());
                 pm.put("observacoes",     p.getObservacoes());
@@ -237,11 +238,6 @@ public class FinContratoService {
                     "pendentes", pendentes, "totalParcelas", parcelas.size()));
         }
         return m;
-    }
-
-    private String statusEfetivo(FinContaReceber cr, LocalDate hoje) {
-        if ("PENDENTE".equals(cr.getStatus()) && cr.getDataVencimento().isBefore(hoje)) return "VENCIDO";
-        return cr.getStatus();
     }
 
     private Long parseLong(Object v) {
