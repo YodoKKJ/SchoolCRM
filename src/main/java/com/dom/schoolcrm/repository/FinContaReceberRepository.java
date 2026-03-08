@@ -2,6 +2,7 @@ package com.dom.schoolcrm.repository;
 
 import com.dom.schoolcrm.entity.FinContaReceber;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -62,10 +63,14 @@ public interface FinContaReceberRepository extends JpaRepository<FinContaReceber
             @Param("ate") LocalDate ate
     );
 
-    // Inadimplentes: PENDENTE com vencimento antes de hoje
+    // Inadimplentes: PENDENTE ou PARCIALMENTE_PAGO com vencimento antes de hoje.
+    // JOIN FETCH em contrato→aluno e pessoa evita N+1 queries no dashboard.
     @Query("""
         SELECT cr FROM FinContaReceber cr
-        WHERE cr.status = 'PENDENTE'
+        LEFT JOIN FETCH cr.contrato c
+        LEFT JOIN FETCH c.aluno
+        LEFT JOIN FETCH cr.pessoa
+        WHERE cr.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
           AND cr.dataVencimento < :hoje
         ORDER BY cr.dataVencimento ASC
         """)
@@ -74,27 +79,49 @@ public interface FinContaReceberRepository extends JpaRepository<FinContaReceber
     // Verifica se já existe alguma parcela PAGA de um contrato (para impedir cancelamento)
     boolean existsByContratoIdAndStatus(Long contratoId, String status);
 
-    // Dashboard: soma das CR PENDENTE cujo vencimento ainda não passou (a receber futuro)
+    // Exclui atomicamente uma CR avulsa não paga — previne race condition entre leitura e deleção.
+    // Retorna 1 se excluiu, 0 se as condições não foram satisfeitas (pago ou parcela de contrato).
+    @Modifying
     @Query("""
-        SELECT COALESCE(SUM(cr.valor), 0)
+        DELETE FROM FinContaReceber cr
+        WHERE cr.id = :id
+          AND cr.status NOT IN ('PAGO', 'PARCIALMENTE_PAGO')
+          AND cr.contrato IS NULL
+        """)
+    int deleteAvulsaNaoPaga(@Param("id") Long id);
+
+    // Dashboard: saldo a receber de CR PENDENTE ou PARCIALMENTE_PAGO cujo vencimento ainda não passou
+    // Usa (valor - valorPago) para refletir o que ainda falta pagar em parciais
+    @Query("""
+        SELECT COALESCE(SUM(cr.valor - COALESCE(cr.valorPago, 0)), 0)
         FROM FinContaReceber cr
-        WHERE cr.status = 'PENDENTE'
+        WHERE cr.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
           AND cr.dataVencimento >= :hoje
         """)
     java.math.BigDecimal somarPendentesNaoVencidos(@Param("hoje") LocalDate hoje);
 
-    // Dashboard: soma das CR PENDENTE já vencidas (inadimplência em valor)
+    // Dashboard: inadimplência real = saldo devedor (valor + juros + multa - valorPago)
+    // de CRs PENDENTE ou PARCIALMENTE_PAGO já vencidas
     @Query("""
-        SELECT COALESCE(SUM(cr.valor), 0)
+        SELECT COALESCE(SUM(
+            cr.valor
+            + COALESCE(cr.jurosAplicado, 0)
+            + COALESCE(cr.multaAplicada, 0)
+            - COALESCE(cr.valorPago, 0)
+        ), 0)
         FROM FinContaReceber cr
-        WHERE cr.status = 'PENDENTE'
+        WHERE cr.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
           AND cr.dataVencimento < :hoje
         """)
     java.math.BigDecimal somarVencidos(@Param("hoje") LocalDate hoje);
 
-    // Dashboard: CR pendentes com vencimento num intervalo (próximos vencimentos)
+    // Dashboard: CR pendentes com vencimento num intervalo.
+    // JOIN FETCH em contrato→aluno e pessoa evita N+1 queries no dashboard.
     @Query("""
         SELECT cr FROM FinContaReceber cr
+        LEFT JOIN FETCH cr.contrato c
+        LEFT JOIN FETCH c.aluno
+        LEFT JOIN FETCH cr.pessoa
         WHERE cr.status = 'PENDENTE'
           AND cr.dataVencimento BETWEEN :de AND :ate
         ORDER BY cr.dataVencimento ASC

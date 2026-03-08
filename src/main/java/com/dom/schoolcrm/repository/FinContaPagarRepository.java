@@ -60,27 +60,29 @@ public interface FinContaPagarRepository extends JpaRepository<FinContaPagar, Lo
             @Param("ate") LocalDate ate
     );
 
-    // Dashboard: soma das CP PENDENTE cujo vencimento ainda não passou
+    // Dashboard: saldo a pagar de CP PENDENTE ou PARCIALMENTE_PAGO cujo vencimento ainda não passou
     @Query("""
-        SELECT COALESCE(SUM(cp.valor), 0)
+        SELECT COALESCE(SUM(cp.valor - COALESCE(cp.valorPago, 0)), 0)
         FROM FinContaPagar cp
-        WHERE cp.status = 'PENDENTE'
+        WHERE cp.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
           AND cp.dataVencimento >= :hoje
         """)
     BigDecimal somarPendentesNaoVencidos(@Param("hoje") LocalDate hoje);
 
-    // Dashboard: soma das CP PENDENTE já vencidas
+    // Dashboard: CP em atraso — saldo real (valor - valorPago) de PENDENTE e PARCIALMENTE_PAGO já vencidas
     @Query("""
-        SELECT COALESCE(SUM(cp.valor), 0)
+        SELECT COALESCE(SUM(cp.valor - COALESCE(cp.valorPago, 0)), 0)
         FROM FinContaPagar cp
-        WHERE cp.status = 'PENDENTE'
+        WHERE cp.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
           AND cp.dataVencimento < :hoje
         """)
     BigDecimal somarVencidos(@Param("hoje") LocalDate hoje);
 
-    // Dashboard: CP pendentes com vencimento num intervalo (próximos vencimentos)
+    // Dashboard: CP pendentes com vencimento num intervalo.
+    // JOIN FETCH em pessoa evita N+1 queries no dashboard.
     @Query("""
         SELECT cp FROM FinContaPagar cp
+        LEFT JOIN FETCH cp.pessoa
         WHERE cp.status = 'PENDENTE'
           AND cp.dataVencimento BETWEEN :de AND :ate
         ORDER BY cp.dataVencimento ASC
