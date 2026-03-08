@@ -10,9 +10,9 @@
               whenNoDataType="AllSectionsNoDetail">
 
     <!-- ═══ STYLES ═══════════════════════════════════════════════════════ -->
-    <style name="default" isDefault="true" fontName="DejaVu Sans" fontSize="8"/>
+    <style name="default" isDefault="true" fontName="SansSerif" fontSize="8"/>
 
-    <style name="sitStyle" fontName="DejaVu Sans" fontSize="8" isBold="true">
+    <style name="sitStyle" fontName="SansSerif" fontSize="8" isBold="true">
         <conditionalStyle>
             <conditionExpression><![CDATA["Aprovado".equals($F{situacao})]]></conditionExpression>
             <style forecolor="#2d6a4f"/>
@@ -27,7 +27,7 @@
         </conditionalStyle>
     </style>
 
-    <style name="freqStyle" fontName="DejaVu Sans" fontSize="8" isBold="true">
+    <style name="freqStyle" fontName="SansSerif" fontSize="8" isBold="true">
         <conditionalStyle>
             <conditionExpression><![CDATA[$F{frequenciaGeralDouble} != null && $F{frequenciaGeralDouble} < 75.0]]></conditionExpression>
             <style forecolor="#b94040"/>
@@ -71,7 +71,7 @@
             <staticText>
                 <reportElement x="0" y="3" width="555" height="14"/>
                 <textElement textAlignment="Center">
-                    <font fontName="DejaVu Sans" size="11" isBold="true"/>
+                    <font fontName="SansSerif" size="11" isBold="true"/>
                 </textElement>
                 <text><![CDATA[RELATÓRIO DE SITUAÇÃO FINAL]]></text>
             </staticText>
@@ -79,18 +79,18 @@
             <!-- Info row -->
             <staticText>
                 <reportElement x="4" y="24" width="50" height="10"/>
-                <textElement><font fontName="DejaVu Sans" size="8" isBold="true"/></textElement>
+                <textElement><font fontName="SansSerif" size="8" isBold="true"/></textElement>
                 <text><![CDATA[Turma:]]></text>
             </staticText>
             <textField>
                 <reportElement x="56" y="24" width="200" height="10"/>
-                <textElement><font fontName="DejaVu Sans" size="8"/></textElement>
+                <textElement><font fontName="SansSerif" size="8"/></textElement>
                 <textFieldExpression><![CDATA[$P{TURMA_NOME} + " — " + $P{SERIE_NOME} + " (" + $P{ANO_LETIVO} + ")"]]></textFieldExpression>
             </textField>
             <textField>
                 <reportElement x="380" y="24" width="175" height="10"/>
                 <textElement textAlignment="Right">
-                    <font fontName="DejaVu Sans" size="7" forecolor="#555555"/>
+                    <font fontName="SansSerif" size="7" forecolor="#555555"/>
                 </textElement>
                 <textFieldExpression><![CDATA["Emissão: " + $P{DATA_EMISSAO}]]></textFieldExpression>
             </textField>
@@ -103,14 +103,14 @@
             <textField>
                 <reportElement x="0" y="42" width="168" height="16"/>
                 <textElement textAlignment="Center">
-                    <font fontName="DejaVu Sans" size="14" isBold="true" forecolor="#2d6a4f"/>
+                    <font fontName="SansSerif" size="14" isBold="true" forecolor="#2d6a4f"/>
                 </textElement>
                 <textFieldExpression><![CDATA[String.valueOf($P{TOTAL_APROVADOS})]]></textFieldExpression>
             </textField>
             <staticText>
                 <reportElement x="0" y="60" width="168" height="10"/>
                 <textElement textAlignment="Center">
-                    <font fontName="DejaVu Sans" size="7" isBold="true" forecolor="#2d6a4f"/>
+                    <font fontName="SansSerif" size="7" isBold="true" forecolor="#2d6a4f"/>
                 </textElement>
                 <text><![CDATA[APROVADOS]]></text>
             </staticText>
@@ -122,14 +122,14 @@
             <textField>
                 <reportElement x="194" y="42" width="168" height="16"/>
                 <textElement textAlignment="Center">
-                    <font fontName="DejaVu Sans" size="14" isBold="true" forecolor="#b94040"/>
+                    <font fontName="SansSerif" size="14" isBold="true" forecolor="#b94040"/>
                 </textElement>
                 <textFieldExpression><![CDATA[String.valueOf($P{TOTAL_REPROVADOS})]]></textFieldExpression>
             </textField>
             <staticText>
                 <reportElement x="194" y="60" width="168" height="10"/>
                 <textElement textAlignment="Center">
-                    <font fontName="DejaVu Sans" size="7" isBold="true" forecolor="#b94040"/>
+                    <font fontName="SansSerif" size="7" isBold="true" forecolor="#b94040"/>
                 </textElement>
                 <text><![CDATA[REPROVADOS]]></text>
             </staticText>
@@ -141,14 +141,14 @@
             <textField>
                 <reportElement x="388" y="42" width="167" height="16"/>
                 <textElement textAlignment="Center">
-                    <font fontName="DejaVu Sans" size="14" isBold="true" forecolor="#888888"/>
+                    <font fontName="SansSerif" size="14" isBold="true" forecolor="#888888"/>
                 </textElement>
                 <textFieldExpression><![CDATA[String.valueOf($P{TOTAL_CURSANDO})]]></textFieldExpression>
             </textField>
             <staticText>
                 <reportElement x="388" y="60" width="167" height="10"/>
                 <textElement textAlignment="Center">
-                    <font fontName="DejaVu Sans" size="7" isBold="true" forecolor="#888888"/>
+                    <font fontName="SansSerif" size="7" isBold="true" forecolor="#888888"/>
                 </textElement>
                 <text><![CDATA[EM CURSO]]></text>
             </staticText>
@@ -164,22 +164,22 @@
             </rectangle>
             <staticText>
                 <reportElement x="2" y="3" width="180" height="10"/>
-                <textElement><font fontName="DejaVu Sans" size="7" isBold="true"/></textElement>
+                <textElement><font fontName="SansSerif" size="7" isBold="true"/></textElement>
                 <text><![CDATA[Aluno]]></text>
             </staticText>
             <staticText>
                 <reportElement x="182" y="3" width="80" height="10"/>
-                <textElement textAlignment="Center"><font fontName="DejaVu Sans" size="7" isBold="true"/></textElement>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
                 <text><![CDATA[Situação]]></text>
             </staticText>
             <staticText>
                 <reportElement x="262" y="3" width="80" height="10"/>
-                <textElement textAlignment="Center"><font fontName="DejaVu Sans" size="7" isBold="true"/></textElement>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
                 <text><![CDATA[Freq. Geral]]></text>
             </staticText>
             <staticText>
                 <reportElement x="342" y="3" width="213" height="10"/>
-                <textElement><font fontName="DejaVu Sans" size="7" isBold="true"/></textElement>
+                <textElement><font fontName="SansSerif" size="7" isBold="true"/></textElement>
                 <text><![CDATA[Matérias em risco / reprovadas]]></text>
             </staticText>
         </band>
@@ -203,25 +203,25 @@
 
             <textField>
                 <reportElement x="2" y="2" width="178" height="10"/>
-                <textElement><font fontName="DejaVu Sans" size="7" isBold="true"/></textElement>
+                <textElement><font fontName="SansSerif" size="7" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$F{alunoNome}]]></textFieldExpression>
             </textField>
 
             <textField style="sitStyle">
                 <reportElement x="182" y="2" width="80" height="10"/>
-                <textElement textAlignment="Center"><font fontName="DejaVu Sans" size="7" isBold="true"/></textElement>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$F{situacao}]]></textFieldExpression>
             </textField>
 
             <textField style="freqStyle">
                 <reportElement x="262" y="2" width="80" height="10"/>
-                <textElement textAlignment="Center"><font fontName="DejaVu Sans" size="7" isBold="true"/></textElement>
+                <textElement textAlignment="Center"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$F{frequenciaGeral}]]></textFieldExpression>
             </textField>
 
             <textField isStretchWithOverflow="true">
                 <reportElement x="342" y="2" width="211" height="10"/>
-                <textElement><font fontName="DejaVu Sans" size="7" forecolor="#5a7060"/></textElement>
+                <textElement><font fontName="SansSerif" size="7" forecolor="#5a7060"/></textElement>
                 <textFieldExpression><![CDATA[$F{materiaRisco}]]></textFieldExpression>
             </textField>
 

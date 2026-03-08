@@ -1,6 +1,8 @@
 package com.dom.schoolcrm.controller;
 
 import com.dom.schoolcrm.service.RelatorioService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -8,9 +10,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
+
 @RestController
 @RequestMapping("/relatorios")
 public class RelatorioController {
+
+    private static final Logger log = LoggerFactory.getLogger(RelatorioController.class);
 
     @Autowired
     private RelatorioService relatorioService;
@@ -28,9 +34,16 @@ public class RelatorioController {
                             "attachment; filename=\"boletim_" + alunoId + ".pdf\"")
                     .body(pdf);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
+            log.warn("Boletim: aluno ou turma não encontrado — alunoId={} turmaId={}", alunoId, turmaId);
+            return ResponseEntity.badRequest()
+                    .body(e.getMessage().getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().build();
+            log.error("Erro ao gerar boletim PDF — alunoId={} turmaId={}: {} {}",
+                    alunoId, turmaId, e.getClass().getSimpleName(), e.getMessage(), e);
+            String detalhe = e.getClass().getSimpleName() + ": " + e.getMessage();
+            return ResponseEntity.internalServerError()
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body(detalhe.getBytes(StandardCharsets.UTF_8));
         }
     }
 
@@ -53,9 +66,16 @@ public class RelatorioController {
                             "attachment; filename=\"" + nomeArquivo + "\"")
                     .body(pdf);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().build();
+            log.warn("Relatório turma: turma não encontrada — turmaId={}", turmaId);
+            return ResponseEntity.badRequest()
+                    .body(e.getMessage().getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().build();
+            log.error("Erro ao gerar relatório turma — turmaId={} tipo={} bimestre={}: {} {}",
+                    turmaId, tipo, bimestre, e.getClass().getSimpleName(), e.getMessage(), e);
+            String detalhe = e.getClass().getSimpleName() + ": " + e.getMessage();
+            return ResponseEntity.internalServerError()
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body(detalhe.getBytes(StandardCharsets.UTF_8));
         }
     }
 }
