@@ -314,6 +314,9 @@ public class RelatorioService {
     }
 
     // ─── Compilação e exportação ──────────────────────────────────────────
+    // jasperreports.properties configura JRJdtCompiler (Eclipse JDT) que usa
+    // Thread.currentThread().getContextClassLoader() — funciona no fat JAR
+    // do Spring Boot onde o javac não alcança classes em nested JARs.
 
     private byte[] compilarEExportar(String jrxmlPath, Map<String, Object> params, JRDataSource dataSource)
             throws JRException {
