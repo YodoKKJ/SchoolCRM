@@ -5055,18 +5055,24 @@ function FinContasPagar() {
             </div>
 
             {abaCP === "contas" && <>
-                {/* Aviso: modelos ativos mas recorrentes não geradas no mês atual */}
-                {modelos.some(m => m.ativo) && !contas.some(cp => cp.modeloId && cp.mesReferencia === mesAtual()) && (
+                {/* Aviso: modelos ativos mas recorrentes não geradas para o mês visualizado */}
+                {(() => {
+                    const mesRef = filtros.mesReferencia || mesAtual();
+                    const jaGerou = contas.some(cp => cp.modeloId && cp.mesReferencia === mesRef);
+                    if (!modelos.some(m => m.ativo) || jaGerou) return null;
+                    const nomeMes = new Date(mesRef + "-15").toLocaleDateString("pt-BR", { month:"long", year:"numeric" });
+                    return (
                     <div style={{ display:"flex", alignItems:"center", gap:10, background:"#fff8e1", border:"1px solid #ffe082", borderRadius:6, padding:"10px 14px" }}>
                         <AlertCircle size={16} color="#c47a00" style={{ flexShrink:0 }} />
                         <span style={{ fontSize:12, color:"#c47a00", flex:1 }}>
-                            Você tem modelos ativos mas ainda não gerou as contas recorrentes de <strong>{new Date().toLocaleDateString("pt-BR",{month:"long",year:"numeric"})}</strong>.
+                            Você tem modelos ativos mas ainda não gerou as contas recorrentes de <strong>{nomeMes}</strong>.
                         </span>
-                        <button className="dd-btn-ghost" style={{ fontSize:11, whiteSpace:"nowrap" }} onClick={() => { setMesRec(mesAtual()); setModalGerarRec(true); }}>
+                        <button className="dd-btn-ghost" style={{ fontSize:11, whiteSpace:"nowrap" }} onClick={() => { setMesRec(mesRef); setModalGerarRec(true); }}>
                             Gerar agora
                         </button>
                     </div>
-                )}
+                    );
+                })()}
                 {/* Barra: filtros à esquerda, ações à direita */}
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
