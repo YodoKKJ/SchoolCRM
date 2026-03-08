@@ -207,14 +207,14 @@
                 <textFieldExpression><![CDATA[$F{alunoNome}]]></textFieldExpression>
             </textField>
 
-            <textField style="sitStyle">
-                <reportElement x="182" y="2" width="80" height="10"/>
+            <textField>
+                <reportElement x="182" y="2" width="80" height="10" style="sitStyle"/>
                 <textElement textAlignment="Center"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$F{situacao}]]></textFieldExpression>
             </textField>
 
-            <textField style="freqStyle">
-                <reportElement x="262" y="2" width="80" height="10"/>
+            <textField>
+                <reportElement x="262" y="2" width="80" height="10" style="freqStyle"/>
                 <textElement textAlignment="Center"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$F{frequenciaGeral}]]></textFieldExpression>
             </textField>

@@ -426,8 +426,8 @@
             </textField>
 
             <!-- Média Anual (colored) -->
-            <textField style="mediaStyle">
-                <reportElement x="390" y="2" width="38" height="10"/>
+            <textField>
+                <reportElement x="390" y="2" width="38" height="10" style="mediaStyle"/>
                 <textElement textAlignment="Center"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$F{mediaAnual} != null ? $F{mediaAnual} : "—"]]></textFieldExpression>
             </textField>
@@ -440,15 +440,15 @@
             </textField>
 
             <!-- Frequência (colored) -->
-            <textField style="freqStyle">
-                <reportElement x="456" y="2" width="42" height="10"/>
+            <textField>
+                <reportElement x="456" y="2" width="42" height="10" style="freqStyle"/>
                 <textElement textAlignment="Center"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$F{frequencia} != null ? $F{frequencia} : "—"]]></textFieldExpression>
             </textField>
 
             <!-- Situação (colored) -->
-            <textField style="sitStyle">
-                <reportElement x="498" y="2" width="57" height="10"/>
+            <textField>
+                <reportElement x="498" y="2" width="57" height="10" style="sitStyle"/>
                 <textElement textAlignment="Center"><font fontName="SansSerif" size="7" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$F{situacao} != null ? $F{situacao} : "—"]]></textFieldExpression>
             </textField>
@@ -525,8 +525,8 @@
                 <textElement><font fontName="SansSerif" size="8" isBold="true"/></textElement>
                 <text><![CDATA[Resultado Final:]]></text>
             </staticText>
-            <textField style="resultadoStyle">
-                <reportElement x="122" y="7" width="120" height="14"/>
+            <textField>
+                <reportElement x="122" y="7" width="120" height="14" style="resultadoStyle"/>
                 <textElement><font fontName="SansSerif" size="10" isBold="true"/></textElement>
                 <textFieldExpression><![CDATA[$P{RESULTADO_FINAL}]]></textFieldExpression>
             </textField>

@@ -150,8 +150,8 @@
                         <box>
                             <pen lineWidth="0.3" lineColor="#cccccc"/>
                         </box>
-                        <textField style="cellFreqStyle">
-                            <reportElement x="0" y="3" width="80" height="12"/>
+                        <textField>
+                            <reportElement x="0" y="3" width="80" height="12" style="cellFreqStyle"/>
                             <textElement textAlignment="Center">
                                 <font fontName="SansSerif" size="8" isBold="true"/>
                             </textElement>
