@@ -17,9 +17,8 @@ public class SchemaMigration {
 
     @PostConstruct
     public void migrate() {
+        // 1. Drop qualquer CHECK constraint na tabela avaliacoes
         try {
-            // Drop qualquer CHECK constraint na tabela avaliacoes
-            // (PostgreSQL cria automaticamente como "avaliacoes_tipo_check" ou similar)
             jdbcTemplate.execute(
                 "DO $$ DECLARE r RECORD; BEGIN " +
                 "  FOR r IN SELECT constraint_name FROM information_schema.table_constraints " +
@@ -29,8 +28,19 @@ public class SchemaMigration {
                 "  END LOOP; " +
                 "END $$;"
             );
-        } catch (Exception ignored) {
-            // Se não existir constraint ou DB não suportar, ignora silenciosamente
-        }
+        } catch (Exception ignored) {}
+
+        // 2. Garante colunas de presença por período (ddl-auto=update pode falhar silenciosamente no Railway)
+        try {
+            jdbcTemplate.execute(
+                "ALTER TABLE presencas ADD COLUMN IF NOT EXISTS ordem_aula INTEGER;"
+            );
+        } catch (Exception ignored) {}
+
+        try {
+            jdbcTemplate.execute(
+                "ALTER TABLE presencas ADD COLUMN IF NOT EXISTS horario_inicio VARCHAR(255);"
+            );
+        } catch (Exception ignored) {}
     }
 }
