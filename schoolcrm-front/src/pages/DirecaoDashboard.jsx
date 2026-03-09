@@ -3900,13 +3900,13 @@ function FinPessoas() {
                                 { k:"cep", label:"CEP" },
                                 { k:"endereco", label:"Endereço", span:2 },
                                 { k:"cidade", label:"Cidade" },
-                                { k:"estado", label:"Estado (UF)" },
+                                { k:"estado", label:"Estado (UF)", maxLength:2, uppercase:true },
                             ].filter(f => f.show !== false).map(f => (
                                 <div key={f.k} style={{ gridColumn: f.span===2?"1/-1":"auto" }}>
                                     <label className="dd-label">{f.label}</label>
                                     <div className="dd-input-wrap">
                                         <input className="dd-input" value={form[f.k]||""}
-                                            onChange={e => ff(f.k, f.onlyDigits ? e.target.value.replace(/\D/g, '') : e.target.value)}
+                                            onChange={e => ff(f.k, f.onlyDigits ? e.target.value.replace(/\D/g, '') : f.uppercase ? e.target.value.toUpperCase() : e.target.value)}
                                             maxLength={f.maxLength} inputMode={f.onlyDigits ? "numeric" : "text"}
                                             placeholder={f.placeholder || ""} />
                                         <div className="dd-input-line" />

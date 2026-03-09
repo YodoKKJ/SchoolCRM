@@ -187,7 +187,9 @@ public class FinContaPagarController {
         LocalDate dataPag = !blank(dataPagStr) ? LocalDate.parse(dataPagStr) : hoje;
 
         boolean estaVencida = cp.getDataVencimento().isBefore(dataPag);
-        if (estaVencida) {
+        boolean isPrimeiroPagamento = cp.getJurosAplicado() == null && cp.getMultaAplicada() == null;
+
+        if (estaVencida && isPrimeiroPagamento) {
             FinConfiguracao config = configuracaoRepository.findAll().stream().findFirst().orElse(null);
             if (config != null) {
                 if (body.containsKey("jurosAplicado") && body.get("jurosAplicado") != null) {
@@ -205,6 +207,12 @@ public class FinContaPagarController {
                             .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
                 }
             }
+            cp.setJurosAplicado(juros.compareTo(BigDecimal.ZERO) > 0 ? juros : null);
+            cp.setMultaAplicada(multa.compareTo(BigDecimal.ZERO) > 0 ? multa : null);
+        } else {
+            // Pagamento subsequente: mantém juros/multa já aplicados
+            juros = cp.getJurosAplicado() != null ? cp.getJurosAplicado() : BigDecimal.ZERO;
+            multa = cp.getMultaAplicada() != null ? cp.getMultaAplicada() : BigDecimal.ZERO;
         }
 
         // Valida: não deixa pagar mais do que o saldo devedor
@@ -215,8 +223,6 @@ public class FinContaPagarController {
         }
 
         cp.setValorPago(totalPago);
-        cp.setJurosAplicado(juros.compareTo(BigDecimal.ZERO) > 0 ? juros : null);
-        cp.setMultaAplicada(multa.compareTo(BigDecimal.ZERO) > 0 ? multa : null);
         cp.setDataPagamento(dataPag);
 
         // Status: PAGO se totalPago cobre o total devido; senão PARCIALMENTE_PAGO
@@ -238,6 +244,7 @@ public class FinContaPagarController {
         FinContaPagar cp = cpRepository.findById(id).orElse(null);
         if (cp == null) return ResponseEntity.notFound().build();
         if ("PAGO".equals(cp.getStatus())) return ResponseEntity.badRequest().body("Conta já paga não pode ser cancelada.");
+        if ("PARCIALMENTE_PAGO".equals(cp.getStatus())) return ResponseEntity.badRequest().body("Conta parcialmente paga não pode ser cancelada.");
         cp.setStatus("CANCELADO");
         return ResponseEntity.ok(toMap(cpRepository.save(cp), LocalDate.now()));
     }
