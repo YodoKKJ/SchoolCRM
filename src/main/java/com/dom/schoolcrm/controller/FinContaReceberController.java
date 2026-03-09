@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +38,7 @@ public class FinContaReceberController {
     @Autowired private FinPessoaRepository pessoaRepository;
     @Autowired private FinFormaPagamentoRepository formaPagamentoRepository;
     @Autowired private FinConfiguracaoRepository configuracaoRepository;
+    @Autowired private FinHistoricoPagamentoCRRepository histCRRepo;
 
 
     // ─── Listar com filtros ───────────────────────────────────────────────────
@@ -216,7 +218,21 @@ public class FinContaReceberController {
         BigDecimal totalDevido = cr.getValor().add(juros).add(multa);
         cr.setStatus(totalPago.compareTo(totalDevido) >= 0 ? "PAGO" : "PARCIALMENTE_PAGO");
 
-        return ResponseEntity.ok(toMap(crRepository.save(cr), hoje));
+        FinContaReceber saved = crRepository.save(cr);
+
+        // Registra histórico imutável da baixa (novoPagamento = valor pago nesta transação)
+        FinHistoricoPagamentoCR hist = new FinHistoricoPagamentoCR();
+        hist.setContaReceber(saved);
+        hist.setDataRegistro(LocalDateTime.now());
+        hist.setDataPagamento(saved.getDataPagamento());
+        hist.setValorPago(novoPagamento);
+        hist.setFormaPagamento(saved.getFormaPagamento());
+        hist.setJurosAplicado(saved.getJurosAplicado());
+        hist.setMultaAplicada(saved.getMultaAplicada());
+        hist.setObservacoes(saved.getObservacoes());
+        histCRRepo.save(hist);
+
+        return ResponseEntity.ok(toMap(saved, hoje));
     }
 
     // ─── Cancelar parcela ─────────────────────────────────────────────────────
@@ -294,6 +310,31 @@ public class FinContaReceberController {
             cr.setObservacoes((String) body.get("observacoes"));
 
         return ResponseEntity.ok(toMap(crRepository.save(cr), LocalDate.now()));
+    }
+
+    // ─── Histórico de pagamentos ──────────────────────────────────────────────
+
+    @GetMapping("/{id}/historico")
+    public ResponseEntity<List<Map<String, Object>>> historico(@PathVariable Long id) {
+        if (!crRepository.existsById(id)) return ResponseEntity.notFound().build();
+        List<Map<String, Object>> result = histCRRepo
+                .findByContaReceberIdOrderByDataRegistroAsc(id)
+                .stream()
+                .map(h -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("id",              h.getId());
+                    m.put("dataRegistro",    h.getDataRegistro());
+                    m.put("dataPagamento",   h.getDataPagamento());
+                    m.put("valorPago",       h.getValorPago());
+                    m.put("jurosAplicado",   h.getJurosAplicado());
+                    m.put("multaAplicada",   h.getMultaAplicada());
+                    m.put("observacoes",     h.getObservacoes());
+                    m.put("formaPagamentoNome",
+                            h.getFormaPagamento() != null ? h.getFormaPagamento().getNome() : null);
+                    return m;
+                })
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(result);
     }
 
     // ─── Helper de mapeamento ─────────────────────────────────────────────────
