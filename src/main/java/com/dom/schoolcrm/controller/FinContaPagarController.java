@@ -2,6 +2,7 @@ package com.dom.schoolcrm.controller;
 
 import com.dom.schoolcrm.entity.*;
 import com.dom.schoolcrm.repository.*;
+import com.dom.schoolcrm.util.FinUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -52,6 +53,7 @@ public class FinContaPagarController {
     @Autowired private FinBeneficioRepository beneficioRepository;
     @Autowired private FinPessoaRepository pessoaRepository;
     @Autowired private FinFormaPagamentoRepository formaPagamentoRepository;
+    @Autowired private FinConfiguracaoRepository configuracaoRepository;
 
     // ─── Listar com filtros ───────────────────────────────────────────────────
 
@@ -66,6 +68,11 @@ public class FinContaPagarController {
 
         LocalDate de  = vencimentoDe  != null ? LocalDate.parse(vencimentoDe)  : null;
         LocalDate ate = vencimentoAte != null ? LocalDate.parse(vencimentoAte) : null;
+
+        // B1: período inválido (de > ate) — falha silenciosa seria confusa para o usuário
+        if (de != null && ate != null && de.isAfter(ate)) {
+            return ResponseEntity.badRequest().body(null);
+        }
 
         String tipoF   = blank(tipo)    ? null : tipo.toUpperCase();
         String catF    = blank(categoria) ? null : categoria.toUpperCase();
@@ -154,6 +161,7 @@ public class FinContaPagarController {
     // ─── Baixar (registrar pagamento) ─────────────────────────────────────────
 
     @PatchMapping("/{id}/baixar")
+    @Transactional
     public ResponseEntity<?> baixar(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         FinContaPagar cp = cpRepository.findById(id).orElse(null);
         if (cp == null) return ResponseEntity.notFound().build();
@@ -162,18 +170,53 @@ public class FinContaPagarController {
 
         if (body.get("valorPago") == null) return ResponseEntity.badRequest().body("valorPago é obrigatório.");
 
-        cp.setValorPago(new BigDecimal(body.get("valorPago").toString()));
-        cp.setStatus("PAGO");
+        BigDecimal valorPago = new BigDecimal(body.get("valorPago").toString());
+        if (valorPago.compareTo(BigDecimal.ZERO) <= 0) {
+            return ResponseEntity.badRequest().body("Valor pago deve ser maior que zero.");
+        }
 
+        cp.setValorPago(valorPago);
+
+        // Juros e multa para pagamentos em atraso
+        BigDecimal juros = BigDecimal.ZERO;
+        BigDecimal multa = BigDecimal.ZERO;
+
+        LocalDate hoje = LocalDate.now();
         String dataPagStr = str(body.get("dataPagamento"));
-        cp.setDataPagamento(!blank(dataPagStr) ? LocalDate.parse(dataPagStr) : LocalDate.now());
+        LocalDate dataPag = !blank(dataPagStr) ? LocalDate.parse(dataPagStr) : hoje;
+
+        boolean estaVencida = cp.getDataVencimento().isBefore(dataPag);
+        if (estaVencida) {
+            FinConfiguracao config = configuracaoRepository.findAll().stream().findFirst().orElse(null);
+            if (config != null) {
+                if (body.containsKey("jurosAplicado") && body.get("jurosAplicado") != null) {
+                    juros = new BigDecimal(body.get("jurosAplicado").toString());
+                } else if (config.getJurosAtrasoPct() != null) {
+                    juros = cp.getValor()
+                            .multiply(config.getJurosAtrasoPct())
+                            .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                }
+                if (body.containsKey("multaAplicada") && body.get("multaAplicada") != null) {
+                    multa = new BigDecimal(body.get("multaAplicada").toString());
+                } else if (config.getMultaAtrasoPct() != null) {
+                    multa = cp.getValor()
+                            .multiply(config.getMultaAtrasoPct())
+                            .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                }
+            }
+        }
+
+        cp.setJurosAplicado(juros.compareTo(BigDecimal.ZERO) > 0 ? juros : null);
+        cp.setMultaAplicada(multa.compareTo(BigDecimal.ZERO) > 0 ? multa : null);
+        cp.setStatus("PAGO");
+        cp.setDataPagamento(dataPag);
 
         Long fpId = parseLong(body.get("formaPagamentoId"));
         if (fpId != null) formaPagamentoRepository.findById(fpId).ifPresent(cp::setFormaPagamento);
 
         if (body.containsKey("observacoes")) cp.setObservacoes(str(body.get("observacoes")));
 
-        return ResponseEntity.ok(toMap(cpRepository.save(cp), LocalDate.now()));
+        return ResponseEntity.ok(toMap(cpRepository.save(cp), hoje));
     }
 
     // ─── Cancelar ─────────────────────────────────────────────────────────────
@@ -204,7 +247,8 @@ public class FinContaPagarController {
 
         String nomeMes = ym.getMonth().getDisplayName(TextStyle.FULL, new Locale("pt", "BR"));
         nomeMes = nomeMes.substring(0, 1).toUpperCase() + nomeMes.substring(1);
-        LocalDate vencimento = ym.atEndOfMonth(); // vencimento no último dia do mês
+        LocalDate inicioMes   = ym.atDay(1);
+        LocalDate vencimento  = ym.atEndOfMonth(); // vencimento no último dia do mês
 
         List<Map<String, Object>> geradas = new ArrayList<>();
         List<String> ignoradas = new ArrayList<>();
@@ -215,12 +259,25 @@ public class FinContaPagarController {
                 continue;
             }
 
+            // B4: valida vínculo empregatício no mês da folha.
+            // Admissão após o último dia do mês → ainda não estava empregado.
+            if (func.getDataAdmissao() != null && func.getDataAdmissao().isAfter(vencimento)) {
+                ignoradas.add(func.getPessoa().getNome() + " (admissão posterior ao mês)");
+                continue;
+            }
+            // Demissão antes do primeiro dia do mês → já havia saído.
+            if (func.getDataDemissao() != null && func.getDataDemissao().isBefore(inicioMes)) {
+                ignoradas.add(func.getPessoa().getNome() + " (demitido antes do mês)");
+                continue;
+            }
+
             // Salário base + benefícios ativos
             List<FinBeneficio> beneficios = beneficioRepository.findByFuncionarioIdAndAtivoTrue(func.getId());
             BigDecimal totalBeneficios = beneficios.stream()
                     .map(FinBeneficio::getValor)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
-            BigDecimal totalSalario = func.getSalarioBase().add(totalBeneficios);
+            BigDecimal salarioBase = func.getSalarioBase() != null ? func.getSalarioBase() : BigDecimal.ZERO;
+            BigDecimal totalSalario = salarioBase.add(totalBeneficios);
 
             FinContaPagar cp = new FinContaPagar();
             cp.setFuncionario(func);
@@ -318,7 +375,9 @@ public class FinContaPagarController {
         m.put("valorPago",      cp.getValorPago());
         m.put("dataVencimento", cp.getDataVencimento());
         m.put("dataPagamento",  cp.getDataPagamento());
-        m.put("status",         statusEfetivo(cp, hoje));
+        m.put("status",         FinUtil.statusEfetivo(cp, hoje));
+        m.put("jurosAplicado",  cp.getJurosAplicado());
+        m.put("multaAplicada",  cp.getMultaAplicada());
         m.put("mesReferencia",  cp.getMesReferencia());
         m.put("observacoes",    cp.getObservacoes());
 
@@ -342,11 +401,6 @@ public class FinContaPagarController {
         }
 
         return m;
-    }
-
-    private String statusEfetivo(FinContaPagar cp, LocalDate hoje) {
-        if ("PENDENTE".equals(cp.getStatus()) && cp.getDataVencimento().isBefore(hoje)) return "VENCIDO";
-        return cp.getStatus();
     }
 
     private String str(Object v) { return v == null ? null : v.toString(); }

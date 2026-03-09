@@ -2,6 +2,7 @@ package com.dom.schoolcrm.controller;
 
 import com.dom.schoolcrm.entity.*;
 import com.dom.schoolcrm.repository.*;
+import com.dom.schoolcrm.util.FinUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -52,6 +53,11 @@ public class FinContaReceberController {
 
         LocalDate de  = vencimentoDe  != null ? LocalDate.parse(vencimentoDe)  : null;
         LocalDate ate = vencimentoAte != null ? LocalDate.parse(vencimentoAte) : null;
+
+        // B1: período inválido (de > ate) — falha silenciosa seria confusa para o usuário
+        if (de != null && ate != null && de.isAfter(ate)) {
+            return ResponseEntity.badRequest().body(null);
+        }
 
         String tipoFiltro   = (tipo   != null && !tipo.isBlank())   ? tipo.toUpperCase()   : null;
         // VENCIDO é calculado em runtime — filtramos PENDENTE e depois aplicamos lógica
@@ -129,41 +135,73 @@ public class FinContaReceberController {
         Object valorPagoRaw = body.get("valorPago");
         if (valorPagoRaw == null) return ResponseEntity.badRequest().body("valorPago é obrigatório.");
 
-        BigDecimal valorPago = new BigDecimal(valorPagoRaw.toString());
+        BigDecimal novoPagamento = new BigDecimal(valorPagoRaw.toString());
+        if (novoPagamento.compareTo(BigDecimal.ZERO) <= 0) {
+            return ResponseEntity.badRequest().body("Valor pago deve ser maior que zero.");
+        }
 
-        // Juros e multa: pode vir do body ou ser calculado automaticamente
-        BigDecimal juros = BigDecimal.ZERO;
-        BigDecimal multa = BigDecimal.ZERO;
+        // Acumula com pagamentos anteriores (suporte a baixa parcial)
+        BigDecimal jaFoiPago = cr.getValorPago() != null ? cr.getValorPago() : BigDecimal.ZERO;
+        BigDecimal totalPago = jaFoiPago.add(novoPagamento);
+
+        // Juros e multa: aplica apenas no primeiro pagamento (se ainda não foram definidos)
+        BigDecimal juros = cr.getJurosAplicado() != null ? cr.getJurosAplicado() : BigDecimal.ZERO;
+        BigDecimal multa = cr.getMultaAplicada() != null ? cr.getMultaAplicada() : BigDecimal.ZERO;
 
         LocalDate hoje = LocalDate.now();
         boolean estaVencida = cr.getDataVencimento().isBefore(hoje);
+        boolean primeirosPagamento = cr.getJurosAplicado() == null && cr.getMultaAplicada() == null;
 
-        if (estaVencida) {
-            FinConfiguracao config = configuracaoRepository.findAll().stream().findFirst().orElse(null);
-            if (config != null) {
-                // Calcula juros e multa sobre o valor original
-                if (body.containsKey("jurosAplicado") && body.get("jurosAplicado") != null) {
+        if (primeirosPagamento) {
+            if (estaVencida) {
+                FinConfiguracao config = configuracaoRepository.findAll().stream().findFirst().orElse(null);
+                if (config != null) {
+                    // Se a chave existe no body (mesmo que null), usa o valor enviado (null = zero explícito).
+                    // Só auto-calcula quando a chave NÃO foi enviada pelo cliente.
+                    if (body.containsKey("jurosAplicado")) {
+                        juros = body.get("jurosAplicado") != null
+                                ? new BigDecimal(body.get("jurosAplicado").toString())
+                                : BigDecimal.ZERO;
+                    } else if (config.getJurosAtrasoPct() != null
+                            && config.getJurosAtrasoPct().compareTo(BigDecimal.ZERO) > 0) {
+                        juros = cr.getValor()
+                                .multiply(config.getJurosAtrasoPct())
+                                .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                    }
+                    if (body.containsKey("multaAplicada")) {
+                        multa = body.get("multaAplicada") != null
+                                ? new BigDecimal(body.get("multaAplicada").toString())
+                                : BigDecimal.ZERO;
+                    } else if (config.getMultaAtrasoPct() != null
+                            && config.getMultaAtrasoPct().compareTo(BigDecimal.ZERO) > 0) {
+                        multa = cr.getValor()
+                                .multiply(config.getMultaAtrasoPct())
+                                .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+                    }
+                }
+            } else {
+                if (body.containsKey("jurosAplicado") && body.get("jurosAplicado") != null)
                     juros = new BigDecimal(body.get("jurosAplicado").toString());
-                } else if (config.getJurosAtrasoPct() != null) {
-                    juros = cr.getValor()
-                            .multiply(config.getJurosAtrasoPct())
-                            .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
-                }
-
-                if (body.containsKey("multaAplicada") && body.get("multaAplicada") != null) {
+                if (body.containsKey("multaAplicada") && body.get("multaAplicada") != null)
                     multa = new BigDecimal(body.get("multaAplicada").toString());
-                } else if (config.getMultaAtrasoPct() != null) {
-                    multa = cr.getValor()
-                            .multiply(config.getMultaAtrasoPct())
-                            .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
-                }
             }
         }
 
-        // Data de pagamento (usa hoje se não informada)
+        // Valida: não permite pagar mais do que o saldo devedor restante
+        BigDecimal saldoRestante = cr.getValor().add(juros).add(multa).subtract(jaFoiPago);
+        if (novoPagamento.compareTo(saldoRestante) > 0) {
+            return ResponseEntity.badRequest().body(
+                    String.format("Valor pago (R$ %.2f) supera o saldo devedor (R$ %.2f).",
+                            novoPagamento, saldoRestante));
+        }
+
+        // Data de pagamento (preserva a existente em pagamentos subsequentes)
         String dataPagStr = (String) body.get("dataPagamento");
-        cr.setDataPagamento(dataPagStr != null && !dataPagStr.isBlank()
-                ? LocalDate.parse(dataPagStr) : hoje);
+        if (dataPagStr != null && !dataPagStr.isBlank()) {
+            cr.setDataPagamento(LocalDate.parse(dataPagStr));
+        } else if (cr.getDataPagamento() == null) {
+            cr.setDataPagamento(hoje);
+        }
 
         // Forma de pagamento (opcional)
         Long fpId = parseLong(body.get("formaPagamentoId"));
@@ -171,21 +209,23 @@ public class FinContaReceberController {
             formaPagamentoRepository.findById(fpId).ifPresent(cr::setFormaPagamento);
         }
 
-        cr.setValorPago(valorPago);
+        cr.setValorPago(totalPago);
         cr.setJurosAplicado(juros.compareTo(BigDecimal.ZERO) > 0 ? juros : null);
         cr.setMultaAplicada(multa.compareTo(BigDecimal.ZERO) > 0 ? multa : null);
-        cr.setStatus("PAGO");
-
         if (body.containsKey("observacoes")) cr.setObservacoes((String) body.get("observacoes"));
+
+        // Status: PAGO se totalPago cobre o total devido; senão PARCIALMENTE_PAGO
+        BigDecimal totalDevido = cr.getValor().add(juros).add(multa);
+        cr.setStatus(totalPago.compareTo(totalDevido) >= 0 ? "PAGO" : "PARCIALMENTE_PAGO");
 
         FinContaReceber saved = crRepository.save(cr);
 
-        // Registra histórico imutável da baixa
+        // Registra histórico imutável da baixa (novoPagamento = valor pago nesta transação)
         FinHistoricoPagamentoCR hist = new FinHistoricoPagamentoCR();
         hist.setContaReceber(saved);
         hist.setDataRegistro(LocalDateTime.now());
         hist.setDataPagamento(saved.getDataPagamento());
-        hist.setValorPago(valorPago);
+        hist.setValorPago(novoPagamento);
         hist.setFormaPagamento(saved.getFormaPagamento());
         hist.setJurosAplicado(saved.getJurosAplicado());
         hist.setMultaAplicada(saved.getMultaAplicada());
@@ -205,9 +245,48 @@ public class FinContaReceberController {
         if ("PAGO".equals(cr.getStatus())) {
             return ResponseEntity.badRequest().body("Não é possível cancelar uma parcela já paga.");
         }
+        // B2: parcela com pagamento parcial registrado não pode ser cancelada;
+        // o valor já recebido precisaria de estorno — operação fora do escopo do sistema.
+        if ("PARCIALMENTE_PAGO".equals(cr.getStatus())) {
+            return ResponseEntity.badRequest().body(
+                    "Não é possível cancelar uma parcela com pagamento parcial registrado. " +
+                    "Realize o estorno manualmente antes de cancelar.");
+        }
 
         cr.setStatus("CANCELADO");
         return ResponseEntity.ok(toMap(crRepository.save(cr), LocalDate.now()));
+    }
+
+    // ─── Excluir CR avulsa (apenas avulsas não pagas) ─────────────────────────
+
+    @DeleteMapping("/{id}")
+    @Transactional
+    public ResponseEntity<?> excluir(@PathVariable Long id) {
+        FinContaReceber cr = crRepository.findById(id).orElse(null);
+        if (cr == null) return ResponseEntity.notFound().build();
+
+        // Mensagens de erro descritivas com base no estado atual
+        if (cr.getContrato() != null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Parcelas de contrato não podem ser excluídas. Use 'Cancelar' para desativá-las.");
+        }
+        if ("PAGO".equals(cr.getStatus())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Recebimentos já pagos não podem ser excluídos.");
+        }
+        if ("PARCIALMENTE_PAGO".equals(cr.getStatus())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Recebimentos com pagamento parcial não podem ser excluídos. Use 'Cancelar'.");
+        }
+
+        // Delete atômico: re-verifica as condições diretamente no banco para eliminar
+        // race condition entre a leitura acima e a deleção efetiva.
+        int deletados = crRepository.deleteAvulsaNaoPaga(id);
+        if (deletados == 0) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Não foi possível excluir: o status da parcela foi alterado por outra operação.");
+        }
+        return ResponseEntity.noContent().build();
     }
 
     // ─── Editar parcela ───────────────────────────────────────────────────────
@@ -269,9 +348,16 @@ public class FinContaReceberController {
         m.put("totalParcelas",  cr.getTotalParcelas());
         m.put("valor",          cr.getValor());
         m.put("valorPago",      cr.getValorPago());
+        // saldoDevedor = valor + juros + multa - totalPago
+        BigDecimal totalDevido = cr.getValor()
+                .add(cr.getJurosAplicado() != null ? cr.getJurosAplicado() : BigDecimal.ZERO)
+                .add(cr.getMultaAplicada() != null ? cr.getMultaAplicada() : BigDecimal.ZERO);
+        BigDecimal pago = cr.getValorPago() != null ? cr.getValorPago() : BigDecimal.ZERO;
+        BigDecimal saldo = totalDevido.subtract(pago);
+        m.put("saldoDevedor",   saldo.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : saldo);
         m.put("dataVencimento", cr.getDataVencimento());
         m.put("dataPagamento",  cr.getDataPagamento());
-        m.put("status",         statusEfetivo(cr, hoje));
+        m.put("status",         FinUtil.statusEfetivo(cr, hoje));
         m.put("jurosAplicado",  cr.getJurosAplicado());
         m.put("multaAplicada",  cr.getMultaAplicada());
         m.put("observacoes",    cr.getObservacoes());
@@ -295,11 +381,6 @@ public class FinContaReceberController {
         }
 
         return m;
-    }
-
-    private String statusEfetivo(FinContaReceber cr, LocalDate hoje) {
-        if ("PENDENTE".equals(cr.getStatus()) && cr.getDataVencimento().isBefore(hoje)) return "VENCIDO";
-        return cr.getStatus();
     }
 
     private Long parseLong(Object v) { return v == null ? null : ((Number) v).longValue(); }

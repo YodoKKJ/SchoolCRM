@@ -109,8 +109,27 @@ public class VinculoController {
     private ProfessorTurmaMateriaRepository professorTurmaMateriaRepository;
     @GetMapping("/aluno-turma")
     @PreAuthorize("hasRole('DIRECAO')")
-    public ResponseEntity<?> listarVinculosAluno() {
-        return ResponseEntity.ok(alunoTurmaRepository.findAll());
+    public ResponseEntity<?> listarVinculosAluno(
+            @RequestParam(required = false) Long alunoId,
+            @RequestParam(required = false) Integer anoLetivo) {
+
+        List<AlunoTurma> lista = alunoId != null
+                ? alunoTurmaRepository.findByAlunoId(alunoId)
+                : alunoTurmaRepository.findAll();
+
+        // Filtra por anoLetivo se informado e projeta para um map simples
+        return ResponseEntity.ok(lista.stream()
+                .filter(v -> anoLetivo == null || anoLetivo.equals(v.getTurma().getAnoLetivo()))
+                .map(v -> Map.of(
+                        "alunoId",   v.getAluno().getId(),
+                        "alunoNome", v.getAluno().getNome(),
+                        "turmaId",   v.getTurma().getId(),
+                        "turmaNome", v.getTurma().getNome() != null ? v.getTurma().getNome() : "",
+                        "anoLetivo", v.getTurma().getAnoLetivo(),
+                        "serieId",   v.getTurma().getSerie().getId(),
+                        "serieNome", v.getTurma().getSerie().getNome()
+                ))
+                .toList());
     }
 
     @DeleteMapping("/aluno-turma")

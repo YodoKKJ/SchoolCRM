@@ -197,10 +197,19 @@ public class FinDashboardController {
         List<Map<String, Object>> inadimplentes = new ArrayList<>();
 
         for (FinContaReceber cr : crRepository.findVencidas(hoje)) {
+            // Saldo devedor real = valor + juros + multa - já pago
+            BigDecimal juros  = cr.getJurosAplicado()  != null ? cr.getJurosAplicado()  : BigDecimal.ZERO;
+            BigDecimal multa  = cr.getMultaAplicada()  != null ? cr.getMultaAplicada()  : BigDecimal.ZERO;
+            BigDecimal pago   = cr.getValorPago()      != null ? cr.getValorPago()      : BigDecimal.ZERO;
+            BigDecimal saldo  = cr.getValor().add(juros).add(multa).subtract(pago);
+
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("id",             cr.getId());
             item.put("descricao",      cr.getDescricao());
             item.put("valor",          cr.getValor());
+            item.put("saldoDevedor",   saldo.max(BigDecimal.ZERO));
+            item.put("valorPago",      pago.compareTo(BigDecimal.ZERO) > 0 ? pago : null);
+            item.put("status",         cr.getStatus());
             item.put("dataVencimento", cr.getDataVencimento());
             item.put("diasAtraso",     cr.getDataVencimento().until(hoje).getDays());
 

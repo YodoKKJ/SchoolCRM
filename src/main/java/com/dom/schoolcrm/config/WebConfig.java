@@ -6,10 +6,7 @@ import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
-
-    @Override
-    public void addViewControllers(ViewControllerRegistry registry) {
-        registry.addViewController("/{spring:[^.]*}")
-                .setViewName("forward:/index.html");
-    }
+    // SPA fallback é tratado pelo SpaController (ErrorController) que
+    // redireciona 404s para /index.html — não usamos addViewController
+    // para evitar conflito com métodos POST/DELETE/PATCH nas rotas de API.
 }
