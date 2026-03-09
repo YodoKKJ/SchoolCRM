@@ -4924,6 +4924,8 @@ function FinContasPagar() {
     const [mesFolha, setMesFolha] = useState(mesAtual());
     const [mesRec, setMesRec] = useState(mesAtual());
     const [formBaixar, setFormBaixar] = useState({ dataPagamento:"", valorPago:"", formaPagamentoId:"", observacoes:"" });
+    const [modalEditarCP, setModalEditarCP] = useState(null);
+    const [formEditarCP, setFormEditarCP] = useState({ descricao:"", valor:"", dataVencimento:"", categoria:"", observacoes:"" });
     const [formModelo, setFormModelo] = useState({ descricao:"", categoria:"CONTA_FIXA", valor:"", diaVencimento:"", pessoaId:"", observacoes:"" });
     const [pessoas, setPessoas] = useState([]);
     const [abaCP, setAbaCP] = useState("contas");
@@ -4963,6 +4965,18 @@ function FinContasPagar() {
         if (!window.confirm("Cancelar esta conta?")) return;
         try { await api.patch(`/fin/contas-pagar/${id}/cancelar`); flash("Cancelada."); carregar(); }
         catch(err) { flash(err.response?.data || "Erro.", "err"); }
+    };
+
+    const editarConta = async e => {
+        e.preventDefault();
+        setSalvando(true);
+        try {
+            await api.put(`/fin/contas-pagar/${modalEditarCP.id}`, { ...formEditarCP, valor: Number(formEditarCP.valor) });
+            setModalEditarCP(null);
+            flash("Conta atualizada!");
+            carregar();
+        } catch(err) { flash(err.response?.data || "Erro.", "err"); }
+        finally { setSalvando(false); }
     };
 
     const gerarFolha = async () => {
@@ -5144,6 +5158,7 @@ function FinContasPagar() {
                                                 {(st==="PENDENTE"||st==="VENCIDO"||st==="PARCIALMENTE_PAGO") && (
                                                     <div style={{ display:"flex", gap:6 }}>
                                                         <button className="dd-btn-edit" style={{ fontSize:10 }} onClick={() => { const saldo = cp.saldoDevedor ?? cp.valor; setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(saldo), formaPagamentoId:"", observacoes:"" }); setModalBaixar(cp); }}>Baixar</button>
+                                                        <button className="dd-btn-ghost" style={{ fontSize:10 }} onClick={() => { setFormEditarCP({ descricao: cp.descricao, valor: String(cp.valor), dataVencimento: cp.dataVencimento, categoria: cp.categoria||"", observacoes: cp.observacoes||"" }); setModalEditarCP(cp); }}>Editar</button>
                                                         <button className="dd-btn-danger" style={{ fontSize:10 }} onClick={() => cancelarConta(cp.id)}>Cancelar</button>
                                                     </div>
                                                 )}
@@ -5227,6 +5242,59 @@ function FinContasPagar() {
                             <div style={{ display:"flex", gap:8, marginTop:8 }}>
                                 <button type="button" className="dd-btn-ghost" onClick={() => setModalBaixar(null)}>Cancelar</button>
                                 <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando?"Baixando...":"Confirmar"}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Editar CP */}
+            {modalEditarCP && (
+                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalEditarCP(null)}>
+                    <div className="dd-modal" style={{ maxWidth:400 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div><p className="dd-modal-title">Editar Conta</p><p className="dd-modal-sub">{modalEditarCP.descricao}</p></div>
+                            <button onClick={() => setModalEditarCP(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
+                        </div>
+                        <form onSubmit={editarConta} style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                            <div>
+                                <label className="dd-label">Descrição *</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" type="text" required value={formEditarCP.descricao} onChange={e => setFormEditarCP(f => ({ ...f, descricao: e.target.value }))} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Valor (R$) *</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" type="number" step="0.01" required value={formEditarCP.valor} onChange={e => setFormEditarCP(f => ({ ...f, valor: e.target.value }))} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Vencimento *</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" type="date" required value={formEditarCP.dataVencimento} onChange={e => setFormEditarCP(f => ({ ...f, dataVencimento: e.target.value }))} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Categoria</label>
+                                <select value={formEditarCP.categoria} onChange={e => setFormEditarCP(f => ({ ...f, categoria: e.target.value }))}
+                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
+                                    {["AGUA","LUZ","INTERNET","ALUGUEL","SALARIO","LIMPEZA","MANUTENCAO","MATERIAL","OUTRO"].map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="dd-label">Observações</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" type="text" value={formEditarCP.observacoes} onChange={e => setFormEditarCP(f => ({ ...f, observacoes: e.target.value }))} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                                <button type="button" className="dd-btn-ghost" onClick={() => setModalEditarCP(null)}>Cancelar</button>
+                                <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando?"Salvando...":"Salvar"}</button>
                             </div>
                         </form>
                     </div>
