@@ -4193,6 +4193,8 @@ function FinContratos({ anoLetivo }) {
     const [modalBaixar, setModalBaixar] = useState(null); // { crId, valor }
     const [formContrato, setFormContrato] = useState({ anoLetivo: String(anoLetivo), serieId:"", responsavelPrincipalId:"", numParcelas:"12", desconto:"0", acrescimo:"0", mesInicio:"" });
     const [formBaixar, setFormBaixar] = useState({ dataPagamento:"", valorPago:"", formaPagamentoId:"", observacoes:"" });
+    const [modalHistoricoCR, setModalHistoricoCR] = useState(null); // { crId, descricao }
+    const [histCRList, setHistCRList] = useState([]);
     const [modalCRAvulsa, setModalCRAvulsa] = useState(false);
     const [formCRAvulsa, setFormCRAvulsa] = useState({ descricao:"", valor:"", dataVencimento:"", pessoaId:"", formaPagamentoId:"", observacoes:"" });
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
@@ -4282,6 +4284,15 @@ function FinContratos({ anoLetivo }) {
             flash("Recebimento cancelado.");
             setRefreshKey(k => k + 1);
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
+    };
+
+    const verHistoricoCR = async (crId, descricao) => {
+        setHistCRList([]);
+        setModalHistoricoCR({ crId, descricao });
+        try {
+            const r = await api.get(`/fin/contas-receber/${crId}/historico`);
+            setHistCRList(Array.isArray(r.data) ? r.data : []);
+        } catch { setHistCRList([]); }
     };
 
     const criarCRAvulsa = async e => {
@@ -4374,6 +4385,8 @@ function FinContratos({ anoLetivo }) {
                                                                             onClick={() => { setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(cr.valor), formaPagamentoId:"", observacoes:"" }); setModalBaixar({ crId: cr.id, contratoId: c.id, valor: cr.valor }); }}>Baixar</button>
                                                                         <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => cancelarParcela(cr.id, c.id)}>Cancelar</button>
                                                                     </div>
+                                                                ) : st === "PAGO" ? (
+                                                                    <button className="dd-btn-ghost" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => verHistoricoCR(cr.id, cr.descricao || `Parcela ${idx+1}`)}>Ver</button>
                                                                 ) : null}
                                                             </td>
                                                         </tr>
@@ -4418,13 +4431,15 @@ function FinContratos({ anoLetivo }) {
                                         <td style={{ padding:"8px 20px" }}><span className="dd-badge" style={{ ...sc, borderRadius:3, fontSize:10 }}>{st}</span></td>
                                         <td style={{ padding:"8px 20px", color:"#9aaa9f", fontSize:11 }}>{cr.pessoaNome || "—"}</td>
                                         <td style={{ padding:"8px 20px" }}>
-                                            {(st === "PENDENTE" || st === "VENCIDO") && (
+                                            {(st === "PENDENTE" || st === "VENCIDO") ? (
                                                 <div style={{ display:"flex", gap:4 }}>
                                                     <button className="dd-btn-edit" style={{ fontSize:10, padding:"3px 8px" }}
                                                         onClick={() => { setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(cr.valor), formaPagamentoId:"", observacoes:"" }); setModalBaixar({ crId: cr.id, contratoId: null, valor: cr.valor }); }}>Baixar</button>
                                                     <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => cancelarAvulsa(cr.id)}>Cancelar</button>
                                                 </div>
-                                            )}
+                                            ) : st === "PAGO" ? (
+                                                <button className="dd-btn-ghost" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => verHistoricoCR(cr.id, cr.descricao)}>Ver</button>
+                                            ) : null}
                                         </td>
                                     </tr>
                                 );
@@ -4540,6 +4555,49 @@ function FinContratos({ anoLetivo }) {
                                 <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando?"Baixando...":"Confirmar Baixa"}</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Histórico de Pagamento CR */}
+            {modalHistoricoCR && (
+                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalHistoricoCR(null)}>
+                    <div className="dd-modal" style={{ maxWidth:480 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div>
+                                <p className="dd-modal-title">Histórico de Pagamento</p>
+                                <p className="dd-modal-sub">{modalHistoricoCR.descricao}</p>
+                            </div>
+                            <button onClick={() => setModalHistoricoCR(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f", padding:4 }}><X size={16} /></button>
+                        </div>
+                        {histCRList.length === 0 ? (
+                            <p style={{ color:"#9aaa9f", fontSize:13, textAlign:"center", padding:"24px 0" }}>Nenhum registro de pagamento encontrado.</p>
+                        ) : (
+                            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                                <thead>
+                                    <tr style={{ borderBottom:"1px solid #eaeef2" }}>
+                                        {["Data Pgto","Valor Pago","Forma","Juros","Multa","Obs"].map(h => (
+                                            <th key={h} style={{ padding:"6px 8px", textAlign:"left", color:"#9aaa9f", fontSize:10, textTransform:"uppercase" }}>{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {histCRList.map(h => (
+                                        <tr key={h.id} style={{ borderBottom:"1px solid #f2f5f2" }}>
+                                            <td style={{ padding:"8px 8px" }}>{fmtData(h.dataPagamento)}</td>
+                                            <td style={{ padding:"8px 8px", fontWeight:600, color:"#2d6a4f" }}>{fmt(h.valorPago)}</td>
+                                            <td style={{ padding:"8px 8px", color:"#9aaa9f" }}>{h.formaPagamentoNome || "—"}</td>
+                                            <td style={{ padding:"8px 8px", color:"#9aaa9f" }}>{h.jurosAplicado ? fmt(h.jurosAplicado) : "—"}</td>
+                                            <td style={{ padding:"8px 8px", color:"#9aaa9f" }}>{h.multaAplicada ? fmt(h.multaAplicada) : "—"}</td>
+                                            <td style={{ padding:"8px 8px", color:"#9aaa9f", fontSize:11 }}>{h.observacoes || "—"}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                        <div style={{ marginTop:16, textAlign:"right" }}>
+                            <button className="dd-btn-ghost" onClick={() => setModalHistoricoCR(null)}>Fechar</button>
+                        </div>
                     </div>
                 </div>
             )}
