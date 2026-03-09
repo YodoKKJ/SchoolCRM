@@ -4916,7 +4916,7 @@ function FinContasPagar() {
     const [contas, setContas] = useState([]);
     const [modelos, setModelos] = useState([]);
     const [formasPagamento, setFormasPagamento] = useState([]);
-    const [filtros, setFiltros] = useState({ status:"", tipo:"", mesReferencia:"" });
+    const [filtros, setFiltros] = useState({ status:"", tipo:"", mesReferencia: mesAtual() });
     const [modalBaixar, setModalBaixar] = useState(null);
     const [modalGerarFolha, setModalGerarFolha] = useState(false);
     const [modalGerarRec, setModalGerarRec] = useState(false);
@@ -5101,7 +5101,7 @@ function FinContasPagar() {
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                     <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                         {[
-                            { k:"status", opts:[["","Todos status"],["PENDENTE","Pendente"],["PAGO","Pago"],["CANCELADO","Cancelado"]] },
+                            { k:"status", opts:[["","Todos status"],["PENDENTE","Pendente"],["VENCIDO","Vencido"],["PARCIALMENTE_PAGO","Parc. Pago"],["PAGO","Pago"],["CANCELADO","Cancelado"]] },
                             { k:"tipo",   opts:[["","Todos tipos"],["SALARIO","Salário"],["CONTA_FIXA","Conta Fixa"],["FORNECEDOR","Fornecedor"],["OUTRO","Outro"]] },
                         ].map(f => (
                             <select key={f.k} value={filtros[f.k]} onChange={e => ff(f.k, e.target.value)}
@@ -5123,10 +5123,10 @@ function FinContasPagar() {
                     <div className="dd-table-wrap">
                         <table className="dd-table" style={{ width:"100%" }}>
                             <thead><tr>
-                                <th>Descrição</th><th>Tipo</th><th>Valor</th><th>Vencimento</th><th>Mês Ref.</th><th>Status</th><th>Pessoa/Func.</th><th></th>
+                                <th>Descrição</th><th>Tipo</th><th>Valor</th><th>Pago</th><th>Vencimento</th><th>Mês Ref.</th><th>Status</th><th>Pessoa/Func.</th><th></th>
                             </tr></thead>
                             <tbody>
-                                {contas.length === 0 && <tr><td colSpan={8} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Nenhuma conta encontrada</td></tr>}
+                                {contas.length === 0 && <tr><td colSpan={9} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Nenhuma conta encontrada</td></tr>}
                                 {contas.map(cp => {
                                     const st = computarStatus(cp);
                                     const sc = statusBadge(st);
@@ -5135,14 +5135,15 @@ function FinContasPagar() {
                                             <td style={{ fontWeight:500 }}>{cp.descricao}</td>
                                             <td style={{ fontSize:11 }}>{cp.tipo}</td>
                                             <td style={{ fontWeight:500 }}>{fmt(cp.valor)}</td>
+                                            <td style={{ fontSize:11, color: cp.valorPago ? "#2d6a4f" : "#9aaa9f", fontWeight: cp.valorPago ? 600 : 400 }}>{cp.valorPago ? fmt(cp.valorPago) : "—"}</td>
                                             <td>{fmtData(cp.dataVencimento)}</td>
                                             <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.mesReferencia||"—"}</td>
                                             <td><span className="dd-badge" style={{ ...sc, borderRadius:3 }}>{st}</span></td>
                                             <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.pessoaNome||cp.funcionarioNome||"—"}</td>
                                             <td>
-                                                {(st==="PENDENTE"||st==="VENCIDO") && (
+                                                {(st==="PENDENTE"||st==="VENCIDO"||st==="PARCIALMENTE_PAGO") && (
                                                     <div style={{ display:"flex", gap:6 }}>
-                                                        <button className="dd-btn-edit" style={{ fontSize:10 }} onClick={() => { setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(cp.valor), formaPagamentoId:"", observacoes:"" }); setModalBaixar(cp); }}>Baixar</button>
+                                                        <button className="dd-btn-edit" style={{ fontSize:10 }} onClick={() => { const saldo = cp.saldoDevedor ?? cp.valor; setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(saldo), formaPagamentoId:"", observacoes:"" }); setModalBaixar(cp); }}>Baixar</button>
                                                         <button className="dd-btn-danger" style={{ fontSize:10 }} onClick={() => cancelarConta(cp.id)}>Cancelar</button>
                                                     </div>
                                                 )}
@@ -5199,7 +5200,7 @@ function FinContasPagar() {
                 <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalBaixar(null)}>
                     <div className="dd-modal" style={{ maxWidth:380 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
-                            <div><p className="dd-modal-title">Dar Baixa</p><p className="dd-modal-sub">{modalBaixar.descricao}</p></div>
+                            <div><p className="dd-modal-title">Dar Baixa</p><p className="dd-modal-sub">{modalBaixar.descricao}{modalBaixar.status === "PARCIALMENTE_PAGO" ? ` — Saldo: ${fmt(modalBaixar.saldoDevedor)}` : ""}</p></div>
                             <button onClick={() => setModalBaixar(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
                         </div>
                         <form onSubmit={baixarConta} style={{ display:"flex", flexDirection:"column", gap:14 }}>

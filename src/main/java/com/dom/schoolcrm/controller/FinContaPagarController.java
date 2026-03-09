@@ -170,12 +170,13 @@ public class FinContaPagarController {
 
         if (body.get("valorPago") == null) return ResponseEntity.badRequest().body("valorPago é obrigatório.");
 
-        BigDecimal valorPago = new BigDecimal(body.get("valorPago").toString());
-        if (valorPago.compareTo(BigDecimal.ZERO) <= 0) {
+        BigDecimal novoPagamento = new BigDecimal(body.get("valorPago").toString());
+        if (novoPagamento.compareTo(BigDecimal.ZERO) <= 0) {
             return ResponseEntity.badRequest().body("Valor pago deve ser maior que zero.");
         }
 
-        cp.setValorPago(valorPago);
+        BigDecimal jaFoiPago = cp.getValorPago() != null ? cp.getValorPago() : BigDecimal.ZERO;
+        BigDecimal totalPago  = jaFoiPago.add(novoPagamento);
 
         // Juros e multa para pagamentos em atraso
         BigDecimal juros = BigDecimal.ZERO;
@@ -206,10 +207,21 @@ public class FinContaPagarController {
             }
         }
 
+        // Valida: não deixa pagar mais do que o saldo devedor
+        BigDecimal saldoRestante = cp.getValor().add(juros).add(multa).subtract(jaFoiPago);
+        if (novoPagamento.compareTo(saldoRestante) > 0) {
+            return ResponseEntity.badRequest().body(String.format(
+                    "Valor pago (%.2f) supera o saldo devedor (%.2f).", novoPagamento, saldoRestante));
+        }
+
+        cp.setValorPago(totalPago);
         cp.setJurosAplicado(juros.compareTo(BigDecimal.ZERO) > 0 ? juros : null);
         cp.setMultaAplicada(multa.compareTo(BigDecimal.ZERO) > 0 ? multa : null);
-        cp.setStatus("PAGO");
         cp.setDataPagamento(dataPag);
+
+        // Status: PAGO se totalPago cobre o total devido; senão PARCIALMENTE_PAGO
+        BigDecimal totalDevido = cp.getValor().add(juros).add(multa);
+        cp.setStatus(totalPago.compareTo(totalDevido) >= 0 ? "PAGO" : "PARCIALMENTE_PAGO");
 
         Long fpId = parseLong(body.get("formaPagamentoId"));
         if (fpId != null) formaPagamentoRepository.findById(fpId).ifPresent(cp::setFormaPagamento);
@@ -399,6 +411,14 @@ public class FinContaPagarController {
         if (cp.getModelo() != null) {
             m.put("modeloId", cp.getModelo().getId());
         }
+
+        // saldoDevedor = valor + juros + multa - totalPago
+        BigDecimal totalDevidoMap = cp.getValor()
+                .add(cp.getJurosAplicado() != null ? cp.getJurosAplicado() : BigDecimal.ZERO)
+                .add(cp.getMultaAplicada() != null ? cp.getMultaAplicada() : BigDecimal.ZERO);
+        BigDecimal pagoMap = cp.getValorPago() != null ? cp.getValorPago() : BigDecimal.ZERO;
+        BigDecimal saldoMap = totalDevidoMap.subtract(pagoMap);
+        m.put("saldoDevedor", saldoMap.compareTo(BigDecimal.ZERO) < 0 ? BigDecimal.ZERO : saldoMap);
 
         return m;
     }
