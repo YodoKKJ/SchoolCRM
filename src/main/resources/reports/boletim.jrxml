@@ -98,7 +98,7 @@
 
     <!-- ═══ TITLE (header + student info + table column headers) ═════════ -->
     <title>
-        <band height="128" splitType="Stretch">
+        <band height="96" splitType="Stretch">
 
             <!-- Title bar -->
             <rectangle>
@@ -549,7 +549,7 @@
             <staticText>
                 <reportElement x="4" y="37" width="551" height="10" forecolor="#555555"/>
                 <textElement><font fontName="SansSerif" size="6"/></textElement>
-                <text><![CDATA[F = Faltas no bimestre  |  T.F = Total de Faltas  |  Freq% = Frequência  |  Aprovado: Média ≥ 6,0 e Frequência ≥ 75%]]></text>
+                <text><![CDATA[F = Faltas no bimestre  |  T.F = Total de Faltas  |  Freq% = Frequencia  |  Aprovado: Media >= 6,0 e Frequencia >= 75%]]></text>
             </staticText>
 
             <!-- Dashed separator -->
@@ -560,7 +560,7 @@
             <staticText>
                 <reportElement x="0" y="58" width="555" height="10" forecolor="#aaaaaa"/>
                 <textElement textAlignment="Center"><font fontName="SansSerif" size="7"/></textElement>
-                <text><![CDATA[✂ RECORTE AQUI ✂]]></text>
+                <text><![CDATA[- - - - - - - - - - - - - - - RECORTE AQUI - - - - - - - - - - - - - - -]]></text>
             </staticText>
 
             <!-- Receipt -->
