@@ -6,8 +6,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * Remove constraints legados que bloqueiam o tipo RECUPERACAO na tabela avaliacoes.
- * Roda uma vez na inicialização — idempotente (IF EXISTS).
+ * Migrações de schema idempotentes executadas na inicialização.
+ * Cobre casos em que ddl-auto=update falha silenciosamente no Railway.
  */
 @Component
 public class SchemaMigration {
@@ -30,7 +30,7 @@ public class SchemaMigration {
             );
         } catch (Exception ignored) {}
 
-        // 2. Garante colunas de presença por período (ddl-auto=update pode falhar silenciosamente no Railway)
+        // 2. Garante colunas de presenca por periodo (ddl-auto=update pode falhar silenciosamente no Railway)
         try {
             jdbcTemplate.execute(
                 "ALTER TABLE presencas ADD COLUMN IF NOT EXISTS ordem_aula INTEGER;"
@@ -40,6 +40,19 @@ public class SchemaMigration {
         try {
             jdbcTemplate.execute(
                 "ALTER TABLE presencas ADD COLUMN IF NOT EXISTS horario_inicio VARCHAR(255);"
+            );
+        } catch (Exception ignored) {}
+
+        // 3. Remove UNIQUE constraints antigas em presencas que bloqueiam multiplos periodos no mesmo dia
+        try {
+            jdbcTemplate.execute(
+                "DO $$ DECLARE r RECORD; BEGIN " +
+                "  FOR r IN SELECT constraint_name FROM information_schema.table_constraints " +
+                "            WHERE table_name = 'presencas' AND constraint_type = 'UNIQUE' " +
+                "  LOOP " +
+                "    EXECUTE 'ALTER TABLE presencas DROP CONSTRAINT IF EXISTS ' || quote_ident(r.constraint_name); " +
+                "  END LOOP; " +
+                "END $$;"
             );
         } catch (Exception ignored) {}
     }

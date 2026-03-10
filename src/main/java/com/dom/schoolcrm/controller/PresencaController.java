@@ -41,9 +41,14 @@ public class PresencaController {
 
         // Campos opcionais para presença por período (null = registro legado)
         String ordemAulaStr = body.get("ordemAula");
-        Integer ordemAula = (ordemAulaStr != null && !ordemAulaStr.isBlank())
-                ? Integer.parseInt(ordemAulaStr) : null;
+        Integer ordemAula = null;
+        try {
+            if (ordemAulaStr != null && !ordemAulaStr.isBlank() && !"null".equals(ordemAulaStr)) {
+                ordemAula = Integer.parseInt(ordemAulaStr);
+            }
+        } catch (NumberFormatException ignored) {}
         String horarioInicio = body.get("horarioInicio");
+        if ("null".equals(horarioInicio)) horarioInicio = null;
 
         Optional<Usuario> aluno = usuarioRepository.findById(alunoId);
         Optional<Turma> turma = turmaRepository.findById(turmaId);
@@ -53,20 +58,25 @@ public class PresencaController {
         if (turma.isEmpty()) return ResponseEntity.badRequest().body("Turma não encontrada");
         if (materia.isEmpty()) return ResponseEntity.badRequest().body("Matéria não encontrada");
 
-        // Upsert: por período específico quando ordemAula presente; legado caso contrário
-        Optional<Presenca> existente = (ordemAula != null)
-                ? presencaRepository.findByAlunoIdAndMateriaIdAndDataAndOrdemAula(alunoId, materiaId, data, ordemAula)
-                : presencaRepository.findByAlunoIdAndMateriaIdAndData(alunoId, materiaId, data);
+        try {
+            // Upsert: por período específico quando ordemAula presente; legado caso contrário
+            Optional<Presenca> existente = (ordemAula != null)
+                    ? presencaRepository.findByAlunoIdAndMateriaIdAndDataAndOrdemAula(alunoId, materiaId, data, ordemAula)
+                    : presencaRepository.findFirstByAlunoIdAndMateriaIdAndData(alunoId, materiaId, data);
 
-        Presenca presenca = existente.orElse(new Presenca());
-        presenca.setAluno(aluno.get());
-        presenca.setTurma(turma.get());
-        presenca.setMateria(materia.get());
-        presenca.setData(data);
-        presenca.setPresente(presente);
-        presenca.setOrdemAula(ordemAula);
-        presenca.setHorarioInicio(horarioInicio);
-        presencaRepository.save(presenca);
+            Presenca presenca = existente.orElse(new Presenca());
+            presenca.setAluno(aluno.get());
+            presenca.setTurma(turma.get());
+            presenca.setMateria(materia.get());
+            presenca.setData(data);
+            presenca.setPresente(presente);
+            presenca.setOrdemAula(ordemAula);
+            presenca.setHorarioInicio(horarioInicio);
+            presencaRepository.save(presenca);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Erro ao salvar presença: " + e.getMessage());
+        }
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of("mensagem", "Presença lançada com sucesso",
