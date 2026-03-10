@@ -55,5 +55,18 @@ public class SchemaMigration {
                 "END $$;"
             );
         } catch (Exception ignored) {}
+
+        // 4. Colunas de versionamento de grade horária (historico de horarios)
+        try {
+            jdbcTemplate.execute(
+                "ALTER TABLE horarios ADD COLUMN IF NOT EXISTS data_inicio_vigencia DATE;"
+            );
+        } catch (Exception ignored) {}
+
+        try {
+            jdbcTemplate.execute(
+                "ALTER TABLE horarios ADD COLUMN IF NOT EXISTS data_fim_vigencia DATE;"
+            );
+        } catch (Exception ignored) {}
     }
 }

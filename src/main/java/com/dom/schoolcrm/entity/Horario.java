@@ -1,6 +1,7 @@
 package com.dom.schoolcrm.entity;
 
 import jakarta.persistence.*;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "horarios")
@@ -31,6 +32,12 @@ public class Horario {
     @Column(name = "ordem_aula")
     private Integer ordemAula; // 1, 2, 3, 4, 5
 
+    @Column(name = "data_inicio_vigencia")
+    private LocalDate dataInicioVigencia; // null = vigência universal (registros legados)
+
+    @Column(name = "data_fim_vigencia")
+    private LocalDate dataFimVigencia; // null = ainda ativo
+
     public Long getId() { return id; }
     public Turma getTurma() { return turma; }
     public Materia getMateria() { return materia; }
@@ -46,4 +53,8 @@ public class Horario {
     public void setDiaSemana(String diaSemana) { this.diaSemana = diaSemana; }
     public void setHorarioInicio(String horarioInicio) { this.horarioInicio = horarioInicio; }
     public void setOrdemAula(Integer ordemAula) { this.ordemAula = ordemAula; }
+    public LocalDate getDataInicioVigencia() { return dataInicioVigencia; }
+    public LocalDate getDataFimVigencia() { return dataFimVigencia; }
+    public void setDataInicioVigencia(LocalDate d) { this.dataInicioVigencia = d; }
+    public void setDataFimVigencia(LocalDate d) { this.dataFimVigencia = d; }
 }
