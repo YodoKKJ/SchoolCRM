@@ -12,6 +12,7 @@ public interface PresencaRepository extends JpaRepository<Presenca, Long> {
     List<Presenca> findByAlunoIdAndTurmaIdAndMateriaId(Long alunoId, Long turmaId, Long materiaId);
     List<Presenca> findByTurmaIdAndMateriaId(Long turmaId, Long materiaId);
     Optional<Presenca> findByAlunoIdAndMateriaIdAndData(Long alunoId, Long materiaId, java.time.LocalDate data);
+    Optional<Presenca> findFirstByAlunoIdAndMateriaIdAndData(Long alunoId, Long materiaId, java.time.LocalDate data);
 
     // Per-period upsert lookup
     Optional<Presenca> findByAlunoIdAndMateriaIdAndDataAndOrdemAula(
