@@ -947,7 +947,7 @@ function Chamada({ vinculos }) {
         if (!turmaId || !materiaId || !dataAula) { setAulasNoDia([]); return; }
         const diaSemana = DIAS_SEMANA[new Date(dataAula + "T12:00").getDay()];
         setLoadingAulas(true);
-        api.get(`/horarios/turma/${turmaId}/dia/${diaSemana}`)
+        api.get(`/horarios/turma/${turmaId}/dia/${diaSemana}?data=${dataAula}`)
             .then(r => {
                 const filtradas = (r.data || []).filter(h => String(h.materiaId) === String(materiaId));
                 setAulasNoDia(filtradas);
@@ -1114,7 +1114,14 @@ function Chamada({ vinculos }) {
                                         transition:"transform .2s",
                                         transform: aulasColapsadas.has(aula.ordemAula) ? "rotate(-90deg)" : "rotate(0deg)"
                                     }}>▾</span>
-                                    <span className="pd-section-title">{idx + 1}ª Aula — {aula.horarioInicio}</span>
+                                    <span className="pd-section-title">
+                                        {idx + 1}ª Aula — {aula.horarioInicio}
+                                        {aula.dataFimVigencia && (
+                                            <span style={{ marginLeft:6, fontSize:10, background:"#f59e0b", color:"#fff", padding:"1px 7px", borderRadius:4, verticalAlign:"middle", fontWeight:600 }}>
+                                                Horário Antigo
+                                            </span>
+                                        )}
+                                    </span>
                                 </div>
                                 <span className="pd-section-count">
                                     {Object.values(chamadaPorAula[aula.ordemAula] || {}).filter(Boolean).length}/{alunos.length} presentes
