@@ -2956,12 +2956,16 @@ function Boletins({ anoLetivo }) {
         api.get("/turmas").then(r => setTurmas(r.data || []));
     }, []);
 
-    // Ao selecionar aluno, preenche a turma automaticamente (modo individual)
-    const handleAlunoChange = (id) => {
+    // Ao selecionar aluno, busca e fixa a turma do aluno no ano letivo atual
+    const handleAlunoChange = async (id) => {
         setAlunoId(id);
-        if (!id) { setTurmaId(""); return; }
-        const aluno = alunos.find(a => String(a.id) === String(id));
-        if (aluno?.turmaId) setTurmaId(String(aluno.turmaId));
+        setTurmaId("");
+        if (!id) return;
+        try {
+            const r = await api.get(`/vinculos/aluno-turma?alunoId=${id}&anoLetivo=${anoLetivo}`);
+            const vinculos = r.data || [];
+            if (vinculos.length > 0) setTurmaId(String(vinculos[0].turmaId));
+        } catch (_) { /* silencioso */ }
     };
 
     const baixarBoletim = async () => {
@@ -3067,10 +3071,25 @@ function Boletins({ anoLetivo }) {
                         </div>
                         <div>
                             <label className="dd-label">Turma</label>
-                            <SearchSelect
-                                options={turmasFiltradas.map(t => ({ value: t.id, label: `${t.nome} — ${t.serie?.nome || ""}` }))}
-                                value={turmaId} onChange={setTurmaId}
-                                placeholder="Selecione a turma..." />
+                            {alunoId ? (
+                                <div style={{
+                                    padding:"9px 12px", border:"1px solid #c8d5cc",
+                                    borderRadius:4, fontSize:13, color:"#3d5a47",
+                                    background:"#f4f7f5", minHeight:38,
+                                    display:"flex", alignItems:"center", gap:6
+                                }}>
+                                    <span style={{ fontSize:11, color:"#9aaa9f" }}>🔒</span>
+                                    {(() => {
+                                        const t = turmasFiltradas.find(t => String(t.id) === String(turmaId));
+                                        return t ? `${t.nome} — ${t.serie?.nome || ""}` : turmaId ? "Carregando..." : "—";
+                                    })()}
+                                </div>
+                            ) : (
+                                <SearchSelect
+                                    options={turmasFiltradas.map(t => ({ value: t.id, label: `${t.nome} — ${t.serie?.nome || ""}` }))}
+                                    value={turmaId} onChange={setTurmaId}
+                                    placeholder="Selecione a turma..." />
+                            )}
                         </div>
                         <button onClick={baixarBoletim} disabled={!alunoId || !turmaId || gerando}
                                 className="dd-btn-primary" style={{ whiteSpace:"nowrap" }}>
