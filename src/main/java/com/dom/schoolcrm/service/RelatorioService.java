@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -106,6 +108,36 @@ public class RelatorioService {
         params.put("DATA_EMISSAO", LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
 
         return compilarEExportar("/reports/boletim.jrxml", params, new JRBeanCollectionDataSource(rows));
+    }
+
+    // ─── Boletim em lote (ZIP) ────────────────────────────────────────────
+
+    public byte[] gerarBoletinsLoteZip(Long turmaId) throws Exception {
+        turmaRepository.findById(turmaId)
+                .orElseThrow(() -> new IllegalArgumentException("Turma não encontrada"));
+
+        List<AlunoTurma> vinculos = alunoTurmaRepository.findByTurmaId(turmaId);
+        if (vinculos.isEmpty())
+            throw new IllegalArgumentException("Nenhum aluno encontrado na turma");
+
+        vinculos.sort(Comparator.comparing(at -> at.getAluno().getNome()));
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(baos)) {
+            for (AlunoTurma at : vinculos) {
+                Long alunoId = at.getAluno().getId();
+                String nomeArquivo = "boletim_" + sanitizarNome(at.getAluno().getNome()) + ".pdf";
+                byte[] pdf = gerarBoletimPDF(alunoId, turmaId);
+                zip.putNextEntry(new ZipEntry(nomeArquivo));
+                zip.write(pdf);
+                zip.closeEntry();
+            }
+        }
+        return baos.toByteArray();
+    }
+
+    private String sanitizarNome(String nome) {
+        return nome.replaceAll("[\\\\/:*?\"<>|]", "_").trim();
     }
 
     // ─── Relatório de turma ───────────────────────────────────────────────

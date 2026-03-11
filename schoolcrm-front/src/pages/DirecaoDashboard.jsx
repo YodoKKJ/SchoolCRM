@@ -2949,11 +2949,20 @@ function Boletins({ anoLetivo }) {
     const [alunoId, setAlunoId] = useState("");
     const [turmaId, setTurmaId] = useState("");
     const [gerando, setGerando] = useState(false);
+    const [modoLote, setModoLote] = useState(false);
 
     useEffect(() => {
         api.get("/usuarios").then(r => setAlunos((r.data || []).filter(u => u.role === "ALUNO" && u.ativo)));
         api.get("/turmas").then(r => setTurmas(r.data || []));
     }, []);
+
+    // Ao selecionar aluno, preenche a turma automaticamente (modo individual)
+    const handleAlunoChange = (id) => {
+        setAlunoId(id);
+        if (!id) { setTurmaId(""); return; }
+        const aluno = alunos.find(a => String(a.id) === String(id));
+        if (aluno?.turmaId) setTurmaId(String(aluno.turmaId));
+    };
 
     const baixarBoletim = async () => {
         if (!alunoId || !turmaId) return;
@@ -2984,32 +2993,96 @@ function Boletins({ anoLetivo }) {
         }
     };
 
+    const baixarBoletimLote = async () => {
+        if (!turmaId) return;
+        setGerando(true);
+        try {
+            const resp = await fetch(
+                `/relatorios/boletim/turma/${turmaId}/zip`,
+                { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+            );
+            if (!resp.ok) {
+                const err = await resp.text().catch(() => "");
+                alert("Erro ao gerar boletins em lote" + (err ? ":\n" + err : "."));
+                return;
+            }
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            const nomeTurma = (turmas.find(t => String(t.id) === String(turmaId))?.nome || `turma_${turmaId}`)
+                .replace(/\s+/g, "_").toLowerCase();
+            a.download = `boletins_${nomeTurma}.zip`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            alert("Erro ao gerar boletins em lote: " + e.message);
+        } finally {
+            setGerando(false);
+        }
+    };
+
+    const turmasFiltradas = turmas.filter(t => t.anoLetivo === anoLetivo);
+
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
             <div className="dd-section" style={{ padding:24 }}>
-                <p className="dd-section-title" style={{ marginBottom:20 }}>Gerar Boletim</p>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:16, alignItems:"flex-end" }}>
-                    <div>
-                        <label className="dd-label">Aluno</label>
-                        <SearchSelect
-                            options={alunos.map(a => ({ value: a.id, label: a.nome }))}
-                            value={alunoId} onChange={setAlunoId}
-                            placeholder="Selecione o aluno..." />
-                    </div>
-                    <div>
-                        <label className="dd-label">Turma</label>
-                        <SearchSelect
-                            options={turmas.filter(t => t.anoLetivo === anoLetivo).map(t => ({ value: t.id, label: `${t.nome} — ${t.serie?.nome || ""}` }))}
-                            value={turmaId} onChange={setTurmaId}
-                            placeholder="Selecione a turma..." />
-                    </div>
-                    <button onClick={baixarBoletim} disabled={!alunoId || !turmaId || gerando}
-                            className="dd-btn-primary" style={{ whiteSpace:"nowrap" }}>
-                        {gerando ? "Gerando..." : "Baixar PDF →"}
-                    </button>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+                    <p className="dd-section-title" style={{ margin:0 }}>Gerar Boletim</p>
+                    <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", fontSize:13, color:"#3d5a47", userSelect:"none" }}>
+                        <input
+                            type="checkbox"
+                            checked={modoLote}
+                            onChange={e => { setModoLote(e.target.checked); setAlunoId(""); setTurmaId(""); }}
+                            style={{ width:15, height:15, cursor:"pointer", accentColor:"#0d1f18" }}
+                        />
+                        Gerar em lote (turma inteira)
+                    </label>
                 </div>
+
+                {modoLote ? (
+                    /* ── Modo lote ── */
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:16, alignItems:"flex-end" }}>
+                        <div>
+                            <label className="dd-label">Turma</label>
+                            <SearchSelect
+                                options={turmasFiltradas.map(t => ({ value: t.id, label: `${t.nome} — ${t.serie?.nome || ""}` }))}
+                                value={turmaId} onChange={setTurmaId}
+                                placeholder="Selecione a turma..." />
+                        </div>
+                        <button onClick={baixarBoletimLote} disabled={!turmaId || gerando}
+                                className="dd-btn-primary" style={{ whiteSpace:"nowrap" }}>
+                            {gerando ? "Gerando ZIP..." : "Baixar ZIP →"}
+                        </button>
+                    </div>
+                ) : (
+                    /* ── Modo individual ── */
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:16, alignItems:"flex-end" }}>
+                        <div>
+                            <label className="dd-label">Aluno</label>
+                            <SearchSelect
+                                options={alunos.map(a => ({ value: a.id, label: a.nome }))}
+                                value={alunoId} onChange={handleAlunoChange}
+                                placeholder="Selecione o aluno..." />
+                        </div>
+                        <div>
+                            <label className="dd-label">Turma</label>
+                            <SearchSelect
+                                options={turmasFiltradas.map(t => ({ value: t.id, label: `${t.nome} — ${t.serie?.nome || ""}` }))}
+                                value={turmaId} onChange={setTurmaId}
+                                placeholder="Selecione a turma..." />
+                        </div>
+                        <button onClick={baixarBoletim} disabled={!alunoId || !turmaId || gerando}
+                                className="dd-btn-primary" style={{ whiteSpace:"nowrap" }}>
+                            {gerando ? "Gerando..." : "Baixar PDF →"}
+                        </button>
+                    </div>
+                )}
+
                 <p style={{ fontSize:11, color:"#9aaa9f", marginTop:12 }}>
-                    O PDF será gerado pelo servidor e baixado automaticamente.
+                    {modoLote
+                        ? "Gera um .zip com o boletim PDF de cada aluno da turma."
+                        : "O PDF será gerado pelo servidor e baixado automaticamente."}
                 </p>
             </div>
         </div>
