@@ -12,6 +12,9 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 const api = axios.create({ baseURL: "" });
 
+/** Formata o nome de exibição de uma turma: "Série — Nome" */
+const fmtTurma = (t) => t ? (t.serie?.nome ? `${t.serie.nome} — ${t.nome}` : t.nome) : "";
+
 // Evita cache do browser em requisições GET — garante dados sempre frescos após CRUD
 api.interceptors.request.use(config => {
     if (config.method === "get") {
@@ -418,7 +421,7 @@ function Relatorios({ anoLetivo }) {
                     <div>
                         <label className="dd-label">Turma ({anoLetivo})</label>
                         <SearchSelect
-                            options={turmas.map(t => ({ value: String(t.id), label: t.nome }))}
+                            options={turmas.map(t => ({ value: String(t.id), label: fmtTurma(t) }))}
                             value={turmaSel ? String(turmaSel.id) : ""}
                             onChange={v => { setTurmaSel(turmas.find(t => String(t.id) === v) || null); setRelatorio(null); }}
                             placeholder="Selecione a turma..." />
@@ -462,7 +465,7 @@ function Relatorios({ anoLetivo }) {
                     <div className="dd-section-header">
                         <div style={{ display:"flex", alignItems:"baseline", gap:10 }}>
                             <span className="dd-section-title">
-                                {tituloRel} — {turmaSel.nome}
+                                {tituloRel} — {fmtTurma(turmaSel)}
                                 {tipoRel === "medias" && ` — ${bimestreSel === "0" ? "Ano completo" : `${bimestreSel}º Bimestre`}`}
                             </span>
                             <span className="dd-section-count">{relatorio.length} alunos</span>
@@ -483,7 +486,7 @@ function Relatorios({ anoLetivo }) {
                                 const url = URL.createObjectURL(blob);
                                 const a = document.createElement("a");
                                 a.href = url;
-                                a.download = `relatorio_${tipoRel}_${turmaSel.nome}.pdf`;
+                                a.download = `relatorio_${tipoRel}_${fmtTurma(turmaSel).replace(/\s+/g, "_").replace(/—/g, "-")}.pdf`;
                                 a.click();
                                 URL.revokeObjectURL(url);
                             } catch (e) { alert("Erro ao gerar PDF: " + e.message); }
@@ -2073,7 +2076,7 @@ function Lancamentos({ anoLetivo }) {
                         <select className="dd-search-input" style={{ width:"100%", paddingLeft:12 }}
                                 value={turmaId} onChange={e => { setTurmaId(e.target.value); setMateriaId(""); }}>
                             <option value="">Selecione a turma...</option>
-                            {turmas.filter(t => t.anoLetivo === anoLetivo).map(t => <option key={t.id} value={t.id}>{t.nome} — {t.serie?.nome}</option>)}
+                            {turmas.filter(t => t.anoLetivo === anoLetivo).map(t => <option key={t.id} value={t.id}>{fmtTurma(t)}</option>)}
                         </select>
                     </div>
                     <div>
@@ -2489,7 +2492,7 @@ function Lancamentos({ anoLetivo }) {
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:24 }}>
                             <div>
                                 <p className="dd-modal-title">Nova Avaliação</p>
-                                <p className="dd-modal-sub">{turmas.find(t=>String(t.id)===String(turmaId))?.nome} · {materias.find(m=>String(m.id)===String(materiaId))?.nome}</p>
+                                <p className="dd-modal-sub">{fmtTurma(turmas.find(t=>String(t.id)===String(turmaId)))} · {materias.find(m=>String(m.id)===String(materiaId))?.nome}</p>
                             </div>
                             <button onClick={() => setCriandoAv(false)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}>
                                 <X size={16} />
@@ -3014,8 +3017,8 @@ function Boletins({ anoLetivo }) {
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            const nomeTurma = (turmas.find(t => String(t.id) === String(turmaId))?.nome || `turma_${turmaId}`)
-                .replace(/\s+/g, "_").toLowerCase();
+            const nomeTurma = (fmtTurma(turmas.find(t => String(t.id) === String(turmaId))) || `turma_${turmaId}`)
+                .replace(/\s+/g, "_").replace(/—/g, "-").toLowerCase();
             a.download = `boletins_${nomeTurma}.zip`;
             a.click();
             URL.revokeObjectURL(url);
@@ -3050,7 +3053,7 @@ function Boletins({ anoLetivo }) {
                         <div>
                             <label className="dd-label">Turma</label>
                             <SearchSelect
-                                options={turmasFiltradas.map(t => ({ value: t.id, label: `${t.nome} — ${t.serie?.nome || ""}` }))}
+                                options={turmasFiltradas.map(t => ({ value: t.id, label: fmtTurma(t) }))}
                                 value={turmaId} onChange={setTurmaId}
                                 placeholder="Selecione a turma..." />
                         </div>
@@ -3081,12 +3084,12 @@ function Boletins({ anoLetivo }) {
                                     <span style={{ fontSize:11, color:"#9aaa9f" }}>🔒</span>
                                     {(() => {
                                         const t = turmasFiltradas.find(t => String(t.id) === String(turmaId));
-                                        return t ? `${t.nome} — ${t.serie?.nome || ""}` : turmaId ? "Carregando..." : "—";
+                                        return t ? fmtTurma(t) : turmaId ? "Carregando..." : "—";
                                     })()}
                                 </div>
                             ) : (
                                 <SearchSelect
-                                    options={turmasFiltradas.map(t => ({ value: t.id, label: `${t.nome} — ${t.serie?.nome || ""}` }))}
+                                    options={turmasFiltradas.map(t => ({ value: t.id, label: fmtTurma(t) }))}
                                     value={turmaId} onChange={setTurmaId}
                                     placeholder="Selecione a turma..." />
                             )}
@@ -3329,7 +3332,7 @@ function Horarios({ anoLetivo }) {
                                             <tr>
                                                 <th style={{ width: 70 }}>Horário</th>
                                                 {turmasComHorario.map(tid => (
-                                                    <th key={tid}>{turmaMap[tid]?.nome || `Turma ${tid}`}</th>
+                                                    <th key={tid}>{fmtTurma(turmaMap[tid]) || `Turma ${tid}`}</th>
                                                 ))}
                                             </tr>
                                             </thead>
@@ -3370,7 +3373,7 @@ function Horarios({ anoLetivo }) {
                             <div style={{ flex: 1, minWidth: 200 }}>
                                 <label className="dd-label">Selecione a Turma</label>
                                 <SearchSelect
-                                    options={turmas.filter(t => t.anoLetivo === anoLetivo).map(t => ({ value: t.id, label: `${t.nome}${t.serie ? ` — ${t.serie.nome}` : ""}` }))}
+                                    options={turmas.filter(t => t.anoLetivo === anoLetivo).map(t => ({ value: t.id, label: fmtTurma(t) }))}
                                     value={turmaId}
                                     onChange={v => { setTurmaId(v); setEditMode(false); }}
                                     placeholder="Escolha uma turma"
@@ -3411,7 +3414,7 @@ function Horarios({ anoLetivo }) {
                         <div className="dd-section">
                             <div className="dd-section-header">
                                 <span className="dd-section-title">
-                                    Grade — {turmas.find(t => String(t.id) === String(turmaId))?.nome || ""}
+                                    Grade — {fmtTurma(turmas.find(t => String(t.id) === String(turmaId)))}
                                 </span>
                                 {!editMode && (
                                     <span className="dd-section-count">
