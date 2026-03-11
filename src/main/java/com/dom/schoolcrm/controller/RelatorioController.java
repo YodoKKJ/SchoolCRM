@@ -47,6 +47,30 @@ public class RelatorioController {
         }
     }
 
+    @GetMapping("/boletim/turma/{turmaId}/zip")
+    @PreAuthorize("hasRole('DIRECAO')")
+    public ResponseEntity<byte[]> boletimLote(@PathVariable Long turmaId) {
+        try {
+            byte[] zip = relatorioService.gerarBoletinsLoteZip(turmaId);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType("application/zip"))
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"boletins_turma_" + turmaId + ".zip\"")
+                    .body(zip);
+        } catch (IllegalArgumentException e) {
+            log.warn("Boletim lote: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(e.getMessage().getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            log.error("Erro ao gerar boletins em lote — turmaId={}: {} {}",
+                    turmaId, e.getClass().getSimpleName(), e.getMessage(), e);
+            String detalhe = e.getClass().getSimpleName() + ": " + e.getMessage();
+            return ResponseEntity.internalServerError()
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body(detalhe.getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
     /**
      * @param tipo     "medias" | "frequencia" | "situacao"
      * @param bimestre 0 = ano completo, 1–4 = bimestre específico (ignorado para "situacao")
