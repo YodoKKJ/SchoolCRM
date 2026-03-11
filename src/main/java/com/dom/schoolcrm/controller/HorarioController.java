@@ -247,6 +247,7 @@ public class HorarioController {
         m.put("id", h.getId());
         m.put("turmaId", h.getTurma().getId());
         m.put("turmaNome", h.getTurma().getNome());
+        m.put("turmaSerieNome", h.getTurma().getSerie() != null ? h.getTurma().getSerie().getNome() : null);
         m.put("materiaId", h.getMateria().getId());
         m.put("materiaNome", h.getMateria().getNome());
         m.put("professorId", h.getProfessor().getId());

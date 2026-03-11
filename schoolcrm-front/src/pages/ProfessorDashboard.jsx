@@ -11,6 +11,11 @@ api.interceptors.request.use(config => {
     return config;
 });
 
+/** Formata o nome de exibição de uma turma: "Série — Nome" */
+const fmtTurma = (t) => t ? (t.serie?.nome ? `${t.serie.nome} — ${t.nome}` : t.nome) : "";
+/** Formata usando campos separados (ex: dados de horário) */
+const fmtTurmaNomes = (serieNome, turmaNome) => serieNome ? `${serieNome} — ${turmaNome}` : (turmaNome || "");
+
 let redirectingTo401 = false;
 api.interceptors.response.use(
     response => response,
@@ -557,7 +562,7 @@ function LancarNotas({ vinculos }) {
                     <div>
                         <label className="pd-label">Turma</label>
                         <SearchSelect
-                            options={turmas.map(t => ({ value: t.id, label: `${t.nome} — ${t.serie?.nome || ""}` }))}
+                            options={turmas.map(t => ({ value: t.id, label: fmtTurma(t) }))}
                             value={turmaId}
                             onChange={v => { setTurmaId(v); setMateriaId(""); }}
                             placeholder="Selecione a turma..." />
@@ -746,7 +751,7 @@ function LancarNotas({ vinculos }) {
                             <div>
                                 <p className="pd-modal-title">Nova Avaliação</p>
                                 <p className="pd-modal-sub">
-                                    {turmas.find(t => String(t.id)===String(turmaId))?.nome} · {materiasDaTurma.find(m => String(m.id)===String(materiaId))?.nome}
+                                    {fmtTurma(turmas.find(t => String(t.id)===String(turmaId)))} · {materiasDaTurma.find(m => String(m.id)===String(materiaId))?.nome}
                                 </p>
                             </div>
                             <button onClick={() => setCriandoAv(false)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}>
@@ -1011,7 +1016,7 @@ function Chamada({ vinculos }) {
                     <div>
                         <label className="pd-label">Turma</label>
                         <SearchSelect
-                            options={turmas.map(t => ({ value: t.id, label: `${t.nome} — ${t.serie?.nome || ""}` }))}
+                            options={turmas.map(t => ({ value: t.id, label: fmtTurma(t) }))}
                             value={turmaId}
                             onChange={v => { setTurmaId(v); setMateriaId(""); }}
                             placeholder="Selecione a turma..." />
@@ -1367,7 +1372,7 @@ function HorariosView() {
                     >
                         <option value="todas">Todas as minhas turmas</option>
                         {turmaIds.map(id => (
-                            <option key={id} value={id}>{horarios.find(h => h.turmaId === id)?.turmaNome || `Turma ${id}`}</option>
+                            <option key={id} value={id}>{fmtTurmaNomes(horarios.find(h => h.turmaId === id)?.turmaSerieNome, horarios.find(h => h.turmaId === id)?.turmaNome) || `Turma ${id}`}</option>
                         ))}
                     </select>
 
@@ -1408,7 +1413,7 @@ function HorariosView() {
                                     <th style={{ width: 70 }}>Horário</th>
                                     {turmasFiltradas.map(tid => (
                                         <th key={tid} style={{ textAlign: "center" }}>
-                                            {horarios.find(h => h.turmaId === tid)?.turmaNome || `Turma ${tid}`}
+                                            {fmtTurmaNomes(horarios.find(h => h.turmaId === tid)?.turmaSerieNome, horarios.find(h => h.turmaId === tid)?.turmaNome) || `Turma ${tid}`}
                                         </th>
                                     ))}
                                 </tr>
