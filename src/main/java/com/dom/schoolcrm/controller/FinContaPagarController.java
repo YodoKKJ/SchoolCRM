@@ -404,7 +404,8 @@ public class FinContaPagarController {
             m.put("formaPagamentoId",   cp.getFormaPagamento().getId());
             m.put("formaPagamentoNome", cp.getFormaPagamento().getNome());
         } else {
-            m.put("formaPagamentoId", null);
+            m.put("formaPagamentoId",   null);
+            m.put("formaPagamentoNome", null);
         }
 
         if (cp.getFuncionario() != null) {

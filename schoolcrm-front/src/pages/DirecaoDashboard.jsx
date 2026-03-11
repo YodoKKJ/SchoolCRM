@@ -5239,10 +5239,10 @@ function FinContasPagar() {
                     <div className="dd-table-wrap">
                         <table className="dd-table" style={{ width:"100%" }}>
                             <thead><tr>
-                                <th>Descrição</th><th>Tipo</th><th>Valor</th><th>Pago</th><th>Vencimento</th><th>Mês Ref.</th><th>Status</th><th>Pessoa/Func.</th><th></th>
+                                <th>Descrição</th><th>Tipo</th><th>Valor</th><th>Valor Pago</th><th>Pago em</th><th>Forma Pgto</th><th>Vencimento</th><th>Mês Ref.</th><th>Status</th><th>Pessoa/Func.</th><th></th>
                             </tr></thead>
                             <tbody>
-                                {contas.length === 0 && <tr><td colSpan={9} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Nenhuma conta encontrada</td></tr>}
+                                {contas.length === 0 && <tr><td colSpan={11} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Nenhuma conta encontrada</td></tr>}
                                 {contas.map(cp => {
                                     const st = computarStatus(cp);
                                     const sc = statusBadge(st);
@@ -5252,6 +5252,8 @@ function FinContasPagar() {
                                             <td style={{ fontSize:11 }}>{cp.tipo}</td>
                                             <td style={{ fontWeight:500 }}>{fmt(cp.valor)}</td>
                                             <td style={{ fontSize:11, color: cp.valorPago ? "#2d6a4f" : "#9aaa9f", fontWeight: cp.valorPago ? 600 : 400 }}>{cp.valorPago ? fmt(cp.valorPago) : "—"}</td>
+                                            <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.dataPagamento ? fmtData(cp.dataPagamento) : "—"}</td>
+                                            <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.formaPagamentoNome || "—"}</td>
                                             <td>{fmtData(cp.dataVencimento)}</td>
                                             <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.mesReferencia||"—"}</td>
                                             <td><span className="dd-badge" style={{ ...sc, borderRadius:3 }}>{st}</span></td>
