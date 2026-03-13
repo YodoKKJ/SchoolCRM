@@ -127,5 +127,8 @@ public class SchemaMigration {
                 );
                 """);
         } catch (Exception ignored) {}
+        try {
+            jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(timestamp);");
+        } catch (Exception ignored) {}
     }
 }
