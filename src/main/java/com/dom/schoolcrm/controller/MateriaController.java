@@ -23,7 +23,7 @@ public class MateriaController {
     private MateriaRepository materiaRepository;
 
     @PostMapping
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> cadastrar(@RequestBody Map<String, String> body) {
         Materia materia = new Materia();
         materia.setNome(body.get("nome"));
@@ -32,19 +32,19 @@ public class MateriaController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR', 'COORDENACAO')")
     public ResponseEntity<List<Materia>> listar() {
         return ResponseEntity.ok(materiaRepository.findAll());
     }
     @GetMapping("/buscar")
-    @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR', 'COORDENACAO')")
     public ResponseEntity<List<Materia>> buscar(@RequestParam(required = false) String nome) {
         String nomeParam = (nome == null || nome.isBlank()) ? null : nome.trim();
         return ResponseEntity.ok(materiaRepository.buscar(nomeParam));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> deletarMateria(@PathVariable Long id) {
         if (!materiaRepository.existsById(id)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Matéria não encontrada");

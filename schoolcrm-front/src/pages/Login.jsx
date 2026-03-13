@@ -21,7 +21,7 @@ export default function Login() {
             localStorage.setItem("role", role);
             localStorage.setItem("nome", nome);
             localStorage.setItem("userId", String(id));
-            if (role === "DIRECAO") window.location.href = "/direcao";
+            if (role === "DIRECAO" || role === "COORDENACAO") window.location.href = "/direcao";
             else if (role === "PROFESSOR") window.location.href = "/professor";
             else if (role === "ALUNO") window.location.href = "/aluno";
         } catch (err) {

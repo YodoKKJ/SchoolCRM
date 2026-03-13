@@ -37,7 +37,7 @@ public class UsuarioController {
     private PasswordEncoder passwordEncoder;
 
     @PostMapping
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> cadastrar(@RequestBody Map<String, String> body) {
         String login = body.get("login");
 
@@ -46,11 +46,16 @@ public class UsuarioController {
                     .body("Login já existe");
         }
 
+        String role = body.get("role");
+        if (!List.of("ALUNO", "PROFESSOR", "DIRECAO", "COORDENACAO").contains(role)) {
+            return ResponseEntity.badRequest().body("Role inválida. Use: ALUNO, PROFESSOR, DIRECAO ou COORDENACAO");
+        }
+
         Usuario usuario = new Usuario();
         usuario.setNome(body.get("nome"));
         usuario.setLogin(login);
         usuario.setSenhaHash(passwordEncoder.encode(body.get("senha")));
-        usuario.setRole(body.get("role"));
+        usuario.setRole(role);
         usuario.setAtivo(true);
 
         String dataNascStr = body.get("dataNascimento");
@@ -70,13 +75,13 @@ public class UsuarioController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<List<Usuario>> listar() {
         return ResponseEntity.ok(usuarioRepository.findAll());
     }
 
     @GetMapping("/buscar")
-    @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR', 'COORDENACAO')")
     public ResponseEntity<List<Usuario>> buscar(
             @RequestParam(required = false) String nome,
             @RequestParam(required = false) String role) {
@@ -86,7 +91,7 @@ public class UsuarioController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> editar(@PathVariable Long id, @RequestBody Map<String, String> body) {
         var opt = usuarioRepository.findById(id);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
@@ -127,7 +132,7 @@ public class UsuarioController {
     }
 
     @GetMapping("/com-vinculos")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<List<Long>> listarIdsComVinculos() {
         Set<Long> ids = new HashSet<>();
         alunoTurmaRepository.findAll().forEach(at -> ids.add(at.getId().getAlunoId()));
@@ -136,7 +141,7 @@ public class UsuarioController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     @Transactional
     public ResponseEntity<?> deletar(@PathVariable Long id) {
         if (!usuarioRepository.existsById(id)) return ResponseEntity.notFound().build();
@@ -149,7 +154,7 @@ public class UsuarioController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> alterarStatus(@PathVariable Long id) {
         var opt = usuarioRepository.findById(id);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();

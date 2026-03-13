@@ -29,7 +29,7 @@ public class HorarioController {
 
     // Criar ou atualizar um horário individual (com versionamento automático)
     @PostMapping
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> salvar(@RequestBody Map<String, String> body) {
         Long turmaId = Long.parseLong(body.get("turmaId"));
         Long materiaId = Long.parseLong(body.get("materiaId"));
@@ -87,7 +87,7 @@ public class HorarioController {
 
     // Salvar horários em lote (toda a grade de uma turma de uma vez) com versionamento
     @PostMapping("/lote")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     @Transactional
     public ResponseEntity<?> salvarLote(@RequestBody Map<String, Object> body) {
         Long turmaId = Long.parseLong(body.get("turmaId").toString());
@@ -207,7 +207,7 @@ public class HorarioController {
     // Se ?data=YYYY-MM-DD for informado, retorna o horário vigente naquela data (histórico).
     // Sem ?data=, retorna o horário atualmente ativo.
     @GetMapping("/turma/{turmaId}/dia/{diaSemana}")
-    @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR', 'COORDENACAO')")
     public ResponseEntity<?> listarPorTurmaDia(
             @PathVariable Long turmaId,
             @PathVariable String diaSemana,
@@ -225,7 +225,7 @@ public class HorarioController {
 
     // Deletar um horário individual (físico)
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> deletar(@PathVariable Long id) {
         if (!horarioRepository.existsById(id))
             return ResponseEntity.notFound().build();
@@ -235,7 +235,7 @@ public class HorarioController {
 
     // Deletar todos os horários de uma turma (físico — apaga histórico também)
     @DeleteMapping("/turma/{turmaId}")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     @Transactional
     public ResponseEntity<?> deletarPorTurma(@PathVariable Long turmaId) {
         horarioRepository.deleteByTurmaId(turmaId);
