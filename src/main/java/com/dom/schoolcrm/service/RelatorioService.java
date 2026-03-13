@@ -29,6 +29,21 @@ public class RelatorioService {
     @Autowired private UsuarioRepository usuarioRepository;
     @Autowired private TurmaRepository turmaRepository;
     @Autowired private AlunoTurmaRepository alunoTurmaRepository;
+    @Autowired private FinConfiguracaoRepository finConfiguracaoRepository;
+
+    // ─── Thresholds configuráveis ────────────────────────────────────────
+
+    private double getMediaMinima() {
+        return finConfiguracaoRepository.findAll().stream().findFirst()
+                .map(c -> c.getMediaMinima() != null ? c.getMediaMinima().doubleValue() : 6.0)
+                .orElse(6.0);
+    }
+
+    private double getFreqMinima() {
+        return finConfiguracaoRepository.findAll().stream().findFirst()
+                .map(c -> c.getFreqMinima() != null ? c.getFreqMinima().doubleValue() : 75.0)
+                .orElse(75.0);
+    }
 
     // ─── Boletim individual ───────────────────────────────────────────────
 
@@ -49,6 +64,8 @@ public class RelatorioService {
         List<BoletimJasperDTO> rows = new ArrayList<>();
         boolean tudoAprovado = true;
         boolean algumCursando = false;
+        double mediaMinima = getMediaMinima();
+        double freqMinima = getFreqMinima();
 
         for (DisciplinaCalc dc : calcMap.values()) {
             BoletimJasperDTO dto = new BoletimJasperDTO();
@@ -76,7 +93,7 @@ public class RelatorioService {
             if (dc.mediaAnual == null) {
                 algumCursando = true;
                 dto.setSituacao("Em curso");
-            } else if (mediaAnualD < 6.0 || dc.frequencia < 75.0) {
+            } else if (mediaAnualD < mediaMinima || dc.frequencia < freqMinima) {
                 tudoAprovado = false;
                 dto.setSituacao("Reprovado");
             } else {
@@ -93,7 +110,7 @@ public class RelatorioService {
                 : 100.0;
 
         String resultadoFinal = algumCursando ? "Em curso"
-                : tudoAprovado && freqGeral >= 75.0 ? "Aprovado" : "Reprovado";
+                : tudoAprovado && freqGeral >= freqMinima ? "Aprovado" : "Reprovado";
 
         Map<String, Object> params = new HashMap<>();
         params.put("ALUNO_NOME", aluno.getNome());
@@ -306,6 +323,10 @@ public class RelatorioService {
     }
 
     private List<TurmaSituacaoRowDTO> buildSituacaoRows(List<BoletimDado> boletins) {
+        double mediaMinima = getMediaMinima();
+        double freqMinima = getFreqMinima();
+        double mediaRisco = mediaMinima + 1.0; // zona de risco: entre mediaMinima e mediaMinima+1
+
         List<TurmaSituacaoRowDTO> rows = new ArrayList<>();
         for (BoletimDado b : boletins) {
             TurmaSituacaoRowDTO dto = new TurmaSituacaoRowDTO();
@@ -316,8 +337,8 @@ public class RelatorioService {
             boolean algumCursando = b.calcMap.values().stream().anyMatch(dc -> dc.mediaAnual == null);
             boolean algumReprovadoNota = b.calcMap.values().stream()
                     .filter(dc -> dc.mediaAnual != null)
-                    .anyMatch(dc -> dc.mediaAnual.doubleValue() < 6.0);
-            boolean freqInsuficiente = b.freqGeral < 75.0;
+                    .anyMatch(dc -> dc.mediaAnual.doubleValue() < mediaMinima);
+            boolean freqInsuficiente = b.freqGeral < freqMinima;
 
             if (algumCursando) {
                 dto.setSituacao("Em curso");
@@ -329,13 +350,13 @@ public class RelatorioService {
 
             List<String> problemas = new ArrayList<>();
             b.calcMap.values().stream()
-                    .filter(dc -> dc.mediaAnual != null && dc.mediaAnual.doubleValue() < 6.0)
+                    .filter(dc -> dc.mediaAnual != null && dc.mediaAnual.doubleValue() < mediaMinima)
                     .forEach(dc -> problemas.add(dc.materiaNome + " (nota)"));
             if (freqInsuficiente) problemas.add("Freq. insuficiente");
             b.calcMap.values().stream()
                     .filter(dc -> dc.mediaAnual != null
-                            && dc.mediaAnual.doubleValue() >= 6.0
-                            && dc.mediaAnual.doubleValue() < 7.0
+                            && dc.mediaAnual.doubleValue() >= mediaMinima
+                            && dc.mediaAnual.doubleValue() < mediaRisco
                             && !"Em curso".equals(dto.getSituacao()))
                     .forEach(dc -> problemas.add(dc.materiaNome + " (risco)"));
 

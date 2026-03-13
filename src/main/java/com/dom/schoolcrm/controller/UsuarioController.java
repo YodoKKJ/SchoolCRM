@@ -4,10 +4,12 @@ import com.dom.schoolcrm.entity.Usuario;
 import com.dom.schoolcrm.repository.AlunoTurmaRepository;
 import com.dom.schoolcrm.repository.ProfessorTurmaMateriaRepository;
 import com.dom.schoolcrm.repository.UsuarioRepository;
+import com.dom.schoolcrm.service.AuditService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -36,9 +38,12 @@ public class UsuarioController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private AuditService auditService;
+
     @PostMapping
     @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
-    public ResponseEntity<?> cadastrar(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> cadastrar(@RequestBody Map<String, String> body, Authentication auth) {
         String login = body.get("login");
 
         if (usuarioRepository.findByLogin(login).isPresent()) {
@@ -64,6 +69,8 @@ public class UsuarioController {
         usuario.setNomeMae(body.get("nomeMae"));
 
         usuarioRepository.save(usuario);
+        auditService.log(auth, "CRIAR", "USUARIO", String.valueOf(usuario.getId()),
+                "Login=" + usuario.getLogin() + " Role=" + usuario.getRole());
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of(
@@ -143,12 +150,13 @@ public class UsuarioController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     @Transactional
-    public ResponseEntity<?> deletar(@PathVariable Long id) {
+    public ResponseEntity<?> deletar(@PathVariable Long id, Authentication auth) {
         if (!usuarioRepository.existsById(id)) return ResponseEntity.notFound().build();
         boolean temVinculos = !alunoTurmaRepository.findByAlunoId(id).isEmpty()
                 || !professorTurmaMateriaRepository.findByProfessorId(id).isEmpty();
         if (temVinculos) return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body("Usuário possui vínculos e não pode ser excluído.");
+        auditService.log(auth, "EXCLUIR", "USUARIO", String.valueOf(id), "Usuário removido");
         usuarioRepository.deleteById(id);
         return ResponseEntity.ok(Map.of("mensagem", "Usuário removido com sucesso"));
     }

@@ -85,5 +85,47 @@ public class SchemaMigration {
                 "ALTER TABLE horarios ADD COLUMN IF NOT EXISTS data_fim_vigencia DATE;"
             );
         } catch (Exception ignored) {}
+
+        // Feature 10: Comunicados
+        try {
+            jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS comunicados (
+                    id BIGSERIAL PRIMARY KEY,
+                    titulo VARCHAR(255) NOT NULL,
+                    corpo TEXT,
+                    autor_id BIGINT,
+                    autor_nome VARCHAR(255),
+                    autor_role VARCHAR(50),
+                    data_publicacao TIMESTAMP NOT NULL,
+                    destinatarios VARCHAR(50) NOT NULL DEFAULT 'TODOS',
+                    ativo BOOLEAN NOT NULL DEFAULT TRUE
+                );
+                """);
+        } catch (Exception ignored) {}
+
+        // Feature 11: Critérios configuráveis de aprovação
+        try {
+            jdbcTemplate.execute("ALTER TABLE fin_configuracoes ADD COLUMN IF NOT EXISTS media_minima NUMERIC(4,2) DEFAULT 6.0;");
+        } catch (Exception ignored) {}
+        try {
+            jdbcTemplate.execute("ALTER TABLE fin_configuracoes ADD COLUMN IF NOT EXISTS freq_minima NUMERIC(4,2) DEFAULT 75.0;");
+        } catch (Exception ignored) {}
+
+        // Feature 12: Log de auditoria
+        try {
+            jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS audit_log (
+                    id BIGSERIAL PRIMARY KEY,
+                    usuario_id BIGINT,
+                    usuario_login VARCHAR(255),
+                    usuario_role VARCHAR(50),
+                    acao VARCHAR(50),
+                    entidade VARCHAR(100),
+                    entidade_id VARCHAR(255),
+                    detalhes TEXT,
+                    timestamp TIMESTAMP NOT NULL
+                );
+                """);
+        } catch (Exception ignored) {}
     }
 }

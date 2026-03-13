@@ -23,15 +23,25 @@ public class FinConfiguracao {
     @Column(name = "multa_atraso_pct", precision = 5, scale = 2)
     private BigDecimal multaAtrasoPct;
 
+    @Column(name = "media_minima", precision = 4, scale = 2)
+    private BigDecimal mediaMinima;   // padrão 6.0
+
+    @Column(name = "freq_minima", precision = 4, scale = 2)
+    private BigDecimal freqMinima;    // padrão 75.0
+
     public Long getId() { return id; }
     public Integer getNumParcelasPadrao() { return numParcelasPadrao; }
     public Integer getDiaVencimentoPadrao() { return diaVencimentoPadrao; }
     public BigDecimal getJurosAtrasoPct() { return jurosAtrasoPct; }
     public BigDecimal getMultaAtrasoPct() { return multaAtrasoPct; }
+    public BigDecimal getMediaMinima() { return mediaMinima; }
+    public BigDecimal getFreqMinima() { return freqMinima; }
 
     public void setId(Long id) { this.id = id; }
     public void setNumParcelasPadrao(Integer numParcelasPadrao) { this.numParcelasPadrao = numParcelasPadrao; }
     public void setDiaVencimentoPadrao(Integer diaVencimentoPadrao) { this.diaVencimentoPadrao = diaVencimentoPadrao; }
     public void setJurosAtrasoPct(BigDecimal jurosAtrasoPct) { this.jurosAtrasoPct = jurosAtrasoPct; }
     public void setMultaAtrasoPct(BigDecimal multaAtrasoPct) { this.multaAtrasoPct = multaAtrasoPct; }
+    public void setMediaMinima(BigDecimal mediaMinima) { this.mediaMinima = mediaMinima; }
+    public void setFreqMinima(BigDecimal freqMinima) { this.freqMinima = freqMinima; }
 }

@@ -43,9 +43,12 @@ public class NotaController {
     @Autowired
     private RecuperacaoParticipanteRepository recuperacaoParticipanteRepository;
 
+    @Autowired
+    private com.dom.schoolcrm.service.AuditService auditService;
+
     @PostMapping("/avaliacao")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
-    public ResponseEntity<?> criarAvaliacao(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> criarAvaliacao(@RequestBody Map<String, String> body, Authentication auth) {
         Long turmaId = Long.parseLong(body.get("turmaId"));
         Long materiaId = Long.parseLong(body.get("materiaId"));
         String tipo = body.get("tipo");
@@ -64,7 +67,8 @@ public class NotaController {
         avaliacao.setMateria(materia.get());
         avaliacao.setTipo(tipo);
         avaliacao.setDescricao(body.get("descricao"));
-        avaliacao.setDataAplicacao(LocalDate.now());
+        String dataAplic = body.get("dataAplicacao");
+        avaliacao.setDataAplicacao(dataAplic != null && !dataAplic.isBlank() ? LocalDate.parse(dataAplic) : LocalDate.now());
 
         if ("RECUPERACAO".equals(tipo) || "SIMULADO".equals(tipo)) {
             avaliacao.setPeso(new BigDecimal("1.0"));
@@ -85,6 +89,8 @@ public class NotaController {
             return ResponseEntity.badRequest().body("bimestre é obrigatório (1 a 4).");
         }
         avaliacaoRepository.save(avaliacao);
+        auditService.log(auth, "CRIAR", "AVALIACAO", String.valueOf(avaliacao.getId()),
+                "Tipo=" + avaliacao.getTipo() + " Turma=" + turmaId + " Materia=" + materiaId + " Bimestre=" + avaliacao.getBimestre());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(avaliacao);
     }
@@ -119,7 +125,7 @@ public class NotaController {
 
     @PostMapping("/lancar")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
-    public ResponseEntity<?> lancarNota(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> lancarNota(@RequestBody Map<String, String> body, Authentication auth) {
         Long avaliacaoId = Long.parseLong(body.get("avaliacaoId"));
         Long alunoId = Long.parseLong(body.get("alunoId"));
         BigDecimal valor = new BigDecimal(body.get("valor"));
@@ -145,6 +151,8 @@ public class NotaController {
         nota.setValor(valor);
         nota.setLancadoEm(LocalDateTime.now());
         notaRepository.save(nota);
+        auditService.log(auth, "LANCAR", "NOTA", String.valueOf(nota.getId()),
+                "AvaliacaoId=" + avaliacaoId + " AlunoId=" + alunoId + " Valor=" + valor);
 
         return ResponseEntity.ok(Map.of("mensagem", "Nota lançada com sucesso", "valor", valor));
     }
@@ -394,15 +402,41 @@ public class NotaController {
     @DeleteMapping("/avaliacao/{id}")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
     @Transactional
-    public ResponseEntity<?> deletarAvaliacao(@PathVariable Long id) {
+    public ResponseEntity<?> deletarAvaliacao(@PathVariable Long id, Authentication auth) {
         if (!avaliacaoRepository.existsById(id))
             return ResponseEntity.notFound().build();
 
         recuperacaoParticipanteRepository.deleteByAvaliacaoId(id);
         notaRepository.deleteAll(notaRepository.findByAvaliacaoId(id));
         avaliacaoRepository.deleteById(id);
+        auditService.log(auth, "EXCLUIR", "AVALIACAO", String.valueOf(id), "Avaliação e notas removidas");
 
         return ResponseEntity.ok(Map.of("mensagem", "Avaliação e notas removidas com sucesso"));
+    }
+
+    @GetMapping("/calendario")
+    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO', 'ALUNO')")
+    public ResponseEntity<?> calendario(
+            @RequestParam(required = false) Long turmaId,
+            @RequestParam(required = false) String from,
+            @RequestParam(required = false) String to) {
+        LocalDate dataFrom = from != null ? LocalDate.parse(from) : LocalDate.now();
+        LocalDate dataTo   = to   != null ? LocalDate.parse(to)   : dataFrom.plusDays(30);
+        List<Avaliacao> avs = avaliacaoRepository.findByDataAplicacaoBetween(dataFrom, dataTo);
+        if (turmaId != null) avs = avaliacaoRepository.findByTurmaIdAndDataAplicacaoBetween(turmaId, dataFrom, dataTo);
+        return ResponseEntity.ok(avs.stream().map(av -> {
+            var m = new java.util.LinkedHashMap<String,Object>();
+            m.put("id", av.getId());
+            m.put("tipo", av.getTipo());
+            m.put("descricao", av.getDescricao());
+            m.put("dataAplicacao", av.getDataAplicacao());
+            m.put("bimestre", av.getBimestre());
+            m.put("turmaId", av.getTurma().getId());
+            m.put("turmaNome", av.getTurma().getNome());
+            m.put("materiaId", av.getMateria().getId());
+            m.put("materiaNome", av.getMateria().getNome());
+            return m;
+        }).toList());
     }
 
     @GetMapping("/minhas")
