@@ -6055,7 +6055,7 @@ function Comunicados() {
                                     </div>
                                     <p style={{ fontSize:13, color:"#3a4a40", lineHeight:1.6, whiteSpace:"pre-wrap", margin:"0 0 8px" }}>{c.corpo}</p>
                                     <p style={{ fontSize:11, color:"#9aaa9f" }}>
-                                        {c.autorNome} · {c.dataPublicacao ? new Date(c.dataPublicacao).toLocaleDateString("pt-BR", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" }) : ""}
+                                        {c.autorNome} · {c.dataPublicacao ? new Date(c.dataPublicacao).toLocaleString("pt-BR", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" }) : ""}
                                     </p>
                                 </div>
                                 <button onClick={() => deletar(c.id)} style={{ background:"none", border:"none", cursor:"pointer", color:"#c0a0a0", flexShrink:0 }}>

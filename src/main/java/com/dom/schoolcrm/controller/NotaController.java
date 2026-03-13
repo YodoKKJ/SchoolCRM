@@ -431,10 +431,10 @@ public class NotaController {
             m.put("descricao", av.getDescricao());
             m.put("dataAplicacao", av.getDataAplicacao());
             m.put("bimestre", av.getBimestre());
-            m.put("turmaId", av.getTurma().getId());
-            m.put("turmaNome", av.getTurma().getNome());
-            m.put("materiaId", av.getMateria().getId());
-            m.put("materiaNome", av.getMateria().getNome());
+            m.put("turmaId",   av.getTurma()  != null ? av.getTurma().getId()   : null);
+            m.put("turmaNome", av.getTurma()  != null ? av.getTurma().getNome() : "");
+            m.put("materiaId",   av.getMateria() != null ? av.getMateria().getId()   : null);
+            m.put("materiaNome", av.getMateria() != null ? av.getMateria().getNome() : "");
             return m;
         }).toList());
     }

@@ -55,10 +55,18 @@ public class FinConfiguracaoController {
             config.setMultaAtrasoPct(new BigDecimal(body.get("multaAtrasoPct").toString()));
         }
         if (body.containsKey("mediaMinima")) {
-            config.setMediaMinima(new BigDecimal(body.get("mediaMinima").toString()));
+            BigDecimal mm = new BigDecimal(body.get("mediaMinima").toString());
+            if (mm.compareTo(BigDecimal.ZERO) < 0 || mm.compareTo(BigDecimal.TEN) > 0) {
+                return ResponseEntity.badRequest().body("Média mínima deve estar entre 0 e 10.");
+            }
+            config.setMediaMinima(mm);
         }
         if (body.containsKey("freqMinima")) {
-            config.setFreqMinima(new BigDecimal(body.get("freqMinima").toString()));
+            BigDecimal fm = new BigDecimal(body.get("freqMinima").toString());
+            if (fm.compareTo(BigDecimal.ZERO) < 0 || fm.compareTo(new BigDecimal("100")) > 0) {
+                return ResponseEntity.badRequest().body("Frequência mínima deve estar entre 0 e 100.");
+            }
+            config.setFreqMinima(fm);
         }
 
         return ResponseEntity.ok(repository.save(config));

@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 
 @RestController
 @RequestMapping("/audit")
@@ -21,8 +22,14 @@ public class AuditLogController {
     public ResponseEntity<?> listar(
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to) {
-        LocalDateTime dataFrom = from != null ? LocalDate.parse(from).atStartOfDay() : null;
-        LocalDateTime dataTo   = to   != null ? LocalDate.parse(to).atTime(23, 59, 59) : null;
+        LocalDateTime dataFrom;
+        LocalDateTime dataTo;
+        try {
+            dataFrom = from != null ? LocalDate.parse(from).atStartOfDay() : null;
+            dataTo   = to   != null ? LocalDate.parse(to).atTime(23, 59, 59) : null;
+        } catch (DateTimeParseException e) {
+            return ResponseEntity.badRequest().body("Formato de data inválido. Use YYYY-MM-DD.");
+        }
         return ResponseEntity.ok(auditLogRepository.buscar(dataFrom, dataTo));
     }
 }
