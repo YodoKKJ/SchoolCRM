@@ -5031,10 +5031,18 @@ function FinContasPagar() {
     const [formModelo, setFormModelo] = useState({ descricao:"", categoria:"CONTA_FIXA", valor:"", diaVencimento:"", pessoaId:"", observacoes:"" });
     const [pessoas, setPessoas] = useState([]);
     const [abaCP, setAbaCP] = useState("contas");
+    const [modalHistoricoCP, setModalHistoricoCP] = useState(null); // { cp, registros[] }
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
     const [salvando, setSalvando] = useState(false);
 
     const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
+
+    const verHistoricoCP = async cp => {
+        try {
+            const r = await api.get(`/fin/contas-pagar/${cp.id}/historico`);
+            setModalHistoricoCP({ cp, registros: Array.isArray(r.data) ? r.data : [] });
+        } catch { flash("Erro ao carregar histórico.", "err"); }
+    };
 
     const carregar = () => {
         const params = {};
@@ -5140,7 +5148,8 @@ function FinContasPagar() {
         contas.forEach(cp => {
             const st = computarStatus(cp);
             const v = Number(cp.valor || 0);
-            if (st === "PAGO") pago += v;
+            if (st === "PAGO") pago += Number(cp.valorPago || cp.valor || 0);
+            else if (st === "PARCIALMENTE_PAGO") pago += Number(cp.valorPago || 0);
             else if (st === "VENCIDO") { vencido += v; nVencido++; }
             else if (st === "PENDENTE") pendente += v;
         });
@@ -5262,7 +5271,11 @@ function FinContasPagar() {
                                                         <button className="dd-btn-edit" style={{ fontSize:10 }} onClick={() => { const saldo = cp.saldoDevedor ?? cp.valor; setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(saldo), formaPagamentoId:"", observacoes:"" }); setModalBaixar(cp); }}>Baixar</button>
                                                         <button className="dd-btn-ghost" style={{ fontSize:10 }} onClick={() => { setFormEditarCP({ descricao: cp.descricao, valor: String(cp.valor), dataVencimento: cp.dataVencimento, categoria: cp.categoria||"", observacoes: cp.observacoes||"" }); setModalEditarCP(cp); }}>Editar</button>
                                                         <button className="dd-btn-danger" style={{ fontSize:10 }} onClick={() => cancelarConta(cp.id)}>Cancelar</button>
+                                                        {st==="PARCIALMENTE_PAGO" && <button className="dd-btn-ghost" style={{ fontSize:10 }} onClick={() => verHistoricoCP(cp)}>Histórico</button>}
                                                     </div>
+                                                )}
+                                                {(st==="PAGO") && (
+                                                    <button className="dd-btn-ghost" style={{ fontSize:10 }} onClick={() => verHistoricoCP(cp)}>Histórico</button>
                                                 )}
                                             </td>
                                         </tr>
@@ -5487,6 +5500,45 @@ function FinContasPagar() {
                                 <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando?"Salvando...":"Salvar"}</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Histórico de Pagamentos CP */}
+            {modalHistoricoCP && (
+                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalHistoricoCP(null)}>
+                    <div className="dd-modal" style={{ maxWidth:560 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div>
+                                <p className="dd-modal-title">Histórico de Pagamentos</p>
+                                <p className="dd-modal-sub">{modalHistoricoCP.cp.descricao}</p>
+                            </div>
+                            <button onClick={() => setModalHistoricoCP(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
+                        </div>
+                        {modalHistoricoCP.registros.length === 0 ? (
+                            <p style={{ color:"#9aaa9f", fontSize:13, textAlign:"center", padding:"16px 0" }}>Nenhum registro de pagamento encontrado.</p>
+                        ) : (
+                            <table className="dd-table" style={{ width:"100%" }}>
+                                <thead><tr>
+                                    <th>Data Pgto</th><th>Valor Pago</th><th>Forma</th><th>Juros</th><th>Multa</th><th>Registrado em</th>
+                                </tr></thead>
+                                <tbody>
+                                    {modalHistoricoCP.registros.map(h => (
+                                        <tr key={h.id}>
+                                            <td>{fmtData(h.dataPagamento)}</td>
+                                            <td style={{ fontWeight:600, color:"#2d6a4f" }}>{fmt(h.valorPago)}</td>
+                                            <td style={{ fontSize:11, color:"#9aaa9f" }}>{h.formaPagamentoNome||"—"}</td>
+                                            <td style={{ fontSize:11 }}>{h.jurosAplicado ? fmt(h.jurosAplicado) : "—"}</td>
+                                            <td style={{ fontSize:11 }}>{h.multaAplicada ? fmt(h.multaAplicada) : "—"}</td>
+                                            <td style={{ fontSize:11, color:"#9aaa9f" }}>{h.dataRegistro ? new Date(h.dataRegistro).toLocaleString("pt-BR") : "—"}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                        <div style={{ marginTop:16, display:"flex", justifyContent:"flex-end" }}>
+                            <button className="dd-btn-ghost" onClick={() => setModalHistoricoCP(null)}>Fechar</button>
+                        </div>
                     </div>
                 </div>
             )}

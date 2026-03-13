@@ -54,6 +54,7 @@ public class FinContaPagarController {
     @Autowired private FinPessoaRepository pessoaRepository;
     @Autowired private FinFormaPagamentoRepository formaPagamentoRepository;
     @Autowired private FinConfiguracaoRepository configuracaoRepository;
+    @Autowired private FinHistoricoPagamentoCPRepository historicoRepository;
 
     // ─── Listar com filtros ───────────────────────────────────────────────────
 
@@ -230,11 +231,50 @@ public class FinContaPagarController {
         cp.setStatus(totalPago.compareTo(totalDevido) >= 0 ? "PAGO" : "PARCIALMENTE_PAGO");
 
         Long fpId = parseLong(body.get("formaPagamentoId"));
-        if (fpId != null) formaPagamentoRepository.findById(fpId).ifPresent(cp::setFormaPagamento);
+        FinFormaPagamento fp = null;
+        if (fpId != null) fp = formaPagamentoRepository.findById(fpId).orElse(null);
+        if (fp != null) cp.setFormaPagamento(fp);
 
         if (body.containsKey("observacoes")) cp.setObservacoes(str(body.get("observacoes")));
 
-        return ResponseEntity.ok(toMap(cpRepository.save(cp), hoje));
+        cpRepository.save(cp);
+
+        // Registra histórico imutável desta baixa
+        FinHistoricoPagamentoCP hist = new FinHistoricoPagamentoCP();
+        hist.setContaPagar(cp);
+        hist.setDataRegistro(java.time.LocalDateTime.now());
+        hist.setDataPagamento(dataPag);
+        hist.setValorPago(novoPagamento);
+        hist.setFormaPagamento(fp);
+        hist.setJurosAplicado(juros.compareTo(BigDecimal.ZERO) > 0 ? juros : null);
+        hist.setMultaAplicada(multa.compareTo(BigDecimal.ZERO) > 0 ? multa : null);
+        hist.setObservacoes(str(body.get("observacoes")));
+        historicoRepository.save(hist);
+
+        return ResponseEntity.ok(toMap(cp, hoje));
+    }
+
+    // ─── Histórico de pagamentos ───────────────────────────────────────────────
+
+    @GetMapping("/{id}/historico")
+    public ResponseEntity<?> historico(@PathVariable Long id) {
+        if (!cpRepository.existsById(id)) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(
+            historicoRepository.findByContaPagarIdOrderByDataRegistroAsc(id).stream()
+                .map(h -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("id", h.getId());
+                    m.put("dataRegistro", h.getDataRegistro());
+                    m.put("dataPagamento", h.getDataPagamento());
+                    m.put("valorPago", h.getValorPago());
+                    m.put("jurosAplicado", h.getJurosAplicado());
+                    m.put("multaAplicada", h.getMultaAplicada());
+                    m.put("formaPagamentoNome", h.getFormaPagamento() != null ? h.getFormaPagamento().getNome() : null);
+                    m.put("observacoes", h.getObservacoes());
+                    return m;
+                })
+                .collect(Collectors.toList())
+        );
     }
 
     // ─── Cancelar ─────────────────────────────────────────────────────────────
