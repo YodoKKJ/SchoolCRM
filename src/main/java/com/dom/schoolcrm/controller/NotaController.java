@@ -232,9 +232,7 @@ public class NotaController {
                 .toList();
 
         List<com.dom.schoolcrm.entity.Presenca> todasPresencas = presencaRepository
-                .findAll().stream()
-                .filter(p -> p.getAluno().getId().equals(alunoId) && p.getTurma().getId().equals(turmaId))
-                .toList();
+                .findByAlunoIdAndTurmaId(alunoId, turmaId);
 
         Map<Long, Map<String, Object>> porMateria = new LinkedHashMap<>();
 
@@ -272,7 +270,7 @@ public class NotaController {
         }
 
         for (com.dom.schoolcrm.entity.Presenca p : todasPresencas) {
-            if (!p.getPresente()) {
+            if (!Boolean.TRUE.equals(p.getPresente())) {
                 Long matId = p.getMateria().getId();
                 if (porMateria.containsKey(matId)) {
                     Map<String,Object> mat = porMateria.get(matId);
@@ -345,7 +343,7 @@ public class NotaController {
                     .filter(p -> p.getMateria().getId().equals(mat.get("materiaId")))
                     .count();
             long faltasMateria = todasPresencas.stream()
-                    .filter(p -> p.getMateria().getId().equals(mat.get("materiaId")) && !p.getPresente())
+                    .filter(p -> p.getMateria().getId().equals(mat.get("materiaId")) && !Boolean.TRUE.equals(p.getPresente()))
                     .count();
             double freqMateria = totalAulas > 0
                     ? Math.round((totalAulas - faltasMateria) * 1000.0 / totalAulas) / 10.0
@@ -356,7 +354,7 @@ public class NotaController {
         }
 
         long totalAulasGeral = todasPresencas.size();
-        long faltasGeral = todasPresencas.stream().filter(p -> !p.getPresente()).count();
+        long faltasGeral = todasPresencas.stream().filter(p -> !Boolean.TRUE.equals(p.getPresente())).count();
         double freqGeral = totalAulasGeral > 0 ? Math.round((totalAulasGeral - faltasGeral) * 1000.0 / totalAulasGeral) / 10.0 : 100.0;
 
         return ResponseEntity.ok(Map.of(

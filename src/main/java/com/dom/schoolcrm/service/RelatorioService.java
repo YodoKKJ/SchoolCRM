@@ -42,9 +42,7 @@ public class RelatorioService {
                 .filter(n -> n.getAvaliacao().getTurma().getId().equals(turmaId))
                 .toList();
 
-        List<Presenca> todasPresencas = presencaRepository.findAll().stream()
-                .filter(p -> p.getAluno().getId().equals(alunoId) && p.getTurma().getId().equals(turmaId))
-                .toList();
+        List<Presenca> todasPresencas = presencaRepository.findByAlunoIdAndTurmaId(alunoId, turmaId);
 
         Map<Long, DisciplinaCalc> calcMap = calcularPorMateria(todasNotas, todasPresencas);
 
@@ -89,7 +87,7 @@ public class RelatorioService {
         }
 
         long totalAulasGeral = todasPresencas.size();
-        long faltasGeral = todasPresencas.stream().filter(p -> !p.getPresente()).count();
+        long faltasGeral = todasPresencas.stream().filter(p -> !Boolean.TRUE.equals(p.getPresente())).count();
         double freqGeral = totalAulasGeral > 0
                 ? Math.round((totalAulasGeral - faltasGeral) * 1000.0 / totalAulasGeral) / 10.0
                 : 100.0;
@@ -148,19 +146,21 @@ public class RelatorioService {
 
         List<AlunoTurma> vinculos = alunoTurmaRepository.findByTurmaId(turmaId);
 
+        // Busca todos os dados da turma em 2 queries (evita N+1)
+        Map<Long, List<Nota>> notasPorAluno = notaRepository.findByAvaliacaoTurmaId(turmaId).stream()
+                .collect(Collectors.groupingBy(n -> n.getAluno().getId()));
+        Map<Long, List<Presenca>> presencasPorAluno = presencaRepository.findByTurmaId(turmaId).stream()
+                .collect(Collectors.groupingBy(p -> p.getAluno().getId()));
+
         List<BoletimDado> boletins = new ArrayList<>();
         for (AlunoTurma v : vinculos) {
             Long alunoId = v.getAluno().getId();
-            List<Nota> notas = notaRepository.findByAlunoId(alunoId).stream()
-                    .filter(n -> n.getAvaliacao().getTurma().getId().equals(turmaId))
-                    .toList();
-            List<Presenca> presencas = presencaRepository.findAll().stream()
-                    .filter(p -> p.getAluno().getId().equals(alunoId) && p.getTurma().getId().equals(turmaId))
-                    .toList();
+            List<Nota> notas = notasPorAluno.getOrDefault(alunoId, List.of());
+            List<Presenca> presencas = presencasPorAluno.getOrDefault(alunoId, List.of());
             Map<Long, DisciplinaCalc> calcMap = calcularPorMateria(notas, presencas);
 
             long totalAulas = presencas.size();
-            long faltasGeral = presencas.stream().filter(p -> !p.getPresente()).count();
+            long faltasGeral = presencas.stream().filter(p -> !Boolean.TRUE.equals(p.getPresente())).count();
             double freqGeral = totalAulas > 0
                     ? Math.round((totalAulas - faltasGeral) * 1000.0 / totalAulas) / 10.0
                     : 100.0;
