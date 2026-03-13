@@ -144,6 +144,8 @@ public class FinContaPagarController {
         if (cp == null) return ResponseEntity.notFound().build();
         if ("PAGO".equals(cp.getStatus()))
             return ResponseEntity.badRequest().body("Conta já paga não pode ser editada.");
+        if ("PARCIALMENTE_PAGO".equals(cp.getStatus()))
+            return ResponseEntity.badRequest().body("Conta com pagamento parcial não pode ser editada.");
 
         if (body.containsKey("descricao") && !blank(str(body.get("descricao"))))
             cp.setDescricao(str(body.get("descricao")).trim());

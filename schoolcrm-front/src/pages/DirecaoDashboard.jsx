@@ -5147,11 +5147,12 @@ function FinContasPagar() {
         let pendente = 0, vencido = 0, pago = 0, nVencido = 0;
         contas.forEach(cp => {
             const st = computarStatus(cp);
-            const v = Number(cp.valor || 0);
-            if (st === "PAGO") pago += Number(cp.valorPago || cp.valor || 0);
-            else if (st === "PARCIALMENTE_PAGO") pago += Number(cp.valorPago || 0);
-            else if (st === "VENCIDO") { vencido += v; nVencido++; }
-            else if (st === "PENDENTE") pendente += v;
+            const totalDevido = Number(cp.valor || 0) + Number(cp.jurosAplicado || 0) + Number(cp.multaAplicada || 0);
+            const saldo = totalDevido - Number(cp.valorPago || 0);
+            if (st === "PAGO") pago += Number(cp.valorPago || 0);
+            else if (st === "PARCIALMENTE_PAGO") { pago += Number(cp.valorPago || 0); pendente += saldo; }
+            else if (st === "VENCIDO") { vencido += totalDevido; nVencido++; }
+            else if (st === "PENDENTE") pendente += totalDevido;
         });
         return { pendente, vencido, pago, nVencido };
     })();

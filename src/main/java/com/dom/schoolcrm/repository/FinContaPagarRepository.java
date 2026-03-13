@@ -94,7 +94,7 @@ public interface FinContaPagarRepository extends JpaRepository<FinContaPagar, Lo
     @Query("""
         SELECT cp FROM FinContaPagar cp
         LEFT JOIN FETCH cp.pessoa
-        WHERE cp.status = 'PENDENTE'
+        WHERE cp.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
           AND cp.dataVencimento BETWEEN :de AND :ate
         ORDER BY cp.dataVencimento ASC
         """)
