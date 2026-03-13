@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -32,6 +33,7 @@ public class PresencaController {
     // Professor lança presença
     @PostMapping("/lancar")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO')")
+    @Transactional
     public ResponseEntity<?> lancarPresenca(@RequestBody Map<String, String> body) {
         Long alunoId = Long.parseLong(body.get("alunoId"));
         Long turmaId = Long.parseLong(body.get("turmaId"));
@@ -94,7 +96,7 @@ public class PresencaController {
                 .findByAlunoIdAndTurmaIdAndMateriaId(alunoId, turmaId, materiaId);
 
         long total = presencas.size();
-        long presentes = presencas.stream().filter(Presenca::getPresente).count();
+        long presentes = presencas.stream().filter(p -> Boolean.TRUE.equals(p.getPresente())).count();
         double percentual = total > 0 ? (presentes * 100.0 / total) : 0;
 
         return ResponseEntity.ok(Map.of(
@@ -145,7 +147,7 @@ public class PresencaController {
                 .findByAlunoIdAndTurmaIdAndMateriaId(aluno.get().getId(), turmaId, materiaId);
 
         long total = presencas.size();
-        long presentes = presencas.stream().filter(Presenca::getPresente).count();
+        long presentes = presencas.stream().filter(p -> Boolean.TRUE.equals(p.getPresente())).count();
         double percentual = total > 0 ? (presentes * 100.0 / total) : 0;
 
         return ResponseEntity.ok(Map.of(
