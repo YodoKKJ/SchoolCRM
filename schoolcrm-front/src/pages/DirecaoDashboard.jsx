@@ -6,7 +6,8 @@ import {
     Trash2, Pencil, ArrowLeft, UserPlus, ChevronDown, Search, X,
     FileText, DollarSign, Lock, ClipboardList, ChevronRight, Clock, CalendarDays,
     TrendingUp, TrendingDown, ArrowLeftRight, Settings, BarChart2, Briefcase,
-    Receipt, Building2, CheckCircle2, AlertCircle, Ban, Wallet, CreditCard
+    Receipt, Building2, CheckCircle2, AlertCircle, Ban, Wallet, CreditCard,
+    Bell, Megaphone, Shield, Send, ChevronUp, RefreshCw, Eye
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
@@ -113,7 +114,9 @@ const modulos = [
         id: "gestao",
         label: "Gestão",
         items: [
-            { id: "usuarios", label: "Usuários", icon: Users },
+            { id: "usuarios",     label: "Usuários",    icon: Users },
+            { id: "comunicados",  label: "Comunicados", icon: Megaphone },
+            { id: "auditoria",    label: "Auditoria",   icon: Shield, direcaoOnly: true },
         ]
     },
     {
@@ -710,7 +713,7 @@ export default function DirecaoDashboard() {
                                             <ChevronRight size={11} style={{ opacity:.4, transform: colapsado ? "rotate(0deg)" : "rotate(90deg)", transition:"transform .2s" }} />
                                         </button>
                                     )}
-                                    {!colapsado && modulo.items.map(item => {
+                                    {!colapsado && modulo.items.filter(item => !(item.direcaoOnly && isCoord)).map(item => {
                                         const Icon = item.icon;
                                         const active = aba === item.id;
                                         return (
@@ -773,6 +776,8 @@ export default function DirecaoDashboard() {
                         {aba === "fin-pagar"        && <ErrorBoundary key="fin-pagar"><FinContasPagar /></ErrorBoundary>}
                         {aba === "fin-movimentacoes" && <ErrorBoundary key="fin-movimentacoes"><FinMovimentacoes /></ErrorBoundary>}
                         {aba === "fin-config"       && <ErrorBoundary key="fin-config"><FinConfiguracoes anoLetivo={anoLetivo} /></ErrorBoundary>}
+                        {aba === "comunicados"      && <ErrorBoundary key="comunicados"><Comunicados /></ErrorBoundary>}
+                        {aba === "auditoria"        && !isCoord && <ErrorBoundary key="auditoria"><AuditLog /></ErrorBoundary>}
                     </main>
                 </div>
             </div>
@@ -1842,7 +1847,7 @@ function Lancamentos({ anoLetivo }) {
     const [alunos, setAlunos] = useState([]);
     const [avaliacaoSel, setAvaliacaoSel] = useState(null);
     const [notasEdit, setNotasEdit] = useState({});
-    const [formAv, setFormAv] = useState({ tipo:"PROVA", descricao:"", peso:"1.0", bonificacao:false, bimestre:"1" });
+    const [formAv, setFormAv] = useState({ tipo:"PROVA", descricao:"", peso:"1.0", bonificacao:false, bimestre:"1", dataAplicacao:"" });
     const [criandoAv, setCriandoAv] = useState(false);
     const [bimestroFiltro, setBimestroFiltro] = useState("");
     const [notasComErro, setNotasComErro] = useState({});
@@ -1970,7 +1975,7 @@ function Lancamentos({ anoLetivo }) {
             const novaAv = resp.data;
             flash("Avaliação criada!");
             setCriandoAv(false);
-            setFormAv({ tipo:"PROVA", descricao:"", peso:"1.0", bonificacao:false, bimestre:"1" });
+            setFormAv({ tipo:"PROVA", descricao:"", peso:"1.0", bonificacao:false, bimestre:"1", dataAplicacao:"" });
             const r = await api.get("/notas/avaliacoes", { params: { turmaId, materiaId } });
             setAvaliacoes(r.data || []);
             if (formAv.tipo === "RECUPERACAO") {
@@ -2553,6 +2558,14 @@ function Lancamentos({ anoLetivo }) {
                                 <div className="dd-input-wrap">
                                     <input className="dd-input" placeholder="Ex: Prova bimestral 1"
                                            value={formAv.descricao} onChange={e => setFormAv(p => ({...p, descricao:e.target.value}))} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Data de Aplicação <span style={{ color:"#9aaa9f", fontWeight:400 }}>(opcional)</span></label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" type="date"
+                                           value={formAv.dataAplicacao} onChange={e => setFormAv(p => ({...p, dataAplicacao:e.target.value}))} />
                                     <div className="dd-input-line" />
                                 </div>
                             </div>
@@ -5755,7 +5768,7 @@ function FinConfiguracoes({ anoLetivo }) {
     const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
 
     const carregarConfig = () => {
-        api.get("/fin/configuracoes").then(r => { setConfig(r.data); setFormConfig({ numParcelasPadrao: r.data.numParcelasPadrao||12, jurosAtrasoPct: r.data.jurosAtrasoPct||0, multaAtrasoPct: r.data.multaAtrasoPct||0, diaVencimentoPadrao: r.data.diaVencimentoPadrao||10 }); }).catch(() => {});
+        api.get("/fin/configuracoes").then(r => { setConfig(r.data); setFormConfig({ numParcelasPadrao: r.data.numParcelasPadrao||12, jurosAtrasoPct: r.data.jurosAtrasoPct||0, multaAtrasoPct: r.data.multaAtrasoPct||0, diaVencimentoPadrao: r.data.diaVencimentoPadrao||10, mediaMinima: r.data.mediaMinima??6, freqMinima: r.data.freqMinima??75 }); }).catch(() => {});
     };
     const carregarFormas = () => {
         api.get("/fin/formas-pagamento").then(r => setFormas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
@@ -5778,7 +5791,7 @@ function FinConfiguracoes({ anoLetivo }) {
         e.preventDefault();
         setSalvando(true);
         try {
-            await api.put("/fin/configuracoes", { ...formConfig, numParcelasPadrao: Number(formConfig.numParcelasPadrao), jurosAtrasoPct: Number(formConfig.jurosAtrasoPct), multaAtrasoPct: Number(formConfig.multaAtrasoPct), diaVencimentoPadrao: Number(formConfig.diaVencimentoPadrao) });
+            await api.put("/fin/configuracoes", { ...formConfig, numParcelasPadrao: Number(formConfig.numParcelasPadrao), jurosAtrasoPct: Number(formConfig.jurosAtrasoPct), multaAtrasoPct: Number(formConfig.multaAtrasoPct), diaVencimentoPadrao: Number(formConfig.diaVencimentoPadrao), mediaMinima: Number(formConfig.mediaMinima), freqMinima: Number(formConfig.freqMinima) });
             flash("Configuração salva!");
             carregarConfig();
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
@@ -5830,6 +5843,8 @@ function FinConfiguracoes({ anoLetivo }) {
                             { k:"diaVencimentoPadrao",label:"Dia Vencimento Padrão", type:"number" },
                             { k:"jurosAtrasoPct",     label:"Juros por Atraso (%)",  type:"number", step:"0.01" },
                             { k:"multaAtrasoPct",     label:"Multa por Atraso (%)",  type:"number", step:"0.01" },
+                            { k:"mediaMinima",        label:"Média Mínima para Aprovação", type:"number", step:"0.1" },
+                            { k:"freqMinima",         label:"Frequência Mínima (%)", type:"number", step:"0.1" },
                         ].map(f => (
                             <div key={f.k}>
                                 <label className="dd-label">{f.label}</label>
@@ -5919,6 +5934,229 @@ function FinConfiguracoes({ anoLetivo }) {
                                     </tr>
                                 );
                             })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ---- COMUNICADOS ----
+function Comunicados() {
+    const userRole = localStorage.getItem("role") || "DIRECAO";
+    const userName = localStorage.getItem("nome") || userRole;
+    const isCoord  = userRole === "COORDENACAO";
+
+    const [comunicados, setComunicados] = useState([]);
+    const [form, setForm] = useState({ titulo:"", corpo:"", destinatarios:"TODOS" });
+    const [criando, setCriando] = useState(false);
+    const [msg, setMsg] = useState({ texto:"", tipo:"" });
+
+    const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
+
+    const carregar = () => {
+        api.get("/comunicados").then(r => setComunicados(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    };
+
+    useEffect(() => { carregar(); }, []);
+
+    const salvar = async e => {
+        e.preventDefault();
+        if (!form.titulo.trim() || !form.corpo.trim()) return flash("Título e texto são obrigatórios.", "err");
+        try {
+            await api.post("/comunicados", form);
+            setForm({ titulo:"", corpo:"", destinatarios:"TODOS" });
+            setCriando(false);
+            flash("Comunicado publicado!");
+            carregar();
+        } catch(err) { flash(err.response?.data || "Erro ao publicar.", "err"); }
+    };
+
+    const deletar = async id => {
+        if (!window.confirm("Remover este comunicado?")) return;
+        try {
+            await api.delete(`/comunicados/${id}`);
+            flash("Comunicado removido.");
+            carregar();
+        } catch(err) { flash(err.response?.data || "Erro ao remover.", "err"); }
+    };
+
+    const DEST_LABELS = { TODOS:"Todos", PROFESSORES:"Professores", ALUNOS:"Alunos", DIRECAO:"Direção" };
+
+    return (
+        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+            {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
+
+            <div className="dd-section">
+                <div className="dd-section-header">
+                    <span className="dd-section-title">Comunicados</span>
+                    <span className="dd-section-count">{comunicados.length}</span>
+                    <button className="dd-btn-primary" style={{ marginLeft:"auto", padding:"6px 14px", fontSize:12 }}
+                            onClick={() => setCriando(v => !v)}>
+                        {criando ? "Cancelar" : <><Megaphone size={13} style={{ marginRight:6 }} />Novo Comunicado</>}
+                    </button>
+                </div>
+
+                {criando && (
+                    <div style={{ padding:24, borderBottom:"1px solid #eaeef2" }}>
+                        <form onSubmit={salvar} style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                            <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:12 }}>
+                                <div>
+                                    <label className="dd-label">Título</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" value={form.titulo} onChange={e => setForm(f => ({...f, titulo:e.target.value}))} placeholder="Ex: Reunião de pais — 15/04" required />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="dd-label">Destinatários</label>
+                                    <select value={form.destinatarios} onChange={e => setForm(f => ({...f, destinatarios:e.target.value}))}
+                                            className="dd-input" style={{ height:38, cursor:"pointer" }}>
+                                        <option value="TODOS">Todos</option>
+                                        <option value="PROFESSORES">Professores</option>
+                                        <option value="ALUNOS">Alunos</option>
+                                        <option value="DIRECAO">Direção</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Texto</label>
+                                <textarea className="dd-input" rows={5} value={form.corpo}
+                                          onChange={e => setForm(f => ({...f, corpo:e.target.value}))}
+                                          placeholder="Escreva o comunicado aqui..."
+                                          style={{ resize:"vertical", lineHeight:1.6 }} required />
+                            </div>
+                            <div>
+                                <button type="submit" className="dd-btn-primary" style={{ display:"inline-flex", alignItems:"center", gap:6 }}>
+                                    <Send size={13} />Publicar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                )}
+
+                <div style={{ padding:"0 20px" }}>
+                    {comunicados.length === 0 && (
+                        <p style={{ color:"#9aaa9f", fontSize:13, padding:"24px 0", textAlign:"center" }}>Nenhum comunicado publicado.</p>
+                    )}
+                    {comunicados.map(c => (
+                        <div key={c.id} style={{ padding:"16px 0", borderBottom:"1px solid #f0f4f1" }}>
+                            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12 }}>
+                                <div style={{ flex:1 }}>
+                                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
+                                        <span style={{ fontWeight:600, fontSize:14, color:"#0d1f18" }}>{c.titulo}</span>
+                                        <span style={{ fontSize:10, fontWeight:500, letterSpacing:".08em", textTransform:"uppercase",
+                                                       background:"#e8f5ec", color:"#3a7a5a", padding:"2px 8px", borderRadius:3 }}>
+                                            {DEST_LABELS[c.destinatarios] || c.destinatarios}
+                                        </span>
+                                    </div>
+                                    <p style={{ fontSize:13, color:"#3a4a40", lineHeight:1.6, whiteSpace:"pre-wrap", margin:"0 0 8px" }}>{c.corpo}</p>
+                                    <p style={{ fontSize:11, color:"#9aaa9f" }}>
+                                        {c.autorNome} · {c.dataPublicacao ? new Date(c.dataPublicacao).toLocaleDateString("pt-BR", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" }) : ""}
+                                    </p>
+                                </div>
+                                <button onClick={() => deletar(c.id)} style={{ background:"none", border:"none", cursor:"pointer", color:"#c0a0a0", flexShrink:0 }}>
+                                    <Trash2 size={14} />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ---- AUDITORIA ----
+function AuditLog() {
+    const hoje = new Date().toISOString().slice(0,10);
+    const umMesAtras = new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0,10);
+
+    const [logs, setLogs] = useState([]);
+    const [from, setFrom] = useState(umMesAtras);
+    const [to, setTo]     = useState(hoje);
+    const [carregando, setCarregando] = useState(false);
+    const [msg, setMsg] = useState("");
+
+    const carregar = async () => {
+        setCarregando(true);
+        setMsg("");
+        try {
+            const r = await api.get("/audit", { params: { from, to } });
+            setLogs(Array.isArray(r.data) ? r.data : []);
+            if ((r.data || []).length === 0) setMsg("Nenhum registro encontrado para o período.");
+        } catch(err) {
+            setMsg(err.response?.data || "Erro ao carregar logs.");
+        } finally { setCarregando(false); }
+    };
+
+    useEffect(() => { carregar(); }, []);
+
+    const ACAO_COLOR = { CRIAR:"#3a7a5a", EDITAR:"#1a4a8a", DELETAR:"#c04040", PAGAR:"#7a4a00", CANCELAR:"#8a3a00" };
+
+    return (
+        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+            <div className="dd-section">
+                <div className="dd-section-header">
+                    <span className="dd-section-title">Log de Auditoria</span>
+                    <span className="dd-section-count">{logs.length}</span>
+                </div>
+                <div style={{ padding:"16px 20px", display:"flex", gap:12, alignItems:"flex-end", flexWrap:"wrap" }}>
+                    <div>
+                        <label className="dd-label">De</label>
+                        <input type="date" className="dd-input" value={from} onChange={e => setFrom(e.target.value)} style={{ width:145 }} />
+                    </div>
+                    <div>
+                        <label className="dd-label">Até</label>
+                        <input type="date" className="dd-input" value={to} onChange={e => setTo(e.target.value)} style={{ width:145 }} />
+                    </div>
+                    <button className="dd-btn-primary" style={{ padding:"6px 16px", display:"inline-flex", alignItems:"center", gap:6 }} onClick={carregar} disabled={carregando}>
+                        <RefreshCw size={13} style={{ animation: carregando ? "spin 1s linear infinite" : "none" }} />
+                        {carregando ? "Buscando..." : "Buscar"}
+                    </button>
+                </div>
+
+                {msg && <p style={{ color:"#9aaa9f", fontSize:13, padding:"0 20px 16px" }}>{msg}</p>}
+
+                <div style={{ overflowX:"auto" }}>
+                    <table className="dd-table" style={{ minWidth:700 }}>
+                        <thead>
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Usuário</th>
+                                <th>Perfil</th>
+                                <th>Ação</th>
+                                <th>Entidade</th>
+                                <th>Detalhes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {logs.map(l => (
+                                <tr key={l.id}>
+                                    <td style={{ whiteSpace:"nowrap", fontSize:12, color:"#6a8070" }}>
+                                        {l.timestamp ? new Date(l.timestamp).toLocaleString("pt-BR") : "-"}
+                                    </td>
+                                    <td style={{ fontWeight:500 }}>{l.usuarioLogin || l.usuarioId}</td>
+                                    <td>
+                                        <span style={{ fontSize:10, letterSpacing:".07em", textTransform:"uppercase", background:"#f0f4f1", color:"#3a5a40", padding:"2px 7px", borderRadius:3 }}>
+                                            {l.usuarioRole}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span style={{ fontSize:11, fontWeight:600, letterSpacing:".08em", textTransform:"uppercase",
+                                                       color: ACAO_COLOR[l.acao] || "#3a4a40" }}>
+                                            {l.acao}
+                                        </span>
+                                    </td>
+                                    <td style={{ fontSize:12 }}>{l.entidade}{l.entidadeId ? ` #${l.entidadeId}` : ""}</td>
+                                    <td style={{ fontSize:12, color:"#5a6a60", maxWidth:260, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}
+                                        title={l.detalhes}>{l.detalhes || "-"}</td>
+                                </tr>
+                            ))}
+                            {logs.length === 0 && !msg && (
+                                <tr><td colSpan={6} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Carregando...</td></tr>
+                            )}
                         </tbody>
                     </table>
                 </div>

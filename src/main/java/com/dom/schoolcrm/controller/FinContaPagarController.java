@@ -2,11 +2,13 @@ package com.dom.schoolcrm.controller;
 
 import com.dom.schoolcrm.entity.*;
 import com.dom.schoolcrm.repository.*;
+import com.dom.schoolcrm.service.AuditService;
 import com.dom.schoolcrm.util.FinUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -55,6 +57,7 @@ public class FinContaPagarController {
     @Autowired private FinFormaPagamentoRepository formaPagamentoRepository;
     @Autowired private FinConfiguracaoRepository configuracaoRepository;
     @Autowired private FinHistoricoPagamentoCPRepository historicoRepository;
+    @Autowired private AuditService auditService;
 
     // ─── Listar com filtros ───────────────────────────────────────────────────
 
@@ -165,7 +168,7 @@ public class FinContaPagarController {
 
     @PatchMapping("/{id}/baixar")
     @Transactional
-    public ResponseEntity<?> baixar(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+    public ResponseEntity<?> baixar(@PathVariable Long id, @RequestBody Map<String, Object> body, Authentication auth) {
         FinContaPagar cp = cpRepository.findById(id).orElse(null);
         if (cp == null) return ResponseEntity.notFound().build();
         if ("PAGO".equals(cp.getStatus()))     return ResponseEntity.badRequest().body("Conta já paga.");
@@ -252,6 +255,8 @@ public class FinContaPagarController {
         hist.setMultaAplicada(multa.compareTo(BigDecimal.ZERO) > 0 ? multa : null);
         hist.setObservacoes(str(body.get("observacoes")));
         historicoRepository.save(hist);
+        auditService.log(auth, "BAIXAR", "CP", String.valueOf(id),
+                "ValorPago=" + novoPagamento + " Status=" + cp.getStatus());
 
         return ResponseEntity.ok(toMap(cp, hoje));
     }

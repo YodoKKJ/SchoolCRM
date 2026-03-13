@@ -2,11 +2,13 @@ package com.dom.schoolcrm.controller;
 
 import com.dom.schoolcrm.entity.*;
 import com.dom.schoolcrm.repository.*;
+import com.dom.schoolcrm.service.AuditService;
 import com.dom.schoolcrm.util.FinUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -39,6 +41,7 @@ public class FinContaReceberController {
     @Autowired private FinFormaPagamentoRepository formaPagamentoRepository;
     @Autowired private FinConfiguracaoRepository configuracaoRepository;
     @Autowired private FinHistoricoPagamentoCRRepository histCRRepo;
+    @Autowired private AuditService auditService;
 
 
     // ─── Listar com filtros ───────────────────────────────────────────────────
@@ -121,7 +124,7 @@ public class FinContaReceberController {
 
     @PatchMapping("/{id}/baixar")
     @Transactional
-    public ResponseEntity<?> baixar(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+    public ResponseEntity<?> baixar(@PathVariable Long id, @RequestBody Map<String, Object> body, Authentication auth) {
         FinContaReceber cr = crRepository.findById(id).orElse(null);
         if (cr == null) return ResponseEntity.notFound().build();
 
@@ -231,6 +234,8 @@ public class FinContaReceberController {
         hist.setMultaAplicada(saved.getMultaAplicada());
         hist.setObservacoes(saved.getObservacoes());
         histCRRepo.save(hist);
+        auditService.log(auth, "BAIXAR", "CR", String.valueOf(id),
+                "ValorPago=" + novoPagamento + " Status=" + saved.getStatus());
 
         return ResponseEntity.ok(toMap(saved, hoje));
     }
