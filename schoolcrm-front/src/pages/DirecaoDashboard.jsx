@@ -1103,6 +1103,7 @@ function Usuarios() {
                                 { value: "ALUNO", label: "Aluno" },
                                 { value: "PROFESSOR", label: "Professor" },
                                 { value: "DIRECAO", label: "Direção" },
+                                { value: "COORDENACAO", label: "Coordenação" },
                             ]}
                             value={form.role}
                             onChange={v => setForm({ ...form, role: v })}
@@ -1158,7 +1159,7 @@ function Usuarios() {
                     />
                     {campoBusca === "role" && (
                         <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                            {["ALUNO", "PROFESSOR", "DIRECAO"].map(r => (
+                            {["ALUNO", "PROFESSOR", "DIRECAO", "COORDENACAO"].map(r => (
                                 <button key={r} onClick={() => setTermoBusca(termoBusca === r ? "" : r)}
                                         className="dd-badge"
                                         style={{ background: termoBusca === r ? "#0d1f18" : "#f0f5f2", color: termoBusca === r ? "#7ec8a0" : "#3a6649", cursor:"pointer", border:"none" }}>
@@ -1172,8 +1173,8 @@ function Usuarios() {
                     <thead><tr>{["Nome","Login","Perfil","Status",""].map(h=><th key={h}>{h}</th>)}</tr></thead>
                     <tbody>
                     {usuarios.map(u => {
-                        const roleBg = { ALUNO:"#f0f5f2", PROFESSOR:"#e8f3ec", DIRECAO:"#eef5f0" };
-                        const roleClr = { ALUNO:"#3a6649", PROFESSOR:"#2d6a4f", DIRECAO:"#1a4d3a" };
+                        const roleBg = { ALUNO:"#f0f5f2", PROFESSOR:"#e8f3ec", DIRECAO:"#eef5f0", COORDENACAO:"#e8f0fb" };
+                        const roleClr = { ALUNO:"#3a6649", PROFESSOR:"#2d6a4f", DIRECAO:"#1a4d3a", COORDENACAO:"#2d4a8a" };
                         const inativo = !u.ativo;
                         return (
                             <tr key={u.id} style={{ opacity: inativo ? 0.5 : 1 }}>
