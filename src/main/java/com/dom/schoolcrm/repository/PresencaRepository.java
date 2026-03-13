@@ -23,4 +23,7 @@ public interface PresencaRepository extends JpaRepository<Presenca, Long> {
 
     // Boletim/relatório: presenças de um aluno em uma turma (evita findAll())
     List<Presenca> findByAlunoIdAndTurmaId(Long alunoId, Long turmaId);
+
+    // Relatório de turma: todas as presenças da turma em uma query (evita N+1)
+    List<Presenca> findByTurmaId(Long turmaId);
 }

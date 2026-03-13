@@ -41,6 +41,9 @@ public class PresencaController {
         Boolean presente = Boolean.parseBoolean(body.get("presente"));
         LocalDate data = LocalDate.parse(body.get("data"));
 
+        if (data.isAfter(LocalDate.now()))
+            return ResponseEntity.badRequest().body("Não é possível lançar presença para data futura");
+
         // Campos opcionais para presença por período (null = registro legado)
         String ordemAulaStr = body.get("ordemAula");
         Integer ordemAula = null;
