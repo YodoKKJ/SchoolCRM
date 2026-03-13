@@ -615,12 +615,28 @@ class ErrorBoundary extends Component {
 }
 
 export default function DirecaoDashboard() {
+    const userRole = localStorage.getItem("role") || "DIRECAO";
+    const isCoord = userRole === "COORDENACAO";
+
     const [aba, setAba] = useState("inicio");
     const [sidebarAberta, setSidebarAberta] = useState(false);
     const [colapsados, setColapsados] = useState({});
-    const nome = localStorage.getItem("nome") || "Direção";
+    const nome = localStorage.getItem("nome") || (isCoord ? "Coordenação" : "Direção");
     const logout = () => { localStorage.clear(); window.location.href = "/"; };
     const toggleColapso = (id) => setColapsados(prev => ({ ...prev, [id]: !prev[id] }));
+
+    // COORDENACAO não acessa o módulo financeiro
+    const modulosVisiveis = isCoord
+        ? modulos.filter(m => m.id !== "financeiro")
+        : modulos;
+
+    // Se por algum motivo a aba ativa for financeira e o usuário for COORDENACAO, redireciona para início
+    const FIN_ABAS = ["fin-dashboard","fin-pessoas","fin-funcionarios","fin-contratos","fin-pagar","fin-movimentacoes","fin-config"];
+    const setAbaSegura = (id) => {
+        if (isCoord && FIN_ABAS.includes(id)) return;
+        setAba(id);
+    };
+    if (isCoord && FIN_ABAS.includes(aba)) { setAba("inicio"); }
 
     const anoAtual = new Date().getFullYear();
     const [anoLetivo, setAnoLetivo] = useState(anoAtual);
@@ -684,7 +700,7 @@ export default function DirecaoDashboard() {
 
                     {/* nav */}
                     <nav style={{ flex:1, padding:"16px 8px", display:"flex", flexDirection:"column", gap:16, overflowY:"auto" }}>
-                        {modulos.map(modulo => {
+                        {modulosVisiveis.map(modulo => {
                             const colapsado = !!colapsados[modulo.id];
                             return (
                                 <div key={modulo.id}>
@@ -701,7 +717,7 @@ export default function DirecaoDashboard() {
                                             <button key={item.id}
                                                     className={`dd-nav-btn${active ? " active" : ""}${item.disabled ? " disabled" : ""}`}
                                                     disabled={item.disabled}
-                                                    onClick={() => { if (!item.disabled) { setAba(item.id); setSidebarAberta(false); } }}>
+                                                    onClick={() => { if (!item.disabled) { setAbaSegura(item.id); setSidebarAberta(false); } }}>
                                                 <Icon size={14} style={{ flexShrink:0 }} />
                                                 <span style={{ flex:1 }}>{item.label}</span>
                                                 {item.disabled && <span className="dd-badge-soon">Em breve</span>}

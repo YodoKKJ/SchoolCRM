@@ -32,7 +32,7 @@ public class PresencaController {
 
     // Professor lança presença
     @PostMapping("/lancar")
-    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO')")
+    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
     @Transactional
     public ResponseEntity<?> lancarPresenca(@RequestBody Map<String, String> body) {
         Long alunoId = Long.parseLong(body.get("alunoId"));
@@ -113,7 +113,7 @@ public class PresencaController {
 
     // Listar chamada da turma em uma data específica (ou listar todas as datas de uma turma/matéria)
     @GetMapping("/turma/{turmaId}/materia/{materiaId}")
-    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO')")
+    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> presencasPorTurmaEMateria(
             @PathVariable Long turmaId,
             @PathVariable Long materiaId) {

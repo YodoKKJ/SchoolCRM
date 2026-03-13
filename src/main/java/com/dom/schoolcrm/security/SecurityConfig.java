@@ -50,9 +50,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         // 🔒 Regras específicas
-                        .requestMatchers(HttpMethod.DELETE, "/turmas/**").hasRole("DIRECAO")
-                        .requestMatchers(HttpMethod.DELETE, "/materias/**").hasRole("DIRECAO")
-                        .requestMatchers(HttpMethod.DELETE, "/vinculos/**").hasRole("DIRECAO")
+                        .requestMatchers(HttpMethod.DELETE, "/turmas/**").hasAnyRole("DIRECAO", "COORDENACAO")
+                        .requestMatchers(HttpMethod.DELETE, "/materias/**").hasAnyRole("DIRECAO", "COORDENACAO")
+                        .requestMatchers(HttpMethod.DELETE, "/vinculos/**").hasAnyRole("DIRECAO", "COORDENACAO")
 
 
                         .anyRequest().authenticated()

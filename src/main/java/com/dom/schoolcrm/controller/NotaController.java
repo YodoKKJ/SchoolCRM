@@ -44,7 +44,7 @@ public class NotaController {
     private RecuperacaoParticipanteRepository recuperacaoParticipanteRepository;
 
     @PostMapping("/avaliacao")
-    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO')")
+    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> criarAvaliacao(@RequestBody Map<String, String> body) {
         Long turmaId = Long.parseLong(body.get("turmaId"));
         Long materiaId = Long.parseLong(body.get("materiaId"));
@@ -90,7 +90,7 @@ public class NotaController {
     }
 
     @PutMapping("/avaliacao/{id}/participantes")
-    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO')")
+    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
     @Transactional
     public ResponseEntity<?> atualizarParticipantes(@PathVariable Long id,
                                                      @RequestBody Map<String, List<Long>> body) {
@@ -118,7 +118,7 @@ public class NotaController {
     }
 
     @PostMapping("/lancar")
-    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO')")
+    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> lancarNota(@RequestBody Map<String, String> body) {
         Long avaliacaoId = Long.parseLong(body.get("avaliacaoId"));
         Long alunoId = Long.parseLong(body.get("alunoId"));
@@ -201,7 +201,7 @@ public class NotaController {
     }
 
     @GetMapping("/avaliacoes")
-    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO')")
+    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> listarAvaliacoesComNotas(
             @RequestParam Long turmaId,
             @RequestParam Long materiaId) {
@@ -243,7 +243,7 @@ public class NotaController {
     }
 
     @GetMapping("/boletim/{alunoId}/{turmaId}")
-    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO')")
+    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> gerarBoletim(@PathVariable Long alunoId, @PathVariable Long turmaId) {
         var alunoOpt = usuarioRepository.findById(alunoId);
         var turmaOpt = turmaRepository.findById(turmaId);
@@ -392,7 +392,7 @@ public class NotaController {
     }
 
     @DeleteMapping("/avaliacao/{id}")
-    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO')")
+    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
     @Transactional
     public ResponseEntity<?> deletarAvaliacao(@PathVariable Long id) {
         if (!avaliacaoRepository.existsById(id))

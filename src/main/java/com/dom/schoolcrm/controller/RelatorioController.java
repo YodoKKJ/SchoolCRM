@@ -22,7 +22,7 @@ public class RelatorioController {
     private RelatorioService relatorioService;
 
     @GetMapping("/boletim/{alunoId}/{turmaId}")
-    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO')")
+    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
     public ResponseEntity<byte[]> boletim(
             @PathVariable Long alunoId,
             @PathVariable Long turmaId) {
@@ -48,7 +48,7 @@ public class RelatorioController {
     }
 
     @GetMapping("/boletim/turma/{turmaId}/zip")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<byte[]> boletimLote(@PathVariable Long turmaId) {
         try {
             byte[] zip = relatorioService.gerarBoletinsLoteZip(turmaId);
@@ -76,7 +76,7 @@ public class RelatorioController {
      * @param bimestre 0 = ano completo, 1–4 = bimestre específico (ignorado para "situacao")
      */
     @GetMapping("/turma/{turmaId}")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<byte[]> relatorioTurma(
             @PathVariable Long turmaId,
             @RequestParam(defaultValue = "medias") String tipo,

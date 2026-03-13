@@ -8,7 +8,8 @@ function PrivateRoute({ children, role }) {
     const token = localStorage.getItem("token");
     const userRole = localStorage.getItem("role");
     if (!token) return <Navigate to="/" />;
-    if (role && userRole !== role) return <Navigate to="/" />;
+    const allowed = Array.isArray(role) ? role : [role];
+    if (role && !allowed.includes(userRole)) return <Navigate to="/" />;
     return children;
 }
 
@@ -18,7 +19,7 @@ function App() {
             <Routes>
                 <Route path="/" element={<Login />} />
                 <Route path="/direcao" element={
-                    <PrivateRoute role="DIRECAO">
+                    <PrivateRoute role={["DIRECAO", "COORDENACAO"]}>
                         <DirecaoDashboard />
                     </PrivateRoute>
                 } />

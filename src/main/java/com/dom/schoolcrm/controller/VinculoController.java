@@ -26,7 +26,7 @@ public class VinculoController {
     private TurmaRepository turmaRepository;
 
     @PostMapping("/aluno-turma")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> vincularAluno(@RequestBody Map<String, String> body) {
         Long alunoId = Long.parseLong(body.get("alunoId"));
         Long turmaId = Long.parseLong(body.get("turmaId"));
@@ -61,7 +61,7 @@ public class VinculoController {
     }
 
     @GetMapping("/aluno-turma/ocupados-no-ano/{anoLetivo}")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<List<Long>> alunosOcupadosNoAno(@PathVariable Integer anoLetivo) {
         List<Long> ids = alunoTurmaRepository.findAll().stream()
                 .filter(at -> at.getTurma().getAnoLetivo() != null
@@ -76,7 +76,7 @@ public class VinculoController {
     private MateriaRepository materiaRepository;
 
     @PostMapping("/professor-turma-materia")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> vincularProfessor(@RequestBody Map<String, String> body) {
         Long professorId = Long.parseLong(body.get("professorId"));
         Long turmaId = Long.parseLong(body.get("turmaId"));
@@ -108,7 +108,7 @@ public class VinculoController {
     @Autowired
     private ProfessorTurmaMateriaRepository professorTurmaMateriaRepository;
     @GetMapping("/aluno-turma")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> listarVinculosAluno(
             @RequestParam(required = false) Long alunoId,
             @RequestParam(required = false) Integer anoLetivo) {
@@ -133,7 +133,7 @@ public class VinculoController {
     }
 
     @DeleteMapping("/aluno-turma")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> deletarVinculoAluno(@RequestBody Map<String, String> body) {
         Long alunoId = Long.parseLong(body.get("alunoId"));
         Long turmaId = Long.parseLong(body.get("turmaId"));
@@ -154,13 +154,13 @@ public class VinculoController {
     }
 
     @GetMapping("/professor-turma-materia")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> listarVinculosProfessor() {
         return ResponseEntity.ok(professorTurmaMateriaRepository.findAll());
     }
 
     @DeleteMapping("/professor-turma-materia")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> deletarVinculoProfessor(@RequestBody Map<String, String> body) {
         Long professorId = Long.parseLong(body.get("professorId"));
         Long turmaId = Long.parseLong(body.get("turmaId"));
@@ -177,7 +177,7 @@ public class VinculoController {
     }
 
     @GetMapping("/aluno-turma/turma/{turmaId}")
-    @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR', 'COORDENACAO')")
     public ResponseEntity<?> listarAlunosPorTurma(@PathVariable Long turmaId) {
         return ResponseEntity.ok(
                 alunoTurmaRepository.findAll().stream()
@@ -187,7 +187,7 @@ public class VinculoController {
     }
 
     @GetMapping("/professor-turma-materia/turma/{turmaId}")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> listarProfessoresPorTurma(@PathVariable Long turmaId) {
         return ResponseEntity.ok(
                 professorTurmaMateriaRepository.findAll().stream()
@@ -198,7 +198,7 @@ public class VinculoController {
 
     // Professor vê suas próprias turmas+matérias
     @GetMapping("/professor-turma-materia/minhas")
-    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO')")
+    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> minhasturmas(org.springframework.security.core.Authentication auth) {
         String login = auth.getName();
         var professor = usuarioRepository.findByLogin(login);
@@ -209,7 +209,7 @@ public class VinculoController {
 
     // Aluno vê sua própria turma
     @GetMapping("/aluno-turma/minhas")
-    @PreAuthorize("hasAnyRole('ALUNO', 'DIRECAO')")
+    @PreAuthorize("hasAnyRole('ALUNO', 'DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> minhasTurmasAluno(org.springframework.security.core.Authentication auth) {
         String login = auth.getName();
         var aluno = usuarioRepository.findByLogin(login);
@@ -220,7 +220,7 @@ public class VinculoController {
 
     // Direção vê histórico de turmas de um aluno específico
     @GetMapping("/aluno-turma/historico/{alunoId}")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> historicoAluno(@PathVariable Long alunoId) {
         var vinculos = alunoTurmaRepository.findByAlunoId(alunoId).stream()
                 .sorted((a, b) -> {
