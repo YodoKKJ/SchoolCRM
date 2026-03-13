@@ -61,7 +61,13 @@ public class FinContratoService {
 
         BigDecimal valorBase;
         if (body.containsKey("valorBase") && body.get("valorBase") != null) {
-            valorBase = new BigDecimal(body.get("valorBase").toString());
+            try {
+                valorBase = new BigDecimal(body.get("valorBase").toString().trim());
+            } catch (NumberFormatException e) {
+                return ResponseEntity.badRequest().body("valorBase inválido: deve ser um número (ex: 1200.00).");
+            }
+            if (valorBase.compareTo(BigDecimal.ZERO) <= 0)
+                return ResponseEntity.badRequest().body("valorBase deve ser maior que zero.");
         } else {
             valorBase = serieValorRepository
                     .findBySerieIdAndAnoLetivo(serieId, anoLetivo)
@@ -234,14 +240,19 @@ public class FinContratoService {
 
             m.put("parcelas", parcelasMap);
 
-            long pagas    = parcelas.stream().filter(p -> "PAGO".equals(p.getStatus())).count();
-            long vencidas = parcelas.stream().filter(p -> "PENDENTE".equals(p.getStatus())
-                            && p.getDataVencimento().isBefore(hoje)).count();
-            long pendentes = parcelas.stream().filter(p -> "PENDENTE".equals(p.getStatus())
-                            && !p.getDataVencimento().isBefore(hoje)).count();
+            long pagas          = parcelas.stream().filter(p -> "PAGO".equals(FinUtil.statusEfetivo(p, hoje))).count();
+            long parcPagas      = parcelas.stream().filter(p -> "PARCIALMENTE_PAGO".equals(FinUtil.statusEfetivo(p, hoje))).count();
+            long vencidas       = parcelas.stream().filter(p -> "VENCIDO".equals(FinUtil.statusEfetivo(p, hoje))).count();
+            long pendentes      = parcelas.stream().filter(p -> "PENDENTE".equals(FinUtil.statusEfetivo(p, hoje))).count();
+            long canceladas     = parcelas.stream().filter(p -> "CANCELADO".equals(FinUtil.statusEfetivo(p, hoje))).count();
 
-            m.put("resumo", Map.of("pagas", pagas, "vencidas", vencidas,
-                    "pendentes", pendentes, "totalParcelas", parcelas.size()));
+            m.put("resumo", Map.of(
+                    "pagas", pagas,
+                    "parcialmentePagas", parcPagas,
+                    "vencidas", vencidas,
+                    "pendentes", pendentes,
+                    "canceladas", canceladas,
+                    "totalParcelas", parcelas.size()));
         }
         return m;
     }
