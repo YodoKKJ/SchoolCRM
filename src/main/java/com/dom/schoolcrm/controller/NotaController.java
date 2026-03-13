@@ -77,7 +77,12 @@ public class NotaController {
 
         String bimestreStr = body.get("bimestre");
         if (bimestreStr != null && !bimestreStr.isBlank()) {
-            avaliacao.setBimestre(Integer.parseInt(bimestreStr));
+            int bim = Integer.parseInt(bimestreStr);
+            if (bim < 1 || bim > 4)
+                return ResponseEntity.badRequest().body("Bimestre deve ser entre 1 e 4.");
+            avaliacao.setBimestre(bim);
+        } else {
+            return ResponseEntity.badRequest().body("bimestre é obrigatório (1 a 4).");
         }
         avaliacaoRepository.save(avaliacao);
 
@@ -154,25 +159,43 @@ public class NotaController {
 
         if (notas.isEmpty()) return ResponseEntity.ok(Map.of("media", 0.0, "bonus", 0.0, "mediaFinal", 0.0));
 
-        BigDecimal somaNotas = BigDecimal.ZERO;
-        BigDecimal bonus = BigDecimal.ZERO;
-        int count = 0;
+        BigDecimal somaPonderada = BigDecimal.ZERO;
+        BigDecimal somaPesos    = BigDecimal.ZERO;
+        BigDecimal bonus        = BigDecimal.ZERO;
+        BigDecimal recuperacao  = null;   // nota de recuperação substitui média se maior
 
         for (Nota nota : notas) {
-            if (nota.getAvaliacao().getBonificacao()) {
-                bonus = bonus.add(nota.getValor());
+            String tipo  = nota.getAvaliacao().getTipo();
+            BigDecimal val  = nota.getValor();
+            BigDecimal peso = nota.getAvaliacao().getPeso();
+
+            if ("RECUPERACAO".equals(tipo)) {
+                recuperacao = val;
+            } else if (nota.getAvaliacao().getBonificacao()) {
+                bonus = bonus.add(val);
             } else {
-                somaNotas = somaNotas.add(nota.getValor());
-                count++;
+                somaPonderada = somaPonderada.add(val.multiply(peso));
+                somaPesos = somaPesos.add(peso);
             }
         }
 
-        BigDecimal media = count > 0 ? somaNotas.divide(new BigDecimal(count), 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
-        BigDecimal mediaFinal = media.add(bonus).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal media = somaPesos.compareTo(BigDecimal.ZERO) > 0
+                ? somaPonderada.divide(somaPesos, 2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
+        // Recuperação: mantém a maior entre a média calculada e a nota de recuperação
+        if (recuperacao != null) {
+            media = media.max(recuperacao);
+        }
+
+        BigDecimal mediaFinal = media.add(bonus)
+                .min(BigDecimal.TEN)
+                .setScale(2, RoundingMode.HALF_UP);
 
         return ResponseEntity.ok(Map.of(
-                "media", media,
+                "media", media.setScale(2, RoundingMode.HALF_UP),
                 "bonus", bonus,
+                "recuperacao", recuperacao != null ? recuperacao : BigDecimal.ZERO,
                 "mediaFinal", mediaFinal
         ));
     }

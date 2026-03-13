@@ -72,7 +72,7 @@ public class FinContaPagarController {
 
         // B1: período inválido (de > ate) — falha silenciosa seria confusa para o usuário
         if (de != null && ate != null && de.isAfter(ate)) {
-            return ResponseEntity.badRequest().body(null);
+            return ResponseEntity.badRequest().body(List.of()); // body vazio mas tipado
         }
 
         String tipoF   = blank(tipo)    ? null : tipo.toUpperCase();
@@ -339,6 +339,11 @@ public class FinContaPagarController {
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
             BigDecimal salarioBase = func.getSalarioBase() != null ? func.getSalarioBase() : BigDecimal.ZERO;
             BigDecimal totalSalario = salarioBase.add(totalBeneficios);
+
+            if (totalSalario.compareTo(BigDecimal.ZERO) <= 0) {
+                ignoradas.add(func.getPessoa().getNome() + " (salário base não cadastrado)");
+                continue;
+            }
 
             FinContaPagar cp = new FinContaPagar();
             cp.setFuncionario(func);

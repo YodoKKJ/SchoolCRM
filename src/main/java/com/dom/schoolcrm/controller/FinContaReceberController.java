@@ -56,7 +56,7 @@ public class FinContaReceberController {
 
         // B1: período inválido (de > ate) — falha silenciosa seria confusa para o usuário
         if (de != null && ate != null && de.isAfter(ate)) {
-            return ResponseEntity.badRequest().body(null);
+            return ResponseEntity.badRequest().body(List.of()); // body vazio mas tipado
         }
 
         String tipoFiltro   = (tipo   != null && !tipo.isBlank())   ? tipo.toUpperCase()   : null;
