@@ -61,17 +61,28 @@ public interface FinContaPagarRepository extends JpaRepository<FinContaPagar, Lo
     );
 
     // Dashboard: saldo a pagar de CP PENDENTE ou PARCIALMENTE_PAGO cujo vencimento ainda não passou
+    // Inclui juros e multa já aplicados para refletir o saldo devedor real
     @Query("""
-        SELECT COALESCE(SUM(cp.valor - COALESCE(cp.valorPago, 0)), 0)
+        SELECT COALESCE(SUM(
+            cp.valor
+            + COALESCE(cp.jurosAplicado, 0)
+            + COALESCE(cp.multaAplicada, 0)
+            - COALESCE(cp.valorPago, 0)
+        ), 0)
         FROM FinContaPagar cp
         WHERE cp.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
           AND cp.dataVencimento >= :hoje
         """)
     BigDecimal somarPendentesNaoVencidos(@Param("hoje") LocalDate hoje);
 
-    // Dashboard: CP em atraso — saldo real (valor - valorPago) de PENDENTE e PARCIALMENTE_PAGO já vencidas
+    // Dashboard: CP em atraso — saldo real incluindo juros e multa já aplicados
     @Query("""
-        SELECT COALESCE(SUM(cp.valor - COALESCE(cp.valorPago, 0)), 0)
+        SELECT COALESCE(SUM(
+            cp.valor
+            + COALESCE(cp.jurosAplicado, 0)
+            + COALESCE(cp.multaAplicada, 0)
+            - COALESCE(cp.valorPago, 0)
+        ), 0)
         FROM FinContaPagar cp
         WHERE cp.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
           AND cp.dataVencimento < :hoje

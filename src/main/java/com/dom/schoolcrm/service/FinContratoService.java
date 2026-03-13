@@ -140,6 +140,10 @@ public class FinContratoService {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body("Contrato possui parcelas já pagas e não pode ser excluído.");
         }
+        if (crRepository.existsByContratoIdAndStatus(id, "PARCIALMENTE_PAGO")) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Contrato possui parcelas com pagamento parcial registrado e não pode ser excluído. Finalize ou estorne o pagamento parcial antes de cancelar.");
+        }
 
         // Exclui as parcelas primeiro para evitar violação de FK, depois o contrato
         List<FinContaReceber> parcelas = crRepository.findByContratoIdOrderByNumParcelaAsc(id);
