@@ -98,10 +98,12 @@ public class FinContratoService {
         LocalDate inicioBase;
         if (body.containsKey("mesInicio") && body.get("mesInicio") != null) {
             YearMonth ymInicio = YearMonth.parse(body.get("mesInicio").toString());
-            inicioBase = LocalDate.of(ymInicio.getYear(), ymInicio.getMonth(), diaVencimento);
+            int diaAjustado = Math.min(diaVencimento, ymInicio.lengthOfMonth());
+            inicioBase = LocalDate.of(ymInicio.getYear(), ymInicio.getMonth(), diaAjustado);
         } else {
-            LocalDate hoje = LocalDate.now();
-            inicioBase = LocalDate.of(hoje.getYear(), hoje.getMonthValue(), diaVencimento).plusMonths(1);
+            YearMonth ymProximo = YearMonth.now().plusMonths(1);
+            int diaAjustado = Math.min(diaVencimento, ymProximo.lengthOfMonth());
+            inicioBase = LocalDate.of(ymProximo.getYear(), ymProximo.getMonth(), diaAjustado);
         }
 
         FinContrato contrato = new FinContrato();
@@ -139,6 +141,10 @@ public class FinContratoService {
         if (crRepository.existsByContratoIdAndStatus(id, "PAGO")) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body("Contrato possui parcelas já pagas e não pode ser excluído.");
+        }
+        if (crRepository.existsByContratoIdAndStatus(id, "PARCIALMENTE_PAGO")) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Contrato possui parcelas com pagamento parcial registrado e não pode ser excluído. Finalize ou estorne o pagamento parcial antes de cancelar.");
         }
 
         // Exclui as parcelas primeiro para evitar violação de FK, depois o contrato

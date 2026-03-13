@@ -122,7 +122,7 @@ public interface FinContaReceberRepository extends JpaRepository<FinContaReceber
         LEFT JOIN FETCH cr.contrato c
         LEFT JOIN FETCH c.aluno
         LEFT JOIN FETCH cr.pessoa
-        WHERE cr.status = 'PENDENTE'
+        WHERE cr.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
           AND cr.dataVencimento BETWEEN :de AND :ate
         ORDER BY cr.dataVencimento ASC
         """)

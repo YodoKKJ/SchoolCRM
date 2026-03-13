@@ -299,6 +299,9 @@ public class FinContaReceberController {
         if ("PAGO".equals(cr.getStatus())) {
             return ResponseEntity.badRequest().body("Parcela já paga não pode ser editada.");
         }
+        if ("PARCIALMENTE_PAGO".equals(cr.getStatus())) {
+            return ResponseEntity.badRequest().body("Parcela com pagamento parcial não pode ser editada.");
+        }
 
         if (body.containsKey("descricao") && body.get("descricao") != null)
             cr.setDescricao((String) body.get("descricao"));
