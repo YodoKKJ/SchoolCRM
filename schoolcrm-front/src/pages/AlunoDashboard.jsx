@@ -121,20 +121,45 @@ const bgFreq = v => {
 
 const CORES_MATERIA = ["#1a4d3a","#1A759F","#6d597a","#b56576","#457b9d","#2a9d8f","#e76f51","#264653"];
 
+// Calcula média de uma matéria agrupando por bimestre, aplicando bônus e recuperação
+// por bimestre (igual ao RelatorioService.java no backend).
 function mediaMateria(notas) {
-    const normais = notas.filter(n => !n.avaliacao?.bonificacao && n.avaliacao?.tipo !== "RECUPERACAO");
-    const recuperacao = notas.find(n => n.avaliacao?.tipo === "RECUPERACAO");
-    if (!normais.length && !recuperacao) return null;
-    let media = null;
-    if (normais.length) {
-        const pesoTotal = normais.reduce((s, n) => s + (n.avaliacao?.peso ?? 1), 0);
-        if (pesoTotal) media = normais.reduce((s, n) => s + parseFloat(n.valor) * (n.avaliacao?.peso ?? 1), 0) / pesoTotal;
+    // Agrupa por bimestre
+    const porBim = {};
+    notas.forEach(n => {
+        const bim = n.avaliacao?.bimestre ?? 1;
+        if (!porBim[bim]) porBim[bim] = [];
+        porBim[bim].push(n);
+    });
+
+    const mediasBim = [];
+    for (const bimNotas of Object.values(porBim)) {
+        const normais      = bimNotas.filter(n => !n.avaliacao?.bonificacao && n.avaliacao?.tipo !== "RECUPERACAO");
+        const recuperacao  = bimNotas.find(n => n.avaliacao?.tipo === "RECUPERACAO");
+        const bonificacoes = bimNotas.filter(n => n.avaliacao?.bonificacao);
+
+        if (!normais.length && !recuperacao) continue;
+
+        let media = null;
+        if (normais.length) {
+            const pesoTotal = normais.reduce((s, n) => s + (n.avaliacao?.peso ?? 1), 0);
+            if (pesoTotal) media = normais.reduce((s, n) => s + parseFloat(n.valor) * (n.avaliacao?.peso ?? 1), 0) / pesoTotal;
+        }
+        if (recuperacao) {
+            const recVal = parseFloat(recuperacao.valor);
+            media = media === null ? recVal : Math.max(media, recVal);
+        }
+        if (media === null) continue;
+
+        // Aplica bônus por bimestre, máximo 10 (igual ao backend)
+        const bonus = bonificacoes.reduce((s, n) => s + parseFloat(n.valor), 0);
+        media = Math.min(10, media + bonus);
+
+        mediasBim.push(media);
     }
-    if (recuperacao) {
-        const recVal = parseFloat(recuperacao.valor);
-        media = media === null ? recVal : Math.max(media, recVal);
-    }
-    return media;
+
+    if (!mediasBim.length) return null;
+    return mediasBim.reduce((a, b) => a + b, 0) / mediasBim.length;
 }
 
 function agruparPorMateria(notas) {
@@ -237,7 +262,7 @@ function Boletim({ notas }) {
                                 const nBim = nts.filter(n => (n.avaliacao?.bimestre ?? 1) === bim && !n.avaliacao?.bonificacao && n.avaliacao?.tipo !== "RECUPERACAO");
                                 const bonus = nts.filter(n => (n.avaliacao?.bimestre ?? 1) === bim && n.avaliacao?.bonificacao);
                                 const recBim = nts.filter(n => (n.avaliacao?.bimestre ?? 1) === bim && n.avaliacao?.tipo === "RECUPERACAO");
-                                const mBim = mediaMateria([...nBim, ...recBim]);
+                                const mBim = mediaMateria([...nBim, ...bonus, ...recBim]);
                                 return (
                                     <div key={bim} style={{ background:"#f8faf8", border:"1px solid #eaeef2", borderRadius:8, padding:"12px 14px" }}>
                                         <p style={{ fontSize:10, fontWeight:500, letterSpacing:".1em", textTransform:"uppercase", color:"#9aaa9f", marginBottom:10 }}>
