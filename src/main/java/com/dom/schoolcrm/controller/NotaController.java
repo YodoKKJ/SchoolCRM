@@ -46,6 +46,9 @@ public class NotaController {
     @Autowired
     private com.dom.schoolcrm.service.AuditService auditService;
 
+    @Autowired
+    private com.dom.schoolcrm.repository.AlunoTurmaRepository alunoTurmaRepository;
+
     @PostMapping("/avaliacao")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> criarAvaliacao(@RequestBody Map<String, String> body, Authentication auth) {
@@ -475,8 +478,7 @@ public class NotaController {
      */
     @GetMapping("/turma/{turmaId}/resumo")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
-    public ResponseEntity<?> resumoTurma(@PathVariable Long turmaId,
-            @Autowired com.dom.schoolcrm.repository.AlunoTurmaRepository alunoTurmaRepository) {
+    public ResponseEntity<?> resumoTurma(@PathVariable Long turmaId) {
         var turmaOpt = turmaRepository.findById(turmaId);
         if (turmaOpt.isEmpty()) return ResponseEntity.badRequest().body("Turma não encontrada");
         var turma = turmaOpt.get();
