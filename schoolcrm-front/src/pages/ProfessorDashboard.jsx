@@ -1397,6 +1397,7 @@ function ComunicadosProfessor({ vinculos }) {
     const [comunicados, setComunicados] = useState([]);
     const [form, setForm] = useState({ titulo:"", corpo:"", turmaId:"" });
     const [criando, setCriando] = useState(false);
+    const [enviando, setEnviando] = useState(false);
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
 
     const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
@@ -1415,9 +1416,11 @@ function ComunicadosProfessor({ vinculos }) {
 
     const salvar = async e => {
         e.preventDefault();
-        if (!form.titulo.trim() || !form.corpo.trim()) return flash("Título e texto são obrigatórios.", "err");
+        if (!form.titulo.trim() || form.titulo.trim().length < 3) return flash("Título deve ter ao menos 3 caracteres.", "err");
+        if (!form.corpo.trim() || form.corpo.trim().length < 5) return flash("Texto deve ter ao menos 5 caracteres.", "err");
         if (!form.turmaId) return flash("Selecione a turma.", "err");
         const payload = { titulo: form.titulo, corpo: form.corpo, destinatarios: "TURMA", turmaId: form.turmaId };
+        setEnviando(true);
         try {
             await api.post("/comunicados", payload);
             setForm({ titulo:"", corpo:"", turmaId: turmas.length === 1 ? String(turmas[0].id) : "" });
@@ -1425,6 +1428,7 @@ function ComunicadosProfessor({ vinculos }) {
             flash("Comunicado publicado!");
             carregar();
         } catch(err) { flash(err.response?.data || "Erro ao publicar.", "err"); }
+        finally { setEnviando(false); }
     };
     const fmtTurmaLocal = t => t ? (t.serie?.nome ? `${t.serie.nome} — ${t.nome}` : t.nome) : "";
 
@@ -1472,9 +1476,9 @@ function ComunicadosProfessor({ vinculos }) {
                                           style={{ resize:"vertical", lineHeight:1.6 }} required />
                             </div>
                             <div>
-                                <button type="submit" className="pd-btn-primary"
+                                <button type="submit" className="pd-btn-primary" disabled={enviando}
                                         style={{ display:"inline-flex", alignItems:"center", gap:6 }}>
-                                    <Send size={13} />Publicar
+                                    {enviando ? "Publicando..." : <><Send size={13} />Publicar</>}
                                 </button>
                             </div>
                         </form>

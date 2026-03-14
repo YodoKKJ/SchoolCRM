@@ -954,6 +954,7 @@ function Usuarios() {
     const [fichaParcelas, setFichaParcelas] = useState({});
     const [fichaExpandido, setFichaExpandido] = useState(null);
     const [fichaLoading, setFichaLoading] = useState(false);
+    const [salvando, setSalvando] = useState(false);
 
     const carregarVinculos = () => {
         api.get("/usuarios/com-vinculos").then(r => {
@@ -983,12 +984,22 @@ function Usuarios() {
 
     const cadastrar = async (e) => {
         e.preventDefault();
+        if (!form.nome.trim() || form.nome.trim().length < 2)
+            return setMsg({ texto: "Nome deve ter ao menos 2 caracteres.", tipo: "erro" });
+        if (!form.login.trim() || form.login.trim().length < 3)
+            return setMsg({ texto: "Login deve ter ao menos 3 caracteres.", tipo: "erro" });
+        if (/\s/.test(form.login))
+            return setMsg({ texto: "Login não pode conter espaços.", tipo: "erro" });
+        if (!form.senha || form.senha.length < 4)
+            return setMsg({ texto: "Senha deve ter ao menos 4 caracteres.", tipo: "erro" });
+        setSalvando(true);
         try {
             await api.post("/usuarios", form);
             setMsg({ texto: "Usuário cadastrado com sucesso!", tipo: "ok" });
             setForm({ nome: "", login: "", senha: "", role: "ALUNO", dataNascimento: "", nomePai: "", nomeMae: "" });
             carregar();
         } catch { setMsg({ texto: "Erro ao cadastrar. Login já existe?", tipo: "erro" }); }
+        finally { setSalvando(false); }
     };
 
     const abrirEdicao = (u) => {
@@ -1004,6 +1015,15 @@ function Usuarios() {
 
     const salvarEdicao = async (e) => {
         e.preventDefault();
+        if (!formEdit.nome.trim() || formEdit.nome.trim().length < 2)
+            return setMsgEdit({ texto: "Nome deve ter ao menos 2 caracteres.", tipo: "erro" });
+        if (!formEdit.login.trim() || formEdit.login.trim().length < 3)
+            return setMsgEdit({ texto: "Login deve ter ao menos 3 caracteres.", tipo: "erro" });
+        if (/\s/.test(formEdit.login))
+            return setMsgEdit({ texto: "Login não pode conter espaços.", tipo: "erro" });
+        if (formEdit.senha && formEdit.senha.length < 4)
+            return setMsgEdit({ texto: "Nova senha deve ter ao menos 4 caracteres.", tipo: "erro" });
+        setSalvando(true);
         try {
             await api.put(`/usuarios/${editando.id}`, formEdit);
             setMsgEdit({ texto: "Usuário atualizado com sucesso!", tipo: "ok" });
@@ -1013,12 +1033,12 @@ function Usuarios() {
             const raw = err.response?.data;
             const msg = typeof raw === "string" ? raw : (raw?.message || "Erro ao atualizar.");
             setMsgEdit({ texto: msg, tipo: "erro" });
-        }
+        } finally { setSalvando(false); }
     };
 
     const toggleStatus = async (u) => {
         const acao = u.ativo ? "inativar" : "ativar";
-        if (!confirm(`Deseja ${acao} o usuário "${u.nome}"?`)) return;
+        if (!await showConfirm(`Deseja ${acao} o usuário "${u.nome}"?`)) return;
         try {
             await api.patch(`/usuarios/${u.id}/status`);
             carregar();
@@ -1026,7 +1046,7 @@ function Usuarios() {
     };
 
     const excluirUsuario = async (u) => {
-        if (!confirm(`Excluir permanentemente o usuário "${u.nome}"?`)) return;
+        if (!await showConfirm(`Excluir permanentemente o usuário "${u.nome}"?`)) return;
         try {
             await api.delete(`/usuarios/${u.id}`);
             carregar();
@@ -1141,7 +1161,9 @@ function Usuarios() {
 
                             <div style={{ display:"flex", gap:8, marginTop:4 }}>
                                 <button type="button" onClick={() => setEditando(null)} className="dd-btn-ghost" style={{ flex:1 }}>Cancelar</button>
-                                <button type="submit" className="dd-btn-primary" style={{ flex:1 }}>Salvar →</button>
+                                <button type="submit" className="dd-btn-primary" disabled={salvando} style={{ flex:1 }}>
+                                    {salvando ? "Salvando..." : "Salvar →"}
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -1441,8 +1463,9 @@ function Usuarios() {
                             </div>
                         </div>
                     </>)}
-                    <button type="submit" className="dd-btn-primary" style={{ gridColumn:"1/-1", marginTop:4 }}>
-                        Cadastrar Usuário →
+                    <button type="submit" className="dd-btn-primary" disabled={salvando}
+                            style={{ gridColumn:"1/-1", marginTop:4 }}>
+                        {salvando ? "Cadastrando..." : "Cadastrar Usuário →"}
                     </button>
                 </form>
                 {msg.texto && <div className={msg.tipo === "ok" ? "dd-ok" : "dd-err"} style={{ marginTop:12 }}>{msg.texto}</div>}
@@ -1538,6 +1561,7 @@ function Turmas({ anoLetivo }) {
     const [campoBusca, setCampoBusca] = useState("nome");
     const [termoBusca, setTermoBusca] = useState("");
     const termoDebounced = useDebounce(termoBusca);
+    const [salvandoTurma, setSalvandoTurma] = useState(false);
 
     const carregarSeries = () => {
         api.get("/turmas/series").then(r => setSeries(Array.isArray(r.data) ? r.data : []));
@@ -1569,7 +1593,7 @@ function Turmas({ anoLetivo }) {
 
 
     const excluirTurma = async (t) => {
-        if (!confirm(`Excluir turma "${t.nome}"?`)) return;
+        if (!await showConfirm(`Excluir turma "${t.nome}"?`)) return;
         try { await api.delete(`/turmas/${t.id}`); carregar(); }
         catch { setMsg({ texto: "Erro ao excluir. Há vínculos ativos nessa turma?", tipo: "erro" }); }
     };
@@ -1769,12 +1793,20 @@ function Turmas({ anoLetivo }) {
                     <p className="dd-section-title" style={{ marginBottom:16 }}>Nova Turma</p>
                     <form onSubmit={async e => {
                         e.preventDefault();
+                        if (!formTurma.nome.trim())
+                            return setMsg({ texto: "Informe o nome da turma.", tipo: "erro" });
+                        if (!formTurma.serieId)
+                            return setMsg({ texto: "Selecione a série.", tipo: "erro" });
+                        if (!formTurma.anoLetivo || !/^\d{4}$/.test(formTurma.anoLetivo))
+                            return setMsg({ texto: "Ano letivo deve ter 4 dígitos.", tipo: "erro" });
+                        setSalvandoTurma(true);
                         try {
                             await api.post("/turmas", formTurma);
                             setMsg({ texto: "Turma cadastrada!", tipo: "ok" });
                             setFormTurma({ nome: "", serieId: "", anoLetivo: String(new Date().getFullYear()) });
                             carregar();
                         } catch { setMsg({ texto: "Erro ao cadastrar.", tipo: "erro" }); }
+                        finally { setSalvandoTurma(false); }
                     }} style={{ display:"flex", flexDirection:"column", gap:16 }}>
                         <div>
                             <label className="dd-label">Nome</label>
@@ -1800,7 +1832,9 @@ function Turmas({ anoLetivo }) {
                                 <div className="dd-input-line" />
                             </div>
                         </div>
-                        <button type="submit" className="dd-btn-primary">Cadastrar Turma →</button>
+                        <button type="submit" className="dd-btn-primary" disabled={salvandoTurma}>
+                            {salvandoTurma ? "Cadastrando..." : "Cadastrar Turma →"}
+                        </button>
                     </form>
                 </div>
 
@@ -2061,6 +2095,7 @@ function Materias() {
     const [msg, setMsg] = useState({ texto: "", tipo: "" });
     const [termoBusca, setTermoBusca] = useState("");
     const termoDebounced = useDebounce(termoBusca);
+    const [salvando, setSalvando] = useState(false);
 
     const buscar = (nome) => {
         const params = {};
@@ -2073,7 +2108,7 @@ function Materias() {
 
 
     const excluirMateria = async (m) => {
-        if (!confirm(`Excluir matéria "${m.nome}"?`)) return;
+        if (!await showConfirm(`Excluir matéria "${m.nome}"?`)) return;
         try { await api.delete(`/materias/${m.id}`); buscar(termoDebounced); }
         catch { setMsg({ texto: "Erro ao excluir. Há vínculos ativos com essa matéria?", tipo: "erro" }); }
     };
@@ -2086,16 +2121,25 @@ function Materias() {
                 <p className="dd-section-title" style={{ marginBottom:16 }}>Nova Matéria</p>
                 <form onSubmit={async e => {
                     e.preventDefault();
-                    await api.post("/materias", form);
-                    setForm({ nome: "" });
-                    buscar(termoDebounced);
+                    if (!form.nome.trim() || form.nome.trim().length < 2)
+                        return setMsg({ texto: "Nome deve ter ao menos 2 caracteres.", tipo: "erro" });
+                    setSalvando(true);
+                    try {
+                        await api.post("/materias", form);
+                        setForm({ nome: "" });
+                        setMsg({ texto: "", tipo: "" });
+                        buscar(termoDebounced);
+                    } catch { setMsg({ texto: "Erro ao cadastrar matéria.", tipo: "erro" }); }
+                    finally { setSalvando(false); }
                 }} style={{ display:"flex", gap:8 }}>
                     <div className="dd-input-wrap" style={{ flex:1 }}>
                         <input className="dd-input" placeholder="Ex: Matemática" value={form.nome}
                                onChange={e => setForm({ nome: e.target.value })} />
                         <div className="dd-input-line" />
                     </div>
-                    <button type="submit" className="dd-btn-primary">Adicionar</button>
+                    <button type="submit" className="dd-btn-primary" disabled={salvando}>
+                        {salvando ? "..." : "Adicionar"}
+                    </button>
                 </form>
             </div>
 
@@ -2338,7 +2382,7 @@ function Lancamentos({ anoLetivo }) {
 
     const deletarAvaliacao = async (av, e) => {
         e.stopPropagation();
-        if (!confirm(`Excluir a avaliação "${av.descricao || av.tipo}" e todas as suas notas? Esta ação não pode ser desfeita.`)) return;
+        if (!await showConfirm(`Excluir a avaliação "${av.descricao || av.tipo}" e todas as suas notas? Esta ação não pode ser desfeita.`)) return;
         try {
             await api.delete(`/notas/avaliacao/${av.id}`);
             if (avaliacaoSel?.id === av.id) setAvaliacaoSel(null);
