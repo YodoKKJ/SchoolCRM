@@ -49,6 +49,25 @@ public class ComunicadoController {
         String login = auth.getName();
         var usuarioOpt = usuarioRepository.findByLogin(login);
 
+        // Professores só podem enviar comunicados para suas próprias turmas
+        String role = auth.getAuthorities().stream().findFirst()
+                .map(a -> a.getAuthority().replace("ROLE_", "")).orElse("");
+        if ("PROFESSOR".equals(role)) {
+            if (!"TURMA".equalsIgnoreCase(destinatarios))
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body("Professores só podem enviar comunicados para turmas específicas.");
+            Long turmaIdReq;
+            try { turmaIdReq = Long.parseLong(turmaIdStr); }
+            catch (NumberFormatException e) { return ResponseEntity.badRequest().body("turmaId inválido."); }
+            Set<Long> turmasDoProf = usuarioOpt.isPresent()
+                    ? professorTurmaMateriaRepository.findByProfessorId(usuarioOpt.get().getId())
+                        .stream().map(v -> v.getId().getTurmaId()).collect(Collectors.toSet())
+                    : Set.of();
+            if (!turmasDoProf.contains(turmaIdReq))
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body("Você não está vinculado a essa turma.");
+        }
+
         Comunicado comunicado = new Comunicado();
         comunicado.setTitulo(titulo.trim());
         comunicado.setCorpo(corpo);

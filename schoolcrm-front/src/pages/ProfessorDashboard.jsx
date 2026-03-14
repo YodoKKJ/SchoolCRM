@@ -1367,7 +1367,7 @@ function Chamada({ vinculos }) {
 // ═══════════════════════════════════════════════════════════════
 function ComunicadosProfessor({ vinculos }) {
     const [comunicados, setComunicados] = useState([]);
-    const [form, setForm] = useState({ titulo:"", corpo:"", destinatarios:"TODOS", turmaId:"" });
+    const [form, setForm] = useState({ titulo:"", corpo:"", turmaId:"" });
     const [criando, setCriando] = useState(false);
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
 
@@ -1384,19 +1384,16 @@ function ComunicadosProfessor({ vinculos }) {
     const salvar = async e => {
         e.preventDefault();
         if (!form.titulo.trim() || !form.corpo.trim()) return flash("Título e texto são obrigatórios.", "err");
-        if (form.destinatarios === "TURMA" && !form.turmaId) return flash("Selecione a turma.", "err");
-        const payload = { titulo: form.titulo, corpo: form.corpo, destinatarios: form.destinatarios };
-        if (form.destinatarios === "TURMA") payload.turmaId = form.turmaId;
+        if (!form.turmaId) return flash("Selecione a turma.", "err");
+        const payload = { titulo: form.titulo, corpo: form.corpo, destinatarios: "TURMA", turmaId: form.turmaId };
         try {
             await api.post("/comunicados", payload);
-            setForm({ titulo:"", corpo:"", destinatarios:"TODOS", turmaId:"" });
+            setForm({ titulo:"", corpo:"", turmaId: turmas.length === 1 ? String(turmas[0].id) : "" });
             setCriando(false);
             flash("Comunicado publicado!");
             carregar();
         } catch(err) { flash(err.response?.data || "Erro ao publicar.", "err"); }
     };
-
-    const DEST_LABELS = { TODOS:"Todos", PROFESSORES:"Professores", ALUNOS:"Alunos" };
     const fmtTurmaLocal = t => t ? (t.serie?.nome ? `${t.serie.nome} — ${t.nome}` : t.nome) : "";
 
     return (
@@ -1426,21 +1423,6 @@ function ComunicadosProfessor({ vinculos }) {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="pd-label">Destinatários</label>
-                                    <SearchSelect
-                                        value={form.destinatarios}
-                                        onChange={v => setForm(f => ({...f, destinatarios:v, turmaId:""}))}
-                                        options={[
-                                            { value: "TODOS", label: "Todos" },
-                                            { value: "PROFESSORES", label: "Professores" },
-                                            { value: "ALUNOS", label: "Alunos" },
-                                            { value: "TURMA", label: "Turma específica" },
-                                        ]}
-                                    />
-                                </div>
-                            </div>
-                            {form.destinatarios === "TURMA" && (
-                                <div>
                                     <label className="pd-label">Turma</label>
                                     <SearchSelect
                                         value={form.turmaId}
@@ -1449,7 +1431,7 @@ function ComunicadosProfessor({ vinculos }) {
                                         options={[{ value: "", label: "Selecione…" }, ...turmas.map(t => ({ value: String(t.id), label: fmtTurmaLocal(t) }))]}
                                     />
                                 </div>
-                            )}
+                            </div>
                             <div>
                                 <label className="pd-label">Mensagem</label>
                                 <textarea className="pd-input" rows={4} value={form.corpo}
@@ -1479,7 +1461,7 @@ function ComunicadosProfessor({ vinculos }) {
                                 <span style={{ fontWeight:600, fontSize:14, color:"#0d1f18" }}>{c.titulo}</span>
                                 <span style={{ fontSize:10, fontWeight:500, letterSpacing:".08em", textTransform:"uppercase",
                                                background:"#e8f5ec", color:"#3a7a5a", padding:"2px 8px" }}>
-                                    {c.destinatarios === "TURMA" ? `Turma ${c.turmaId}` : (DEST_LABELS[c.destinatarios] || c.destinatarios)}
+                                    {c.destinatarios === "TURMA" ? `Turma ${c.turmaId}` : ({ TODOS:"Todos", PROFESSORES:"Professores", ALUNOS:"Alunos" }[c.destinatarios] || c.destinatarios)}
                                 </span>
                             </div>
                             <p style={{ fontSize:13, color:"#3a4a40", lineHeight:1.6, whiteSpace:"pre-wrap", margin:"0 0 6px" }}>{c.corpo}</p>
