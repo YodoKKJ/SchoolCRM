@@ -11,7 +11,7 @@ import java.util.List;
 @Repository
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
 
-    @Query("SELECT a FROM AuditLog a WHERE (:from IS NULL OR a.timestamp >= :from) AND (:to IS NULL OR a.timestamp <= :to) ORDER BY a.timestamp DESC")
-    List<AuditLog> buscar(@org.springframework.data.repository.query.Param("from") LocalDateTime from,
-                          @org.springframework.data.repository.query.Param("to") LocalDateTime to);
+    @Query("SELECT a FROM AuditLog a WHERE (:dataInicio IS NULL OR a.timestamp >= :dataInicio) AND (:dataFim IS NULL OR a.timestamp <= :dataFim) ORDER BY a.timestamp DESC")
+    List<AuditLog> buscar(@org.springframework.data.repository.query.Param("dataInicio") LocalDateTime dataInicio,
+                          @org.springframework.data.repository.query.Param("dataFim") LocalDateTime dataFim);
 }

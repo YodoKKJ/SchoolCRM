@@ -41,7 +41,8 @@ public class PresencaController {
         Boolean presente = Boolean.parseBoolean(body.get("presente"));
         LocalDate data = LocalDate.parse(body.get("data"));
 
-        if (data.isAfter(LocalDate.now()))
+        // Permite até +1 dia para cobrir diferenças de fuso horário entre cliente e servidor
+        if (data.isAfter(LocalDate.now().plusDays(1)))
             return ResponseEntity.badRequest().body("Não é possível lançar presença para data futura");
 
         // Campos opcionais para presença por período (null = registro legado)

@@ -28,7 +28,10 @@ public class Comunicado {
     @Column(name = "data_publicacao")
     private LocalDateTime dataPublicacao;
 
-    private String destinatarios; // "TODOS", "PROFESSORES", "ALUNOS"
+    private String destinatarios; // "TODOS", "PROFESSORES", "ALUNOS", "TURMA"
+
+    @Column(name = "turma_id")
+    private Long turmaId; // só preenchido quando destinatarios = "TURMA"
 
     private Boolean ativo = true;
 
@@ -41,6 +44,7 @@ public class Comunicado {
     public LocalDateTime getDataPublicacao() { return dataPublicacao; }
     public String getDestinatarios() { return destinatarios; }
     public Boolean getAtivo() { return ativo; }
+    public Long getTurmaId() { return turmaId; }
 
     public void setId(Long id) { this.id = id; }
     public void setTitulo(String titulo) { this.titulo = titulo; }
@@ -51,4 +55,5 @@ public class Comunicado {
     public void setDataPublicacao(LocalDateTime dataPublicacao) { this.dataPublicacao = dataPublicacao; }
     public void setDestinatarios(String destinatarios) { this.destinatarios = destinatarios; }
     public void setAtivo(Boolean ativo) { this.ativo = ativo; }
+    public void setTurmaId(Long turmaId) { this.turmaId = turmaId; }
 }
