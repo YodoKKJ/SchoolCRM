@@ -197,10 +197,10 @@ public class FinContaReceberController {
 
         // Valida: não permite pagar mais do que o saldo devedor restante
         BigDecimal saldoRestante = cr.getValor().add(juros).add(multa).subtract(jaFoiPago);
-        if (novoPagamento.compareTo(saldoRestante) > 0) {
+        if (valorPago.compareTo(saldoRestante) > 0) {
             return ResponseEntity.badRequest().body(
                     String.format("Valor pago (R$ %.2f) supera o saldo devedor (R$ %.2f).",
-                            novoPagamento, saldoRestante));
+                            valorPago, saldoRestante));
         }
 
         // Data de pagamento (preserva a existente em pagamentos subsequentes)
@@ -228,19 +228,19 @@ public class FinContaReceberController {
 
         FinContaReceber saved = crRepository.save(cr);
 
-        // Registra histórico imutável da baixa (novoPagamento = valor pago nesta transação)
+        // Registra histórico imutável da baixa (valorPago = valor pago nesta transação)
         FinHistoricoPagamentoCR hist = new FinHistoricoPagamentoCR();
         hist.setContaReceber(saved);
         hist.setDataRegistro(LocalDateTime.now());
         hist.setDataPagamento(saved.getDataPagamento());
-        hist.setValorPago(novoPagamento);
+        hist.setValorPago(valorPago);
         hist.setFormaPagamento(saved.getFormaPagamento());
         hist.setJurosAplicado(saved.getJurosAplicado());
         hist.setMultaAplicada(saved.getMultaAplicada());
         hist.setObservacoes(saved.getObservacoes());
         histCRRepo.save(hist);
         auditService.log(auth, "BAIXAR", "CR", String.valueOf(id),
-                "ValorPago=" + novoPagamento + " Status=" + saved.getStatus());
+                "ValorPago=" + valorPago + " Status=" + saved.getStatus());
 
         return ResponseEntity.ok(toMap(saved, hoje));
     }
