@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { Home, BookOpen, LogOut, CalendarDays, BarChart2, Menu, ChevronDown, Megaphone, FileText } from "lucide-react";
+import { Home, BookOpen, LogOut, CalendarDays, BarChart2, Menu, ChevronDown, ChevronRight, Megaphone, FileText } from "lucide-react";
 
 const api = axios.create({ baseURL: "" });
 api.interceptors.request.use(config => {
@@ -365,6 +365,13 @@ function Boletim({ notas, turmaId }) {
     const porMateria = agruparPorMateria(notas);
     const [baixando, setBaixando] = useState(false);
     const [erroPdf, setErroPdf] = useState(null);
+    const [expandidas, setExpandidas] = useState(new Set()); // materia IDs expandidas (padrão: todas recolhidas)
+
+    const toggleMateria = (id) => setExpandidas(prev => {
+        const next = new Set(prev);
+        next.has(id) ? next.delete(id) : next.add(id);
+        return next;
+    });
 
     const baixarPdf = async () => {
         if (!turmaId) { setErroPdf("Turma não identificada."); return; }
@@ -416,11 +423,17 @@ function Boletim({ notas, turmaId }) {
                 const sitColor = media === null ? "#9aaa9f" : media >= 6 ? "#3a7a5a" : "#b94040";
                 const sitLabel = media === null ? "Em Curso" : media >= 6 ? "Aprovado" : "Reprovado";
                 const sitBg    = media === null ? "#f5f7f5" : media >= 6 ? "#f0f5f2" : "#fdf0f0";
+                const aberta   = expandidas.has(materia.id);
                 return (
                     <div key={materia.id} className="ad-section" style={{ borderTop:`2px solid ${accent}`, overflow:"hidden" }}>
-                        {/* cabeçalho matéria */}
-                        <div className="ad-section-header">
-                            <span className="ad-section-title" style={{ color:accent, fontSize:15, fontWeight:600 }}>{materia.nome}</span>
+                        {/* cabeçalho matéria — clicável para expandir */}
+                        <div className="ad-section-header"
+                             style={{ cursor:"pointer", userSelect:"none" }}
+                             onClick={() => toggleMateria(materia.id)}>
+                            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                                <ChevronRight size={15} style={{ flexShrink:0, color: accent, transition:".2s", transform: aberta ? "rotate(90deg)" : "none" }} />
+                                <span className="ad-section-title" style={{ color:accent, fontSize:15, fontWeight:600 }}>{materia.nome}</span>
+                            </div>
                             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                                 <span className="ad-badge" style={{ color:sitColor, background:sitBg, fontSize:11 }}>{sitLabel}</span>
                                 <span className="ad-badge" style={{ color:corNota(media), background:bgNota(media), fontSize:13 }}>
@@ -429,8 +442,8 @@ function Boletim({ notas, turmaId }) {
                             </div>
                         </div>
 
-                        {/* bimestres sempre visíveis */}
-                        <div style={{ padding:"16px 20px", display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:12 }}>
+                        {/* bimestres — visíveis apenas quando expandido */}
+                        {aberta && <div style={{ padding:"16px 20px", display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:12 }}>
                             {[1,2,3,4].map(bim => {
                                 const nBim = nts.filter(n => (n.avaliacao?.bimestre ?? 1) === bim && !n.avaliacao?.bonificacao && n.avaliacao?.tipo !== "RECUPERACAO");
                                 const bonus = nts.filter(n => (n.avaliacao?.bimestre ?? 1) === bim && n.avaliacao?.bonificacao);
@@ -498,7 +511,7 @@ function Boletim({ notas, turmaId }) {
                                     </div>
                                 );
                             })}
-                        </div>
+                        </div>}
                     </div>
                 );
             })}

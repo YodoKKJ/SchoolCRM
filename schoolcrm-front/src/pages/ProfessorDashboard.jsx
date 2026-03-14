@@ -271,6 +271,13 @@ export default function ProfessorDashboard() {
 // ═══════════════════════════════════════════════════════════════
 function Inicio({ vinculos }) {
     const [resumos, setResumos] = useState({});   // { turmaId: { ...resumo, carregando } }
+    const [expandidas, setExpandidas] = useState(new Set()); // turmaIds expandidas
+
+    const toggleTurma = (id) => setExpandidas(prev => {
+        const next = new Set(prev);
+        next.has(id) ? next.delete(id) : next.add(id);
+        return next;
+    });
 
     const porTurma = vinculos.reduce((acc, v) => {
         const key = v.turma?.id;
@@ -323,11 +330,14 @@ function Inicio({ vinculos }) {
 
                 return (
                     <div key={turma?.id} className="pd-section">
-                        {/* cabeçalho turma */}
-                        <div className="pd-section-header" style={{ flexWrap:"wrap", gap:8 }}>
-                            <div>
+                        {/* cabeçalho turma — clicável para expandir */}
+                        <div className="pd-section-header"
+                             style={{ flexWrap:"wrap", gap:8, cursor:"pointer", userSelect:"none" }}
+                             onClick={() => toggleTurma(turma?.id)}>
+                            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                                <ChevronRight size={15} style={{ flexShrink:0, color:"#9aaa9f", transition:".2s", transform: expandidas.has(turma?.id) ? "rotate(90deg)" : "none" }} />
                                 <span className="pd-section-title">{turma?.nome}</span>
-                                <span style={{ marginLeft:8, fontSize:11, color:"#9aaa9f" }}>{turma?.serie?.nome}</span>
+                                <span style={{ fontSize:11, color:"#9aaa9f" }}>{turma?.serie?.nome}</span>
                             </div>
                             <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
                                 {materias.map(m => (
@@ -351,15 +361,15 @@ function Inicio({ vinculos }) {
                             </div>
                         </div>
 
-                        {res?.carregando && (
+                        {expandidas.has(turma?.id) && res?.carregando && (
                             <p style={{ padding:"20px", color:"#9aaa9f", fontSize:13, textAlign:"center" }}>Carregando...</p>
                         )}
 
-                        {!res?.carregando && alunos.length === 0 && (
+                        {expandidas.has(turma?.id) && !res?.carregando && alunos.length === 0 && (
                             <p style={{ padding:"20px", color:"#9aaa9f", fontSize:13, textAlign:"center" }}>Nenhum aluno vinculado.</p>
                         )}
 
-                        {!res?.carregando && alunos.length > 0 && (
+                        {expandidas.has(turma?.id) && !res?.carregando && alunos.length > 0 && (
                             <>
                                 {/* Alunos em risco — destaque vermelho */}
                                 {emRisco.length > 0 && (
@@ -1367,7 +1377,7 @@ function Chamada({ vinculos }) {
 // ═══════════════════════════════════════════════════════════════
 function ComunicadosProfessor({ vinculos }) {
     const [comunicados, setComunicados] = useState([]);
-    const [form, setForm] = useState({ titulo:"", corpo:"", destinatarios:"TODOS", turmaId:"" });
+    const [form, setForm] = useState({ titulo:"", corpo:"", turmaId:"" });
     const [criando, setCriando] = useState(false);
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
 
@@ -1384,19 +1394,16 @@ function ComunicadosProfessor({ vinculos }) {
     const salvar = async e => {
         e.preventDefault();
         if (!form.titulo.trim() || !form.corpo.trim()) return flash("Título e texto são obrigatórios.", "err");
-        if (form.destinatarios === "TURMA" && !form.turmaId) return flash("Selecione a turma.", "err");
-        const payload = { titulo: form.titulo, corpo: form.corpo, destinatarios: form.destinatarios };
-        if (form.destinatarios === "TURMA") payload.turmaId = form.turmaId;
+        if (!form.turmaId) return flash("Selecione a turma.", "err");
+        const payload = { titulo: form.titulo, corpo: form.corpo, destinatarios: "TURMA", turmaId: form.turmaId };
         try {
             await api.post("/comunicados", payload);
-            setForm({ titulo:"", corpo:"", destinatarios:"TODOS", turmaId:"" });
+            setForm({ titulo:"", corpo:"", turmaId: turmas.length === 1 ? String(turmas[0].id) : "" });
             setCriando(false);
             flash("Comunicado publicado!");
             carregar();
         } catch(err) { flash(err.response?.data || "Erro ao publicar.", "err"); }
     };
-
-    const DEST_LABELS = { TODOS:"Todos", PROFESSORES:"Professores", ALUNOS:"Alunos" };
     const fmtTurmaLocal = t => t ? (t.serie?.nome ? `${t.serie.nome} — ${t.nome}` : t.nome) : "";
 
     return (
@@ -1426,21 +1433,6 @@ function ComunicadosProfessor({ vinculos }) {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="pd-label">Destinatários</label>
-                                    <SearchSelect
-                                        value={form.destinatarios}
-                                        onChange={v => setForm(f => ({...f, destinatarios:v, turmaId:""}))}
-                                        options={[
-                                            { value: "TODOS", label: "Todos" },
-                                            { value: "PROFESSORES", label: "Professores" },
-                                            { value: "ALUNOS", label: "Alunos" },
-                                            { value: "TURMA", label: "Turma específica" },
-                                        ]}
-                                    />
-                                </div>
-                            </div>
-                            {form.destinatarios === "TURMA" && (
-                                <div>
                                     <label className="pd-label">Turma</label>
                                     <SearchSelect
                                         value={form.turmaId}
@@ -1449,7 +1441,7 @@ function ComunicadosProfessor({ vinculos }) {
                                         options={[{ value: "", label: "Selecione…" }, ...turmas.map(t => ({ value: String(t.id), label: fmtTurmaLocal(t) }))]}
                                     />
                                 </div>
-                            )}
+                            </div>
                             <div>
                                 <label className="pd-label">Mensagem</label>
                                 <textarea className="pd-input" rows={4} value={form.corpo}
@@ -1479,7 +1471,7 @@ function ComunicadosProfessor({ vinculos }) {
                                 <span style={{ fontWeight:600, fontSize:14, color:"#0d1f18" }}>{c.titulo}</span>
                                 <span style={{ fontSize:10, fontWeight:500, letterSpacing:".08em", textTransform:"uppercase",
                                                background:"#e8f5ec", color:"#3a7a5a", padding:"2px 8px" }}>
-                                    {c.destinatarios === "TURMA" ? `Turma ${c.turmaId}` : (DEST_LABELS[c.destinatarios] || c.destinatarios)}
+                                    {c.destinatarios === "TURMA" ? `Turma ${c.turmaId}` : ({ TODOS:"Todos", PROFESSORES:"Professores", ALUNOS:"Alunos" }[c.destinatarios] || c.destinatarios)}
                                 </span>
                             </div>
                             <p style={{ fontSize:13, color:"#3a4a40", lineHeight:1.6, whiteSpace:"pre-wrap", margin:"0 0 6px" }}>{c.corpo}</p>
