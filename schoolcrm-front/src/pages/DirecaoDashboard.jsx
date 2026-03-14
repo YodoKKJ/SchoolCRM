@@ -612,6 +612,8 @@ export default function DirecaoDashboard() {
                             value={String(anoLetivo)}
                             onChange={v => setAnoLetivo(Number(v))}
                             options={anosDisponiveis.map(ano => ({ value: String(ano), label: String(ano) }))}
+                            variant="dark"
+                            minDropWidth={160}
                         />
                     </div>
 
