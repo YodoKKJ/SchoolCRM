@@ -6114,7 +6114,8 @@ function AuditLog() {
             setLogs(Array.isArray(r.data) ? r.data : []);
             if ((r.data || []).length === 0) setMsg("Nenhum registro encontrado para o período.");
         } catch(err) {
-            setMsg(err.response?.data || "Erro ao carregar logs.");
+            const d = err.response?.data;
+            setMsg(typeof d === "string" ? d : d?.erro || "Erro ao carregar logs.");
         } finally { setCarregando(false); }
     };
 

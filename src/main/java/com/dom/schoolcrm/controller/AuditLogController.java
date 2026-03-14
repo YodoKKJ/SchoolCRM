@@ -25,8 +25,8 @@ public class AuditLogController {
         LocalDateTime dataFrom;
         LocalDateTime dataTo;
         try {
-            dataFrom = from != null ? LocalDate.parse(from).atStartOfDay() : null;
-            dataTo   = to   != null ? LocalDate.parse(to).atTime(23, 59, 59) : null;
+            dataFrom = from != null ? LocalDate.parse(from).atStartOfDay() : LocalDateTime.of(2000, 1, 1, 0, 0, 0);
+            dataTo   = to   != null ? LocalDate.parse(to).atTime(23, 59, 59) : LocalDateTime.now().plusDays(1);
         } catch (DateTimeParseException e) {
             return ResponseEntity.badRequest().body("Formato de data inválido. Use YYYY-MM-DD.");
         }
