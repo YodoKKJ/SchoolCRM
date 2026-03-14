@@ -365,7 +365,13 @@ function Inicio({ vinculos }) {
                             <p style={{ padding:"20px", color:"#9aaa9f", fontSize:13, textAlign:"center" }}>Carregando...</p>
                         )}
 
-                        {expandidas.has(turma?.id) && !res?.carregando && alunos.length === 0 && (
+                        {expandidas.has(turma?.id) && res?.erro && (
+                            <p style={{ padding:"20px", color:"#b94040", fontSize:13, textAlign:"center" }}>
+                                Erro ao carregar dados da turma.
+                            </p>
+                        )}
+
+                        {expandidas.has(turma?.id) && !res?.carregando && !res?.erro && alunos.length === 0 && (
                             <p style={{ padding:"20px", color:"#9aaa9f", fontSize:13, textAlign:"center" }}>Nenhum aluno vinculado.</p>
                         )}
 
