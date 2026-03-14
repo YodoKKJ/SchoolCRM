@@ -5940,6 +5940,8 @@ function Comunicados() {
     useEffect(() => {
         carregar();
         api.get("/turmas").then(r => setTurmas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+        const timer = setInterval(carregar, 30_000);
+        return () => clearInterval(timer);
     }, []);
 
     const salvar = async e => {

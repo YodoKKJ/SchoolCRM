@@ -456,10 +456,14 @@ function ComunicadosAluno() {
     const [carregando, setCarregando] = useState(true);
 
     useEffect(() => {
-        api.get("/comunicados")
-            .then(r => setComunicados(Array.isArray(r.data) ? r.data : []))
-            .catch(() => {})
-            .finally(() => setCarregando(false));
+        const carregar = () =>
+            api.get("/comunicados")
+                .then(r => setComunicados(Array.isArray(r.data) ? r.data : []))
+                .catch(() => {})
+                .finally(() => setCarregando(false));
+        carregar();
+        const timer = setInterval(carregar, 30_000);
+        return () => clearInterval(timer);
     }, []);
 
     const DEST_LABELS = { TODOS:"Todos", PROFESSORES:"Professores", ALUNOS:"Alunos" };

@@ -1379,7 +1379,11 @@ function ComunicadosProfessor({ vinculos }) {
     const carregar = () => {
         api.get("/comunicados").then(r => setComunicados(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     };
-    useEffect(() => { carregar(); }, []);
+    useEffect(() => {
+        carregar();
+        const timer = setInterval(carregar, 30_000);
+        return () => clearInterval(timer);
+    }, []);
 
     const salvar = async e => {
         e.preventDefault();
