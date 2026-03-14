@@ -48,11 +48,20 @@ public class FinContaReceberController {
 
     @GetMapping
     public ResponseEntity<List<Map<String, Object>>> listar(
+            @RequestParam(required = false) Long contratoId,
             @RequestParam(required = false) Long alunoId,
             @RequestParam(required = false) String tipo,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String vencimentoDe,
             @RequestParam(required = false) String vencimentoAte) {
+
+        LocalDate hoje = LocalDate.now();
+
+        // Filtro por contrato específico (tela de parcelas do contrato)
+        if (contratoId != null) {
+            List<FinContaReceber> lista = crRepository.findByContratoIdOrderByNumParcelaAsc(contratoId);
+            return ResponseEntity.ok(lista.stream().map(cr -> toMap(cr, hoje)).collect(Collectors.toList()));
+        }
 
         LocalDate de  = vencimentoDe  != null ? LocalDate.parse(vencimentoDe)  : null;
         LocalDate ate = vencimentoAte != null ? LocalDate.parse(vencimentoAte) : null;
@@ -68,7 +77,6 @@ public class FinContaReceberController {
         String statusDb     = "VENCIDO".equals(statusFiltro) ? "PENDENTE" : statusFiltro;
 
         List<FinContaReceber> lista = crRepository.buscar(alunoId, tipoFiltro, statusDb, de, ate);
-        LocalDate hoje = LocalDate.now();
 
         // Se filtro é VENCIDO, mantém só os realmente vencidos
         if ("VENCIDO".equals(statusFiltro)) {
