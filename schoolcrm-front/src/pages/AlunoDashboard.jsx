@@ -152,56 +152,183 @@ const DIAS = ["SEG", "TER", "QUA", "QUI", "SEX"];
 const DIA_LABEL = { SEG: "Segunda-feira", TER: "Terça-feira", QUA: "Quarta-feira", QUI: "Quinta-feira", SEX: "Sexta-feira" };
 
 // ── Seção: Início ─────────────────────────────────────────────────────────────
-function Inicio({ vinculos, notas }) {
+function Inicio({ vinculos, notas, turmaId }) {
     const porMateria = agruparPorMateria(notas);
-    const medias = Object.values(porMateria).map(m => mediaMateria(m.notas)).filter(v => v !== null);
-    const totalMaterias = Object.keys(porMateria).length;
-    const mediaGeral = medias.length ? (medias.reduce((a, b) => a + b, 0) / medias.length).toFixed(1) : null;
-    const aprovadas = medias.filter(m => m >= 7).length;
+    const [frequencias, setFrequencias] = useState({});
+    const [proximas, setProximas] = useState([]);
+    const [carregando, setCarregando] = useState(true);
+
+    useEffect(() => {
+        if (!turmaId) { setCarregando(false); return; }
+        const materias = Object.values(porMateria).map(m => m.materia);
+        const today = new Date().toISOString().split("T")[0];
+        const in30  = new Date(Date.now() + 30*24*60*60*1000).toISOString().split("T")[0];
+
+        Promise.all([
+            materias.length
+                ? Promise.all(materias.map(mat =>
+                    api.get(`/presencas/minhas/${turmaId}/${mat.id}`)
+                       .then(r => ({ key: mat.id, ...r.data }))
+                       .catch(() => null)
+                  )).then(res => {
+                      const f = {};
+                      res.filter(Boolean).forEach(x => { f[x.key] = x; });
+                      setFrequencias(f);
+                  })
+                : Promise.resolve(),
+            api.get(`/notas/calendario?turmaId=${turmaId}&from=${today}&to=${in30}`)
+               .then(r => setProximas(Array.isArray(r.data) ? r.data : []))
+               .catch(() => {}),
+        ]).finally(() => setCarregando(false));
+    }, [turmaId, notas.length]); // eslint-disable-line
+
+    const mediasArr = Object.values(porMateria).map(m => mediaMateria(m.notas)).filter(v => v !== null);
+    const mediaGeral = mediasArr.length ? mediasArr.reduce((a,b)=>a+b,0)/mediasArr.length : null;
+    const freqVals = Object.values(frequencias).map(f => f.percentualPresenca ?? 0);
+    const freqMedia = freqVals.length ? freqVals.reduce((a,b)=>a+b,0)/freqVals.length : null;
+
+    const situacaoMateria = (media, freq) => {
+        if (media === null) return { label:"Em Curso", color:"#9aaa9f", bg:"#f5f7f5" };
+        if (freq !== null && freq < 75) return { label:"Freq. Insuficiente", color:"#b94040", bg:"#fdf0f0" };
+        if (media < 6) return { label:"Reprovado", color:"#b94040", bg:"#fdf0f0" };
+        return { label:"Aprovado", color:"#3a7a5a", bg:"#f0f5f2" };
+    };
+
+    const { label: sitLabel, color: sitColor } = (() => {
+        if (!mediasArr.length) return { label:"Em Curso", color:"#9aaa9f" };
+        if (freqVals.some(f => f < 75) || mediasArr.some(m => m < 6))
+            return { label:"Em Risco", color:"#b94040" };
+        return { label:"Aprovando", color:"#3a7a5a" };
+    })();
+
+    const TIPO_CORES = { PROVA:"#1a4d3a", TRABALHO:"#1A759F", SIMULADO:"#6d597a", RECUPERACAO:"#b45309" };
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
-            <div className="ad-cards-grid">
+            {/* ── Cards ── */}
+            <div className="ad-cards-grid" style={{ gridTemplateColumns:"repeat(4,1fr)" }}>
                 <div className="ad-card" style={{ "--accent":"#7ec8a0" }}>
-                    <div className="ad-card-num">{totalMaterias || "—"}</div>
-                    <div className="ad-card-label">Matérias</div>
-                </div>
-                <div className="ad-card" style={{ "--accent":"#52b69a" }}>
-                    <div className="ad-card-num">{mediaGeral ?? "—"}</div>
+                    <div className="ad-card-num">{mediaGeral !== null ? fmt(mediaGeral) : "—"}</div>
                     <div className="ad-card-label">Média Geral</div>
                 </div>
+                <div className="ad-card" style={{ "--accent": freqMedia !== null && freqMedia < 75 ? "#e63946" : "#52b69a" }}>
+                    <div className="ad-card-num" style={{ color: freqMedia !== null && freqMedia < 75 ? "#e63946" : undefined }}>
+                        {freqMedia !== null ? `${fmt(freqMedia)}%` : carregando ? "..." : "—"}
+                    </div>
+                    <div className="ad-card-label">Frequência Geral</div>
+                </div>
+                <div className="ad-card" style={{ "--accent": sitColor }}>
+                    <div className="ad-card-num" style={{ fontSize:18, color: sitColor }}>{sitLabel}</div>
+                    <div className="ad-card-label">Situação</div>
+                </div>
                 <div className="ad-card" style={{ "--accent":"#168aad" }}>
-                    <div className="ad-card-num">{medias.length ? `${aprovadas}/${medias.length}` : "—"}</div>
-                    <div className="ad-card-label">Aprovadas</div>
+                    <div className="ad-card-num">{carregando ? "..." : proximas.length || "0"}</div>
+                    <div className="ad-card-label">Provas em 30 dias</div>
                 </div>
             </div>
 
-            {vinculos.length > 0 && (
+            {/* ── Situação por Matéria ── */}
+            {Object.values(porMateria).length > 0 && (
                 <div className="ad-section">
                     <div className="ad-section-header">
-                        <span className="ad-section-title">Minhas turmas</span>
-                        <span className="ad-section-count">{vinculos.length} vínculo{vinculos.length !== 1 ? "s" : ""}</span>
+                        <span className="ad-section-title">Situação por Matéria</span>
+                        <span className="ad-section-count">Aprovação: média ≥ 6.0 e freq. ≥ 75%</span>
                     </div>
                     <div className="ad-table-wrap">
                         <table className="ad-table">
                             <thead>
                                 <tr>
-                                    <th>Turma</th>
-                                    <th>Série</th>
-                                    <th>Ano Letivo</th>
+                                    <th>Matéria</th>
+                                    <th>Média</th>
+                                    <th>Frequência</th>
+                                    <th>Situação</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {vinculos.map((v, i) => (
-                                    <tr key={i}>
-                                        <td>{v.turma?.nome ?? "—"}</td>
-                                        <td>{v.turma?.serie?.nome ?? "—"}</td>
-                                        <td>{v.turma?.anoLetivo ?? "—"}</td>
+                                {Object.values(porMateria).map(({ materia, notas: nts }) => {
+                                    const media = mediaMateria(nts);
+                                    const freqEntry = frequencias[materia.id];
+                                    const freq = freqEntry?.percentualPresenca ?? null;
+                                    const sit = situacaoMateria(media, freq);
+                                    return (
+                                        <tr key={materia.id}>
+                                            <td style={{ fontWeight:500 }}>{materia.nome}</td>
+                                            <td>
+                                                {media !== null
+                                                    ? <span style={{ fontWeight:700, color:corNota(media) }}>{fmt(media)}</span>
+                                                    : <span style={{ color:"#9aaa9f" }}>—</span>}
+                                            </td>
+                                            <td>
+                                                {freq !== null ? (
+                                                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                                                        <div style={{ width:56, height:5, background:"#eaeef2", borderRadius:3, overflow:"hidden" }}>
+                                                            <div style={{ height:"100%", width:`${Math.min(freq,100)}%`, background:corFreq(freq), borderRadius:3 }} />
+                                                        </div>
+                                                        <span style={{ fontSize:12, fontWeight:600, color:corFreq(freq) }}>{fmt(freq)}%</span>
+                                                    </div>
+                                                ) : <span style={{ color:"#9aaa9f", fontSize:12 }}>{carregando ? "..." : "—"}</span>}
+                                            </td>
+                                            <td>
+                                                <span className="ad-badge" style={{ color:sit.color, background:sit.bg }}>{sit.label}</span>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Próximas Avaliações ── */}
+            <div className="ad-section">
+                <div className="ad-section-header">
+                    <span className="ad-section-title">Próximas Avaliações</span>
+                    <span className="ad-section-count">próximos 30 dias</span>
+                </div>
+                {carregando ? (
+                    <p style={{ color:"#9aaa9f", fontSize:13, padding:"20px", textAlign:"center" }}>Carregando...</p>
+                ) : proximas.length === 0 ? (
+                    <p style={{ color:"#9aaa9f", fontSize:13, padding:"20px", textAlign:"center" }}>Nenhuma avaliação agendada nos próximos 30 dias.</p>
+                ) : (
+                    <div className="ad-table-wrap">
+                        <table className="ad-table">
+                            <thead>
+                                <tr><th>Data</th><th>Matéria</th><th>Tipo</th><th>Descrição</th><th>Bim.</th></tr>
+                            </thead>
+                            <tbody>
+                                {[...proximas].sort((a,b) => (a.dataAplicacao||"").localeCompare(b.dataAplicacao||"")).map(av => (
+                                    <tr key={av.id}>
+                                        <td style={{ fontWeight:600, whiteSpace:"nowrap", color:"#0d1f18" }}>
+                                            {av.dataAplicacao
+                                                ? new Date(av.dataAplicacao + "T12:00:00").toLocaleDateString("pt-BR", { day:"2-digit", month:"short" })
+                                                : "—"}
+                                        </td>
+                                        <td style={{ fontWeight:500 }}>{av.materiaNome || "—"}</td>
+                                        <td>
+                                            <span className="ad-badge" style={{ background:"#f0f5f2", color: TIPO_CORES[av.tipo] || "#1a4d3a", fontSize:10 }}>
+                                                {av.tipo}
+                                            </span>
+                                        </td>
+                                        <td style={{ color:"#5a7060" }}>{av.descricao || "—"}</td>
+                                        <td style={{ color:"#9aaa9f" }}>{av.bimestre ? `${av.bimestre}º` : "—"}</td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
+                )}
+            </div>
+
+            {/* Turmas (compacto) */}
+            {vinculos.length > 0 && (
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+                    <span style={{ fontSize:11, color:"#9aaa9f" }}>Turmas:</span>
+                    {vinculos.map((v,i) => (
+                        <span key={i} style={{ background:"#f0f5f2", color:"#3a7a5a", padding:"2px 10px", borderRadius:20, fontSize:11, fontWeight:500 }}>
+                            {v.turma?.nome ?? "—"} · {v.turma?.anoLetivo}
+                        </span>
+                    ))}
                 </div>
             )}
         </div>
@@ -261,14 +388,20 @@ function Boletim({ notas, turmaId }) {
             {Object.values(porMateria).map(({ materia, notas: nts }, idx) => {
                 const media = mediaMateria(nts);
                 const accent = CORES_MATERIA[idx % CORES_MATERIA.length];
+                const sitColor = media === null ? "#9aaa9f" : media >= 6 ? "#3a7a5a" : "#b94040";
+                const sitLabel = media === null ? "Em Curso" : media >= 6 ? "Aprovado" : "Reprovado";
+                const sitBg    = media === null ? "#f5f7f5" : media >= 6 ? "#f0f5f2" : "#fdf0f0";
                 return (
                     <div key={materia.id} className="ad-section" style={{ borderTop:`2px solid ${accent}`, overflow:"hidden" }}>
                         {/* cabeçalho matéria */}
                         <div className="ad-section-header">
                             <span className="ad-section-title" style={{ color:accent, fontSize:15, fontWeight:600 }}>{materia.nome}</span>
-                            <span className="ad-badge" style={{ color:corNota(media), background:bgNota(media), fontSize:13 }}>
-                                Média: {fmt(media)}
-                            </span>
+                            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                                <span className="ad-badge" style={{ color:sitColor, background:sitBg, fontSize:11 }}>{sitLabel}</span>
+                                <span className="ad-badge" style={{ color:corNota(media), background:bgNota(media), fontSize:13 }}>
+                                    Média: {fmt(media)}
+                                </span>
+                            </div>
                         </div>
 
                         {/* bimestres sempre visíveis */}
@@ -677,7 +810,7 @@ export default function AlunoDashboard() {
                                 ))}
                             </div>
                         )}
-                        {aba === "inicio"      && <Inicio vinculos={vinculosAno} notas={notasAno} />}
+                        {aba === "inicio"      && <Inicio vinculos={vinculosAno} notas={notasAno} turmaId={turmaIdAno} />}
                         {aba === "boletim"     && <Boletim notas={notasAno} turmaId={turmaIdAno} />}
                         {aba === "frequencia"  && <Frequencia notas={notasAno} turmaId={turmaIdAno} />}
                         {aba === "horarios"    && <Horarios />}
