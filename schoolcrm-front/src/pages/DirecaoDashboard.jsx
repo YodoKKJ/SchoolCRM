@@ -5947,11 +5947,10 @@ function FinConfiguracoes({ anoLetivo }) {
 // ---- COMUNICADOS ----
 function Comunicados() {
     const userRole = localStorage.getItem("role") || "DIRECAO";
-    const userName = localStorage.getItem("nome") || userRole;
-    const isCoord  = userRole === "COORDENACAO";
 
     const [comunicados, setComunicados] = useState([]);
-    const [form, setForm] = useState({ titulo:"", corpo:"", destinatarios:"TODOS" });
+    const [turmas, setTurmas]           = useState([]);
+    const [form, setForm] = useState({ titulo:"", corpo:"", destinatarios:"TODOS", turmaId:"" });
     const [criando, setCriando] = useState(false);
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
 
@@ -5961,14 +5960,20 @@ function Comunicados() {
         api.get("/comunicados").then(r => setComunicados(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     };
 
-    useEffect(() => { carregar(); }, []);
+    useEffect(() => {
+        carregar();
+        api.get("/turmas").then(r => setTurmas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    }, []);
 
     const salvar = async e => {
         e.preventDefault();
         if (!form.titulo.trim() || !form.corpo.trim()) return flash("Título e texto são obrigatórios.", "err");
+        if (form.destinatarios === "TURMA" && !form.turmaId) return flash("Selecione a turma.", "err");
+        const payload = { titulo: form.titulo, corpo: form.corpo, destinatarios: form.destinatarios };
+        if (form.destinatarios === "TURMA") payload.turmaId = form.turmaId;
         try {
-            await api.post("/comunicados", form);
-            setForm({ titulo:"", corpo:"", destinatarios:"TODOS" });
+            await api.post("/comunicados", payload);
+            setForm({ titulo:"", corpo:"", destinatarios:"TODOS", turmaId:"" });
             setCriando(false);
             flash("Comunicado publicado!");
             carregar();
@@ -5984,7 +5989,8 @@ function Comunicados() {
         } catch(err) { flash(err.response?.data || "Erro ao remover.", "err"); }
     };
 
-    const DEST_LABELS = { TODOS:"Todos", PROFESSORES:"Professores", ALUNOS:"Alunos", DIRECAO:"Direção" };
+    const turmaNome = id => turmas.find(t => String(t.id) === String(id))?.nome || `Turma ${id}`;
+    const DEST_LABELS = { TODOS:"Todos", PROFESSORES:"Professores", ALUNOS:"Alunos" };
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
@@ -6003,7 +6009,7 @@ function Comunicados() {
                 {criando && (
                     <div style={{ padding:24, borderBottom:"1px solid #eaeef2" }}>
                         <form onSubmit={salvar} style={{ display:"flex", flexDirection:"column", gap:16 }}>
-                            <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:12 }}>
+                            <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:12, alignItems:"end" }}>
                                 <div>
                                     <label className="dd-label">Título</label>
                                     <div className="dd-input-wrap">
@@ -6013,15 +6019,30 @@ function Comunicados() {
                                 </div>
                                 <div>
                                     <label className="dd-label">Destinatários</label>
-                                    <select value={form.destinatarios} onChange={e => setForm(f => ({...f, destinatarios:e.target.value}))}
+                                    <select value={form.destinatarios}
+                                            onChange={e => setForm(f => ({...f, destinatarios:e.target.value, turmaId:""}))}
                                             className="dd-input" style={{ height:38, cursor:"pointer" }}>
                                         <option value="TODOS">Todos</option>
                                         <option value="PROFESSORES">Professores</option>
                                         <option value="ALUNOS">Alunos</option>
-                                        <option value="DIRECAO">Direção</option>
+                                        <option value="TURMA">Por Turma</option>
                                     </select>
                                 </div>
                             </div>
+                            {form.destinatarios === "TURMA" && (
+                                <div>
+                                    <label className="dd-label">Turma</label>
+                                    <select value={form.turmaId} onChange={e => setForm(f => ({...f, turmaId:e.target.value}))}
+                                            className="dd-input" style={{ height:38, cursor:"pointer" }} required>
+                                        <option value="">Selecione a turma…</option>
+                                        {turmas.map(t => (
+                                            <option key={t.id} value={t.id}>
+                                                {t.serie?.nome ? `${t.serie.nome} — ` : ""}{t.nome}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                             <div>
                                 <label className="dd-label">Texto</label>
                                 <textarea className="dd-input" rows={5} value={form.corpo}
@@ -6046,11 +6067,13 @@ function Comunicados() {
                         <div key={c.id} style={{ padding:"16px 0", borderBottom:"1px solid #f0f4f1" }}>
                             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12 }}>
                                 <div style={{ flex:1 }}>
-                                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
+                                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6, flexWrap:"wrap" }}>
                                         <span style={{ fontWeight:600, fontSize:14, color:"#0d1f18" }}>{c.titulo}</span>
                                         <span style={{ fontSize:10, fontWeight:500, letterSpacing:".08em", textTransform:"uppercase",
                                                        background:"#e8f5ec", color:"#3a7a5a", padding:"2px 8px", borderRadius:3 }}>
-                                            {DEST_LABELS[c.destinatarios] || c.destinatarios}
+                                            {c.destinatarios === "TURMA"
+                                                ? `Turma: ${turmaNome(c.turmaId)}`
+                                                : (DEST_LABELS[c.destinatarios] || c.destinatarios)}
                                         </span>
                                     </div>
                                     <p style={{ fontSize:13, color:"#3a4a40", lineHeight:1.6, whiteSpace:"pre-wrap", margin:"0 0 8px" }}>{c.corpo}</p>
@@ -6058,9 +6081,11 @@ function Comunicados() {
                                         {c.autorNome} · {c.dataPublicacao ? new Date(c.dataPublicacao).toLocaleString("pt-BR", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" }) : ""}
                                     </p>
                                 </div>
-                                <button onClick={() => deletar(c.id)} style={{ background:"none", border:"none", cursor:"pointer", color:"#c0a0a0", flexShrink:0 }}>
-                                    <Trash2 size={14} />
-                                </button>
+                                {(userRole === "DIRECAO" || userRole === "COORDENACAO") && (
+                                    <button onClick={() => deletar(c.id)} style={{ background:"none", border:"none", cursor:"pointer", color:"#c0a0a0", flexShrink:0 }}>
+                                        <Trash2 size={14} />
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ))}

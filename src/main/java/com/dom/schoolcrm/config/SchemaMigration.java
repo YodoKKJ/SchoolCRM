@@ -86,6 +86,19 @@ public class SchemaMigration {
             );
         } catch (Exception ignored) {}
 
+        // Drop CHECK constraint em usuarios.role para aceitar COORDENACAO
+        try {
+            jdbcTemplate.execute(
+                "DO $$ DECLARE r RECORD; BEGIN " +
+                "  FOR r IN SELECT constraint_name FROM information_schema.table_constraints " +
+                "            WHERE table_name = 'usuarios' AND constraint_type = 'CHECK' " +
+                "  LOOP " +
+                "    EXECUTE 'ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS ' || quote_ident(r.constraint_name); " +
+                "  END LOOP; " +
+                "END $$;"
+            );
+        } catch (Exception ignored) {}
+
         // Feature 10: Comunicados
         try {
             jdbcTemplate.execute("""
@@ -101,6 +114,11 @@ public class SchemaMigration {
                     ativo BOOLEAN NOT NULL DEFAULT TRUE
                 );
                 """);
+        } catch (Exception ignored) {}
+
+        // Feature 10 patch: coluna turma_id em comunicados (para comunicados por turma)
+        try {
+            jdbcTemplate.execute("ALTER TABLE comunicados ADD COLUMN IF NOT EXISTS turma_id BIGINT;");
         } catch (Exception ignored) {}
 
         // Feature 11: Critérios configuráveis de aprovação
