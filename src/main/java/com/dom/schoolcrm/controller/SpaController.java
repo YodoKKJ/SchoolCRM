@@ -9,7 +9,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 /**
- * Redireciona erros 404 para o index.html do React (navegação SPA).
+ * Serve o index.html do React para:
+ *  - Rotas SPA conhecidas (/direcao, /professor, /aluno)
+ *  - Qualquer erro de navegação (/error)
+ *
  * Necessário para que o refresh de página funcione no React Router.
  *
  * IMPORTANTE: apenas GET faz forward para index.html.
@@ -18,6 +21,11 @@ import org.springframework.web.bind.annotation.ResponseBody;
  */
 @Controller
 public class SpaController implements ErrorController {
+
+    @RequestMapping(value = {"/direcao", "/professor", "/aluno"})
+    public String handleSpaRoutes() {
+        return "forward:/index.html";
+    }
 
     @GetMapping("/error")
     public String handleErrorGet() {
