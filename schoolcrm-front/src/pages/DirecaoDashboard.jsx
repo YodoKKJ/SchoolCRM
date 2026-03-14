@@ -1,17 +1,28 @@
 import { useState, useEffect, useRef, Component } from "react";
 import axios from "axios";
-import { BoletimImpresso } from "./BoletimPDF";
 import {
     Home, Users, School, BookOpen, LogOut,
     GraduationCap, UserCheck, LayoutGrid, BookMarked, Menu,
     Trash2, Pencil, ArrowLeft, UserPlus, ChevronDown, Search, X,
     FileText, DollarSign, Lock, ClipboardList, ChevronRight, Clock, CalendarDays,
     TrendingUp, TrendingDown, ArrowLeftRight, Settings, BarChart2, Briefcase,
-    Receipt, Building2, CheckCircle2, AlertCircle, Ban, Wallet, CreditCard
+    Receipt, Building2, CheckCircle2, AlertCircle, Ban, Wallet, CreditCard,
+    Bell, Megaphone, Shield, Send, ChevronUp, RefreshCw, Eye
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 const api = axios.create({ baseURL: "" });
+
+/** Formata o nome de exibição de uma turma: "Série — Nome" */
+const fmtTurma = (t) => t ? (t.serie?.nome ? `${t.serie.nome} — ${t.nome}` : t.nome) : "";
+
+// Evita cache do browser em requisições GET — garante dados sempre frescos após CRUD
+api.interceptors.request.use(config => {
+    if (config.method === "get") {
+        config.params = { ...config.params, _t: Date.now() };
+    }
+    return config;
+});
 
 let redirectingTo401 = false;
 
@@ -103,7 +114,9 @@ const modulos = [
         id: "gestao",
         label: "Gestão",
         items: [
-            { id: "usuarios", label: "Usuários", icon: Users },
+            { id: "usuarios",     label: "Usuários",    icon: Users },
+            { id: "comunicados",  label: "Comunicados", icon: Megaphone },
+            { id: "auditoria",    label: "Auditoria",   icon: Shield, direcaoOnly: true },
         ]
     },
     {
@@ -411,7 +424,7 @@ function Relatorios({ anoLetivo }) {
                     <div>
                         <label className="dd-label">Turma ({anoLetivo})</label>
                         <SearchSelect
-                            options={turmas.map(t => ({ value: String(t.id), label: t.nome }))}
+                            options={turmas.map(t => ({ value: String(t.id), label: fmtTurma(t) }))}
                             value={turmaSel ? String(turmaSel.id) : ""}
                             onChange={v => { setTurmaSel(turmas.find(t => String(t.id) === v) || null); setRelatorio(null); }}
                             placeholder="Selecione a turma..." />
@@ -455,12 +468,32 @@ function Relatorios({ anoLetivo }) {
                     <div className="dd-section-header">
                         <div style={{ display:"flex", alignItems:"baseline", gap:10 }}>
                             <span className="dd-section-title">
-                                {tituloRel} — {turmaSel.nome}
+                                {tituloRel} — {fmtTurma(turmaSel)}
                                 {tipoRel === "medias" && ` — ${bimestreSel === "0" ? "Ano completo" : `${bimestreSel}º Bimestre`}`}
                             </span>
                             <span className="dd-section-count">{relatorio.length} alunos</span>
                         </div>
-                        <button className="dd-btn-edit" onClick={() => window.print()}>Imprimir / PDF</button>
+                        <button className="dd-btn-edit" onClick={async () => {
+                            try {
+                                const bimParam = tipoRel === "situacao" ? 0 : bimestreSel;
+                                const resp = await fetch(
+                                    `/relatorios/turma/${turmaSel.id}?tipo=${tipoRel}&bimestre=${bimParam}`,
+                                    { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+                                );
+                                if (!resp.ok) {
+                                    const err = await resp.text().catch(() => "");
+                                    alert("Erro ao gerar PDF" + (err ? ":\n" + err : "."));
+                                    return;
+                                }
+                                const blob = await resp.blob();
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = `relatorio_${tipoRel}_${fmtTurma(turmaSel).replace(/\s+/g, "_").replace(/—/g, "-")}.pdf`;
+                                a.click();
+                                URL.revokeObjectURL(url);
+                            } catch (e) { alert("Erro ao gerar PDF: " + e.message); }
+                        }}>Baixar PDF →</button>
                     </div>
 
                     {/* ── Cartões de resumo (situação final) ── */}
@@ -585,12 +618,28 @@ class ErrorBoundary extends Component {
 }
 
 export default function DirecaoDashboard() {
+    const userRole = localStorage.getItem("role") || "DIRECAO";
+    const isCoord = userRole === "COORDENACAO";
+
     const [aba, setAba] = useState("inicio");
     const [sidebarAberta, setSidebarAberta] = useState(false);
     const [colapsados, setColapsados] = useState({});
-    const nome = localStorage.getItem("nome") || "Direção";
+    const nome = localStorage.getItem("nome") || (isCoord ? "Coordenação" : "Direção");
     const logout = () => { localStorage.clear(); window.location.href = "/"; };
     const toggleColapso = (id) => setColapsados(prev => ({ ...prev, [id]: !prev[id] }));
+
+    // COORDENACAO não acessa o módulo financeiro
+    const modulosVisiveis = isCoord
+        ? modulos.filter(m => m.id !== "financeiro")
+        : modulos;
+
+    // Se por algum motivo a aba ativa for financeira e o usuário for COORDENACAO, redireciona para início
+    const FIN_ABAS = ["fin-dashboard","fin-pessoas","fin-funcionarios","fin-contratos","fin-pagar","fin-movimentacoes","fin-config"];
+    const setAbaSegura = (id) => {
+        if (isCoord && FIN_ABAS.includes(id)) return;
+        setAba(id);
+    };
+    if (isCoord && FIN_ABAS.includes(aba)) { setAba("inicio"); }
 
     const anoAtual = new Date().getFullYear();
     const [anoLetivo, setAnoLetivo] = useState(anoAtual);
@@ -654,7 +703,7 @@ export default function DirecaoDashboard() {
 
                     {/* nav */}
                     <nav style={{ flex:1, padding:"16px 8px", display:"flex", flexDirection:"column", gap:16, overflowY:"auto" }}>
-                        {modulos.map(modulo => {
+                        {modulosVisiveis.map(modulo => {
                             const colapsado = !!colapsados[modulo.id];
                             return (
                                 <div key={modulo.id}>
@@ -664,14 +713,14 @@ export default function DirecaoDashboard() {
                                             <ChevronRight size={11} style={{ opacity:.4, transform: colapsado ? "rotate(0deg)" : "rotate(90deg)", transition:"transform .2s" }} />
                                         </button>
                                     )}
-                                    {!colapsado && modulo.items.map(item => {
+                                    {!colapsado && modulo.items.filter(item => !(item.direcaoOnly && isCoord)).map(item => {
                                         const Icon = item.icon;
                                         const active = aba === item.id;
                                         return (
                                             <button key={item.id}
                                                     className={`dd-nav-btn${active ? " active" : ""}${item.disabled ? " disabled" : ""}`}
                                                     disabled={item.disabled}
-                                                    onClick={() => { if (!item.disabled) { setAba(item.id); setSidebarAberta(false); } }}>
+                                                    onClick={() => { if (!item.disabled) { setAbaSegura(item.id); setSidebarAberta(false); } }}>
                                                 <Icon size={14} style={{ flexShrink:0 }} />
                                                 <span style={{ flex:1 }}>{item.label}</span>
                                                 {item.disabled && <span className="dd-badge-soon">Em breve</span>}
@@ -727,6 +776,8 @@ export default function DirecaoDashboard() {
                         {aba === "fin-pagar"        && <ErrorBoundary key="fin-pagar"><FinContasPagar /></ErrorBoundary>}
                         {aba === "fin-movimentacoes" && <ErrorBoundary key="fin-movimentacoes"><FinMovimentacoes /></ErrorBoundary>}
                         {aba === "fin-config"       && <ErrorBoundary key="fin-config"><FinConfiguracoes anoLetivo={anoLetivo} /></ErrorBoundary>}
+                        {aba === "comunicados"      && <ErrorBoundary key="comunicados"><Comunicados /></ErrorBoundary>}
+                        {aba === "auditoria"        && !isCoord && <ErrorBoundary key="auditoria"><AuditLog /></ErrorBoundary>}
                     </main>
                 </div>
             </div>
@@ -1057,6 +1108,7 @@ function Usuarios() {
                                 { value: "ALUNO", label: "Aluno" },
                                 { value: "PROFESSOR", label: "Professor" },
                                 { value: "DIRECAO", label: "Direção" },
+                                { value: "COORDENACAO", label: "Coordenação" },
                             ]}
                             value={form.role}
                             onChange={v => setForm({ ...form, role: v })}
@@ -1112,7 +1164,7 @@ function Usuarios() {
                     />
                     {campoBusca === "role" && (
                         <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                            {["ALUNO", "PROFESSOR", "DIRECAO"].map(r => (
+                            {["ALUNO", "PROFESSOR", "DIRECAO", "COORDENACAO"].map(r => (
                                 <button key={r} onClick={() => setTermoBusca(termoBusca === r ? "" : r)}
                                         className="dd-badge"
                                         style={{ background: termoBusca === r ? "#0d1f18" : "#f0f5f2", color: termoBusca === r ? "#7ec8a0" : "#3a6649", cursor:"pointer", border:"none" }}>
@@ -1126,8 +1178,8 @@ function Usuarios() {
                     <thead><tr>{["Nome","Login","Perfil","Status",""].map(h=><th key={h}>{h}</th>)}</tr></thead>
                     <tbody>
                     {usuarios.map(u => {
-                        const roleBg = { ALUNO:"#f0f5f2", PROFESSOR:"#e8f3ec", DIRECAO:"#eef5f0" };
-                        const roleClr = { ALUNO:"#3a6649", PROFESSOR:"#2d6a4f", DIRECAO:"#1a4d3a" };
+                        const roleBg = { ALUNO:"#f0f5f2", PROFESSOR:"#e8f3ec", DIRECAO:"#eef5f0", COORDENACAO:"#e8f0fb" };
+                        const roleClr = { ALUNO:"#3a6649", PROFESSOR:"#2d6a4f", DIRECAO:"#1a4d3a", COORDENACAO:"#2d4a8a" };
                         const inativo = !u.ativo;
                         return (
                             <tr key={u.id} style={{ opacity: inativo ? 0.5 : 1 }}>
@@ -1795,7 +1847,7 @@ function Lancamentos({ anoLetivo }) {
     const [alunos, setAlunos] = useState([]);
     const [avaliacaoSel, setAvaliacaoSel] = useState(null);
     const [notasEdit, setNotasEdit] = useState({});
-    const [formAv, setFormAv] = useState({ tipo:"PROVA", descricao:"", peso:"1.0", bonificacao:false, bimestre:"1" });
+    const [formAv, setFormAv] = useState({ tipo:"PROVA", descricao:"", peso:"1.0", bonificacao:false, bimestre:"1", dataAplicacao:"" });
     const [criandoAv, setCriandoAv] = useState(false);
     const [bimestroFiltro, setBimestroFiltro] = useState("");
     const [notasComErro, setNotasComErro] = useState({});
@@ -1858,7 +1910,7 @@ function Lancamentos({ anoLetivo }) {
         if (!turmaId || !materiaId || !dataAula) { setAulasNoDia([]); return; }
         const diaSemana = DIAS_SEMANA[new Date(dataAula + "T12:00").getDay()];
         setLoadingAulas(true);
-        api.get(`/horarios/turma/${turmaId}/dia/${diaSemana}`)
+        api.get(`/horarios/turma/${turmaId}/dia/${diaSemana}?data=${dataAula}`)
             .then(r => {
                 const filtradas = (r.data || []).filter(h => String(h.materiaId) === String(materiaId));
                 setAulasNoDia(filtradas);
@@ -1923,7 +1975,7 @@ function Lancamentos({ anoLetivo }) {
             const novaAv = resp.data;
             flash("Avaliação criada!");
             setCriandoAv(false);
-            setFormAv({ tipo:"PROVA", descricao:"", peso:"1.0", bonificacao:false, bimestre:"1" });
+            setFormAv({ tipo:"PROVA", descricao:"", peso:"1.0", bonificacao:false, bimestre:"1", dataAplicacao:"" });
             const r = await api.get("/notas/avaliacoes", { params: { turmaId, materiaId } });
             setAvaliacoes(r.data || []);
             if (formAv.tipo === "RECUPERACAO") {
@@ -2046,7 +2098,7 @@ function Lancamentos({ anoLetivo }) {
                         <select className="dd-search-input" style={{ width:"100%", paddingLeft:12 }}
                                 value={turmaId} onChange={e => { setTurmaId(e.target.value); setMateriaId(""); }}>
                             <option value="">Selecione a turma...</option>
-                            {turmas.filter(t => t.anoLetivo === anoLetivo).map(t => <option key={t.id} value={t.id}>{t.nome} — {t.serie?.nome}</option>)}
+                            {turmas.filter(t => t.anoLetivo === anoLetivo).map(t => <option key={t.id} value={t.id}>{fmtTurma(t)}</option>)}
                         </select>
                     </div>
                     <div>
@@ -2345,7 +2397,14 @@ function Lancamentos({ anoLetivo }) {
                                         transition:"transform .2s",
                                         transform: aulasColapsadas.has(aula.ordemAula) ? "rotate(-90deg)" : "rotate(0deg)"
                                     }}>▾</span>
-                                    <span className="dd-section-title">{idx + 1}ª Aula — {aula.horarioInicio}</span>
+                                    <span className="dd-section-title">
+                                        {idx + 1}ª Aula — {aula.horarioInicio}
+                                        {aula.dataFimVigencia && (
+                                            <span style={{ marginLeft:6, fontSize:10, background:"#f59e0b", color:"#fff", padding:"1px 7px", borderRadius:4, verticalAlign:"middle", fontWeight:600 }}>
+                                                Horário Antigo
+                                            </span>
+                                        )}
+                                    </span>
                                 </div>
                                 <span className="dd-section-count">
                                     {Object.values(chamadaPorAula[aula.ordemAula] || {}).filter(Boolean).length}/{alunos.length} presentes
@@ -2455,7 +2514,7 @@ function Lancamentos({ anoLetivo }) {
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:24 }}>
                             <div>
                                 <p className="dd-modal-title">Nova Avaliação</p>
-                                <p className="dd-modal-sub">{turmas.find(t=>String(t.id)===String(turmaId))?.nome} · {materias.find(m=>String(m.id)===String(materiaId))?.nome}</p>
+                                <p className="dd-modal-sub">{fmtTurma(turmas.find(t=>String(t.id)===String(turmaId)))} · {materias.find(m=>String(m.id)===String(materiaId))?.nome}</p>
                             </div>
                             <button onClick={() => setCriandoAv(false)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}>
                                 <X size={16} />
@@ -2499,6 +2558,14 @@ function Lancamentos({ anoLetivo }) {
                                 <div className="dd-input-wrap">
                                     <input className="dd-input" placeholder="Ex: Prova bimestral 1"
                                            value={formAv.descricao} onChange={e => setFormAv(p => ({...p, descricao:e.target.value}))} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Data de Aplicação <span style={{ color:"#9aaa9f", fontWeight:400 }}>(opcional)</span></label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" type="date"
+                                           value={formAv.dataAplicacao} onChange={e => setFormAv(p => ({...p, dataAplicacao:e.target.value}))} />
                                     <div className="dd-input-line" />
                                 </div>
                             </div>
@@ -2914,154 +2981,162 @@ function Boletins({ anoLetivo }) {
     const [turmas, setTurmas] = useState([]);
     const [alunoId, setAlunoId] = useState("");
     const [turmaId, setTurmaId] = useState("");
-    const [boletim, setBoletim] = useState(null);
-    const [carregando, setCarregando] = useState(false);
-    const [logo, setLogo] = useState(() => localStorage.getItem("escola_logo") || null);
     const [gerando, setGerando] = useState(false);
-    const [preview, setPreview] = useState(false);
-    const boletimRef = useRef(null);
+    const [modoLote, setModoLote] = useState(false);
 
     useEffect(() => {
         api.get("/usuarios").then(r => setAlunos((r.data || []).filter(u => u.role === "ALUNO" && u.ativo)));
         api.get("/turmas").then(r => setTurmas(r.data || []));
     }, []);
 
-    const handleLogo = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            const dataUrl = ev.target.result;
-            setLogo(dataUrl);
-            localStorage.setItem("escola_logo", dataUrl);
-        };
-        reader.readAsDataURL(file);
-    };
-
-    const gerarBoletim = async () => {
-        if (!alunoId || !turmaId) return;
-        setCarregando(true);
-        setBoletim(null);
-        setPreview(false);
+    // Ao selecionar aluno, busca e fixa a turma do aluno no ano letivo atual
+    const handleAlunoChange = async (id) => {
+        setAlunoId(id);
+        setTurmaId("");
+        if (!id) return;
         try {
-            const r = await api.get(`/notas/boletim/${alunoId}/${turmaId}`);
-            setBoletim(r.data);
-            setPreview(true);
-        } catch (e) {
-            alert("Erro ao gerar boletim.");
-        } finally {
-            setCarregando(false);
-        }
+            const r = await api.get(`/vinculos/aluno-turma?alunoId=${id}&anoLetivo=${anoLetivo}`);
+            const vinculos = r.data || [];
+            if (vinculos.length > 0) setTurmaId(String(vinculos[0].turmaId));
+        } catch (_) { /* silencioso */ }
     };
 
-    const baixarPDF = async () => {
-        if (!boletimRef.current) return;
+    const baixarBoletim = async () => {
+        if (!alunoId || !turmaId) return;
         setGerando(true);
         try {
-            const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
-                import("jspdf"),
-                import("html2canvas"),
-            ]);
-            const canvas = await html2canvas(boletimRef.current, {
-                scale: 2, useCORS: true, backgroundColor: "#fff",
-            });
-            const imgData = canvas.toDataURL("image/png");
-            const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-            const pdfW = pdf.internal.pageSize.getWidth();
-            const pdfH = (canvas.height * pdfW) / canvas.width;
-            pdf.addImage(imgData, "PNG", 0, 0, pdfW, pdfH);
-            const nome = (boletim?.aluno?.nome || "aluno").replace(/\s+/g,"_").toLowerCase();
-            pdf.save(`boletim_${nome}.pdf`);
+            const resp = await fetch(
+                `/relatorios/boletim/${alunoId}/${turmaId}`,
+                { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+            );
+            if (!resp.ok) {
+                const err = await resp.text().catch(() => "");
+                alert("Erro ao gerar boletim PDF" + (err ? ":\n" + err : "."));
+                return;
+            }
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            const nomeAluno = (alunos.find(a => String(a.id) === String(alunoId))?.nome || "aluno")
+                .replace(/\s+/g, "_").toLowerCase();
+            a.download = `boletim_${nomeAluno}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
         } catch (e) {
-            alert("Erro ao gerar PDF.\nInstale as dependências:\nnpm install jspdf html2canvas");
+            alert("Erro ao gerar boletim PDF: " + e.message);
+        } finally {
+            setGerando(false);
         }
-        setGerando(false);
     };
+
+    const baixarBoletimLote = async () => {
+        if (!turmaId) return;
+        setGerando(true);
+        try {
+            const resp = await fetch(
+                `/relatorios/boletim/turma/${turmaId}/zip`,
+                { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+            );
+            if (!resp.ok) {
+                const err = await resp.text().catch(() => "");
+                alert("Erro ao gerar boletins em lote" + (err ? ":\n" + err : "."));
+                return;
+            }
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            const nomeTurma = (fmtTurma(turmas.find(t => String(t.id) === String(turmaId))) || `turma_${turmaId}`)
+                .replace(/\s+/g, "_").replace(/—/g, "-").toLowerCase();
+            a.download = `boletins_${nomeTurma}.zip`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            alert("Erro ao gerar boletins em lote: " + e.message);
+        } finally {
+            setGerando(false);
+        }
+    };
+
+    const turmasFiltradas = turmas.filter(t => t.anoLetivo === anoLetivo);
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
-
-            {/* Configuração do logo */}
             <div className="dd-section" style={{ padding:24 }}>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-                    <p className="dd-section-title">Logo da Escola</p>
-                    {logo && (
-                        <button onClick={() => { setLogo(null); localStorage.removeItem("escola_logo"); }}
-                                className="dd-btn-ghost" style={{ fontSize:10 }}>Remover logo</button>
-                    )}
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+                    <p className="dd-section-title" style={{ margin:0 }}>Gerar Boletim</p>
+                    <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", fontSize:13, color:"#3d5a47", userSelect:"none" }}>
+                        <input
+                            type="checkbox"
+                            checked={modoLote}
+                            onChange={e => { setModoLote(e.target.checked); setAlunoId(""); setTurmaId(""); }}
+                            style={{ width:15, height:15, cursor:"pointer", accentColor:"#0d1f18" }}
+                        />
+                        Gerar em lote (turma inteira)
+                    </label>
                 </div>
-                <div style={{ display:"flex", alignItems:"center", gap:20 }}>
-                    <div style={{ width:100, height:64, border:"1px solid #eaeef2", display:"flex",
-                        alignItems:"center", justifyContent:"center", overflow:"hidden", background:"#f8faf8" }}>
-                        {logo
-                            ? <img src={logo} style={{ maxWidth:"100%", maxHeight:"100%", objectFit:"contain" }} alt="logo" />
-                            : <span style={{ fontSize:10, color:"#9aaa9f", textAlign:"center" }}>Sem logo</span>
-                        }
-                    </div>
-                    <div>
-                        <label className="dd-label">Carregar imagem (PNG, JPG)</label>
-                        <input type="file" accept="image/*" onChange={handleLogo}
-                               style={{ fontSize:12, color:"#0d1f18", fontFamily:"'DM Sans',sans-serif" }} />
-                        <p style={{ fontSize:11, color:"#9aaa9f", marginTop:4 }}>
-                            Salvo localmente no navegador. Recomendado: fundo transparente, proporção ~3:2.
-                        </p>
-                    </div>
-                </div>
-            </div>
 
-            {/* Seletor aluno + turma */}
-            <div className="dd-section" style={{ padding:24 }}>
-                <p className="dd-section-title" style={{ marginBottom:20 }}>Gerar Boletim</p>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:16, alignItems:"flex-end" }}>
-                    <div>
-                        <label className="dd-label">Aluno</label>
-                        <SearchSelect
-                            options={alunos.map(a => ({ value: a.id, label: a.nome }))}
-                            value={alunoId} onChange={setAlunoId}
-                            placeholder="Selecione o aluno..." />
-                    </div>
-                    <div>
-                        <label className="dd-label">Turma</label>
-                        <SearchSelect
-                            options={turmas.filter(t => t.anoLetivo === anoLetivo).map(t => ({ value: t.id, label: `${t.nome} — ${t.serie?.nome || ""}` }))}
-                            value={turmaId} onChange={setTurmaId}
-                            placeholder="Selecione a turma..." />
-                    </div>
-                    <button onClick={gerarBoletim} disabled={!alunoId || !turmaId || carregando}
-                            className="dd-btn-primary" style={{ whiteSpace:"nowrap" }}>
-                        {carregando ? "Carregando..." : "Gerar →"}
-                    </button>
-                </div>
-            </div>
-
-            {/* Preview + PDF */}
-            {preview && boletim && (
-                <div className="dd-section">
-                    <div className="dd-section-header">
+                {modoLote ? (
+                    /* ── Modo lote ── */
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:16, alignItems:"flex-end" }}>
                         <div>
-                            <span className="dd-section-title">{boletim.aluno?.nome}</span>
-                            <p style={{ fontSize:11, color:"#9aaa9f", marginTop:2 }}>
-                                {boletim.turma?.nome} · {boletim.turma?.anoLetivo}
-                            </p>
+                            <label className="dd-label">Turma</label>
+                            <SearchSelect
+                                options={turmasFiltradas.map(t => ({ value: t.id, label: fmtTurma(t) }))}
+                                value={turmaId} onChange={setTurmaId}
+                                placeholder="Selecione a turma..." />
                         </div>
-                        <div style={{ display:"flex", gap:8 }}>
-                            <button className="dd-btn-ghost" onClick={() => setPreview(p => !p)}>
-                                {preview ? "Ocultar preview" : "Ver preview"}
-                            </button>
-                            <button className="dd-btn-primary" onClick={baixarPDF} disabled={gerando}>
-                                {gerando ? "Gerando..." : "Baixar PDF →"}
-                            </button>
-                        </div>
+                        <button onClick={baixarBoletimLote} disabled={!turmaId || gerando}
+                                className="dd-btn-primary" style={{ whiteSpace:"nowrap" }}>
+                            {gerando ? "Gerando ZIP..." : "Baixar ZIP →"}
+                        </button>
                     </div>
+                ) : (
+                    /* ── Modo individual ── */
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:16, alignItems:"flex-end" }}>
+                        <div>
+                            <label className="dd-label">Aluno</label>
+                            <SearchSelect
+                                options={alunos.map(a => ({ value: a.id, label: a.nome }))}
+                                value={alunoId} onChange={handleAlunoChange}
+                                placeholder="Selecione o aluno..." />
+                        </div>
+                        <div>
+                            <label className="dd-label">Turma</label>
+                            {alunoId ? (
+                                <div style={{
+                                    padding:"9px 12px", border:"1px solid #c8d5cc",
+                                    borderRadius:4, fontSize:13, color:"#3d5a47",
+                                    background:"#f4f7f5", minHeight:38,
+                                    display:"flex", alignItems:"center", gap:6
+                                }}>
+                                    <span style={{ fontSize:11, color:"#9aaa9f" }}>🔒</span>
+                                    {(() => {
+                                        const t = turmasFiltradas.find(t => String(t.id) === String(turmaId));
+                                        return t ? fmtTurma(t) : turmaId ? "Carregando..." : "—";
+                                    })()}
+                                </div>
+                            ) : (
+                                <SearchSelect
+                                    options={turmasFiltradas.map(t => ({ value: t.id, label: fmtTurma(t) }))}
+                                    value={turmaId} onChange={setTurmaId}
+                                    placeholder="Selecione a turma..." />
+                            )}
+                        </div>
+                        <button onClick={baixarBoletim} disabled={!alunoId || !turmaId || gerando}
+                                className="dd-btn-primary" style={{ whiteSpace:"nowrap" }}>
+                            {gerando ? "Gerando..." : "Baixar PDF →"}
+                        </button>
+                    </div>
+                )}
 
-                    {/* Preview visual */}
-                    <div style={{ padding:20, background:"#f2f4f2", overflowX:"auto" }}>
-                        <div ref={boletimRef} style={{ transformOrigin:"top left" }}>
-                            <BoletimImpresso boletim={boletim} logo={logo} />
-                        </div>
-                    </div>
-                </div>
-            )}
+                <p style={{ fontSize:11, color:"#9aaa9f", marginTop:12 }}>
+                    {modoLote
+                        ? "Gera um .zip com o boletim PDF de cada aluno da turma."
+                        : "O PDF será gerado pelo servidor e baixado automaticamente."}
+                </p>
+            </div>
         </div>
     );
 }
@@ -3287,7 +3362,7 @@ function Horarios({ anoLetivo }) {
                                             <tr>
                                                 <th style={{ width: 70 }}>Horário</th>
                                                 {turmasComHorario.map(tid => (
-                                                    <th key={tid}>{turmaMap[tid]?.nome || `Turma ${tid}`}</th>
+                                                    <th key={tid}>{fmtTurma(turmaMap[tid]) || `Turma ${tid}`}</th>
                                                 ))}
                                             </tr>
                                             </thead>
@@ -3328,7 +3403,7 @@ function Horarios({ anoLetivo }) {
                             <div style={{ flex: 1, minWidth: 200 }}>
                                 <label className="dd-label">Selecione a Turma</label>
                                 <SearchSelect
-                                    options={turmas.filter(t => t.anoLetivo === anoLetivo).map(t => ({ value: t.id, label: `${t.nome}${t.serie ? ` — ${t.serie.nome}` : ""}` }))}
+                                    options={turmas.filter(t => t.anoLetivo === anoLetivo).map(t => ({ value: t.id, label: fmtTurma(t) }))}
                                     value={turmaId}
                                     onChange={v => { setTurmaId(v); setEditMode(false); }}
                                     placeholder="Escolha uma turma"
@@ -3369,7 +3444,7 @@ function Horarios({ anoLetivo }) {
                         <div className="dd-section">
                             <div className="dd-section-header">
                                 <span className="dd-section-title">
-                                    Grade — {turmas.find(t => String(t.id) === String(turmaId))?.nome || ""}
+                                    Grade — {fmtTurma(turmas.find(t => String(t.id) === String(turmaId)))}
                                 </span>
                                 {!editMode && (
                                     <span className="dd-section-count">
@@ -3632,10 +3707,11 @@ const fmt = v => Number(v ?? 0).toLocaleString("pt-BR", { style: "currency", cur
 const fmtData = d => d ? new Date(d + "T12:00").toLocaleDateString("pt-BR") : "—";
 const mesAtual = () => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`; };
 const statusColors = {
-    PENDENTE:  { bg:"#fff8e1", color:"#c47a00" },
-    PAGO:      { bg:"#f0f5f2", color:"#2d6a4f" },
-    CANCELADO: { bg:"#f5f5f5", color:"#9aaa9f" },
-    VENCIDO:   { bg:"#fdf0f0", color:"#b94040" },
+    PENDENTE:           { bg:"#fff8e1", color:"#c47a00" },
+    PAGO:               { bg:"#f0f5f2", color:"#2d6a4f" },
+    CANCELADO:          { bg:"#f5f5f5", color:"#9aaa9f" },
+    VENCIDO:            { bg:"#fdf0f0", color:"#b94040" },
+    PARCIALMENTE_PAGO:  { bg:"#e8f0ff", color:"#2563eb" },
 };
 const statusBadge = s => statusColors[s] ?? { bg:"#f5f5f5", color:"#9aaa9f" };
 
@@ -3768,6 +3844,35 @@ function FinDashboard() {
 }
 
 // ---- FIN PESSOAS ----
+function validarCPF(cpf) {
+    cpf = cpf.replace(/\D/g, '');
+    if (cpf.length !== 11) return false;
+    if (/^(\d)\1{10}$/.test(cpf)) return false;
+    let sum = 0;
+    for (let i = 0; i < 9; i++) sum += parseInt(cpf[i]) * (10 - i);
+    let r = (sum * 10) % 11;
+    if (r === 10 || r === 11) r = 0;
+    if (r !== parseInt(cpf[9])) return false;
+    sum = 0;
+    for (let i = 0; i < 10; i++) sum += parseInt(cpf[i]) * (11 - i);
+    r = (sum * 10) % 11;
+    if (r === 10 || r === 11) r = 0;
+    return r === parseInt(cpf[10]);
+}
+function validarCNPJ(cnpj) {
+    cnpj = cnpj.replace(/\D/g, '');
+    if (cnpj.length !== 14) return false;
+    if (/^(\d)\1{13}$/.test(cnpj)) return false;
+    let sum = 0, pos = 5;
+    for (let i = 0; i < 12; i++) { sum += parseInt(cnpj[i]) * pos--; if (pos < 2) pos = 9; }
+    let r = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+    if (r !== parseInt(cnpj[12])) return false;
+    sum = 0; pos = 6;
+    for (let i = 0; i < 13; i++) { sum += parseInt(cnpj[i]) * pos--; if (pos < 2) pos = 9; }
+    r = sum % 11 < 2 ? 0 : 11 - (sum % 11);
+    return r === parseInt(cnpj[13]);
+}
+
 function FinPessoas() {
     const [pessoas, setPessoas] = useState([]);
     const [usuarios, setUsuarios] = useState([]);
@@ -3790,7 +3895,7 @@ function FinPessoas() {
         api.get("/fin/pessoas", { params }).then(r => setPessoas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     };
 
-    useEffect(() => { carregar(); }, [termoD, filtraTipo]);
+    useEffect(() => { carregar(); }, [termoD, filtraTipo]); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => {
         api.get("/usuarios/buscar").then(r => setUsuarios(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     }, []);
@@ -3806,6 +3911,12 @@ function FinPessoas() {
 
     const salvar = async e => {
         e.preventDefault();
+        if (form.tipoPessoa === "FISICA" && form.cpf) {
+            if (!validarCPF(form.cpf)) { flash("CPF inválido. Verifique os 11 dígitos.", "err"); return; }
+        }
+        if (form.tipoPessoa === "JURIDICA" && form.cnpj) {
+            if (!validarCNPJ(form.cnpj)) { flash("CNPJ inválido. Verifique os 14 dígitos.", "err"); return; }
+        }
         setSalvando(true);
         try {
             const body = { ...form, usuarioId: form.usuarioId ? Number(form.usuarioId) : null };
@@ -3890,7 +4001,7 @@ function FinPessoas() {
             </div>
 
             {modal && (
-                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModal(null)}>
+                <div className="dd-modal-overlay" onMouseDown={e => e.target===e.currentTarget &&setModal(null)}>
                     <div className="dd-modal" style={{ maxWidth:520, maxHeight:"90vh", overflowY:"auto" }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                             <div>
@@ -3914,19 +4025,22 @@ function FinPessoas() {
                             </div>
                             {[
                                 { k:"nome", label:"Nome *", span:2 },
-                                { k:"cpf", label:"CPF", show: form.tipoPessoa==="FISICA" },
-                                { k:"cnpj", label:"CNPJ", show: form.tipoPessoa==="JURIDICA" },
+                                { k:"cpf", label:"CPF (somente números)", show: form.tipoPessoa==="FISICA", onlyDigits:true, maxLength:11, placeholder:"00000000000" },
+                                { k:"cnpj", label:"CNPJ (somente números)", show: form.tipoPessoa==="JURIDICA", onlyDigits:true, maxLength:14, placeholder:"00000000000000" },
                                 { k:"email", label:"E-mail" },
                                 { k:"telefone", label:"Telefone" },
                                 { k:"cep", label:"CEP" },
                                 { k:"endereco", label:"Endereço", span:2 },
                                 { k:"cidade", label:"Cidade" },
-                                { k:"estado", label:"Estado (UF)" },
+                                { k:"estado", label:"Estado (UF)", maxLength:2, uppercase:true },
                             ].filter(f => f.show !== false).map(f => (
                                 <div key={f.k} style={{ gridColumn: f.span===2?"1/-1":"auto" }}>
                                     <label className="dd-label">{f.label}</label>
                                     <div className="dd-input-wrap">
-                                        <input className="dd-input" value={form[f.k]||""} onChange={e => ff(f.k, e.target.value)} />
+                                        <input className="dd-input" value={form[f.k]||""}
+                                            onChange={e => ff(f.k, f.onlyDigits ? e.target.value.replace(/\D/g, '') : f.uppercase ? e.target.value.toUpperCase() : e.target.value)}
+                                            maxLength={f.maxLength} inputMode={f.onlyDigits ? "numeric" : "text"}
+                                            placeholder={f.placeholder || ""} />
                                         <div className="dd-input-line" />
                                     </div>
                                 </div>
@@ -3974,17 +4088,26 @@ function FinFuncionarios() {
         api.get("/fin/funcionarios").then(r => setFuncionarios(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     };
     const carregarBeneficios = id => {
-        api.get(`/fin/beneficios/funcionario/${id}`).then(r => setBeneficios(b => ({ ...b, [id]: Array.isArray(r.data) ? r.data : [] }))).catch(() => {});
+        api.get(`/fin/funcionarios/${id}/beneficios`).then(r => setBeneficios(b => ({ ...b, [id]: Array.isArray(r.data) ? r.data : [] }))).catch(() => {});
     };
 
+    useEffect(() => { carregar(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
     useEffect(() => {
-        carregar();
         api.get("/fin/pessoas", { params: { ativo: true } }).then(r => setPessoas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     }, []);
 
+    useEffect(() => {
+        if (expandido) {
+            api.get(`/fin/funcionarios/${expandido}/beneficios`)
+                .then(r => setBeneficios(b => ({ ...b, [expandido]: Array.isArray(r.data) ? r.data : [] })))
+                .catch(() => {});
+        }
+    }, [expandido]);
+
     const toggleExpand = id => {
         setExpandido(e => e === id ? null : id);
-        if (!beneficios[id]) carregarBeneficios(id);
+        carregarBeneficios(id);
     };
 
     const abrirCriar = () => {
@@ -4017,20 +4140,24 @@ function FinFuncionarios() {
 
     const adicionarBeneficio = async e => {
         e.preventDefault();
+        if (Number(formBenef.valor) <= 0) { flash("O valor do benefício deve ser maior que zero.", "err"); return; }
         try {
-            await api.post("/fin/beneficios", { ...formBenef, valor: Number(formBenef.valor) });
+            await api.post(`/fin/funcionarios/${formBenef.funcionarioId}/beneficios`, { ...formBenef, valor: Number(formBenef.valor) });
             setFormBenef(b => ({ ...b, tipo:"VALE_REFEICAO", valor:"", descricao:"" }));
-            carregarBeneficios(formBenef.funcionarioId);
+            if (expandido) carregarBeneficios(expandido);
+            carregar();
         } catch(err) { flash(err.response?.data || "Erro ao adicionar benefício.", "err"); }
     };
 
     const toggleBeneficio = async (b, funcId) => {
         await api.patch(`/fin/beneficios/${b.id}/status`).catch(() => {});
-        carregarBeneficios(funcId);
+        if (expandido) carregarBeneficios(expandido);
+        carregar();
     };
     const deletarBeneficio = async (b, funcId) => {
         await api.delete(`/fin/beneficios/${b.id}`).catch(() => {});
-        carregarBeneficios(funcId);
+        if (expandido) carregarBeneficios(expandido);
+        carregar();
     };
 
     const ff = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -4114,7 +4241,7 @@ function FinFuncionarios() {
                                                     </div>
                                                     <div>
                                                         <label className="dd-label">Valor</label>
-                                                        <input type="number" step="0.01" value={formBenef.valor} onChange={e => setFormBenef(b => ({ ...b, valor: e.target.value }))}
+                                                        <input type="number" step="0.01" min="0.01" value={formBenef.valor} onChange={e => setFormBenef(b => ({ ...b, valor: e.target.value }))}
                                                             placeholder="0,00" required
                                                             style={{ fontSize:12, padding:"6px 8px", border:"1px solid #eaeef2", fontFamily:"'DM Sans',sans-serif", outline:"none", width:100 }} />
                                                     </div>
@@ -4137,7 +4264,7 @@ function FinFuncionarios() {
             </div>
 
             {modal && (
-                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModal(null)}>
+                <div className="dd-modal-overlay" onMouseDown={e => e.target===e.currentTarget &&setModal(null)}>
                     <div className="dd-modal" style={{ maxWidth:460 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                             <div>
@@ -4189,58 +4316,147 @@ function FinContratos({ anoLetivo }) {
     const [parcelas, setParcelas] = useState({}); // { [contratoId]: [] }
     const [expandido, setExpandido] = useState(null);
     const [series, setSeries] = useState([]);
+    const [responsaveis, setResponsaveis] = useState([]);
     const [formasPagamento, setFormasPagamento] = useState([]);
     const [modalContrato, setModalContrato] = useState(false);
-    const [modalBaixar, setModalBaixar] = useState(null); // { crId, valor }
-    const [formContrato, setFormContrato] = useState({ anoLetivo: String(anoLetivo), serieId:"", numParcelas:"12", desconto:"0", acrescimo:"0", mesInicio:"" });
-    const [formBaixar, setFormBaixar] = useState({ dataPagamento:"", valorPago:"", formaPagamentoId:"", observacoes:"" });
+    const [modalBaixar, setModalBaixar] = useState(null); // { crId, contratoId, valor, isVencido }
+    const [formContrato, setFormContrato] = useState({ anoLetivo: String(anoLetivo), serieId:"", responsavelPrincipalId:"", numParcelas:"12", desconto:"0", acrescimo:"0", mesInicio:"" });
+    const [formBaixar, setFormBaixar] = useState({ dataPagamento:"", valorPago:"", formaPagamentoId:"", jurosAplicado:"", multaAplicada:"", observacoes:"" });
+    const [configFin, setConfigFin] = useState(null);
+    const [modalHistoricoCR, setModalHistoricoCR] = useState(null); // { crId, descricao }
+    const [histCRList, setHistCRList] = useState([]);
     const [modalCRAvulsa, setModalCRAvulsa] = useState(false);
     const [formCRAvulsa, setFormCRAvulsa] = useState({ descricao:"", valor:"", dataVencimento:"", pessoaId:"", formaPagamentoId:"", observacoes:"" });
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
     const [salvando, setSalvando] = useState(false);
+    const [serieValores, setSerieValores] = useState({}); // { [serieId]: valorPadrao }
+    const [avulsas, setAvulsas] = useState([]);
+    const [filtroAvulsa, setFiltroAvulsa] = useState({ busca:"", status:"", pessoaId:"" });
 
     const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
+
+    // Calcula juros e multa sugeridos para uma parcela vencida (primeiro pagamento) com base na config
+    const calcEncargos = (valorCr) => {
+        if (!configFin) return { juros: "", multa: "" };
+        const jPct = Number(configFin.jurosAtrasoPct || 0);
+        const mPct = Number(configFin.multaAtrasoPct || 0);
+        return {
+            juros: jPct > 0 ? String((Number(valorCr) * jPct / 100).toFixed(2)) : "",
+            multa: mPct > 0 ? String((Number(valorCr) * mPct / 100).toFixed(2)) : "",
+        };
+    };
 
     useEffect(() => {
         api.get("/usuarios/buscar", { params: { role:"ALUNO" } }).then(r => setAlunos(Array.isArray(r.data) ? r.data : [])).catch(() => {});
         api.get("/turmas/series").then(r => setSeries(Array.isArray(r.data) ? r.data : [])).catch(() => {});
         api.get("/fin/formas-pagamento", { params: { apenasAtivas: true } }).then(r => setFormasPagamento(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+        api.get("/fin/pessoas").then(r => setResponsaveis(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+        api.get("/fin/configuracoes").then(r => setConfigFin(r.data)).catch(() => {});
     }, []);
+
+    const carregarContratos = () => {
+        if (!alunoSel) { setContratos([]); return; }
+        api.get(`/fin/contratos`, { params: { alunoId: alunoSel } }).then(r => setContratos(Array.isArray(r.data) ? r.data : [])).catch(() => setContratos([]));
+    };
 
     useEffect(() => {
         if (!alunoSel) { setContratos([]); return; }
-        api.get(`/fin/contratos/aluno/${alunoSel}`).then(r => setContratos(Array.isArray(r.data) ? r.data : [])).catch(() => setContratos([]));
-    }, [alunoSel]);
+        carregarContratos();
+        // Auto-preenche série do aluno no ano letivo corrente
+        api.get("/vinculos/aluno-turma", { params: { alunoId: alunoSel, anoLetivo } })
+            .then(r => {
+                const vinculo = Array.isArray(r.data) && r.data.length > 0 ? r.data[0] : null;
+                if (vinculo) setFormContrato(f => ({ ...f, serieId: String(vinculo.serieId) }));
+                else setFormContrato(f => ({ ...f, serieId: "" }));
+            }).catch(() => {});
+    }, [alunoSel]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
+        api.get("/fin/serie-valores", { params: { anoLetivo } })
+            .then(r => {
+                const map = {};
+                (Array.isArray(r.data) ? r.data : []).forEach(sv => {
+                    if (sv.valorPadrao != null) map[String(sv.serieId)] = sv.valorPadrao;
+                });
+                setSerieValores(map);
+            }).catch(() => {});
+    }, [anoLetivo]);
+
+    const carregarAvulsas = () => {
+        api.get("/fin/contas-receber")
+            .then(r => setAvulsas((Array.isArray(r.data) ? r.data : []).filter(cr => !cr.contratoId)))
+            .catch(() => setAvulsas([]));
+    };
+
+    useEffect(() => { carregarAvulsas(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const carregarParcelas = id => {
         api.get("/fin/contas-receber", { params: { contratoId: id } }).then(r => setParcelas(p => ({ ...p, [id]: Array.isArray(r.data) ? r.data : [] }))).catch(() => {});
     };
 
     const toggleExpand = id => {
-        setExpandido(e => e === id ? null : id);
-        if (!parcelas[id]) carregarParcelas(id);
+        const novoId = expandido === id ? null : id;
+        setExpandido(novoId);
+        if (novoId) carregarParcelas(novoId); // sempre carrega fresco ao expandir
+    };
+
+    const cancelarContrato = async (contratoId, e) => {
+        e.stopPropagation();
+        if (!window.confirm("Cancelar este contrato? Todas as parcelas pendentes serão canceladas.\nContratos com parcelas já pagas não podem ser cancelados.")) return;
+        try {
+            await api.delete(`/fin/contratos/${contratoId}`);
+            flash("Contrato cancelado.");
+            if (expandido === contratoId) setExpandido(null);
+            carregarContratos();
+        } catch(err) { flash(err.response?.data || "Erro ao cancelar contrato.", "err"); }
     };
 
     const criarContrato = async e => {
         e.preventDefault();
+        // Bloqueia se o valor total previsto for negativo ou zero
+        const vb = formContrato.serieId ? Number(serieValores[String(formContrato.serieId)] ?? 0) : 0;
+        if (vb > 0) {
+            const vt = vb - Number(formContrato.desconto||0) + Number(formContrato.acrescimo||0);
+            if (vt <= 0) { flash("Valor total não pode ser zero ou negativo. Reduza o desconto.", "err"); return; }
+        }
         setSalvando(true);
         try {
-            await api.post("/fin/contratos", { ...formContrato, alunoId: Number(alunoSel), serieId: Number(formContrato.serieId), numParcelas: Number(formContrato.numParcelas), desconto: Number(formContrato.desconto||0), acrescimo: Number(formContrato.acrescimo||0) });
+            await api.post("/fin/contratos", { ...formContrato, alunoId: Number(alunoSel), anoLetivo: Number(formContrato.anoLetivo), serieId: Number(formContrato.serieId), responsavelPrincipalId: Number(formContrato.responsavelPrincipalId), responsavelSecundarioId: formContrato.responsavelSecundarioId ? Number(formContrato.responsavelSecundarioId) : null, numParcelas: Number(formContrato.numParcelas), desconto: Number(formContrato.desconto||0), acrescimo: Number(formContrato.acrescimo||0) });
             setModalContrato(false);
             flash("Contrato criado!");
-            api.get(`/fin/contratos/aluno/${alunoSel}`).then(r => setContratos(Array.isArray(r.data) ? r.data : []));
+            carregarContratos();
         } catch(err) { flash(err.response?.data || "Erro ao criar contrato.", "err"); }
         finally { setSalvando(false); }
     };
 
     const baixarParcela = async e => {
         e.preventDefault();
+        const vp = Number(formBaixar.valorPago);
+        const juros = Number(formBaixar.jurosAplicado||0);
+        const multa = Number(formBaixar.multaAplicada||0);
+        const jaFoiPago = Number(modalBaixar.jaFoiPago||0);
+        // Pagamento parcial: limite é o saldo devedor já calculado pelo servidor
+        const maxEsperado = jaFoiPago > 0
+            ? Number(modalBaixar.saldoDevedor)
+            : Number(modalBaixar.valor) + juros + multa;
+        if (vp > maxEsperado + 0.001) {
+            flash(`Valor pago (${fmt(vp)}) não pode ser maior que o saldo devedor (${fmt(maxEsperado)}).`, "err");
+            return;
+        }
         setSalvando(true);
         try {
-            await api.patch(`/fin/contas-receber/${modalBaixar.crId}/baixar`, { ...formBaixar, valorPago: Number(formBaixar.valorPago), formaPagamentoId: formBaixar.formaPagamentoId ? Number(formBaixar.formaPagamentoId) : null });
+            await api.patch(`/fin/contas-receber/${modalBaixar.crId}/baixar`, {
+                ...formBaixar,
+                valorPago: vp,
+                formaPagamentoId: formBaixar.formaPagamentoId ? Number(formBaixar.formaPagamentoId) : null,
+                jurosAplicado: juros > 0 ? juros : null,
+                multaAplicada: multa > 0 ? multa : null,
+            });
+            const cid = modalBaixar.contratoId;
             setModalBaixar(null);
-            flash("Parcela baixada!");
-            carregarParcelas(modalBaixar.contratoId);
+            flash("Pagamento registrado!");
+            carregarAvulsas();
+            if (cid) carregarParcelas(cid);
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
         finally { setSalvando(false); }
     };
@@ -4254,6 +4470,37 @@ function FinContratos({ anoLetivo }) {
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
     };
 
+    const cancelarAvulsa = async id => {
+        if (!window.confirm("Cancelar este recebimento avulso?")) return;
+        try {
+            await api.patch(`/fin/contas-receber/${id}/cancelar`);
+            flash("Recebimento cancelado.");
+            carregarAvulsas();
+        } catch(err) { flash(err.response?.data || "Erro.", "err"); }
+    };
+
+    const excluirAvulsa = async cr => {
+        if (cr.status === "PARCIALMENTE_PAGO") {
+            flash("Não é possível excluir um título parcialmente baixado. Cancele-o em vez de excluir.", "err");
+            return;
+        }
+        if (!window.confirm("Excluir permanentemente este recebimento? Esta ação não pode ser desfeita.")) return;
+        try {
+            await api.delete(`/fin/contas-receber/${cr.id}`);
+            flash("Recebimento excluído.");
+            carregarAvulsas();
+        } catch(err) { flash(err.response?.data || "Erro ao excluir.", "err"); }
+    };
+
+    const verHistoricoCR = async (crId, descricao) => {
+        setHistCRList([]);
+        setModalHistoricoCR({ crId, descricao });
+        try {
+            const r = await api.get(`/fin/contas-receber/${crId}/historico`);
+            setHistCRList(Array.isArray(r.data) ? r.data : []);
+        } catch { setHistCRList([]); }
+    };
+
     const criarCRAvulsa = async e => {
         e.preventDefault();
         setSalvando(true);
@@ -4261,92 +4508,165 @@ function FinContratos({ anoLetivo }) {
             await api.post("/fin/contas-receber", { ...formCRAvulsa, valor: Number(formCRAvulsa.valor), pessoaId: formCRAvulsa.pessoaId ? Number(formCRAvulsa.pessoaId) : null, formaPagamentoId: formCRAvulsa.formaPagamentoId ? Number(formCRAvulsa.formaPagamentoId) : null });
             setModalCRAvulsa(false);
             flash("CR avulsa criada!");
-            if (alunoSel) {
-                api.get(`/fin/contratos/aluno/${alunoSel}`).then(r => setContratos(Array.isArray(r.data) ? r.data : [])).catch(() => {});
-            }
+            carregarAvulsas();
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
         finally { setSalvando(false); }
     };
 
-    const computarStatus = cr => {
-        if (cr.status !== "PENDENTE") return cr.status;
-        if (cr.dataVencimento && cr.dataVencimento < new Date().toISOString().slice(0,10)) return "VENCIDO";
-        return "PENDENTE";
-    };
+    // O backend já converte PENDENTE+vencida → "VENCIDO" em statusEfetivo().
+    // Não duplicamos a lógica aqui para evitar divergência futura.
+    const computarStatus = cr => cr.status;
 
     const fc = (k, v) => setFormContrato(f => ({ ...f, [k]: v }));
+
+    // Quando um aluno está selecionado e tem contratos, filtra avulsas
+    // apenas pelas FinPessoas vinculadas como responsáveis nesse(s) contrato(s)
+    const pessoaIdsContrato = new Set(
+        contratos.flatMap(c => [c.responsavelPrincipalId, c.responsavelSecundarioId].filter(Boolean).map(String))
+    );
+    const avulsasPorAluno = alunoSel && pessoaIdsContrato.size > 0
+        ? avulsas.filter(cr => cr.pessoaId != null && pessoaIdsContrato.has(String(cr.pessoaId)))
+        : avulsas;
+
+    // Aplica filtros de busca/status/pessoa sobre a lista já filtrada por aluno
+    const avulsasFiltradas = avulsasPorAluno.filter(cr => {
+        const st = computarStatus(cr);
+        if (filtroAvulsa.status && st !== filtroAvulsa.status) return false;
+        if (filtroAvulsa.pessoaId && String(cr.pessoaId) !== filtroAvulsa.pessoaId) return false;
+        if (filtroAvulsa.busca) {
+            const b = filtroAvulsa.busca.toLowerCase();
+            const match = (cr.descricao||"").toLowerCase().includes(b)
+                || (cr.pessoaNome||"").toLowerCase().includes(b)
+                || String(cr.valor||"").includes(b);
+            if (!match) return false;
+        }
+        return true;
+    });
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
             {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
 
-            <div style={{ display:"flex", gap:12, alignItems:"flex-end", flexWrap:"wrap" }}>
-                <div style={{ flex:1 }}>
-                    <label className="dd-label">Selecionar aluno</label>
-                    <select value={alunoSel} onChange={e => setAlunoSel(e.target.value)}
-                        style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
-                        <option value="">— Selecione um aluno —</option>
-                        {alunos.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
-                    </select>
+            {/* Cabeçalho: seletor de aluno + botões + stats */}
+            <div style={{ background:"#fff", border:"1px solid #eaeef2", borderRadius:8, padding:16 }}>
+                <div style={{ display:"flex", gap:12, alignItems:"flex-end", flexWrap:"wrap" }}>
+                    <div style={{ flex:1, minWidth:200 }}>
+                        <label className="dd-label">Aluno</label>
+                        <select value={alunoSel} onChange={e => setAlunoSel(e.target.value)}
+                            style={{ width:"100%", border:"1px solid #eaeef2", borderRadius:4, padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
+                            <option value="">— Selecione um aluno —</option>
+                            {alunos.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
+                        </select>
+                    </div>
+                    {alunoSel && <button className="dd-btn-primary" onClick={() => { setFormContrato(f => ({ ...f, anoLetivo: String(anoLetivo), mesInicio: mesAtual(), responsavelPrincipalId:"", numParcelas:"12", desconto:"0", acrescimo:"0" })); setModalContrato(true); }}>+ Novo Contrato</button>}
+                    <button className="dd-btn-ghost" onClick={() => { setFormCRAvulsa({ tipo:"OUTRO", descricao:"", valor:"", dataVencimento:"", pessoaId:"", formaPagamentoId:"", observacoes:"" }); setModalCRAvulsa(true); }}>+ CR Avulsa</button>
                 </div>
-                {alunoSel && <button className="dd-btn-primary" onClick={() => { setFormContrato(f => ({ ...f, anoLetivo: String(anoLetivo), mesInicio: mesAtual() })); setModalContrato(true); }}>+ Novo Contrato</button>}
-                <button className="dd-btn-ghost" onClick={() => { setFormCRAvulsa({ descricao:"", valor:"", dataVencimento:"", pessoaId:"", formaPagamentoId:"", observacoes:"" }); setModalCRAvulsa(true); }}>+ CR Avulsa</button>
+                {alunoSel && contratos.length > 0 && (() => {
+                    const totalValor = contratos.reduce((s, c) => s + Number(c.valorTotal||0), 0);
+                    const nomeAluno = alunos.find(a=>String(a.id)===String(alunoSel))?.nome || "";
+                    return (
+                        <div style={{ marginTop:14, paddingTop:14, borderTop:"1px solid #eaeef2", display:"flex", gap:16, flexWrap:"wrap" }}>
+                            <div><span style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.5px" }}>Aluno</span><br /><span style={{ fontWeight:600, fontSize:13 }}>{nomeAluno}</span></div>
+                            <div><span style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.5px" }}>Contratos</span><br /><span style={{ fontWeight:600, fontSize:13 }}>{contratos.length}</span></div>
+                            <div><span style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.5px" }}>Valor Total Contratado</span><br /><span style={{ fontWeight:600, fontSize:13, color:"#2d6a4f" }}>{fmt(totalValor)}</span></div>
+                        </div>
+                    );
+                })()}
             </div>
 
+            {/* Lista de contratos */}
             {alunoSel && (
                 <div className="dd-section">
                     <div className="dd-section-header">
-                        <span className="dd-section-title">Contratos de {alunos.find(a=>String(a.id)===String(alunoSel))?.nome || ""}</span>
+                        <span className="dd-section-title">Contratos</span>
                         <span className="dd-section-count">{contratos.length}</span>
                     </div>
                     {contratos.length === 0
-                        ? <p style={{ padding:20, fontSize:12, color:"#9aaa9f", textAlign:"center" }}>Nenhum contrato. Crie o primeiro acima.</p>
-                        : contratos.map(c => (
+                        ? <div style={{ padding:"32px 20px", textAlign:"center" }}>
+                            <p style={{ fontSize:13, color:"#9aaa9f", margin:0 }}>Nenhum contrato para este aluno.</p>
+                            <p style={{ fontSize:11, color:"#c0c8c4", marginTop:4 }}>Clique em "+ Novo Contrato" para criar.</p>
+                          </div>
+                        : contratos.map(c => {
+                            const plist = parcelas[c.id] || [];
+                            const pagas = plist.filter(p => p.status === "PAGO").length;
+                            const vencidas = plist.filter(p => computarStatus(p) === "VENCIDO").length;
+                            return (
                             <div key={c.id} style={{ borderBottom:"1px solid #eaeef2" }}>
-                                <div style={{ padding:"12px 20px", display:"flex", alignItems:"center", gap:12, cursor:"pointer", background: expandido===c.id?"#f8faf8":"white" }}
+                                <div style={{ padding:"14px 20px", display:"flex", alignItems:"center", gap:12, cursor:"pointer", background: expandido===c.id?"#f8faf8":"white" }}
                                     onClick={() => toggleExpand(c.id)}>
                                     <ChevronRight size={14} style={{ transform: expandido===c.id?"rotate(90deg)":"none", transition:".2s", color:"#9aaa9f", flexShrink:0 }} />
                                     <div style={{ flex:1 }}>
-                                        <span style={{ fontWeight:500, fontSize:13 }}>Contrato {c.anoLetivo} — {c.serieName||`Série ID ${c.serieId}`}</span>
-                                        <span style={{ marginLeft:12, fontSize:11, color:"#9aaa9f" }}>{c.numParcelas} parcelas</span>
+                                        <div style={{ fontWeight:600, fontSize:13, color:"#0d1f18" }}>{c.anoLetivo} — {c.serieNome || `Série ${c.serieId}`}</div>
+                                        <div style={{ fontSize:11, color:"#9aaa9f", marginTop:2 }}>
+                                            {c.numParcelas} parcelas · Resp.: {c.responsavelPrincipalNome || "—"}
+                                            {plist.length > 0 && <span style={{ marginLeft:8 }}>{pagas}/{c.numParcelas} pagas{vencidas > 0 && <span style={{ color:"#b94040", marginLeft:4 }}>· {vencidas} vencida{vencidas>1?"s":""}</span>}</span>}
+                                        </div>
                                     </div>
-                                    <span style={{ fontSize:13, fontWeight:600, color:"#0d1f18" }}>{fmt(c.valorTotal)}</span>
-                                    <span className="dd-badge" style={{ background: c.status==="ATIVO"?"#f0f5f2":"#fdf0f0", color: c.status==="ATIVO"?"#2d6a4f":"#b94040", borderRadius:3, fontSize:10 }}>{c.status}</span>
+                                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                                        <div style={{ textAlign:"right" }}>
+                                            <div style={{ fontWeight:700, fontSize:14, color:"#0d1f18" }}>{fmt(c.valorTotal)}</div>
+                                            {(Number(c.desconto||0) > 0 || Number(c.acrescimo||0) > 0) && (
+                                                <div style={{ fontSize:10, color:"#9aaa9f" }}>base {fmt(c.valorBase)}</div>
+                                            )}
+                                        </div>
+                                        <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 10px", flexShrink:0 }}
+                                            onClick={e => cancelarContrato(c.id, e)}>
+                                            Cancelar
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {expandido === c.id && (
-                                    <div style={{ padding:"0 20px 16px", background:"#f8faf8" }}>
-                                        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:12, padding:"12px 0" }}>
-                                            {[["Valor Base", fmt(c.valorBase)], ["Desconto", fmt(c.desconto)], ["Acréscimo", fmt(c.acrescimo)], ["Total", fmt(c.valorTotal)]].map(([l,v]) => (
-                                                <div key={l}><span style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase" }}>{l}</span><br /><span style={{ fontSize:14, fontWeight:600 }}>{v}</span></div>
+                                    <div style={{ padding:"0 20px 20px", background:"#f8faf8" }}>
+                                        <div style={{ display:"flex", gap:16, flexWrap:"wrap", padding:"12px 0 16px", borderBottom:"1px solid #eaeef2", marginBottom:12 }}>
+                                            {[["Valor Base", fmt(c.valorBase), "#0d1f18"], ["Desconto", fmt(c.desconto), "#b94040"], ["Acréscimo", fmt(c.acrescimo), "#2d6a4f"], ["Total Mensal", fmt(c.valorTotal), "#2563eb"]].map(([l,v,col]) => (
+                                                <div key={l} style={{ minWidth:80 }}>
+                                                    <div style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.4px" }}>{l}</div>
+                                                    <div style={{ fontSize:15, fontWeight:700, color:col, marginTop:2 }}>{v}</div>
+                                                </div>
                                             ))}
                                         </div>
                                         <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
-                                            <thead><tr style={{ borderBottom:"1px solid #eaeef2" }}>
-                                                {["#","Vencimento","Valor","Status","Pago em","Valor Pago",""].map(h => (
-                                                    <th key={h} style={{ padding:"6px 10px", textAlign:"left", color:"#9aaa9f", fontSize:10, textTransform:"uppercase" }}>{h}</th>
-                                                ))}
-                                            </tr></thead>
+                                            <thead>
+                                                <tr style={{ background:"#f0f4f0" }}>
+                                                    {["#","Vencimento","Valor","Status","Pago em","Vlr. Pago","Ações"].map(h => (
+                                                        <th key={h} style={{ padding:"7px 10px", textAlign:"left", color:"#6b8f7a", fontSize:10, textTransform:"uppercase", letterSpacing:"0.4px", fontWeight:600 }}>{h}</th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
                                             <tbody>
-                                                {(parcelas[c.id]||[]).map((cr, idx) => {
+                                                {plist.map((cr, idx) => {
                                                     const st = computarStatus(cr);
                                                     const sc = statusBadge(st);
                                                     return (
-                                                        <tr key={cr.id} style={{ borderBottom:"1px solid #f2f5f2" }}>
-                                                            <td style={{ padding:"8px 10px", color:"#9aaa9f" }}>{idx+1}</td>
-                                                            <td style={{ padding:"8px 10px" }}>{fmtData(cr.dataVencimento)}</td>
-                                                            <td style={{ padding:"8px 10px", fontWeight:500 }}>{fmt(cr.valor)}</td>
-                                                            <td style={{ padding:"8px 10px" }}><span className="dd-badge" style={{ ...sc, borderRadius:3, fontSize:10 }}>{st}</span></td>
+                                                        <tr key={cr.id} style={{ borderBottom:"1px solid #eaeef2", background: st==="VENCIDO"?"#fff8f8": st==="PAGO"?"#f8fffe":"white" }}>
+                                                            <td style={{ padding:"8px 10px", color:"#9aaa9f", fontWeight:500 }}>{idx+1}</td>
+                                                            <td style={{ padding:"8px 10px", color: st==="VENCIDO"?"#b94040":"#0d1f18" }}>{fmtData(cr.dataVencimento)}</td>
+                                                            <td style={{ padding:"8px 10px", fontWeight:600 }}>{fmt(cr.valor)}</td>
+                                                            <td style={{ padding:"8px 10px" }}><span className="dd-badge" style={{ ...sc, borderRadius:4, fontSize:10, padding:"2px 7px" }}>{st}</span></td>
                                                             <td style={{ padding:"8px 10px", color:"#9aaa9f" }}>{cr.dataPagamento ? fmtData(cr.dataPagamento) : "—"}</td>
-                                                            <td style={{ padding:"8px 10px" }}>{cr.valorPago ? fmt(cr.valorPago) : "—"}</td>
+                                                            <td style={{ padding:"8px 10px", color: cr.valorPago ? "#2d6a4f" : "#9aaa9f", fontWeight: cr.valorPago ? 600 : 400 }}>{cr.valorPago ? fmt(cr.valorPago) : "—"}</td>
                                                             <td style={{ padding:"8px 10px" }}>
-                                                                {st === "PENDENTE" || st === "VENCIDO" ? (
+                                                                {(st === "PENDENTE" || st === "VENCIDO" || st === "PARCIALMENTE_PAGO") && (
                                                                     <div style={{ display:"flex", gap:4 }}>
                                                                         <button className="dd-btn-edit" style={{ fontSize:10, padding:"3px 8px" }}
-                                                                            onClick={() => { setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(cr.valor), formaPagamentoId:"", observacoes:"" }); setModalBaixar({ crId: cr.id, contratoId: c.id, valor: cr.valor }); }}>Baixar</button>
+                                                                            onClick={() => {
+                                                                                const saldo = cr.saldoDevedor ?? cr.valor;
+                                                                                const jaFoiPago = Number(cr.valorPago||0);
+                                                                                const isVencido = st === "VENCIDO";
+                                                                                const enc = (isVencido && !jaFoiPago) ? calcEncargos(cr.valor) : { juros:"", multa:"" };
+                                                                                const totalPreencher = (isVencido && !jaFoiPago)
+                                                                                    ? String((Number(cr.valor) + Number(enc.juros||0) + Number(enc.multa||0)).toFixed(2))
+                                                                                    : String(saldo);
+                                                                                setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: totalPreencher, formaPagamentoId:"", jurosAplicado: enc.juros, multaAplicada: enc.multa, observacoes:"" });
+                                                                                setModalBaixar({ crId: cr.id, contratoId: c.id, valor: cr.valor, isVencido, jaFoiPago, saldoDevedor: saldo });
+                                                                            }}>Baixar</button>
                                                                         <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => cancelarParcela(cr.id, c.id)}>Cancelar</button>
                                                                     </div>
-                                                                ) : null}
+                                                                )}
+                                                                {(st === "PAGO" || st === "PARCIALMENTE_PAGO") && (
+                                                                    <button className="dd-btn-ghost" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => verHistoricoCR(cr.id, cr.descricao || `Parcela ${idx+1}`)}>Ver</button>
+                                                                )}
                                                             </td>
                                                         </tr>
                                                     );
@@ -4356,14 +4676,111 @@ function FinContratos({ anoLetivo }) {
                                     </div>
                                 )}
                             </div>
-                        ))
+                            );
+                        })
                     }
                 </div>
             )}
 
+            {/* Recebimentos Avulsos */}
+            <div className="dd-section">
+                <div className="dd-section-header">
+                    <span className="dd-section-title">
+                        Recebimentos Avulsos
+                        {alunoSel && pessoaIdsContrato.size > 0 && <span style={{ fontSize:10, color:"#9aaa9f", fontWeight:400, marginLeft:6 }}>(responsáveis do aluno)</span>}
+                    </span>
+                    <span className="dd-section-count">{avulsasFiltradas.filter(cr => cr.status !== "CANCELADO").length}</span>
+                </div>
+                {/* Barra de filtros */}
+                <div style={{ padding:"8px 20px", display:"flex", gap:8, flexWrap:"wrap", borderBottom:"1px solid #eaeef2", background:"#fafcfa" }}>
+                    <input
+                        type="text"
+                        placeholder="Buscar por descrição, pessoa ou valor..."
+                        value={filtroAvulsa.busca}
+                        onChange={e => setFiltroAvulsa(f => ({ ...f, busca: e.target.value }))}
+                        style={{ flex:1, minWidth:180, border:"1px solid #eaeef2", padding:"5px 10px", fontSize:12, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff", borderRadius:4 }}
+                    />
+                    <select
+                        value={filtroAvulsa.status}
+                        onChange={e => setFiltroAvulsa(f => ({ ...f, status: e.target.value }))}
+                        style={{ border:"1px solid #eaeef2", padding:"5px 10px", fontSize:12, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff", borderRadius:4 }}>
+                        <option value="">Todos os status</option>
+                        {["PENDENTE","VENCIDO","PARCIALMENTE_PAGO","PAGO","CANCELADO"].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    <select
+                        value={filtroAvulsa.pessoaId}
+                        onChange={e => setFiltroAvulsa(f => ({ ...f, pessoaId: e.target.value }))}
+                        style={{ border:"1px solid #eaeef2", padding:"5px 10px", fontSize:12, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff", borderRadius:4 }}>
+                        <option value="">Todas as pessoas</option>
+                        {responsaveis.map(p => <option key={p.id} value={String(p.id)}>{p.nome}</option>)}
+                    </select>
+                    {(filtroAvulsa.busca || filtroAvulsa.status || filtroAvulsa.pessoaId) && (
+                        <button onClick={() => setFiltroAvulsa({ busca:"", status:"", pessoaId:"" })}
+                            style={{ border:"1px solid #eaeef2", padding:"5px 10px", fontSize:12, fontFamily:"'DM Sans',sans-serif", cursor:"pointer", background:"#fff", borderRadius:4, color:"#9aaa9f" }}>
+                            Limpar
+                        </button>
+                    )}
+                </div>
+                {avulsasFiltradas.length === 0
+                    ? <p style={{ padding:20, fontSize:12, color:"#9aaa9f", textAlign:"center" }}>Nenhum recebimento avulso {alunoSel && pessoaIdsContrato.size > 0 ? "para os responsáveis deste aluno" : "cadastrado"}.</p>
+                    : <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                        <thead>
+                            <tr style={{ borderBottom:"1px solid #eaeef2" }}>
+                                {["Descrição","Tipo","Vencimento","Valor","Pago","Saldo","Status","Pessoa",""].map(h => (
+                                    <th key={h} style={{ padding:"8px 20px", textAlign:"left", color:"#9aaa9f", fontSize:10, textTransform:"uppercase" }}>{h}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {avulsasFiltradas.map(cr => {
+                                const st = computarStatus(cr);
+                                const sc = statusBadge(st);
+                                return (
+                                    <tr key={cr.id} style={{ borderBottom:"1px solid #f2f5f2" }}>
+                                        <td style={{ padding:"8px 20px" }}>{cr.descricao}</td>
+                                        <td style={{ padding:"8px 20px", color:"#9aaa9f", fontSize:11 }}>{cr.tipo}</td>
+                                        <td style={{ padding:"8px 20px" }}>{fmtData(cr.dataVencimento)}</td>
+                                        <td style={{ padding:"8px 20px", fontWeight:500 }}>{fmt(cr.valor)}</td>
+                                        <td style={{ padding:"8px 20px", color: cr.valorPago ? "#2d6a4f" : "#9aaa9f", fontWeight: cr.valorPago ? 600 : 400 }}>{cr.valorPago ? fmt(cr.valorPago) : "—"}</td>
+                                        <td style={{ padding:"8px 20px", color: Number(cr.saldoDevedor||0) > 0 ? "#c47a00" : "#9aaa9f" }}>{Number(cr.saldoDevedor||0) > 0 ? fmt(cr.saldoDevedor) : "—"}</td>
+                                        <td style={{ padding:"8px 20px" }}><span className="dd-badge" style={{ ...sc, borderRadius:3, fontSize:10 }}>{st}</span></td>
+                                        <td style={{ padding:"8px 20px", color:"#9aaa9f", fontSize:11 }}>{cr.pessoaNome || "—"}</td>
+                                        <td style={{ padding:"8px 20px" }}>
+                                            <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+                                                {(st === "PENDENTE" || st === "VENCIDO" || st === "PARCIALMENTE_PAGO") && (<>
+                                                    <button className="dd-btn-edit" style={{ fontSize:10, padding:"3px 8px" }}
+                                                        onClick={() => {
+                                                            const saldo = cr.saldoDevedor ?? cr.valor;
+                                                            const jaFoiPago = Number(cr.valorPago||0);
+                                                            const isVencido = st === "VENCIDO";
+                                                            const enc = (isVencido && !jaFoiPago) ? calcEncargos(cr.valor) : { juros:"", multa:"" };
+                                                            const totalPreencher = (isVencido && !jaFoiPago)
+                                                                ? String((Number(cr.valor) + Number(enc.juros||0) + Number(enc.multa||0)).toFixed(2))
+                                                                : String(saldo);
+                                                            setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: totalPreencher, formaPagamentoId:"", jurosAplicado: enc.juros, multaAplicada: enc.multa, observacoes:"" });
+                                                            setModalBaixar({ crId: cr.id, contratoId: null, valor: cr.valor, isVencido, jaFoiPago, saldoDevedor: saldo });
+                                                        }}>Baixar</button>
+                                                    <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => cancelarAvulsa(cr.id)}>Cancelar</button>
+                                                </>)}
+                                                {(st === "PAGO" || st === "PARCIALMENTE_PAGO") && (
+                                                    <button className="dd-btn-ghost" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => verHistoricoCR(cr.id, cr.descricao)}>Ver</button>
+                                                )}
+                                                {(st !== "PAGO" && st !== "PARCIALMENTE_PAGO") && (
+                                                    <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px", opacity:0.75 }} onClick={() => excluirAvulsa(cr)}>Excluir</button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                }
+            </div>
+
             {/* Modal Contrato */}
             {modalContrato && (
-                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalContrato(false)}>
+                <div className="dd-modal-overlay" onMouseDown={e => e.target===e.currentTarget &&setModalContrato(false)}>
                     <div className="dd-modal" style={{ maxWidth:440 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                             <div><p className="dd-modal-title">Novo Contrato</p><p className="dd-modal-sub">Gera parcelas automaticamente</p></div>
@@ -4376,6 +4793,14 @@ function FinContratos({ anoLetivo }) {
                                     style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
                                     <option value="">Selecione a série...</option>
                                     {series.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="dd-label">Responsável Principal *</label>
+                                <select value={formContrato.responsavelPrincipalId} onChange={e => fc("responsavelPrincipalId", e.target.value)} required
+                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
+                                    <option value="">Selecione o responsável...</option>
+                                    {responsaveis.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
                                 </select>
                             </div>
                             {[
@@ -4393,6 +4818,29 @@ function FinContratos({ anoLetivo }) {
                                     </div>
                                 </div>
                             ))}
+                            {(() => {
+                                const vb = formContrato.serieId ? Number(serieValores[String(formContrato.serieId)] ?? 0) : null;
+                                const vt = vb != null ? vb - Number(formContrato.desconto||0) + Number(formContrato.acrescimo||0) : null;
+                                if (vb == null) return null;
+                                return (
+                                    <div style={{ background:"#f0f5f2", border:"1px solid #d4e8d8", borderRadius:6, padding:"10px 14px", fontSize:12 }}>
+                                        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+                                            <span style={{ color:"#6b8f7a" }}>Valor base da série</span>
+                                            <span style={{ fontWeight:600 }}>{fmt(vb)}</span>
+                                        </div>
+                                        {(Number(formContrato.desconto||0) > 0 || Number(formContrato.acrescimo||0) > 0) && (
+                                            <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#6b8f7a", marginBottom:4 }}>
+                                                <span>Desconto / Acréscimo</span>
+                                                <span>- {fmt(Number(formContrato.desconto||0))} / + {fmt(Number(formContrato.acrescimo||0))}</span>
+                                            </div>
+                                        )}
+                                        <div style={{ display:"flex", justifyContent:"space-between", borderTop:"1px solid #c8e0cc", paddingTop:6, marginTop:4 }}>
+                                            <span style={{ fontWeight:600, color:"#0d1f18" }}>Total previsto por mês</span>
+                                            <span style={{ fontWeight:700, fontSize:14, color: vt > 0 ? "#2d6a4f" : "#b94040" }}>{fmt(vt)}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                             <div style={{ display:"flex", gap:8, marginTop:8 }}>
                                 <button type="button" className="dd-btn-ghost" onClick={() => setModalContrato(false)}>Cancelar</button>
                                 <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando?"Criando...":"Criar Contrato"}</button>
@@ -4404,25 +4852,88 @@ function FinContratos({ anoLetivo }) {
 
             {/* Modal Baixar Parcela */}
             {modalBaixar && (
-                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalBaixar(null)}>
-                    <div className="dd-modal" style={{ maxWidth:380 }}>
+                <div className="dd-modal-overlay" onMouseDown={e => e.target===e.currentTarget && setModalBaixar(null)}>
+                    <div className="dd-modal" style={{ maxWidth:400 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
-                            <div><p className="dd-modal-title">Dar Baixa</p><p className="dd-modal-sub">{fmt(modalBaixar.valor)}</p></div>
+                            <div>
+                                <p className="dd-modal-title">Dar Baixa</p>
+                                <p className="dd-modal-sub">
+                                    Título: {fmt(modalBaixar.valor)}
+                                    {modalBaixar.isVencido && <span style={{ color:"#b94040", marginLeft:6, fontSize:10, fontWeight:600 }}>VENCIDO</span>}
+                                    {Number(modalBaixar.jaFoiPago||0) > 0 && <span style={{ color:"#2563eb", marginLeft:6, fontSize:10, fontWeight:600 }}>PARCIALMENTE PAGO</span>}
+                                </p>
+                                {Number(modalBaixar.jaFoiPago||0) > 0 && (
+                                    <div style={{ display:"flex", gap:16, marginTop:4, fontSize:11 }}>
+                                        <span style={{ color:"#9aaa9f" }}>Já pago: <strong style={{ color:"#2d6a4f" }}>{fmt(modalBaixar.jaFoiPago)}</strong></span>
+                                        <span style={{ color:"#9aaa9f" }}>Saldo: <strong style={{ color:"#2563eb" }}>{fmt(modalBaixar.saldoDevedor)}</strong></span>
+                                    </div>
+                                )}
+                            </div>
                             <button onClick={() => setModalBaixar(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
                         </div>
                         <form onSubmit={baixarParcela} style={{ display:"flex", flexDirection:"column", gap:14 }}>
-                            {[
-                                { k:"dataPagamento", label:"Data de Pagamento *", type:"date", required:true },
-                                { k:"valorPago", label:"Valor Pago (R$) *", type:"number", step:"0.01", required:true },
-                            ].map(f => (
-                                <div key={f.k}>
-                                    <label className="dd-label">{f.label}</label>
-                                    <div className="dd-input-wrap">
-                                        <input className="dd-input" type={f.type} step={f.step} required={f.required} value={formBaixar[f.k]||""} onChange={e => setFormBaixar(b => ({ ...b, [f.k]: e.target.value }))} />
-                                        <div className="dd-input-line" />
+                            <div>
+                                <label className="dd-label">Data de Pagamento *</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" type="date" required value={formBaixar.dataPagamento||""} onChange={e => setFormBaixar(b => ({ ...b, dataPagamento: e.target.value }))} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            {modalBaixar.isVencido && !Number(modalBaixar.jaFoiPago||0) && (
+                                <div style={{ display:"flex", gap:10 }}>
+                                    <div style={{ flex:1 }}>
+                                        <label className="dd-label">Juros (R$)</label>
+                                        <div className="dd-input-wrap">
+                                            <input className="dd-input" type="number" step="0.01" min="0" value={formBaixar.jurosAplicado||""} onChange={e => setFormBaixar(b => ({ ...b, jurosAplicado: e.target.value }))} />
+                                            <div className="dd-input-line" />
+                                        </div>
+                                    </div>
+                                    <div style={{ flex:1 }}>
+                                        <label className="dd-label">Multa (R$)</label>
+                                        <div className="dd-input-wrap">
+                                            <input className="dd-input" type="number" step="0.01" min="0" value={formBaixar.multaAplicada||""} onChange={e => setFormBaixar(b => ({ ...b, multaAplicada: e.target.value }))} />
+                                            <div className="dd-input-line" />
+                                        </div>
                                     </div>
                                 </div>
-                            ))}
+                            )}
+                            {/* Preview total esperado / saldo devedor */}
+                            {(() => {
+                                const juros = Number(formBaixar.jurosAplicado||0);
+                                const multa = Number(formBaixar.multaAplicada||0);
+                                const jaFoiPago = Number(modalBaixar.jaFoiPago||0);
+                                const isParcial = jaFoiPago > 0;
+                                const saldoDevedor = isParcial
+                                    ? Number(modalBaixar.saldoDevedor)
+                                    : Number(modalBaixar.valor) + juros + multa;
+                                const vp = Number(formBaixar.valorPago||0);
+                                const acima = vp > saldoDevedor + 0.001;
+                                return (
+                                    <div style={{ background: acima?"#fff5f5":"#f0f5f2", border:`1px solid ${acima?"#f8c8c8":"#d4e8d8"}`, borderRadius:6, padding:"8px 14px", fontSize:12 }}>
+                                        <div style={{ display:"flex", justifyContent:"space-between" }}>
+                                            <span style={{ color:"#6b8f7a" }}>Valor do título</span>
+                                            <span style={{ fontWeight:600 }}>{fmt(modalBaixar.valor)}</span>
+                                        </div>
+                                        {!isParcial && (juros > 0 || multa > 0) && <>
+                                            {juros > 0 && <div style={{ display:"flex", justifyContent:"space-between", color:"#b94040", fontSize:11 }}><span>+ Juros</span><span>{fmt(juros)}</span></div>}
+                                            {multa > 0 && <div style={{ display:"flex", justifyContent:"space-between", color:"#b94040", fontSize:11 }}><span>+ Multa</span><span>{fmt(multa)}</span></div>}
+                                            <div style={{ display:"flex", justifyContent:"space-between", borderTop:"1px solid #d4e8d8", marginTop:4, paddingTop:4, fontWeight:600 }}><span>Total esperado</span><span>{fmt(saldoDevedor)}</span></div>
+                                        </>}
+                                        {isParcial && <>
+                                            <div style={{ display:"flex", justifyContent:"space-between", color:"#6b8f7a", fontSize:11, marginTop:3 }}><span>Já pago</span><span style={{ color:"#2d6a4f" }}>- {fmt(jaFoiPago)}</span></div>
+                                            <div style={{ display:"flex", justifyContent:"space-between", borderTop:"1px solid #d4e8d8", marginTop:4, paddingTop:4, fontWeight:600, color:"#2563eb" }}><span>Saldo devedor</span><span>{fmt(saldoDevedor)}</span></div>
+                                        </>}
+                                        {acima && <p style={{ color:"#b94040", margin:"4px 0 0", fontSize:11 }}>Valor pago acima do saldo devedor.</p>}
+                                    </div>
+                                );
+                            })()}
+                            <div>
+                                <label className="dd-label">Valor Pago (R$) *</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" type="number" step="0.01" min="0.01" required value={formBaixar.valorPago||""} onChange={e => setFormBaixar(b => ({ ...b, valorPago: e.target.value }))} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
                             <div>
                                 <label className="dd-label">Forma de Pagamento</label>
                                 <select value={formBaixar.formaPagamentoId||""} onChange={e => setFormBaixar(b => ({ ...b, formaPagamentoId: e.target.value }))}
@@ -4440,15 +4951,65 @@ function FinContratos({ anoLetivo }) {
                 </div>
             )}
 
+            {/* Modal Histórico de Pagamento CR */}
+            {modalHistoricoCR && (
+                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalHistoricoCR(null)}>
+                    <div className="dd-modal" style={{ maxWidth:480 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div>
+                                <p className="dd-modal-title">Histórico de Pagamento</p>
+                                <p className="dd-modal-sub">{modalHistoricoCR.descricao}</p>
+                            </div>
+                            <button onClick={() => setModalHistoricoCR(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f", padding:4 }}><X size={16} /></button>
+                        </div>
+                        {histCRList.length === 0 ? (
+                            <p style={{ color:"#9aaa9f", fontSize:13, textAlign:"center", padding:"24px 0" }}>Nenhum registro de pagamento encontrado.</p>
+                        ) : (
+                            <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                                <thead>
+                                    <tr style={{ borderBottom:"1px solid #eaeef2" }}>
+                                        {["Data Pgto","Valor Pago","Forma","Juros","Multa","Obs"].map(h => (
+                                            <th key={h} style={{ padding:"6px 8px", textAlign:"left", color:"#9aaa9f", fontSize:10, textTransform:"uppercase" }}>{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {histCRList.map(h => (
+                                        <tr key={h.id} style={{ borderBottom:"1px solid #f2f5f2" }}>
+                                            <td style={{ padding:"8px 8px" }}>{fmtData(h.dataPagamento)}</td>
+                                            <td style={{ padding:"8px 8px", fontWeight:600, color:"#2d6a4f" }}>{fmt(h.valorPago)}</td>
+                                            <td style={{ padding:"8px 8px", color:"#9aaa9f" }}>{h.formaPagamentoNome || "—"}</td>
+                                            <td style={{ padding:"8px 8px", color:"#9aaa9f" }}>{h.jurosAplicado ? fmt(h.jurosAplicado) : "—"}</td>
+                                            <td style={{ padding:"8px 8px", color:"#9aaa9f" }}>{h.multaAplicada ? fmt(h.multaAplicada) : "—"}</td>
+                                            <td style={{ padding:"8px 8px", color:"#9aaa9f", fontSize:11 }}>{h.observacoes || "—"}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                        <div style={{ marginTop:16, textAlign:"right" }}>
+                            <button className="dd-btn-ghost" onClick={() => setModalHistoricoCR(null)}>Fechar</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Modal CR Avulsa */}
             {modalCRAvulsa && (
-                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalCRAvulsa(false)}>
+                <div className="dd-modal-overlay" onMouseDown={e => e.target===e.currentTarget &&setModalCRAvulsa(false)}>
                     <div className="dd-modal" style={{ maxWidth:420 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                             <div><p className="dd-modal-title">Nova CR Avulsa</p><p className="dd-modal-sub">Recebimento avulso</p></div>
                             <button onClick={() => setModalCRAvulsa(false)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
                         </div>
                         <form onSubmit={criarCRAvulsa} style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                            <div>
+                                <label className="dd-label">Tipo *</label>
+                                <select value={formCRAvulsa.tipo||"OUTRO"} onChange={e => setFormCRAvulsa(b => ({ ...b, tipo: e.target.value }))}
+                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
+                                    {["MENSALIDADE","MATRICULA","UNIFORME","EVENTO","OUTRO"].map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                            </div>
                             {[
                                 { k:"descricao", label:"Descrição *", required:true },
                                 { k:"valor", label:"Valor (R$) *", type:"number", step:"0.01", required:true },
@@ -4467,7 +5028,7 @@ function FinContratos({ anoLetivo }) {
                                 <select value={formCRAvulsa.pessoaId||""} onChange={e => setFormCRAvulsa(b => ({ ...b, pessoaId: e.target.value }))}
                                     style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
                                     <option value="">— Sem pessoa —</option>
-                                    {[...alunos.map(a => ({ id:a.id, nome:a.nome+" (aluno)" }))].map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                                    {responsaveis.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
                                 </select>
                             </div>
                             <div style={{ display:"flex", gap:8, marginTop:8 }}>
@@ -4487,7 +5048,7 @@ function FinContasPagar() {
     const [contas, setContas] = useState([]);
     const [modelos, setModelos] = useState([]);
     const [formasPagamento, setFormasPagamento] = useState([]);
-    const [filtros, setFiltros] = useState({ status:"", tipo:"", mesReferencia:"" });
+    const [filtros, setFiltros] = useState({ status:"", tipo:"", mesReferencia: mesAtual() });
     const [modalBaixar, setModalBaixar] = useState(null);
     const [modalGerarFolha, setModalGerarFolha] = useState(false);
     const [modalGerarRec, setModalGerarRec] = useState(false);
@@ -4495,12 +5056,23 @@ function FinContasPagar() {
     const [mesFolha, setMesFolha] = useState(mesAtual());
     const [mesRec, setMesRec] = useState(mesAtual());
     const [formBaixar, setFormBaixar] = useState({ dataPagamento:"", valorPago:"", formaPagamentoId:"", observacoes:"" });
-    const [formModelo, setFormModelo] = useState({ descricao:"", categoria:"CONTA_FIXA", valor:"", diaVencimento:"", observacoes:"" });
-    const [mostrarModelos, setMostrarModelos] = useState(false);
+    const [modalEditarCP, setModalEditarCP] = useState(null);
+    const [formEditarCP, setFormEditarCP] = useState({ descricao:"", valor:"", dataVencimento:"", categoria:"", observacoes:"" });
+    const [formModelo, setFormModelo] = useState({ descricao:"", categoria:"CONTA_FIXA", valor:"", diaVencimento:"", pessoaId:"", observacoes:"" });
+    const [pessoas, setPessoas] = useState([]);
+    const [abaCP, setAbaCP] = useState("contas");
+    const [modalHistoricoCP, setModalHistoricoCP] = useState(null); // { cp, registros[] }
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
     const [salvando, setSalvando] = useState(false);
 
     const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
+
+    const verHistoricoCP = async cp => {
+        try {
+            const r = await api.get(`/fin/contas-pagar/${cp.id}/historico`);
+            setModalHistoricoCP({ cp, registros: Array.isArray(r.data) ? r.data : [] });
+        } catch { flash("Erro ao carregar histórico.", "err"); }
+    };
 
     const carregar = () => {
         const params = {};
@@ -4510,10 +5082,11 @@ function FinContasPagar() {
         api.get("/fin/contas-pagar", { params }).then(r => setContas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     };
 
-    useEffect(() => { carregar(); }, [filtros]);
+    useEffect(() => { carregar(); }, [filtros]); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => {
         api.get("/fin/formas-pagamento", { params: { apenasAtivas: true } }).then(r => setFormasPagamento(Array.isArray(r.data) ? r.data : [])).catch(() => {});
-        api.get("/fin/contas-pagar-modelo").then(r => setModelos(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+        api.get("/fin/modelos-cp").then(r => setModelos(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+        api.get("/fin/pessoas", { params: { ativo: true } }).then(r => setPessoas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     }, []);
 
     const baixarConta = async e => {
@@ -4532,6 +5105,18 @@ function FinContasPagar() {
         if (!window.confirm("Cancelar esta conta?")) return;
         try { await api.patch(`/fin/contas-pagar/${id}/cancelar`); flash("Cancelada."); carregar(); }
         catch(err) { flash(err.response?.data || "Erro.", "err"); }
+    };
+
+    const editarConta = async e => {
+        e.preventDefault();
+        setSalvando(true);
+        try {
+            await api.put(`/fin/contas-pagar/${modalEditarCP.id}`, { ...formEditarCP, valor: Number(formEditarCP.valor) });
+            setModalEditarCP(null);
+            flash("Conta atualizada!");
+            carregar();
+        } catch(err) { flash(err.response?.data || "Erro.", "err"); }
+        finally { setSalvando(false); }
     };
 
     const gerarFolha = async () => {
@@ -4560,93 +5145,182 @@ function FinContasPagar() {
         e.preventDefault();
         setSalvando(true);
         try {
-            if (modalModelo.modo === "criar") await api.post("/fin/contas-pagar-modelo", { ...formModelo, valor: Number(formModelo.valor), diaVencimento: formModelo.diaVencimento ? Number(formModelo.diaVencimento) : null });
-            else await api.put(`/fin/contas-pagar-modelo/${modalModelo.dados.id}`, { ...formModelo, valor: Number(formModelo.valor), diaVencimento: formModelo.diaVencimento ? Number(formModelo.diaVencimento) : null });
+            const payload = { ...formModelo, valor: Number(formModelo.valor), diaVencimento: Number(formModelo.diaVencimento), pessoaId: formModelo.pessoaId ? Number(formModelo.pessoaId) : null };
+            if (modalModelo.modo === "criar") await api.post("/fin/modelos-cp", payload);
+            else await api.put(`/fin/modelos-cp/${modalModelo.dados.id}`, payload);
             setModalModelo(null);
-            api.get("/fin/contas-pagar-modelo").then(r => setModelos(Array.isArray(r.data) ? r.data : []));
+            flash("Modelo salvo!");
+            api.get("/fin/modelos-cp").then(r => setModelos(Array.isArray(r.data) ? r.data : []));
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
         finally { setSalvando(false); }
     };
 
     const deletarModelo = async id => {
         if (!window.confirm("Remover modelo?")) return;
-        await api.delete(`/fin/contas-pagar-modelo/${id}`).catch(() => {});
-        api.get("/fin/contas-pagar-modelo").then(r => setModelos(Array.isArray(r.data) ? r.data : []));
+        try { await api.delete(`/fin/modelos-cp/${id}`); flash("Modelo removido."); api.get("/fin/modelos-cp").then(r => setModelos(Array.isArray(r.data) ? r.data : [])); }
+        catch(err) { flash(err.response?.data || "Erro.", "err"); }
     };
 
-    const computarStatus = cp => {
-        if (cp.status !== "PENDENTE") return cp.status;
-        if (cp.dataVencimento && cp.dataVencimento < new Date().toISOString().slice(0,10)) return "VENCIDO";
-        return "PENDENTE";
+    const toggleAtivo = async id => {
+        try { await api.patch(`/fin/modelos-cp/${id}/status`); api.get("/fin/modelos-cp").then(r => setModelos(Array.isArray(r.data) ? r.data : [])); }
+        catch(err) { flash(err.response?.data || "Erro.", "err"); }
     };
+
+    // O backend já converte PENDENTE+vencida → "VENCIDO" em statusEfetivo().
+    // Não duplicamos a lógica aqui para evitar divergência futura.
+    const computarStatus = cp => cp.status;
 
     const ff = (k, v) => setFiltros(f => ({ ...f, [k]: v }));
+
+    /* --- resumo calculado a partir da lista atual --- */
+    const resumoCP = (() => {
+        let pendente = 0, vencido = 0, pago = 0, nVencido = 0;
+        contas.forEach(cp => {
+            const st = computarStatus(cp);
+            const totalDevido = Number(cp.valor || 0) + Number(cp.jurosAplicado || 0) + Number(cp.multaAplicada || 0);
+            const saldo = totalDevido - Number(cp.valorPago || 0);
+            if (st === "PAGO") pago += Number(cp.valorPago || 0);
+            else if (st === "PARCIALMENTE_PAGO") { pago += Number(cp.valorPago || 0); pendente += saldo; }
+            else if (st === "VENCIDO") { vencido += totalDevido; nVencido++; }
+            else if (st === "PENDENTE") pendente += totalDevido;
+        });
+        return { pendente, vencido, pago, nVencido };
+    })();
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
             {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
 
-            {/* Filtros e ações */}
-            <div style={{ display:"flex", gap:10, alignItems:"flex-end", flexWrap:"wrap" }}>
+            {/* Cards de resumo */}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12 }}>
                 {[
-                    { k:"status", opts:[["","Todos status"],["PENDENTE","Pendente"],["PAGO","Pago"],["CANCELADO","Cancelado"]] },
-                    { k:"tipo",   opts:[["","Todos tipos"],["SALARIO","Salário"],["CONTA_FIXA","Conta Fixa"],["FORNECEDOR","Fornecedor"],["OUTRO","Outro"]] },
-                ].map(f => (
-                    <select key={f.k} value={filtros[f.k]} onChange={e => ff(f.k, e.target.value)}
-                        style={{ fontSize:11, padding:"8px 10px", border:"1px solid #eaeef2", fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff", color:"#5a7060" }}>
-                        {f.opts.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
-                    </select>
+                    { label:"A Pagar (Pendente)", valor: resumoCP.pendente, cor:"#c47a00", bg:"#fff8e1", icon: <Clock size={18} color="#c47a00" /> },
+                    { label:`Vencidas (${resumoCP.nVencido})`,  valor: resumoCP.vencido,  cor:"#b94040", bg:"#fdf0f0", icon: <AlertCircle size={18} color="#b94040" /> },
+                    { label:"Pagas (período)",    valor: resumoCP.pago,    cor:"#2d6a4f", bg:"#f0f5f2", icon: <CheckCircle2 size={18} color="#2d6a4f" /> },
+                ].map(c => (
+                    <div key={c.label} style={{ background:c.bg, borderRadius:8, padding:"14px 18px", display:"flex", alignItems:"center", gap:12 }}>
+                        <div style={{ flexShrink:0 }}>{c.icon}</div>
+                        <div>
+                            <div style={{ fontSize:10, color:c.cor, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.5px" }}>{c.label}</div>
+                            <div style={{ fontSize:18, fontWeight:700, color:c.cor }}>{fmt(c.valor)}</div>
+                        </div>
+                    </div>
                 ))}
-                <input type="month" value={filtros.mesReferencia} onChange={e => ff("mesReferencia", e.target.value)}
-                    style={{ fontSize:11, padding:"8px 10px", border:"1px solid #eaeef2", fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }} />
-                <button className="dd-btn-ghost" onClick={() => setModalGerarFolha(true)}>Gerar Folha</button>
-                <button className="dd-btn-ghost" onClick={() => setModalGerarRec(true)}>Gerar Recorrentes</button>
-                <button className="dd-btn-ghost" onClick={() => setMostrarModelos(m => !m)}>{mostrarModelos?"Ocultar Modelos":"Ver Modelos"}</button>
             </div>
 
-            {/* Tabela CP */}
-            <div className="dd-section">
-                <div className="dd-section-header">
-                    <span className="dd-section-title">Contas a Pagar</span>
-                    <span className="dd-section-count">{contas.length}</span>
-                </div>
-                <div className="dd-table-wrap">
-                    <table className="dd-table" style={{ width:"100%" }}>
-                        <thead><tr>
-                            <th>Descrição</th><th>Tipo</th><th>Valor</th><th>Vencimento</th><th>Mês Ref.</th><th>Status</th><th>Pessoa/Func.</th><th></th>
-                        </tr></thead>
-                        <tbody>
-                            {contas.length === 0 && <tr><td colSpan={8} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Nenhuma conta encontrada</td></tr>}
-                            {contas.map(cp => {
-                                const st = computarStatus(cp);
-                                const sc = statusBadge(st);
-                                return (
-                                    <tr key={cp.id}>
-                                        <td style={{ fontWeight:500 }}>{cp.descricao}</td>
-                                        <td style={{ fontSize:11 }}>{cp.tipo}</td>
-                                        <td style={{ fontWeight:500 }}>{fmt(cp.valor)}</td>
-                                        <td>{fmtData(cp.dataVencimento)}</td>
-                                        <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.mesReferencia||"—"}</td>
-                                        <td><span className="dd-badge" style={{ ...sc, borderRadius:3 }}>{st}</span></td>
-                                        <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.pessoaNome||cp.funcionarioNome||"—"}</td>
-                                        <td>
-                                            {(st==="PENDENTE"||st==="VENCIDO") && (
-                                                <div style={{ display:"flex", gap:6 }}>
-                                                    <button className="dd-btn-edit" style={{ fontSize:10 }} onClick={() => { setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(cp.valor), formaPagamentoId:"", observacoes:"" }); setModalBaixar(cp); }}>Baixar</button>
-                                                    <button className="dd-btn-danger" style={{ fontSize:10 }} onClick={() => cancelarConta(cp.id)}>Cancelar</button>
-                                                </div>
-                                            )}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
+            {/* Abas: Contas | Modelos */}
+            <div style={{ display:"flex", borderBottom:"2px solid #eaeef2", gap:0 }}>
+                {[
+                    { id:"contas",  label:`Contas (${contas.length})` },
+                    { id:"modelos", label:`Modelos (${modelos.length})` },
+                ].map(t => (
+                    <button key={t.id} onClick={() => setAbaCP(t.id)}
+                        style={{ background:"none", border:"none", cursor:"pointer", padding:"10px 20px", fontSize:13, fontWeight:600,
+                            color: abaCP===t.id ? "#2d6a4f" : "#9aaa9f",
+                            borderBottom: abaCP===t.id ? "2px solid #2d6a4f" : "2px solid transparent",
+                            marginBottom:-2, fontFamily:"'DM Sans',sans-serif" }}>
+                        {t.label}
+                    </button>
+                ))}
             </div>
 
-            {/* Modelos */}
-            {mostrarModelos && (
+            {abaCP === "contas" && <>
+                {/* Aviso: modelos ativos mas recorrentes não geradas para o mês visualizado */}
+                {(() => {
+                    const mesRef = filtros.mesReferencia || mesAtual();
+                    const modelosAtivos = modelos.filter(m => m.ativo);
+                    if (modelosAtivos.length === 0) return null;
+                    // IDs dos modelos que JÁ geraram CP no mês filtrado
+                    const idsGerados = new Set(
+                        contas.filter(cp => cp.modeloId && cp.mesReferencia === mesRef).map(cp => cp.modeloId)
+                    );
+                    // Modelos que ainda NÃO foram gerados neste mês
+                    const pendentes = modelosAtivos.filter(m => !idsGerados.has(m.id));
+                    if (pendentes.length === 0) return null;
+                    const nomeMes = new Date(mesRef + "-15").toLocaleDateString("pt-BR", { month:"long", year:"numeric" });
+                    const detalhe = pendentes.length === modelosAtivos.length
+                        ? "nenhuma conta recorrente foi gerada"
+                        : `${pendentes.length} de ${modelosAtivos.length} modelos ainda não gerados (${pendentes.map(m => m.descricao).join(", ")})`;
+                    return (
+                    <div style={{ display:"flex", alignItems:"center", gap:10, background:"#fff8e1", border:"1px solid #ffe082", borderRadius:6, padding:"10px 14px" }}>
+                        <AlertCircle size={16} color="#c47a00" style={{ flexShrink:0 }} />
+                        <span style={{ fontSize:12, color:"#c47a00", flex:1 }}>
+                            <strong>{nomeMes}:</strong> {detalhe}.
+                        </span>
+                        <button className="dd-btn-ghost" style={{ fontSize:11, whiteSpace:"nowrap" }} onClick={() => { setMesRec(mesRef); setModalGerarRec(true); }}>
+                            Gerar agora
+                        </button>
+                    </div>
+                    );
+                })()}
+                {/* Barra: filtros à esquerda, ações à direita */}
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                    <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                        {[
+                            { k:"status", opts:[["","Todos status"],["PENDENTE","Pendente"],["VENCIDO","Vencido"],["PARCIALMENTE_PAGO","Parc. Pago"],["PAGO","Pago"],["CANCELADO","Cancelado"]] },
+                            { k:"tipo",   opts:[["","Todos tipos"],["SALARIO","Salário"],["CONTA_FIXA","Conta Fixa"],["FORNECEDOR","Fornecedor"],["OUTRO","Outro"]] },
+                        ].map(f => (
+                            <select key={f.k} value={filtros[f.k]} onChange={e => ff(f.k, e.target.value)}
+                                style={{ fontSize:12, padding:"7px 10px", border:"1px solid #eaeef2", fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff", color:"#5a7060", borderRadius:4 }}>
+                                {f.opts.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+                            </select>
+                        ))}
+                        <input type="month" value={filtros.mesReferencia} onChange={e => ff("mesReferencia", e.target.value)}
+                            style={{ fontSize:12, padding:"7px 10px", border:"1px solid #eaeef2", fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff", borderRadius:4 }} />
+                    </div>
+                    <div style={{ display:"flex", gap:8 }}>
+                        <button className="dd-btn-ghost" style={{ fontSize:12 }} onClick={() => setModalGerarFolha(true)}>Gerar Folha</button>
+                        <button className="dd-btn-ghost" style={{ fontSize:12 }} onClick={() => setModalGerarRec(true)}>Gerar Recorrentes</button>
+                    </div>
+                </div>
+
+                {/* Tabela CP */}
+                <div className="dd-section">
+                    <div className="dd-table-wrap">
+                        <table className="dd-table" style={{ width:"100%" }}>
+                            <thead><tr>
+                                <th>Descrição</th><th>Tipo</th><th>Valor</th><th>Valor Pago</th><th>Pago em</th><th>Forma Pgto</th><th>Vencimento</th><th>Mês Ref.</th><th>Status</th><th>Pessoa/Func.</th><th></th>
+                            </tr></thead>
+                            <tbody>
+                                {contas.length === 0 && <tr><td colSpan={11} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Nenhuma conta encontrada</td></tr>}
+                                {contas.map(cp => {
+                                    const st = computarStatus(cp);
+                                    const sc = statusBadge(st);
+                                    return (
+                                        <tr key={cp.id}>
+                                            <td style={{ fontWeight:500 }}>{cp.descricao}</td>
+                                            <td style={{ fontSize:11 }}>{cp.tipo}</td>
+                                            <td style={{ fontWeight:500 }}>{fmt(cp.valor)}</td>
+                                            <td style={{ fontSize:11, color: cp.valorPago ? "#2d6a4f" : "#9aaa9f", fontWeight: cp.valorPago ? 600 : 400 }}>{cp.valorPago ? fmt(cp.valorPago) : "—"}</td>
+                                            <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.dataPagamento ? fmtData(cp.dataPagamento) : "—"}</td>
+                                            <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.formaPagamentoNome || "—"}</td>
+                                            <td>{fmtData(cp.dataVencimento)}</td>
+                                            <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.mesReferencia||"—"}</td>
+                                            <td><span className="dd-badge" style={{ ...sc, borderRadius:3 }}>{st}</span></td>
+                                            <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.pessoaNome||cp.funcionarioNome||"—"}</td>
+                                            <td>
+                                                {(st==="PENDENTE"||st==="VENCIDO"||st==="PARCIALMENTE_PAGO") && (
+                                                    <div style={{ display:"flex", gap:6 }}>
+                                                        <button className="dd-btn-edit" style={{ fontSize:10 }} onClick={() => { const saldo = cp.saldoDevedor ?? cp.valor; setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: String(saldo), formaPagamentoId:"", observacoes:"" }); setModalBaixar(cp); }}>Baixar</button>
+                                                        <button className="dd-btn-ghost" style={{ fontSize:10 }} onClick={() => { setFormEditarCP({ descricao: cp.descricao, valor: String(cp.valor), dataVencimento: cp.dataVencimento, categoria: cp.categoria||"", observacoes: cp.observacoes||"" }); setModalEditarCP(cp); }}>Editar</button>
+                                                        <button className="dd-btn-danger" style={{ fontSize:10 }} onClick={() => cancelarConta(cp.id)}>Cancelar</button>
+                                                        {st==="PARCIALMENTE_PAGO" && <button className="dd-btn-ghost" style={{ fontSize:10 }} onClick={() => verHistoricoCP(cp)}>Histórico</button>}
+                                                    </div>
+                                                )}
+                                                {(st==="PAGO") && (
+                                                    <button className="dd-btn-ghost" style={{ fontSize:10 }} onClick={() => verHistoricoCP(cp)}>Histórico</button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </>}
+
+            {abaCP === "modelos" && (
                 <div className="dd-section">
                     <div className="dd-section-header">
                         <span className="dd-section-title">Modelos de Contas Fixas</span>
@@ -4654,18 +5328,26 @@ function FinContasPagar() {
                     </div>
                     <div className="dd-table-wrap">
                         <table className="dd-table" style={{ width:"100%" }}>
-                            <thead><tr><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Dia Venc.</th><th>Ativo</th><th></th></tr></thead>
+                            <thead><tr><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Dia Venc.</th><th>Fornecedor</th><th>Ativo</th><th></th></tr></thead>
                             <tbody>
-                                {modelos.length === 0 && <tr><td colSpan={6} style={{ textAlign:"center", color:"#9aaa9f", padding:16 }}>Nenhum modelo</td></tr>}
+                                {modelos.length === 0 && <tr><td colSpan={7} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Nenhum modelo cadastrado</td></tr>}
                                 {modelos.map(m => (
                                     <tr key={m.id}>
                                         <td style={{ fontWeight:500 }}>{m.descricao}</td>
-                                        <td style={{ fontSize:11 }}>{m.categoria}</td>
+                                        <td style={{ fontSize:11 }}>{m.categoria.replace("_"," ")}</td>
                                         <td>{fmt(m.valor)}</td>
                                         <td style={{ fontSize:12 }}>Dia {m.diaVencimento||"—"}</td>
-                                        <td><span style={{ fontSize:10, padding:"2px 8px", background: m.ativo?"#f0f5f2":"#fdf0f0", color: m.ativo?"#2d6a4f":"#b94040", borderRadius:3 }}>{m.ativo?"Sim":"Não"}</span></td>
+                                        <td style={{ fontSize:11, color:"#9aaa9f" }}>{m.pessoaNome||"—"}</td>
+                                        <td>
+                                            <button onClick={() => toggleAtivo(m.id)}
+                                                style={{ fontSize:10, padding:"2px 10px", border:"none", cursor:"pointer", borderRadius:3,
+                                                    background: m.ativo?"#f0f5f2":"#fdf0f0",
+                                                    color: m.ativo?"#2d6a4f":"#b94040" }}>
+                                                {m.ativo?"Ativo":"Inativo"}
+                                            </button>
+                                        </td>
                                         <td><div style={{ display:"flex", gap:4 }}>
-                                            <button className="dd-btn-edit" style={{ fontSize:10 }} onClick={() => { setFormModelo({ descricao:m.descricao, categoria:m.categoria, valor:m.valor, diaVencimento:m.diaVencimento||"", observacoes:m.observacoes||"" }); setModalModelo({ modo:"editar", dados:m }); }}>Editar</button>
+                                            <button className="dd-btn-edit" style={{ fontSize:10 }} onClick={() => { setFormModelo({ descricao:m.descricao, categoria:m.categoria, valor:m.valor, diaVencimento:m.diaVencimento||"", pessoaId: m.pessoaId||"", observacoes:m.observacoes||"" }); setModalModelo({ modo:"editar", dados:m }); }}>Editar</button>
                                             <button className="dd-btn-danger" style={{ fontSize:10 }} onClick={() => deletarModelo(m.id)}>Rem.</button>
                                         </div></td>
                                     </tr>
@@ -4678,10 +5360,10 @@ function FinContasPagar() {
 
             {/* Modal Baixar CP */}
             {modalBaixar && (
-                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalBaixar(null)}>
+                <div className="dd-modal-overlay" onMouseDown={e => e.target===e.currentTarget &&setModalBaixar(null)}>
                     <div className="dd-modal" style={{ maxWidth:380 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
-                            <div><p className="dd-modal-title">Dar Baixa</p><p className="dd-modal-sub">{modalBaixar.descricao}</p></div>
+                            <div><p className="dd-modal-title">Dar Baixa</p><p className="dd-modal-sub">{modalBaixar.descricao}{modalBaixar.status === "PARCIALMENTE_PAGO" ? ` — Saldo: ${fmt(modalBaixar.saldoDevedor)}` : ""}</p></div>
                             <button onClick={() => setModalBaixar(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
                         </div>
                         <form onSubmit={baixarConta} style={{ display:"flex", flexDirection:"column", gap:14 }}>
@@ -4714,9 +5396,62 @@ function FinContasPagar() {
                 </div>
             )}
 
+            {/* Modal Editar CP */}
+            {modalEditarCP && (
+                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalEditarCP(null)}>
+                    <div className="dd-modal" style={{ maxWidth:400 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div><p className="dd-modal-title">Editar Conta</p><p className="dd-modal-sub">{modalEditarCP.descricao}</p></div>
+                            <button onClick={() => setModalEditarCP(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
+                        </div>
+                        <form onSubmit={editarConta} style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                            <div>
+                                <label className="dd-label">Descrição *</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" type="text" required value={formEditarCP.descricao} onChange={e => setFormEditarCP(f => ({ ...f, descricao: e.target.value }))} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Valor (R$) *</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" type="number" step="0.01" required value={formEditarCP.valor} onChange={e => setFormEditarCP(f => ({ ...f, valor: e.target.value }))} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Vencimento *</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" type="date" required value={formEditarCP.dataVencimento} onChange={e => setFormEditarCP(f => ({ ...f, dataVencimento: e.target.value }))} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Categoria</label>
+                                <select value={formEditarCP.categoria} onChange={e => setFormEditarCP(f => ({ ...f, categoria: e.target.value }))}
+                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
+                                    {["AGUA","LUZ","INTERNET","ALUGUEL","SALARIO","LIMPEZA","MANUTENCAO","MATERIAL","OUTRO"].map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="dd-label">Observações</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" type="text" value={formEditarCP.observacoes} onChange={e => setFormEditarCP(f => ({ ...f, observacoes: e.target.value }))} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                                <button type="button" className="dd-btn-ghost" onClick={() => setModalEditarCP(null)}>Cancelar</button>
+                                <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando?"Salvando...":"Salvar"}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             {/* Modal Gerar Folha */}
             {modalGerarFolha && (
-                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalGerarFolha(false)}>
+                <div className="dd-modal-overlay" onMouseDown={e => e.target===e.currentTarget &&setModalGerarFolha(false)}>
                     <div className="dd-modal" style={{ maxWidth:340 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                             <div><p className="dd-modal-title">Gerar Folha de Pagamento</p><p className="dd-modal-sub">Salários de todos os funcionários ativos</p></div>
@@ -4737,7 +5472,7 @@ function FinContasPagar() {
 
             {/* Modal Gerar Recorrentes */}
             {modalGerarRec && (
-                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalGerarRec(false)}>
+                <div className="dd-modal-overlay" onMouseDown={e => e.target===e.currentTarget &&setModalGerarRec(false)}>
                     <div className="dd-modal" style={{ maxWidth:340 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                             <div><p className="dd-modal-title">Gerar Contas Recorrentes</p><p className="dd-modal-sub">Instâncias de todos os modelos ativos</p></div>
@@ -4758,7 +5493,7 @@ function FinContasPagar() {
 
             {/* Modal Modelo */}
             {modalModelo && (
-                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalModelo(null)}>
+                <div className="dd-modal-overlay" onMouseDown={e => e.target===e.currentTarget &&setModalModelo(null)}>
                     <div className="dd-modal" style={{ maxWidth:400 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                             <div><p className="dd-modal-title">{modalModelo.modo==="criar"?"Novo Modelo":"Editar Modelo"}</p></div>
@@ -4775,7 +5510,7 @@ function FinContasPagar() {
                             {[
                                 { k:"descricao", label:"Descrição *", required:true },
                                 { k:"valor", label:"Valor (R$) *", type:"number", step:"0.01", required:true },
-                                { k:"diaVencimento", label:"Dia de Vencimento (1-31)", type:"number" },
+                                { k:"diaVencimento", label:"Dia de Vencimento (1-28) *", type:"number", required:true },
                             ].map(f => (
                                 <div key={f.k}>
                                     <label className="dd-label">{f.label}</label>
@@ -4785,11 +5520,58 @@ function FinContasPagar() {
                                     </div>
                                 </div>
                             ))}
+                            <div>
+                                <label className="dd-label">Fornecedor / Pessoa <span style={{ color:"#9aaa9f", fontWeight:400 }}>(opcional)</span></label>
+                                <select value={formModelo.pessoaId||""} onChange={e => setFormModelo(m => ({ ...m, pessoaId: e.target.value }))}
+                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
+                                    <option value="">— Nenhum —</option>
+                                    {pessoas.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                                </select>
+                            </div>
                             <div style={{ display:"flex", gap:8, marginTop:8 }}>
                                 <button type="button" className="dd-btn-ghost" onClick={() => setModalModelo(null)}>Cancelar</button>
                                 <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando?"Salvando...":"Salvar"}</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Histórico de Pagamentos CP */}
+            {modalHistoricoCP && (
+                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalHistoricoCP(null)}>
+                    <div className="dd-modal" style={{ maxWidth:560 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div>
+                                <p className="dd-modal-title">Histórico de Pagamentos</p>
+                                <p className="dd-modal-sub">{modalHistoricoCP.cp.descricao}</p>
+                            </div>
+                            <button onClick={() => setModalHistoricoCP(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
+                        </div>
+                        {modalHistoricoCP.registros.length === 0 ? (
+                            <p style={{ color:"#9aaa9f", fontSize:13, textAlign:"center", padding:"16px 0" }}>Nenhum registro de pagamento encontrado.</p>
+                        ) : (
+                            <table className="dd-table" style={{ width:"100%" }}>
+                                <thead><tr>
+                                    <th>Data Pgto</th><th>Valor Pago</th><th>Forma</th><th>Juros</th><th>Multa</th><th>Registrado em</th>
+                                </tr></thead>
+                                <tbody>
+                                    {modalHistoricoCP.registros.map(h => (
+                                        <tr key={h.id}>
+                                            <td>{fmtData(h.dataPagamento)}</td>
+                                            <td style={{ fontWeight:600, color:"#2d6a4f" }}>{fmt(h.valorPago)}</td>
+                                            <td style={{ fontSize:11, color:"#9aaa9f" }}>{h.formaPagamentoNome||"—"}</td>
+                                            <td style={{ fontSize:11 }}>{h.jurosAplicado ? fmt(h.jurosAplicado) : "—"}</td>
+                                            <td style={{ fontSize:11 }}>{h.multaAplicada ? fmt(h.multaAplicada) : "—"}</td>
+                                            <td style={{ fontSize:11, color:"#9aaa9f" }}>{h.dataRegistro ? new Date(h.dataRegistro).toLocaleString("pt-BR") : "—"}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                        <div style={{ marginTop:16, display:"flex", justifyContent:"flex-end" }}>
+                            <button className="dd-btn-ghost" onClick={() => setModalHistoricoCP(null)}>Fechar</button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -4819,7 +5601,7 @@ function FinMovimentacoes() {
         api.get("/fin/movimentacoes/resumo", { params: { de, ate } }).then(r => setResumo(r.data || {})).catch(() => {});
     };
 
-    useEffect(() => { carregar(); }, [mes]);
+    useEffect(() => { carregar(); }, [mes]); // eslint-disable-line react-hooks/exhaustive-deps
     useEffect(() => {
         api.get("/fin/formas-pagamento", { params: { apenasAtivas: true } }).then(r => setFormasPagamento(Array.isArray(r.data) ? r.data : [])).catch(() => {});
         api.get("/fin/pessoas", { params: { ativo: true } }).then(r => setPessoas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
@@ -4909,7 +5691,7 @@ function FinMovimentacoes() {
             </div>
 
             {modal && (
-                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModal(false)}>
+                <div className="dd-modal-overlay" onMouseDown={e => e.target===e.currentTarget &&setModal(false)}>
                     <div className="dd-modal" style={{ maxWidth:440 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                             <div><p className="dd-modal-title">Nova Movimentação</p><p className="dd-modal-sub">Caixa rápido</p></div>
@@ -4988,7 +5770,7 @@ function FinConfiguracoes({ anoLetivo }) {
     const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
 
     const carregarConfig = () => {
-        api.get("/fin/configuracao").then(r => { setConfig(r.data); setFormConfig({ numParcelasPadrao: r.data.numParcelasPadrao||12, jurosMensal: r.data.jurosMensal||0, multaAtraso: r.data.multaAtraso||0, diaVencimentoPadrao: r.data.diaVencimentoPadrao||10 }); }).catch(() => {});
+        api.get("/fin/configuracoes").then(r => { setConfig(r.data); setFormConfig({ numParcelasPadrao: r.data.numParcelasPadrao||12, jurosAtrasoPct: r.data.jurosAtrasoPct||0, multaAtrasoPct: r.data.multaAtrasoPct||0, diaVencimentoPadrao: r.data.diaVencimentoPadrao||10, mediaMinima: r.data.mediaMinima??6, freqMinima: r.data.freqMinima??75 }); }).catch(() => {});
     };
     const carregarFormas = () => {
         api.get("/fin/formas-pagamento").then(r => setFormas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
@@ -4999,7 +5781,7 @@ function FinConfiguracoes({ anoLetivo }) {
             setSeries(sers);
             const res = await api.get("/fin/serie-valores", { params: { anoLetivo: ano } }).catch(() => ({ data: [] }));
             const mapa = {};
-            (Array.isArray(res.data) ? res.data : []).forEach(sv => { mapa[sv.serieId] = sv.valor; });
+            (Array.isArray(res.data) ? res.data : []).forEach(sv => { mapa[sv.serieId] = sv.valorPadrao; });
             setSeriesValores(mapa);
         }).catch(() => {});
     };
@@ -5011,7 +5793,7 @@ function FinConfiguracoes({ anoLetivo }) {
         e.preventDefault();
         setSalvando(true);
         try {
-            await api.put("/fin/configuracao", { ...formConfig, numParcelasPadrao: Number(formConfig.numParcelasPadrao), jurosMensal: Number(formConfig.jurosMensal), multaAtraso: Number(formConfig.multaAtraso), diaVencimentoPadrao: Number(formConfig.diaVencimentoPadrao) });
+            await api.put("/fin/configuracoes", { ...formConfig, numParcelasPadrao: Number(formConfig.numParcelasPadrao), jurosAtrasoPct: Number(formConfig.jurosAtrasoPct), multaAtrasoPct: Number(formConfig.multaAtrasoPct), diaVencimentoPadrao: Number(formConfig.diaVencimentoPadrao), mediaMinima: Number(formConfig.mediaMinima), freqMinima: Number(formConfig.freqMinima) });
             flash("Configuração salva!");
             carregarConfig();
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
@@ -5041,8 +5823,9 @@ function FinConfiguracoes({ anoLetivo }) {
     const salvarValorSerie = async (serieId, valor) => {
         if (!valor && valor !== 0) return;
         try {
-            await api.post("/fin/serie-valores", { serieId: Number(serieId), anoLetivo: Number(anoSeries), valor: Number(valor) });
+            await api.post("/fin/serie-valores", { serieId: Number(serieId), anoLetivo: Number(anoSeries), valorPadrao: Number(valor) });
             flash("Valor salvo!");
+            carregarSeriesValores(anoSeries);
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
     };
 
@@ -5060,8 +5843,10 @@ function FinConfiguracoes({ anoLetivo }) {
                         {[
                             { k:"numParcelasPadrao",  label:"Parcelas Padrão",       type:"number" },
                             { k:"diaVencimentoPadrao",label:"Dia Vencimento Padrão", type:"number" },
-                            { k:"jurosMensal",        label:"Juros Mensal (%)",      type:"number", step:"0.01" },
-                            { k:"multaAtraso",        label:"Multa por Atraso (%)",  type:"number", step:"0.01" },
+                            { k:"jurosAtrasoPct",     label:"Juros por Atraso (%)",  type:"number", step:"0.01" },
+                            { k:"multaAtrasoPct",     label:"Multa por Atraso (%)",  type:"number", step:"0.01" },
+                            { k:"mediaMinima",        label:"Média Mínima para Aprovação", type:"number", step:"0.1" },
+                            { k:"freqMinima",         label:"Frequência Mínima (%)", type:"number", step:"0.1" },
                         ].map(f => (
                             <div key={f.k}>
                                 <label className="dd-label">{f.label}</label>
@@ -5136,6 +5921,7 @@ function FinConfiguracoes({ anoLetivo }) {
                                         <td style={{ fontWeight:500 }}>{s.nome}</td>
                                         <td>
                                             <input type="number" step="0.01" defaultValue={val}
+                                                key={`sv-${s.id}-${val}`}
                                                 id={`sv-${s.id}`}
                                                 style={{ width:140, border:"1px solid #eaeef2", padding:"6px 8px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none" }}
                                                 placeholder="Não definido" />
@@ -5150,6 +5936,254 @@ function FinConfiguracoes({ anoLetivo }) {
                                     </tr>
                                 );
                             })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ---- COMUNICADOS ----
+function Comunicados() {
+    const userRole = localStorage.getItem("role") || "DIRECAO";
+
+    const [comunicados, setComunicados] = useState([]);
+    const [turmas, setTurmas]           = useState([]);
+    const [form, setForm] = useState({ titulo:"", corpo:"", destinatarios:"TODOS", turmaId:"" });
+    const [criando, setCriando] = useState(false);
+    const [msg, setMsg] = useState({ texto:"", tipo:"" });
+
+    const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
+
+    const carregar = () => {
+        api.get("/comunicados").then(r => setComunicados(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    };
+
+    useEffect(() => {
+        carregar();
+        api.get("/turmas").then(r => setTurmas(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    }, []);
+
+    const salvar = async e => {
+        e.preventDefault();
+        if (!form.titulo.trim() || !form.corpo.trim()) return flash("Título e texto são obrigatórios.", "err");
+        if (form.destinatarios === "TURMA" && !form.turmaId) return flash("Selecione a turma.", "err");
+        const payload = { titulo: form.titulo, corpo: form.corpo, destinatarios: form.destinatarios };
+        if (form.destinatarios === "TURMA") payload.turmaId = form.turmaId;
+        try {
+            await api.post("/comunicados", payload);
+            setForm({ titulo:"", corpo:"", destinatarios:"TODOS", turmaId:"" });
+            setCriando(false);
+            flash("Comunicado publicado!");
+            carregar();
+        } catch(err) { flash(err.response?.data || "Erro ao publicar.", "err"); }
+    };
+
+    const deletar = async id => {
+        if (!window.confirm("Remover este comunicado?")) return;
+        try {
+            await api.delete(`/comunicados/${id}`);
+            flash("Comunicado removido.");
+            carregar();
+        } catch(err) { flash(err.response?.data || "Erro ao remover.", "err"); }
+    };
+
+    const turmaNome = id => turmas.find(t => String(t.id) === String(id))?.nome || `Turma ${id}`;
+    const DEST_LABELS = { TODOS:"Todos", PROFESSORES:"Professores", ALUNOS:"Alunos" };
+
+    return (
+        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+            {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
+
+            <div className="dd-section">
+                <div className="dd-section-header">
+                    <span className="dd-section-title">Comunicados</span>
+                    <span className="dd-section-count">{comunicados.length}</span>
+                    <button className="dd-btn-primary" style={{ marginLeft:"auto", padding:"6px 14px", fontSize:12 }}
+                            onClick={() => setCriando(v => !v)}>
+                        {criando ? "Cancelar" : <><Megaphone size={13} style={{ marginRight:6 }} />Novo Comunicado</>}
+                    </button>
+                </div>
+
+                {criando && (
+                    <div style={{ padding:24, borderBottom:"1px solid #eaeef2" }}>
+                        <form onSubmit={salvar} style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                            <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:12, alignItems:"end" }}>
+                                <div>
+                                    <label className="dd-label">Título</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" value={form.titulo} onChange={e => setForm(f => ({...f, titulo:e.target.value}))} placeholder="Ex: Reunião de pais — 15/04" required />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="dd-label">Destinatários</label>
+                                    <select value={form.destinatarios}
+                                            onChange={e => setForm(f => ({...f, destinatarios:e.target.value, turmaId:""}))}
+                                            className="dd-input" style={{ height:38, cursor:"pointer" }}>
+                                        <option value="TODOS">Todos</option>
+                                        <option value="PROFESSORES">Professores</option>
+                                        <option value="ALUNOS">Alunos</option>
+                                        <option value="TURMA">Por Turma</option>
+                                    </select>
+                                </div>
+                            </div>
+                            {form.destinatarios === "TURMA" && (
+                                <div>
+                                    <label className="dd-label">Turma</label>
+                                    <select value={form.turmaId} onChange={e => setForm(f => ({...f, turmaId:e.target.value}))}
+                                            className="dd-input" style={{ height:38, cursor:"pointer" }} required>
+                                        <option value="">Selecione a turma…</option>
+                                        {turmas.map(t => (
+                                            <option key={t.id} value={t.id}>
+                                                {t.serie?.nome ? `${t.serie.nome} — ` : ""}{t.nome}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                            <div>
+                                <label className="dd-label">Texto</label>
+                                <textarea className="dd-input" rows={5} value={form.corpo}
+                                          onChange={e => setForm(f => ({...f, corpo:e.target.value}))}
+                                          placeholder="Escreva o comunicado aqui..."
+                                          style={{ resize:"vertical", lineHeight:1.6 }} required />
+                            </div>
+                            <div>
+                                <button type="submit" className="dd-btn-primary" style={{ display:"inline-flex", alignItems:"center", gap:6 }}>
+                                    <Send size={13} />Publicar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                )}
+
+                <div style={{ padding:"0 20px" }}>
+                    {comunicados.length === 0 && (
+                        <p style={{ color:"#9aaa9f", fontSize:13, padding:"24px 0", textAlign:"center" }}>Nenhum comunicado publicado.</p>
+                    )}
+                    {comunicados.map(c => (
+                        <div key={c.id} style={{ padding:"16px 0", borderBottom:"1px solid #f0f4f1" }}>
+                            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12 }}>
+                                <div style={{ flex:1 }}>
+                                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6, flexWrap:"wrap" }}>
+                                        <span style={{ fontWeight:600, fontSize:14, color:"#0d1f18" }}>{c.titulo}</span>
+                                        <span style={{ fontSize:10, fontWeight:500, letterSpacing:".08em", textTransform:"uppercase",
+                                                       background:"#e8f5ec", color:"#3a7a5a", padding:"2px 8px", borderRadius:3 }}>
+                                            {c.destinatarios === "TURMA"
+                                                ? `Turma: ${turmaNome(c.turmaId)}`
+                                                : (DEST_LABELS[c.destinatarios] || c.destinatarios)}
+                                        </span>
+                                    </div>
+                                    <p style={{ fontSize:13, color:"#3a4a40", lineHeight:1.6, whiteSpace:"pre-wrap", margin:"0 0 8px" }}>{c.corpo}</p>
+                                    <p style={{ fontSize:11, color:"#9aaa9f" }}>
+                                        {c.autorNome} · {c.dataPublicacao ? new Date(c.dataPublicacao).toLocaleString("pt-BR", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" }) : ""}
+                                    </p>
+                                </div>
+                                {(userRole === "DIRECAO" || userRole === "COORDENACAO") && (
+                                    <button onClick={() => deletar(c.id)} style={{ background:"none", border:"none", cursor:"pointer", color:"#c0a0a0", flexShrink:0 }}>
+                                        <Trash2 size={14} />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ---- AUDITORIA ----
+function AuditLog() {
+    const hoje = new Date().toISOString().slice(0,10);
+    const umMesAtras = new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0,10);
+
+    const [logs, setLogs] = useState([]);
+    const [from, setFrom] = useState(umMesAtras);
+    const [to, setTo]     = useState(hoje);
+    const [carregando, setCarregando] = useState(false);
+    const [msg, setMsg] = useState("");
+
+    const carregar = async () => {
+        setCarregando(true);
+        setMsg("");
+        try {
+            const r = await api.get("/audit", { params: { from, to } });
+            setLogs(Array.isArray(r.data) ? r.data : []);
+            if ((r.data || []).length === 0) setMsg("Nenhum registro encontrado para o período.");
+        } catch(err) {
+            setMsg(err.response?.data || "Erro ao carregar logs.");
+        } finally { setCarregando(false); }
+    };
+
+    useEffect(() => { carregar(); }, []);
+
+    const ACAO_COLOR = { CRIAR:"#3a7a5a", EDITAR:"#1a4a8a", DELETAR:"#c04040", PAGAR:"#7a4a00", CANCELAR:"#8a3a00" };
+
+    return (
+        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+            <div className="dd-section">
+                <div className="dd-section-header">
+                    <span className="dd-section-title">Log de Auditoria</span>
+                    <span className="dd-section-count">{logs.length}</span>
+                </div>
+                <div style={{ padding:"16px 20px", display:"flex", gap:12, alignItems:"flex-end", flexWrap:"wrap" }}>
+                    <div>
+                        <label className="dd-label">De</label>
+                        <input type="date" className="dd-input" value={from} onChange={e => setFrom(e.target.value)} style={{ width:145 }} />
+                    </div>
+                    <div>
+                        <label className="dd-label">Até</label>
+                        <input type="date" className="dd-input" value={to} onChange={e => setTo(e.target.value)} style={{ width:145 }} />
+                    </div>
+                    <button className="dd-btn-primary" style={{ padding:"6px 16px", display:"inline-flex", alignItems:"center", gap:6 }} onClick={carregar} disabled={carregando}>
+                        <RefreshCw size={13} style={{ animation: carregando ? "spin 1s linear infinite" : "none" }} />
+                        {carregando ? "Buscando..." : "Buscar"}
+                    </button>
+                </div>
+
+                {msg && <p style={{ color:"#9aaa9f", fontSize:13, padding:"0 20px 16px" }}>{msg}</p>}
+
+                <div style={{ overflowX:"auto" }}>
+                    <table className="dd-table" style={{ minWidth:700 }}>
+                        <thead>
+                            <tr>
+                                <th>Data/Hora</th>
+                                <th>Usuário</th>
+                                <th>Perfil</th>
+                                <th>Ação</th>
+                                <th>Entidade</th>
+                                <th>Detalhes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {logs.map(l => (
+                                <tr key={l.id}>
+                                    <td style={{ whiteSpace:"nowrap", fontSize:12, color:"#6a8070" }}>
+                                        {l.timestamp ? new Date(l.timestamp).toLocaleString("pt-BR") : "-"}
+                                    </td>
+                                    <td style={{ fontWeight:500 }}>{l.usuarioLogin || l.usuarioId}</td>
+                                    <td>
+                                        <span style={{ fontSize:10, letterSpacing:".07em", textTransform:"uppercase", background:"#f0f4f1", color:"#3a5a40", padding:"2px 7px", borderRadius:3 }}>
+                                            {l.usuarioRole}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span style={{ fontSize:11, fontWeight:600, letterSpacing:".08em", textTransform:"uppercase",
+                                                       color: ACAO_COLOR[l.acao] || "#3a4a40" }}>
+                                            {l.acao}
+                                        </span>
+                                    </td>
+                                    <td style={{ fontSize:12 }}>{l.entidade}{l.entidadeId ? ` #${l.entidadeId}` : ""}</td>
+                                    <td style={{ fontSize:12, color:"#5a6a60", maxWidth:260, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}
+                                        title={l.detalhes}>{l.detalhes || "-"}</td>
+                                </tr>
+                            ))}
+                            {logs.length === 0 && !msg && (
+                                <tr><td colSpan={6} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Carregando...</td></tr>
+                            )}
                         </tbody>
                     </table>
                 </div>

@@ -54,6 +54,20 @@ public class FinConfiguracaoController {
         if (body.containsKey("multaAtrasoPct")) {
             config.setMultaAtrasoPct(new BigDecimal(body.get("multaAtrasoPct").toString()));
         }
+        if (body.containsKey("mediaMinima")) {
+            BigDecimal mm = new BigDecimal(body.get("mediaMinima").toString());
+            if (mm.compareTo(BigDecimal.ZERO) < 0 || mm.compareTo(BigDecimal.TEN) > 0) {
+                return ResponseEntity.badRequest().body("Média mínima deve estar entre 0 e 10.");
+            }
+            config.setMediaMinima(mm);
+        }
+        if (body.containsKey("freqMinima")) {
+            BigDecimal fm = new BigDecimal(body.get("freqMinima").toString());
+            if (fm.compareTo(BigDecimal.ZERO) < 0 || fm.compareTo(new BigDecimal("100")) > 0) {
+                return ResponseEntity.badRequest().body("Frequência mínima deve estar entre 0 e 100.");
+            }
+            config.setFreqMinima(fm);
+        }
 
         return ResponseEntity.ok(repository.save(config));
     }
@@ -64,6 +78,8 @@ public class FinConfiguracaoController {
         config.setDiaVencimentoPadrao(10);
         config.setJurosAtrasoPct(new BigDecimal("1.00"));
         config.setMultaAtrasoPct(new BigDecimal("2.00"));
+        config.setMediaMinima(new BigDecimal("6.00"));
+        config.setFreqMinima(new BigDecimal("75.00"));
         return repository.save(config);
     }
 }

@@ -34,7 +34,7 @@ public class TurmaController {
     private ProfessorTurmaMateriaRepository professorTurmaMateriaRepository;
 
     @PostMapping("/series")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> cadastrarSerie(@RequestBody Map<String, String> body) {
         Serie serie = new Serie();
         serie.setNome(body.get("nome"));
@@ -43,13 +43,13 @@ public class TurmaController {
     }
 
     @GetMapping("/series")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<List<Serie>> listarSeries() {
         return ResponseEntity.ok(serieRepository.findAll());
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> cadastrarTurma(@RequestBody Map<String, String> body) {
         Long serieId = Long.parseLong(body.get("serieId"));
         Optional<Serie> serie = serieRepository.findById(serieId);
@@ -65,13 +65,13 @@ public class TurmaController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<List<Turma>> listarTurmas() {
         return ResponseEntity.ok(turmaRepository.findAll());
     }
 
     @GetMapping("/buscar")
-    @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR', 'COORDENACAO')")
     public ResponseEntity<List<Turma>> buscar(
             @RequestParam(required = false) String nome,
             @RequestParam(required = false) Long serieId) {
@@ -80,7 +80,7 @@ public class TurmaController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> editarTurma(@PathVariable Long id, @RequestBody Map<String, String> body) {
         var opt = turmaRepository.findById(id);
         if (opt.isEmpty()) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Turma não encontrada");
@@ -111,7 +111,7 @@ public class TurmaController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     @Transactional
     public ResponseEntity<?> deletarTurma(@PathVariable Long id) {
         if (!turmaRepository.existsById(id)) {
@@ -124,7 +124,7 @@ public class TurmaController {
     }
 
     @DeleteMapping("/series/{id}")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> deletarSerie(@PathVariable Long id) {
         if (!serieRepository.existsById(id)) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Série não encontrada");

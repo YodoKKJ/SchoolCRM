@@ -144,8 +144,12 @@ public class FinMovimentacaoController {
         }
         if (body.containsKey("descricao") && !blank(str(body.get("descricao"))))
             mov.setDescricao(str(body.get("descricao")).trim());
-        if (body.containsKey("valor") && body.get("valor") != null)
-            mov.setValor(new BigDecimal(body.get("valor").toString()));
+        if (body.containsKey("valor") && body.get("valor") != null) {
+            BigDecimal novoValor = new BigDecimal(body.get("valor").toString());
+            if (novoValor.compareTo(BigDecimal.ZERO) <= 0)
+                return ResponseEntity.badRequest().body("valor deve ser maior que zero.");
+            mov.setValor(novoValor);
+        }
         if (body.containsKey("dataMovimentacao") && !blank(str(body.get("dataMovimentacao"))))
             mov.setDataMovimentacao(LocalDate.parse(str(body.get("dataMovimentacao"))));
         if (body.containsKey("categoria"))

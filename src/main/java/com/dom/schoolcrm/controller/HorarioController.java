@@ -10,6 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -26,9 +27,9 @@ public class HorarioController {
 
     private static final List<String> DIAS_VALIDOS = List.of("SEG", "TER", "QUA", "QUI", "SEX");
 
-    // Criar ou atualizar um horário individual
+    // Criar ou atualizar um horário individual (com versionamento automático)
     @PostMapping
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> salvar(@RequestBody Map<String, String> body) {
         Long turmaId = Long.parseLong(body.get("turmaId"));
         Long materiaId = Long.parseLong(body.get("materiaId"));
@@ -49,11 +50,30 @@ public class HorarioController {
         if (professor.isEmpty() || !"PROFESSOR".equals(professor.get().getRole()))
             return ResponseEntity.badRequest().body("Professor não encontrado");
 
-        // Se já existe horário nesse slot, atualiza
-        Optional<Horario> existente = horarioRepository
-                .findByTurmaIdAndDiaSemanaAndOrdemAula(turmaId, diaSemana, ordemAula);
+        LocalDate hoje = LocalDate.now();
 
-        Horario horario = existente.orElse(new Horario());
+        // Busca o slot ativo atual (sem data_fim_vigencia)
+        Optional<Horario> existente = horarioRepository
+                .findByTurmaIdAndDiaSemanaAndOrdemAulaAndDataFimVigenciaIsNull(turmaId, diaSemana, ordemAula);
+
+        Horario horario;
+        if (existente.isPresent()) {
+            Horario atual = existente.get();
+            // Edição no mesmo dia de criação (ou registro legado sem data): atualiza in-place
+            if (atual.getDataInicioVigencia() == null || hoje.equals(atual.getDataInicioVigencia())) {
+                horario = atual;
+            } else {
+                // Fecha a versão antiga e cria nova versão a partir de hoje
+                atual.setDataFimVigencia(hoje.minusDays(1));
+                horarioRepository.save(atual);
+                horario = new Horario();
+                horario.setDataInicioVigencia(hoje);
+            }
+        } else {
+            horario = new Horario();
+            horario.setDataInicioVigencia(hoje);
+        }
+
         horario.setTurma(turma.get());
         horario.setMateria(materia.get());
         horario.setProfessor(professor.get());
@@ -65,9 +85,9 @@ public class HorarioController {
         return ResponseEntity.status(HttpStatus.CREATED).body(toMap(horario));
     }
 
-    // Salvar horários em lote (toda a grade de uma turma de uma vez)
+    // Salvar horários em lote (toda a grade de uma turma de uma vez) com versionamento
     @PostMapping("/lote")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     @Transactional
     public ResponseEntity<?> salvarLote(@RequestBody Map<String, Object> body) {
         Long turmaId = Long.parseLong(body.get("turmaId").toString());
@@ -79,8 +99,20 @@ public class HorarioController {
         if (aulas == null || aulas.isEmpty())
             return ResponseEntity.badRequest().body("Lista de aulas vazia");
 
-        // Remove horários antigos da turma
-        horarioRepository.deleteByTurmaId(turmaId);
+        LocalDate hoje = LocalDate.now();
+
+        // Versiona ou remove os registros ativos da turma
+        List<Horario> ativos = horarioRepository.findByTurmaIdAndDataFimVigenciaIsNull(turmaId);
+        for (Horario ativo : ativos) {
+            if (ativo.getDataInicioVigencia() == null || hoje.equals(ativo.getDataInicioVigencia())) {
+                // Registro legado ou criado hoje: delete físico (sem histórico a preservar)
+                horarioRepository.delete(ativo);
+            } else {
+                // Versão anterior: fecha com ontem como data fim
+                ativo.setDataFimVigencia(hoje.minusDays(1));
+                horarioRepository.save(ativo);
+            }
+        }
 
         List<Map<String, Object>> salvos = new ArrayList<>();
         for (Map<String, Object> aula : aulas) {
@@ -101,6 +133,7 @@ public class HorarioController {
             h.setDiaSemana(diaSemana);
             h.setOrdemAula(ordemAula);
             h.setHorarioInicio(horarioInicio);
+            h.setDataInicioVigencia(hoje);
             horarioRepository.save(h);
             salvos.add(toMap(h));
         }
@@ -112,8 +145,7 @@ public class HorarioController {
         ));
     }
 
-    // Listar horários filtrados pelo perfil do usuário logado
-    // ALUNO → apenas sua turma | PROFESSOR → apenas suas turmas | DIRECAO → todos
+    // Listar horários filtrados pelo perfil do usuário logado (somente ativos)
     @GetMapping("/minhas")
     @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR', 'ALUNO')")
     public ResponseEntity<?> listarMinhas(Authentication auth) {
@@ -131,7 +163,7 @@ public class HorarioController {
                     .collect(Collectors.toList());
             if (turmaIds.isEmpty()) return ResponseEntity.ok(List.of());
             List<Horario> horarios = horarioRepository
-                    .findByTurmaIdInOrderByTurmaIdAscDiaSemanaAscOrdemAulaAsc(turmaIds);
+                    .findByTurmaIdInAndDataFimVigenciaIsNullOrderByTurmaIdAscDiaSemanaAscOrdemAulaAsc(turmaIds);
             return ResponseEntity.ok(horarios.stream().map(this::toMap).toList());
         }
 
@@ -143,44 +175,57 @@ public class HorarioController {
                     .collect(Collectors.toList());
             if (turmaIds.isEmpty()) return ResponseEntity.ok(List.of());
             List<Horario> horarios = horarioRepository
-                    .findByTurmaIdInOrderByTurmaIdAscDiaSemanaAscOrdemAulaAsc(turmaIds);
+                    .findByTurmaIdInAndDataFimVigenciaIsNullOrderByTurmaIdAscDiaSemanaAscOrdemAulaAsc(turmaIds);
             return ResponseEntity.ok(horarios.stream().map(this::toMap).toList());
         }
 
-        // DIRECAO: todos
-        List<Horario> todos = horarioRepository.findAllByOrderByTurmaIdAscDiaSemanaAscOrdemAulaAsc();
+        // DIRECAO: todos ativos
+        List<Horario> todos = horarioRepository
+                .findByDataFimVigenciaIsNullOrderByTurmaIdAscDiaSemanaAscOrdemAulaAsc();
         return ResponseEntity.ok(todos.stream().map(this::toMap).toList());
     }
 
-    // Listar TODOS os horários (todos os perfis logados podem ver)
+    // Listar TODOS os horários ativos
     @GetMapping
     @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR', 'ALUNO')")
     public ResponseEntity<?> listarTodos() {
-        List<Horario> todos = horarioRepository.findAllByOrderByTurmaIdAscDiaSemanaAscOrdemAulaAsc();
+        List<Horario> todos = horarioRepository
+                .findByDataFimVigenciaIsNullOrderByTurmaIdAscDiaSemanaAscOrdemAulaAsc();
         return ResponseEntity.ok(todos.stream().map(this::toMap).toList());
     }
 
-    // Listar horários de uma turma específica
+    // Listar horários ativos de uma turma específica
     @GetMapping("/turma/{turmaId}")
     @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR', 'ALUNO')")
     public ResponseEntity<?> listarPorTurma(@PathVariable Long turmaId) {
-        List<Horario> horarios = horarioRepository.findByTurmaIdOrderByOrdemAula(turmaId);
-        return ResponseEntity.ok(horarios.stream().map(this::toMap).toList());
-    }
-
-    // Listar horários de uma turma num dia da semana específico (para calcular períodos da chamada)
-    @GetMapping("/turma/{turmaId}/dia/{diaSemana}")
-    @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR')")
-    public ResponseEntity<?> listarPorTurmaDia(
-            @PathVariable Long turmaId, @PathVariable String diaSemana) {
         List<Horario> horarios = horarioRepository
-                .findByTurmaIdAndDiaSemanaOrderByOrdemAula(turmaId, diaSemana);
+                .findByTurmaIdAndDataFimVigenciaIsNullOrderByOrdemAulaAsc(turmaId);
         return ResponseEntity.ok(horarios.stream().map(this::toMap).toList());
     }
 
-    // Deletar um horário individual
+    // Listar horários de uma turma num dia da semana.
+    // Se ?data=YYYY-MM-DD for informado, retorna o horário vigente naquela data (histórico).
+    // Sem ?data=, retorna o horário atualmente ativo.
+    @GetMapping("/turma/{turmaId}/dia/{diaSemana}")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR', 'COORDENACAO')")
+    public ResponseEntity<?> listarPorTurmaDia(
+            @PathVariable Long turmaId,
+            @PathVariable String diaSemana,
+            @RequestParam(required = false) String data) {
+        List<Horario> horarios;
+        if (data != null && !data.isBlank()) {
+            LocalDate dataConsulta = LocalDate.parse(data);
+            horarios = horarioRepository.findAtivosNaDataByTurmaAndDia(turmaId, diaSemana, dataConsulta);
+        } else {
+            horarios = horarioRepository
+                    .findByTurmaIdAndDiaSemanaAndDataFimVigenciaIsNullOrderByOrdemAulaAsc(turmaId, diaSemana);
+        }
+        return ResponseEntity.ok(horarios.stream().map(this::toMap).toList());
+    }
+
+    // Deletar um horário individual (físico)
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> deletar(@PathVariable Long id) {
         if (!horarioRepository.existsById(id))
             return ResponseEntity.notFound().build();
@@ -188,9 +233,9 @@ public class HorarioController {
         return ResponseEntity.ok(Map.of("mensagem", "Horário removido"));
     }
 
-    // Deletar todos os horários de uma turma
+    // Deletar todos os horários de uma turma (físico — apaga histórico também)
     @DeleteMapping("/turma/{turmaId}")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     @Transactional
     public ResponseEntity<?> deletarPorTurma(@PathVariable Long turmaId) {
         horarioRepository.deleteByTurmaId(turmaId);
@@ -202,6 +247,7 @@ public class HorarioController {
         m.put("id", h.getId());
         m.put("turmaId", h.getTurma().getId());
         m.put("turmaNome", h.getTurma().getNome());
+        m.put("turmaSerieNome", h.getTurma().getSerie() != null ? h.getTurma().getSerie().getNome() : null);
         m.put("materiaId", h.getMateria().getId());
         m.put("materiaNome", h.getMateria().getNome());
         m.put("professorId", h.getProfessor().getId());
@@ -209,6 +255,8 @@ public class HorarioController {
         m.put("diaSemana", h.getDiaSemana());
         m.put("horarioInicio", h.getHorarioInicio());
         m.put("ordemAula", h.getOrdemAula());
+        m.put("dataInicioVigencia", h.getDataInicioVigencia() != null ? h.getDataInicioVigencia().toString() : null);
+        m.put("dataFimVigencia", h.getDataFimVigencia() != null ? h.getDataFimVigencia().toString() : null);
         return m;
     }
 }

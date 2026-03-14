@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import {
     Home, BookOpen, LogOut, GraduationCap,
-    Menu, ChevronRight, Search, X, UserPlus, ArrowLeft, CalendarDays
+    Menu, ChevronRight, Search, X, UserPlus, ArrowLeft, CalendarDays, Megaphone, Send, Trash2
 } from "lucide-react";
 
 const api = axios.create({ baseURL: "" });
@@ -10,6 +10,11 @@ api.interceptors.request.use(config => {
     config.headers.Authorization = `Bearer ${localStorage.getItem("token")}`;
     return config;
 });
+
+/** Formata o nome de exibição de uma turma: "Série — Nome" */
+const fmtTurma = (t) => t ? (t.serie?.nome ? `${t.serie.nome} — ${t.nome}` : t.nome) : "";
+/** Formata usando campos separados (ex: dados de horário) */
+const fmtTurmaNomes = (serieNome, turmaNome) => serieNome ? `${serieNome} — ${turmaNome}` : (turmaNome || "");
 
 let redirectingTo401 = false;
 api.interceptors.response.use(
@@ -198,10 +203,11 @@ export default function ProfessorDashboard() {
         : vinculos;
 
     const menu = [
-        { id:"inicio",     label:"Início",      icon:Home },
-        { id:"notas",      label:"Lançar Notas", icon:BookOpen },
-        { id:"presenca",   label:"Chamada",      icon:GraduationCap },
-        { id:"horarios",   label:"Horários",     icon:CalendarDays },
+        { id:"inicio",       label:"Início",       icon:Home },
+        { id:"notas",        label:"Lançar Notas",  icon:BookOpen },
+        { id:"presenca",     label:"Chamada",       icon:GraduationCap },
+        { id:"horarios",     label:"Horários",      icon:CalendarDays },
+        { id:"comunicados",  label:"Comunicados",   icon:Megaphone },
     ];
 
     return (
@@ -306,10 +312,11 @@ export default function ProfessorDashboard() {
                                 ))}
                             </div>
                         )}
-                        {aba === "inicio"   && <Inicio vinculos={vinculosFiltrados} />}
-                        {aba === "notas"    && <LancarNotas vinculos={vinculosFiltrados} />}
-                        {aba === "presenca" && <Chamada vinculos={vinculosFiltrados} />}
-                        {aba === "horarios" && <HorariosView />}
+                        {aba === "inicio"      && <Inicio vinculos={vinculosFiltrados} />}
+                        {aba === "notas"       && <LancarNotas vinculos={vinculosFiltrados} />}
+                        {aba === "presenca"    && <Chamada vinculos={vinculosFiltrados} />}
+                        {aba === "horarios"    && <HorariosView />}
+                        {aba === "comunicados" && <ComunicadosProfessor vinculos={vinculosFiltrados} />}
                     </main>
                 </div>
             </div>
@@ -557,7 +564,7 @@ function LancarNotas({ vinculos }) {
                     <div>
                         <label className="pd-label">Turma</label>
                         <SearchSelect
-                            options={turmas.map(t => ({ value: t.id, label: `${t.nome} — ${t.serie?.nome || ""}` }))}
+                            options={turmas.map(t => ({ value: t.id, label: fmtTurma(t) }))}
                             value={turmaId}
                             onChange={v => { setTurmaId(v); setMateriaId(""); }}
                             placeholder="Selecione a turma..." />
@@ -746,7 +753,7 @@ function LancarNotas({ vinculos }) {
                             <div>
                                 <p className="pd-modal-title">Nova Avaliação</p>
                                 <p className="pd-modal-sub">
-                                    {turmas.find(t => String(t.id)===String(turmaId))?.nome} · {materiasDaTurma.find(m => String(m.id)===String(materiaId))?.nome}
+                                    {fmtTurma(turmas.find(t => String(t.id)===String(turmaId)))} · {materiasDaTurma.find(m => String(m.id)===String(materiaId))?.nome}
                                 </p>
                             </div>
                             <button onClick={() => setCriandoAv(false)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}>
@@ -906,7 +913,8 @@ function Chamada({ vinculos }) {
     const [turmaId, setTurmaId] = useState("");
     const [materiaId, setMateriaId] = useState("");
     const [alunos, setAlunos] = useState([]);
-    const [dataAula, setDataAula] = useState(new Date().toISOString().slice(0,10));
+    // toLocaleDateString('en-CA') dá YYYY-MM-DD no fuso do usuário (evita data UTC ≠ data local)
+    const [dataAula, setDataAula] = useState(new Date().toLocaleDateString("en-CA"));
     const [chamadaPorAula, setChamadaPorAula] = useState({}); // { ordemAula: { alunoId: bool } }
     const [aulasNoDia, setAulasNoDia] = useState([]);
     const [loadingAulas, setLoadingAulas] = useState(false);
@@ -947,7 +955,7 @@ function Chamada({ vinculos }) {
         if (!turmaId || !materiaId || !dataAula) { setAulasNoDia([]); return; }
         const diaSemana = DIAS_SEMANA[new Date(dataAula + "T12:00").getDay()];
         setLoadingAulas(true);
-        api.get(`/horarios/turma/${turmaId}/dia/${diaSemana}`)
+        api.get(`/horarios/turma/${turmaId}/dia/${diaSemana}?data=${dataAula}`)
             .then(r => {
                 const filtradas = (r.data || []).filter(h => String(h.materiaId) === String(materiaId));
                 setAulasNoDia(filtradas);
@@ -1011,7 +1019,7 @@ function Chamada({ vinculos }) {
                     <div>
                         <label className="pd-label">Turma</label>
                         <SearchSelect
-                            options={turmas.map(t => ({ value: t.id, label: `${t.nome} — ${t.serie?.nome || ""}` }))}
+                            options={turmas.map(t => ({ value: t.id, label: fmtTurma(t) }))}
                             value={turmaId}
                             onChange={v => { setTurmaId(v); setMateriaId(""); }}
                             placeholder="Selecione a turma..." />
@@ -1114,7 +1122,14 @@ function Chamada({ vinculos }) {
                                         transition:"transform .2s",
                                         transform: aulasColapsadas.has(aula.ordemAula) ? "rotate(-90deg)" : "rotate(0deg)"
                                     }}>▾</span>
-                                    <span className="pd-section-title">{idx + 1}ª Aula — {aula.horarioInicio}</span>
+                                    <span className="pd-section-title">
+                                        {idx + 1}ª Aula — {aula.horarioInicio}
+                                        {aula.dataFimVigencia && (
+                                            <span style={{ marginLeft:6, fontSize:10, background:"#f59e0b", color:"#fff", padding:"1px 7px", borderRadius:4, verticalAlign:"middle", fontWeight:600 }}>
+                                                Horário Antigo
+                                            </span>
+                                        )}
+                                    </span>
                                 </div>
                                 <span className="pd-section-count">
                                     {Object.values(chamadaPorAula[aula.ordemAula] || {}).filter(Boolean).length}/{alunos.length} presentes
@@ -1285,6 +1300,138 @@ function Chamada({ vinculos }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// COMUNICADOS — Professor pode criar e ver
+// ═══════════════════════════════════════════════════════════════
+function ComunicadosProfessor({ vinculos }) {
+    const [comunicados, setComunicados] = useState([]);
+    const [form, setForm] = useState({ titulo:"", corpo:"", destinatarios:"TODOS", turmaId:"" });
+    const [criando, setCriando] = useState(false);
+    const [msg, setMsg] = useState({ texto:"", tipo:"" });
+
+    const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
+
+    // Turmas únicas do professor a partir dos vínculos
+    const turmas = [...new Map(vinculos.map(v => [v.turma?.id, v.turma])).values()].filter(Boolean);
+
+    const carregar = () => {
+        api.get("/comunicados").then(r => setComunicados(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    };
+    useEffect(() => { carregar(); }, []);
+
+    const salvar = async e => {
+        e.preventDefault();
+        if (!form.titulo.trim() || !form.corpo.trim()) return flash("Título e texto são obrigatórios.", "err");
+        if (form.destinatarios === "TURMA" && !form.turmaId) return flash("Selecione a turma.", "err");
+        const payload = { titulo: form.titulo, corpo: form.corpo, destinatarios: form.destinatarios };
+        if (form.destinatarios === "TURMA") payload.turmaId = form.turmaId;
+        try {
+            await api.post("/comunicados", payload);
+            setForm({ titulo:"", corpo:"", destinatarios:"TODOS", turmaId:"" });
+            setCriando(false);
+            flash("Comunicado publicado!");
+            carregar();
+        } catch(err) { flash(err.response?.data || "Erro ao publicar.", "err"); }
+    };
+
+    const DEST_LABELS = { TODOS:"Todos", PROFESSORES:"Professores", ALUNOS:"Alunos" };
+    const fmtTurmaLocal = t => t ? (t.serie?.nome ? `${t.serie.nome} — ${t.nome}` : t.nome) : "";
+
+    return (
+        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+            {msg.texto && <div className={`pd-msg ${msg.tipo}`}>{msg.texto}</div>}
+            <div className="pd-section">
+                <div className="pd-section-header">
+                    <span className="pd-section-title">Comunicados</span>
+                    <span className="pd-section-count">{comunicados.length}</span>
+                    <button className="pd-btn-primary" style={{ marginLeft:"auto", padding:"6px 14px", fontSize:12 }}
+                            onClick={() => setCriando(v => !v)}>
+                        {criando ? "Cancelar" : <><Megaphone size={13} style={{ marginRight:6 }} />Novo</>}
+                    </button>
+                </div>
+
+                {criando && (
+                    <div style={{ padding:24, borderBottom:"1px solid #eaeef2" }}>
+                        <form onSubmit={salvar} style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                            <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:12, alignItems:"end" }}>
+                                <div>
+                                    <label className="pd-label">Título</label>
+                                    <div className="pd-input-wrap">
+                                        <input className="pd-input" value={form.titulo}
+                                               onChange={e => setForm(f => ({...f, titulo:e.target.value}))}
+                                               placeholder="Assunto do comunicado" required />
+                                        <div className="pd-input-line" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="pd-label">Destinatários</label>
+                                    <select value={form.destinatarios}
+                                            onChange={e => setForm(f => ({...f, destinatarios:e.target.value, turmaId:""}))}
+                                            className="pd-input" style={{ height:38, cursor:"pointer" }}>
+                                        <option value="TODOS">Todos</option>
+                                        <option value="PROFESSORES">Professores</option>
+                                        <option value="ALUNOS">Alunos</option>
+                                        <option value="TURMA">Turma específica</option>
+                                    </select>
+                                </div>
+                            </div>
+                            {form.destinatarios === "TURMA" && (
+                                <div>
+                                    <label className="pd-label">Turma</label>
+                                    <select value={form.turmaId}
+                                            onChange={e => setForm(f => ({...f, turmaId:e.target.value}))}
+                                            className="pd-input" style={{ height:38, cursor:"pointer" }} required>
+                                        <option value="">Selecione…</option>
+                                        {turmas.map(t => (
+                                            <option key={t.id} value={t.id}>{fmtTurmaLocal(t)}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                            <div>
+                                <label className="pd-label">Mensagem</label>
+                                <textarea className="pd-input" rows={4} value={form.corpo}
+                                          onChange={e => setForm(f => ({...f, corpo:e.target.value}))}
+                                          placeholder="Escreva aqui…"
+                                          style={{ resize:"vertical", lineHeight:1.6 }} required />
+                            </div>
+                            <div>
+                                <button type="submit" className="pd-btn-primary"
+                                        style={{ display:"inline-flex", alignItems:"center", gap:6 }}>
+                                    <Send size={13} />Publicar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                )}
+
+                <div style={{ padding:"0 20px" }}>
+                    {comunicados.length === 0 && (
+                        <p style={{ color:"#9aaa9f", fontSize:13, padding:"24px 0", textAlign:"center" }}>
+                            Nenhum comunicado disponível.
+                        </p>
+                    )}
+                    {comunicados.map(c => (
+                        <div key={c.id} style={{ padding:"16px 0", borderBottom:"1px solid #f0f4f1" }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6, flexWrap:"wrap" }}>
+                                <span style={{ fontWeight:600, fontSize:14, color:"#0d1f18" }}>{c.titulo}</span>
+                                <span style={{ fontSize:10, fontWeight:500, letterSpacing:".08em", textTransform:"uppercase",
+                                               background:"#e8f5ec", color:"#3a7a5a", padding:"2px 8px" }}>
+                                    {c.destinatarios === "TURMA" ? `Turma ${c.turmaId}` : (DEST_LABELS[c.destinatarios] || c.destinatarios)}
+                                </span>
+                            </div>
+                            <p style={{ fontSize:13, color:"#3a4a40", lineHeight:1.6, whiteSpace:"pre-wrap", margin:"0 0 6px" }}>{c.corpo}</p>
+                            <p style={{ fontSize:11, color:"#9aaa9f" }}>
+                                {c.autorNome} · {c.dataPublicacao ? new Date(c.dataPublicacao).toLocaleString("pt-BR", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" }) : ""}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════
 // HORÁRIOS — Visualização (somente leitura)
 // ═══════════════════════════════════════════════════════════════
 const DIAS = ["SEG", "TER", "QUA", "QUI", "SEX"];
@@ -1360,7 +1507,7 @@ function HorariosView() {
                     >
                         <option value="todas">Todas as minhas turmas</option>
                         {turmaIds.map(id => (
-                            <option key={id} value={id}>{horarios.find(h => h.turmaId === id)?.turmaNome || `Turma ${id}`}</option>
+                            <option key={id} value={id}>{fmtTurmaNomes(horarios.find(h => h.turmaId === id)?.turmaSerieNome, horarios.find(h => h.turmaId === id)?.turmaNome) || `Turma ${id}`}</option>
                         ))}
                     </select>
 
@@ -1401,7 +1548,7 @@ function HorariosView() {
                                     <th style={{ width: 70 }}>Horário</th>
                                     {turmasFiltradas.map(tid => (
                                         <th key={tid} style={{ textAlign: "center" }}>
-                                            {horarios.find(h => h.turmaId === tid)?.turmaNome || `Turma ${tid}`}
+                                            {fmtTurmaNomes(horarios.find(h => h.turmaId === tid)?.turmaSerieNome, horarios.find(h => h.turmaId === tid)?.turmaNome) || `Turma ${tid}`}
                                         </th>
                                     ))}
                                 </tr>

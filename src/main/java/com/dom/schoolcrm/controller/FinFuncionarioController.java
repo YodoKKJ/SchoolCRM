@@ -213,17 +213,17 @@ public class FinFuncionarioController {
         m.put("pessoaCnpj",      p.getCnpj());
         m.put("pessoaTelefone",  p.getTelefone());
 
-        if (comBeneficios) {
-            List<FinBeneficio> beneficios = beneficioRepository.findByFuncionarioIdOrderByTipoAsc(f.getId());
-            m.put("beneficios", beneficios.stream().map(this::beneficioToMap).collect(Collectors.toList()));
+        // Salário total = base + soma dos benefícios ativos (sempre calculado)
+        List<FinBeneficio> todosBeneficios = beneficioRepository.findByFuncionarioIdOrderByTipoAsc(f.getId());
+        BigDecimal totalBeneficios = todosBeneficios.stream()
+                .filter(b -> Boolean.TRUE.equals(b.getAtivo()))
+                .map(FinBeneficio::getValor)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        m.put("totalBeneficios", totalBeneficios);
+        m.put("salarioTotal", f.getSalarioBase().add(totalBeneficios));
 
-            // Salário total = base + soma dos benefícios ativos
-            BigDecimal totalBeneficios = beneficios.stream()
-                    .filter(b -> Boolean.TRUE.equals(b.getAtivo()))
-                    .map(FinBeneficio::getValor)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-            m.put("totalBeneficios", totalBeneficios);
-            m.put("salarioTotal", f.getSalarioBase().add(totalBeneficios));
+        if (comBeneficios) {
+            m.put("beneficios", todosBeneficios.stream().map(this::beneficioToMap).collect(Collectors.toList()));
         }
 
         return m;

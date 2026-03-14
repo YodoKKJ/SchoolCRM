@@ -4,10 +4,12 @@ import com.dom.schoolcrm.entity.Usuario;
 import com.dom.schoolcrm.repository.AlunoTurmaRepository;
 import com.dom.schoolcrm.repository.ProfessorTurmaMateriaRepository;
 import com.dom.schoolcrm.repository.UsuarioRepository;
+import com.dom.schoolcrm.service.AuditService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -36,21 +38,42 @@ public class UsuarioController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private AuditService auditService;
+
     @PostMapping
-    @PreAuthorize("hasRole('DIRECAO')")
-    public ResponseEntity<?> cadastrar(@RequestBody Map<String, String> body) {
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
+    public ResponseEntity<?> cadastrar(@RequestBody Map<String, String> body, Authentication auth) {
         String login = body.get("login");
+        if (login == null || login.isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Login é obrigatório.");
+        }
 
         if (usuarioRepository.findByLogin(login).isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body("Login já existe");
         }
 
+        String role = body.get("role");
+        if (!List.of("ALUNO", "PROFESSOR", "DIRECAO", "COORDENACAO").contains(role)) {
+            return ResponseEntity.badRequest().body("Role inválida. Use: ALUNO, PROFESSOR, DIRECAO ou COORDENACAO");
+        }
+
+        String senha = body.get("senha");
+        if (senha == null || senha.isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Senha é obrigatória.");
+        }
+
+        String nome = body.get("nome");
+        if (nome == null || nome.isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Nome é obrigatório.");
+        }
+
         Usuario usuario = new Usuario();
-        usuario.setNome(body.get("nome"));
+        usuario.setNome(nome.trim());
         usuario.setLogin(login);
-        usuario.setSenhaHash(passwordEncoder.encode(body.get("senha")));
-        usuario.setRole(body.get("role"));
+        usuario.setSenhaHash(passwordEncoder.encode(senha));
+        usuario.setRole(role);
         usuario.setAtivo(true);
 
         String dataNascStr = body.get("dataNascimento");
@@ -59,6 +82,8 @@ public class UsuarioController {
         usuario.setNomeMae(body.get("nomeMae"));
 
         usuarioRepository.save(usuario);
+        auditService.log(auth, "CRIAR", "USUARIO", String.valueOf(usuario.getId()),
+                "Login=" + usuario.getLogin() + " Role=" + usuario.getRole());
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of(
@@ -70,13 +95,13 @@ public class UsuarioController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<List<Usuario>> listar() {
         return ResponseEntity.ok(usuarioRepository.findAll());
     }
 
     @GetMapping("/buscar")
-    @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'PROFESSOR', 'COORDENACAO')")
     public ResponseEntity<List<Usuario>> buscar(
             @RequestParam(required = false) String nome,
             @RequestParam(required = false) String role) {
@@ -86,7 +111,7 @@ public class UsuarioController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> editar(@PathVariable Long id, @RequestBody Map<String, String> body) {
         var opt = usuarioRepository.findById(id);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();
@@ -127,7 +152,7 @@ public class UsuarioController {
     }
 
     @GetMapping("/com-vinculos")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<List<Long>> listarIdsComVinculos() {
         Set<Long> ids = new HashSet<>();
         alunoTurmaRepository.findAll().forEach(at -> ids.add(at.getId().getAlunoId()));
@@ -136,20 +161,21 @@ public class UsuarioController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     @Transactional
-    public ResponseEntity<?> deletar(@PathVariable Long id) {
+    public ResponseEntity<?> deletar(@PathVariable Long id, Authentication auth) {
         if (!usuarioRepository.existsById(id)) return ResponseEntity.notFound().build();
         boolean temVinculos = !alunoTurmaRepository.findByAlunoId(id).isEmpty()
                 || !professorTurmaMateriaRepository.findByProfessorId(id).isEmpty();
         if (temVinculos) return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body("Usuário possui vínculos e não pode ser excluído.");
+        auditService.log(auth, "EXCLUIR", "USUARIO", String.valueOf(id), "Usuário removido");
         usuarioRepository.deleteById(id);
         return ResponseEntity.ok(Map.of("mensagem", "Usuário removido com sucesso"));
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasRole('DIRECAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> alterarStatus(@PathVariable Long id) {
         var opt = usuarioRepository.findById(id);
         if (opt.isEmpty()) return ResponseEntity.notFound().build();

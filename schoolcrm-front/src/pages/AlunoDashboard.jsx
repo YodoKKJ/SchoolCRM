@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { Home, BookOpen, LogOut, CalendarDays, BarChart2, Menu, ChevronDown } from "lucide-react";
+import { Home, BookOpen, LogOut, CalendarDays, BarChart2, Menu, ChevronDown, Megaphone } from "lucide-react";
 
 const api = axios.create({ baseURL: "" });
 api.interceptors.request.use(config => {
@@ -443,12 +443,63 @@ function Horarios() {
     );
 }
 
+// ── Comunicados (somente leitura para aluno) ──────────────────────────────────
+function ComunicadosAluno() {
+    const [comunicados, setComunicados] = useState([]);
+    const [carregando, setCarregando] = useState(true);
+
+    useEffect(() => {
+        api.get("/comunicados")
+            .then(r => setComunicados(Array.isArray(r.data) ? r.data : []))
+            .catch(() => {})
+            .finally(() => setCarregando(false));
+    }, []);
+
+    const DEST_LABELS = { TODOS:"Todos", PROFESSORES:"Professores", ALUNOS:"Alunos" };
+
+    if (carregando) return <p style={{ color:"#9aaa9f", fontSize:13, textAlign:"center", padding:40 }}>Carregando...</p>;
+
+    return (
+        <div className="ad-section">
+            <div className="ad-section-header">
+                <span className="ad-section-title">Comunicados da Escola</span>
+                <span className="ad-section-count">{comunicados.length}</span>
+            </div>
+            <div style={{ padding:"0 20px" }}>
+                {comunicados.length === 0 && (
+                    <p style={{ color:"#9aaa9f", fontSize:13, padding:"32px 0", textAlign:"center" }}>
+                        Nenhum comunicado disponível no momento.
+                    </p>
+                )}
+                {comunicados.map(c => (
+                    <div key={c.id} style={{ padding:"16px 0", borderBottom:"1px solid #f0f4f1" }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6, flexWrap:"wrap" }}>
+                            <span style={{ fontWeight:600, fontSize:14, color:"#0d1f18" }}>{c.titulo}</span>
+                            <span style={{ fontSize:10, fontWeight:500, letterSpacing:".08em", textTransform:"uppercase",
+                                           background:"#e8f5ec", color:"#3a7a5a", padding:"2px 8px" }}>
+                                {c.destinatarios === "TURMA" ? "Sua Turma" : (DEST_LABELS[c.destinatarios] || c.destinatarios)}
+                            </span>
+                        </div>
+                        <p style={{ fontSize:13, color:"#3a4a40", lineHeight:1.6, whiteSpace:"pre-wrap", margin:"0 0 6px" }}>{c.corpo}</p>
+                        <p style={{ fontSize:11, color:"#9aaa9f" }}>
+                            {c.autorNome} · {c.dataPublicacao
+                                ? new Date(c.dataPublicacao).toLocaleString("pt-BR", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" })
+                                : ""}
+                        </p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 // ── Dashboard principal ───────────────────────────────────────────────────────
 const abas = [
-    { id: "inicio",    label: "Início",      icon: Home },
-    { id: "boletim",   label: "Boletim",     icon: BookOpen },
-    { id: "frequencia",label: "Frequência",  icon: BarChart2 },
-    { id: "horarios",  label: "Horários",    icon: CalendarDays },
+    { id: "inicio",       label: "Início",      icon: Home },
+    { id: "boletim",      label: "Boletim",     icon: BookOpen },
+    { id: "frequencia",   label: "Frequência",  icon: BarChart2 },
+    { id: "horarios",     label: "Horários",    icon: CalendarDays },
+    { id: "comunicados",  label: "Comunicados", icon: Megaphone },
 ];
 
 export default function AlunoDashboard() {
@@ -579,10 +630,11 @@ export default function AlunoDashboard() {
                                 ))}
                             </div>
                         )}
-                        {aba === "inicio"     && <Inicio vinculos={vinculosAno} notas={notasAno} />}
-                        {aba === "boletim"    && <Boletim notas={notasAno} />}
-                        {aba === "frequencia" && <Frequencia notas={notasAno} turmaId={turmaIdAno} />}
-                        {aba === "horarios"   && <Horarios />}
+                        {aba === "inicio"      && <Inicio vinculos={vinculosAno} notas={notasAno} />}
+                        {aba === "boletim"     && <Boletim notas={notasAno} />}
+                        {aba === "frequencia"  && <Frequencia notas={notasAno} turmaId={turmaIdAno} />}
+                        {aba === "horarios"    && <Horarios />}
+                        {aba === "comunicados" && <ComunicadosAluno />}
                     </main>
                 </div>
             </div>

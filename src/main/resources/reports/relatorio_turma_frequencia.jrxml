@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports
+                http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="relatorio_turma_frequencia"
+              pageWidth="842" pageHeight="595"
+              orientation="Landscape"
+              columnWidth="802" leftMargin="20" rightMargin="20"
+              topMargin="20" bottomMargin="20"
+              whenNoDataType="AllSectionsNoDetail">
+
+    <!-- ═══ STYLES ═══════════════════════════════════════════════════════ -->
+    <style name="default" isDefault="true" fontName="SansSerif" fontSize="8"/>
+
+    <style name="cellFreqStyle" fontName="SansSerif" fontSize="8" isBold="true">
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$V{Valor} != null && $V{Valor} < 75.0]]></conditionExpression>
+            <style forecolor="#b94040"/>
+        </conditionalStyle>
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$V{Valor} != null && $V{Valor} >= 75.0]]></conditionExpression>
+            <style forecolor="#2d6a4f"/>
+        </conditionalStyle>
+    </style>
+
+    <!-- ═══ SUBDATASET for crosstab ══════════════════════════════════════ -->
+    <subDataset name="CrosstabDS">
+        <field name="alunoNome"   class="java.lang.String"/>
+        <field name="materiaNome" class="java.lang.String"/>
+        <field name="valor"       class="java.lang.Double"/>
+    </subDataset>
+
+    <!-- ═══ PARAMETERS ═══════════════════════════════════════════════════ -->
+    <parameter name="TURMA_NOME"    class="java.lang.String"/>
+    <parameter name="SERIE_NOME"    class="java.lang.String"/>
+    <parameter name="ANO_LETIVO"    class="java.lang.Integer"/>
+    <parameter name="PERIODO"       class="java.lang.String"/>
+    <parameter name="DATA_EMISSAO"  class="java.lang.String"/>
+    <parameter name="CROSSTAB_DATA" class="net.sf.jasperreports.engine.JRDataSource"/>
+
+    <!-- ═══ TITLE ════════════════════════════════════════════════════════ -->
+    <title>
+        <band height="60" splitType="Stretch">
+
+            <rectangle>
+                <reportElement x="0" y="0" width="802" height="20" backcolor="#d0d0d0" mode="Opaque"/>
+                <graphicElement><pen lineWidth="0.5"/></graphicElement>
+            </rectangle>
+            <staticText>
+                <reportElement x="0" y="3" width="802" height="14"/>
+                <textElement textAlignment="Center">
+                    <font fontName="SansSerif" size="11" isBold="true"/>
+                </textElement>
+                <text><![CDATA[RELATÓRIO DE FREQUÊNCIA POR MATÉRIA]]></text>
+            </staticText>
+
+            <staticText>
+                <reportElement x="4" y="24" width="50" height="10"/>
+                <textElement><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+                <text><![CDATA[Turma:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="56" y="24" width="150" height="10"/>
+                <textElement><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{TURMA_NOME} + " — " + $P{SERIE_NOME}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="220" y="24" width="50" height="10"/>
+                <textElement><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+                <text><![CDATA[Período:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="272" y="24" width="120" height="10"/>
+                <textElement><font fontName="SansSerif" size="8"/></textElement>
+                <textFieldExpression><![CDATA[$P{PERIODO}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="600" y="24" width="202" height="10" forecolor="#555555"/>
+                <textElement textAlignment="Right">
+                    <font fontName="SansSerif" size="7"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Emissão: " + $P{DATA_EMISSAO}]]></textFieldExpression>
+            </textField>
+
+            <staticText>
+                <reportElement x="4" y="38" width="796" height="10" forecolor="#555555"/>
+                <textElement><font fontName="SansSerif" size="7"/></textElement>
+                <text><![CDATA[Cores: verde ≥ 75%  |  vermelho < 75% (frequência insuficiente)]]></text>
+            </staticText>
+        </band>
+    </title>
+
+    <!-- ═══ SUMMARY (Crosstab) ═══════════════════════════════════════════ -->
+    <summary>
+        <band height="450" splitType="Stretch">
+            <crosstab>
+                <reportElement x="0" y="0" width="802" height="450" isRemoveLineWhenBlank="true"/>
+                <crosstabDataset>
+                    <dataset resetType="None">
+                        <datasetRun subDataset="CrosstabDS">
+                            <dataSourceExpression><![CDATA[$P{CROSSTAB_DATA}]]></dataSourceExpression>
+                        </datasetRun>
+                    </dataset>
+                </crosstabDataset>
+                <rowGroup name="Aluno" width="180" totalPosition="None">
+                    <bucket class="java.lang.String" order="Ascending">
+                        <bucketExpression><![CDATA[$F{alunoNome}]]></bucketExpression>
+                    </bucket>
+                    <crosstabRowHeader>
+                        <cellContents>
+                            <reportElement x="0" y="0" width="180" height="18"/>
+                            <box>
+                                <pen lineWidth="0.3" lineColor="#cccccc"/>
+                            </box>
+                            <textField>
+                                <reportElement x="4" y="3" width="174" height="12"/>
+                                <textElement><font fontName="SansSerif" size="8" isBold="true"/></textElement>
+                                <textFieldExpression><![CDATA[$V{Aluno}]]></textFieldExpression>
+                            </textField>
+                        </cellContents>
+                    </crosstabRowHeader>
+                </rowGroup>
+                <columnGroup name="Materia" height="20" totalPosition="None">
+                    <bucket class="java.lang.String" order="Ascending">
+                        <bucketExpression><![CDATA[$F{materiaNome}]]></bucketExpression>
+                    </bucket>
+                    <crosstabColumnHeader>
+                        <cellContents>
+                            <reportElement x="0" y="0" width="80" height="20" backcolor="#e8e8e8" mode="Opaque"/>
+                            <box>
+                                <pen lineWidth="0.3" lineColor="#cccccc"/>
+                            </box>
+                            <textField isStretchWithOverflow="true">
+                                <reportElement x="2" y="2" width="76" height="16"/>
+                                <textElement textAlignment="Center">
+                                    <font fontName="SansSerif" size="7" isBold="true"/>
+                                </textElement>
+                                <textFieldExpression><![CDATA[$V{Materia}]]></textFieldExpression>
+                            </textField>
+                        </cellContents>
+                    </crosstabColumnHeader>
+                </columnGroup>
+                <measure name="Valor" class="java.lang.Double" calculation="Average">
+                    <measureExpression><![CDATA[$F{valor}]]></measureExpression>
+                </measure>
+                <crosstabCell width="80" height="18">
+                    <cellContents>
+                        <reportElement x="0" y="0" width="80" height="18"/>
+                        <box>
+                            <pen lineWidth="0.3" lineColor="#cccccc"/>
+                        </box>
+                        <textField>
+                            <reportElement x="0" y="3" width="80" height="12" style="cellFreqStyle"/>
+                            <textElement textAlignment="Center">
+                                <font fontName="SansSerif" size="8" isBold="true"/>
+                            </textElement>
+                            <textFieldExpression><![CDATA[$V{Valor} != null ? String.format("%.1f%%", $V{Valor}) : "—"]]></textFieldExpression>
+                        </textField>
+                    </cellContents>
+                </crosstabCell>
+                <whenNoDataCell>
+                    <cellContents>
+                        <reportElement x="0" y="0" width="80" height="18"/>
+                        <box>
+                            <pen lineWidth="0.3" lineColor="#cccccc"/>
+                        </box>
+                        <staticText>
+                            <reportElement x="0" y="3" width="80" height="12" forecolor="#aaaaaa"/>
+                            <textElement textAlignment="Center">
+                                <font fontName="SansSerif" size="8"/>
+                            </textElement>
+                            <text><![CDATA[—]]></text>
+                        </staticText>
+                    </cellContents>
+                </whenNoDataCell>
+            </crosstab>
+        </band>
+    </summary>
+
+</jasperReport>

@@ -49,10 +49,13 @@ public class SecurityConfig {
                         // 🔓 Preflight CORS
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+                        // 🔒 Módulo financeiro — exclusivo para DIRECAO (redundante com @PreAuthorize, mas garante proteção mesmo se anotação for esquecida)
+                        .requestMatchers("/fin/**").hasRole("DIRECAO")
+
                         // 🔒 Regras específicas
-                        .requestMatchers(HttpMethod.DELETE, "/turmas/**").hasRole("DIRECAO")
-                        .requestMatchers(HttpMethod.DELETE, "/materias/**").hasRole("DIRECAO")
-                        .requestMatchers(HttpMethod.DELETE, "/vinculos/**").hasRole("DIRECAO")
+                        .requestMatchers(HttpMethod.DELETE, "/turmas/**").hasAnyRole("DIRECAO", "COORDENACAO")
+                        .requestMatchers(HttpMethod.DELETE, "/materias/**").hasAnyRole("DIRECAO", "COORDENACAO")
+                        .requestMatchers(HttpMethod.DELETE, "/vinculos/**").hasAnyRole("DIRECAO", "COORDENACAO")
 
 
                         .anyRequest().authenticated()
@@ -76,7 +79,7 @@ public class SecurityConfig {
 
         config.setAllowedOriginPatterns(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        config.setAllowedHeaders(List.of("*"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Requested-With"));
         config.setExposedHeaders(List.of("Authorization"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);

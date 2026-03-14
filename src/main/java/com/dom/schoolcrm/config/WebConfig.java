@@ -5,5 +5,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
-    // SPA routing handled explicitly by SpaController
+    // SPA fallback é tratado pelo SpaController (ErrorController) que
+    // redireciona 404s para /index.html — não usamos addViewController
+    // para evitar conflito com métodos POST/DELETE/PATCH nas rotas de API.
 }
