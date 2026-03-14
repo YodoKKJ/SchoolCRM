@@ -138,14 +138,19 @@ public class FinContaReceberController {
         Object valorPagoRaw = body.get("valorPago");
         if (valorPagoRaw == null) return ResponseEntity.badRequest().body("valorPago é obrigatório.");
 
-        BigDecimal novoPagamento = new BigDecimal(valorPagoRaw.toString());
-        if (novoPagamento.compareTo(BigDecimal.ZERO) <= 0) {
-            return ResponseEntity.badRequest().body("Valor pago deve ser maior que zero.");
+        BigDecimal valorPago;
+        try {
+            valorPago = new BigDecimal(valorPagoRaw.toString());
+        } catch (NumberFormatException e) {
+            return ResponseEntity.badRequest().body("valorPago inválido.");
+        }
+        if (valorPago.compareTo(BigDecimal.ZERO) <= 0) {
+            return ResponseEntity.badRequest().body("valorPago deve ser maior que zero.");
         }
 
         // Acumula com pagamentos anteriores (suporte a baixa parcial)
         BigDecimal jaFoiPago = cr.getValorPago() != null ? cr.getValorPago() : BigDecimal.ZERO;
-        BigDecimal totalPago = jaFoiPago.add(novoPagamento);
+        BigDecimal totalPago = jaFoiPago.add(valorPago);
 
         // Juros e multa: aplica apenas no primeiro pagamento (se ainda não foram definidos)
         BigDecimal juros = cr.getJurosAplicado() != null ? cr.getJurosAplicado() : BigDecimal.ZERO;
@@ -301,8 +306,8 @@ public class FinContaReceberController {
         FinContaReceber cr = crRepository.findById(id).orElse(null);
         if (cr == null) return ResponseEntity.notFound().build();
 
-        if ("PAGO".equals(cr.getStatus())) {
-            return ResponseEntity.badRequest().body("Parcela já paga não pode ser editada.");
+        if (!"PENDENTE".equals(cr.getStatus())) {
+            return ResponseEntity.badRequest().body("Apenas parcelas PENDENTES podem ser editadas.");
         }
         if ("PARCIALMENTE_PAGO".equals(cr.getStatus())) {
             return ResponseEntity.badRequest().body("Parcela com pagamento parcial não pode ser editada.");
