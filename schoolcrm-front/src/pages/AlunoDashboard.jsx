@@ -65,14 +65,19 @@ const STYLE = `
 .ad-ano-btn:hover { background:#f0f5f2; }
 .ad-ano-btn--active { background:#0d1f18; color:#fff; border-color:#0d1f18; }
 
-@media (max-width: 640px) {
+@media (max-width: 1100px) {
+  .ad-sidebar { width: 180px !important; flex-shrink: 0; }
+  .ad-nav-btn { font-size: 12px !important; padding: 8px 10px !important; }
+}
+
+@media (max-width: 900px) {
   .ad-sidebar {
     position: fixed !important;
     top: 0; left: 0; bottom: 0;
     z-index: 30;
     transform: translateX(-100%);
     transition: transform .25s ease;
-    width: 210px !important;
+    width: 220px !important;
   }
   .ad-sidebar.open { transform: translateX(0); }
   .ad-hamburger { display: flex !important; }
@@ -81,8 +86,10 @@ const STYLE = `
   .ad-cards-grid { grid-template-columns: 1fr 1fr !important; }
   .ad-modal { max-width: 100% !important; padding: 20px !important; }
 }
+
 @media (max-width: 479px) {
   .ad-cards-grid { grid-template-columns: 1fr !important; }
+  .ad-page-title { font-size: 18px !important; }
 }
 `;
 
