@@ -271,6 +271,13 @@ export default function ProfessorDashboard() {
 // ═══════════════════════════════════════════════════════════════
 function Inicio({ vinculos }) {
     const [resumos, setResumos] = useState({});   // { turmaId: { ...resumo, carregando } }
+    const [expandidas, setExpandidas] = useState(new Set()); // turmaIds expandidas
+
+    const toggleTurma = (id) => setExpandidas(prev => {
+        const next = new Set(prev);
+        next.has(id) ? next.delete(id) : next.add(id);
+        return next;
+    });
 
     const porTurma = vinculos.reduce((acc, v) => {
         const key = v.turma?.id;
@@ -323,11 +330,14 @@ function Inicio({ vinculos }) {
 
                 return (
                     <div key={turma?.id} className="pd-section">
-                        {/* cabeçalho turma */}
-                        <div className="pd-section-header" style={{ flexWrap:"wrap", gap:8 }}>
-                            <div>
+                        {/* cabeçalho turma — clicável para expandir */}
+                        <div className="pd-section-header"
+                             style={{ flexWrap:"wrap", gap:8, cursor:"pointer", userSelect:"none" }}
+                             onClick={() => toggleTurma(turma?.id)}>
+                            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                                <ChevronRight size={15} style={{ flexShrink:0, color:"#9aaa9f", transition:".2s", transform: expandidas.has(turma?.id) ? "rotate(90deg)" : "none" }} />
                                 <span className="pd-section-title">{turma?.nome}</span>
-                                <span style={{ marginLeft:8, fontSize:11, color:"#9aaa9f" }}>{turma?.serie?.nome}</span>
+                                <span style={{ fontSize:11, color:"#9aaa9f" }}>{turma?.serie?.nome}</span>
                             </div>
                             <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
                                 {materias.map(m => (
@@ -351,15 +361,15 @@ function Inicio({ vinculos }) {
                             </div>
                         </div>
 
-                        {res?.carregando && (
+                        {expandidas.has(turma?.id) && res?.carregando && (
                             <p style={{ padding:"20px", color:"#9aaa9f", fontSize:13, textAlign:"center" }}>Carregando...</p>
                         )}
 
-                        {!res?.carregando && alunos.length === 0 && (
+                        {expandidas.has(turma?.id) && !res?.carregando && alunos.length === 0 && (
                             <p style={{ padding:"20px", color:"#9aaa9f", fontSize:13, textAlign:"center" }}>Nenhum aluno vinculado.</p>
                         )}
 
-                        {!res?.carregando && alunos.length > 0 && (
+                        {expandidas.has(turma?.id) && !res?.carregando && alunos.length > 0 && (
                             <>
                                 {/* Alunos em risco — destaque vermelho */}
                                 {emRisco.length > 0 && (
