@@ -154,6 +154,14 @@ const GLOBAL_STYLE = `
 .dd-sidebar { background: #0d1f18; }
 .dd-sidebar-logo-wrap { border-bottom: 1px solid rgba(255,255,255,0.07); }
 .dd-user-wrap { border-bottom: 1px solid rgba(255,255,255,0.07); }
+/* scrollbar fina e discreta no nav do sidebar */
+.dd-sidebar nav::-webkit-scrollbar { width: 3px; }
+.dd-sidebar nav::-webkit-scrollbar-track { background: transparent; }
+.dd-sidebar nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 2px; }
+.dd-sidebar nav::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.25); }
+/* ano letivo: botão sem box visível, parece nativo do sidebar */
+.dd-ano-letivo-btn { width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; background:transparent; border:none; border-bottom:1px solid rgba(255,255,255,.15); border-radius:0; padding:5px 2px 6px; cursor:pointer; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:500; color:#7ec8a0; letter-spacing:.01em; transition: border-color .15s; }
+.dd-ano-letivo-btn:hover { border-bottom-color: rgba(255,255,255,.3); }
 .dd-nav-section-label { font-size:10px; font-weight:500; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.3); padding: 0 12px; margin-bottom:4px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; border:none; background:none; width:100%; }
 .dd-nav-section-label:hover { color:rgba(255,255,255,.5); }
 .dd-nav-btn { display:flex; align-items:center; gap:10px; padding:9px 12px; font-size:13px; font-weight:400; color:rgba(255,255,255,.45); border:none; background:transparent; width:100%; text-align:left; cursor:pointer; border-left:2px solid transparent; transition:color .15s, background .15s, border-color .15s; }
@@ -608,13 +616,10 @@ export default function DirecaoDashboard() {
                     {/* ano letivo */}
                     <div style={{ padding:"10px 20px 14px", borderBottom:"1px solid rgba(255,255,255,.06)" }}>
                         <p style={{ fontSize:9, color:"rgba(255,255,255,.3)", letterSpacing:".12em", textTransform:"uppercase", marginBottom:6 }}>Ano Letivo</p>
-                        <SearchSelect
-                            value={String(anoLetivo)}
-                            onChange={v => setAnoLetivo(Number(v))}
-                            options={anosDisponiveis.map(ano => ({ value: String(ano), label: String(ano) }))}
-                            variant="dark"
-                            minDropWidth={160}
-                        />
+                        <select value={anoLetivo} onChange={e => setAnoLetivo(Number(e.target.value))}
+                                style={{ width:"100%", background:"transparent", border:"none", borderBottom:"1px solid rgba(255,255,255,.2)", color:"#7ec8a0", fontFamily:"'DM Sans',sans-serif", fontSize:14, fontWeight:500, padding:"4px 2px 6px", cursor:"pointer", outline:"none", appearance:"none", WebkitAppearance:"none" }}>
+                            {anosDisponiveis.map(ano => <option key={ano} value={ano} style={{ background:"#1a2e23", color:"#7ec8a0" }}>{ano}</option>)}
+                        </select>
                     </div>
 
                     {/* nav */}
