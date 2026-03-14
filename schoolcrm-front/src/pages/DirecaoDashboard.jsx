@@ -709,7 +709,9 @@ export default function DirecaoDashboard() {
 // ---- INÍCIO ----
 function Inicio({ anoLetivo }) {
     const [stats, setStats] = useState({ alunos: 0, professores: 0, turmas: 0, materias: 0 });
-    const [alunosDoAno, setAlunosDoAno] = useState([]);
+    const [turmasDoAno, setTurmasDoAno] = useState([]);
+    const [alertas, setAlertas] = useState([]);      // alunos em risco consolidados
+    const [alertasCarregando, setAlertasCarregando] = useState(false);
 
     useEffect(() => {
         Promise.all([
@@ -719,65 +721,133 @@ function Inicio({ anoLetivo }) {
             api.get(`/vinculos/aluno-turma/ocupados-no-ano/${anoLetivo}`),
         ]).then(([u, t, m, a]) => {
             const listaUsuarios = u.data || [];
-            const turmasDoAno = (t.data || []).filter(x => x.anoLetivo === anoLetivo);
-            setAlunosDoAno(listaUsuarios.filter(u => (a.data || []).includes(u.id)));
+            const tDoAno = (t.data || []).filter(x => x.anoLetivo === anoLetivo);
+            setTurmasDoAno(tDoAno);
             setStats({
                 alunos: (a.data || []).length,
                 professores: listaUsuarios.filter(x => x.role === "PROFESSOR").length,
-                turmas: turmasDoAno.length,
+                turmas: tDoAno.length,
                 materias: (m.data || []).length,
             });
+            // Carrega resumos de todas as turmas do ano em paralelo
+            if (tDoAno.length > 0) {
+                setAlertasCarregando(true);
+                Promise.all(tDoAno.map(turma =>
+                    api.get(`/notas/turma/${turma.id}/resumo`).then(r => r.data).catch(() => null)
+                )).then(resumos => {
+                    const emRisco = [];
+                    resumos.filter(Boolean).forEach(res => {
+                        (res.alunos || []).filter(a => a.emRisco).forEach(a => {
+                            emRisco.push({ ...a, turmaNome: res.turmaNome, turmaId: res.turmaId });
+                        });
+                    });
+                    emRisco.sort((a, b) => a.alunoNome.localeCompare(b.alunoNome));
+                    setAlertas(emRisco);
+                }).finally(() => setAlertasCarregando(false));
+            }
         }).catch(() => {});
     }, [anoLetivo]);
 
     const cards = [
-        { label: "Alunos", sublabel: `em ${anoLetivo}`, value: stats.alunos, accent: "#0d1f18" },
-        { label: "Professores", sublabel: "total", value: stats.professores, accent: "#2d6a4f" },
-        { label: "Turmas", sublabel: `em ${anoLetivo}`, value: stats.turmas, accent: "#7ec8a0" },
-        { label: "Matérias", sublabel: "total", value: stats.materias, accent: "#b7dfc8" },
+        { label: "Alunos",      sublabel: `em ${anoLetivo}`, value: stats.alunos,      accent: "#0d1f18" },
+        { label: "Professores", sublabel: "total",            value: stats.professores, accent: "#2d6a4f" },
+        { label: "Turmas",      sublabel: `em ${anoLetivo}`, value: stats.turmas,      accent: "#7ec8a0" },
+        { label: "Em Risco",    sublabel: "de reprovação",
+          value: alertasCarregando ? "..." : alertas.length,
+          accent: alertas.length > 0 ? "#e63946" : "#b7dfc8",
+          valueColor: alertas.length > 0 ? "#e63946" : undefined },
     ];
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:24 }}>
+            {/* Cards */}
             <div className="dd-cards-grid" style={{ gap:16 }}>
                 {cards.map(card => (
                     <div key={card.label} className="dd-card" style={{ "--accent": card.accent, padding:"20px 20px 18px" }}>
-                        <p className="dd-card-num">{card.value}</p>
+                        <p className="dd-card-num" style={{ color: card.valueColor || undefined }}>{card.value}</p>
                         <p className="dd-card-label">{card.label}</p>
                         <p style={{ fontSize:10, color:"rgba(255,255,255,.35)", marginTop:2, letterSpacing:".04em" }}>{card.sublabel}</p>
                     </div>
                 ))}
             </div>
 
-            <div className="dd-section">
+            {/* Painel de Alertas */}
+            <div className="dd-section" style={{ borderTop:"2px solid #e63946" }}>
                 <div className="dd-section-header">
-                    <span className="dd-section-title">Alunos matriculados em {anoLetivo}</span>
-                    <span className="dd-section-count">{alunosDoAno.length} alunos</span>
+                    <span className="dd-section-title" style={{ color:"#b94040" }}>⚠ Alertas de Risco de Reprovação</span>
+                    <span className="dd-section-count">{alertasCarregando ? "carregando..." : `${alertas.length} aluno${alertas.length !== 1 ? "s" : ""}`}</span>
                 </div>
-                <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
-                    <thead>
-                    <tr>{["Nome", "Login"].map(h => <th key={h}>{h}</th>)}</tr>
-                    </thead>
-                    <tbody>
-                    {alunosDoAno.slice(0, 8).map(u => (
-                        <tr key={u.id}>
-                            <td>
-                                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                                    <div style={{ width:26, height:26, background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color:"#7ec8a0", flexShrink:0 }}>
-                                        {u.nome.charAt(0)}
-                                    </div>
-                                    <span style={{ fontWeight:500 }}>{u.nome}</span>
-                                </div>
-                            </td>
-                            <td style={{ color:"#9aaa9f" }}>{u.login}</td>
-                        </tr>
-                    ))}
-                    {alunosDoAno.length === 0 && (
-                        <tr><td colSpan={2} style={{ textAlign:"center", color:"#9aaa9f", padding:20 }}>Nenhum aluno matriculado em {anoLetivo}</td></tr>
-                    )}
-                    </tbody>
-                </table>
+                {alertasCarregando ? (
+                    <p style={{ padding:"20px", color:"#9aaa9f", fontSize:13, textAlign:"center" }}>Calculando situação dos alunos...</p>
+                ) : alertas.length === 0 ? (
+                    <p style={{ padding:"20px", color:"#3a7a5a", fontSize:13, textAlign:"center" }}>
+                        ✓ Nenhum aluno em risco de reprovação no momento.
+                    </p>
+                ) : (
+                    <div style={{ overflowX:"auto" }}>
+                        <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
+                            <thead>
+                                <tr>
+                                    <th>Aluno</th>
+                                    <th>Turma</th>
+                                    <th>Média</th>
+                                    <th>Frequência</th>
+                                    <th>Disciplinas com problema</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {alertas.map((a, i) => {
+                                    const discRisco = (a.disciplinas || []).filter(d => d.emRisco);
+                                    return (
+                                        <tr key={`${a.alunoId}-${i}`}>
+                                            <td style={{ fontWeight:500 }}>{a.alunoNome}</td>
+                                            <td style={{ color:"#9aaa9f" }}>{a.turmaNome}</td>
+                                            <td style={{ fontWeight:700, color: a.mediaGeral !== null && a.mediaGeral < 6 ? "#b94040" : "#0d1f18" }}>
+                                                {a.mediaGeral ?? "—"}
+                                            </td>
+                                            <td style={{ fontWeight:700, color: a.frequenciaGeral < 75 ? "#b94040" : "#3a7a5a" }}>
+                                                {a.frequenciaGeral?.toFixed(1)}%
+                                            </td>
+                                            <td>
+                                                <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+                                                    {discRisco.map(d => (
+                                                        <span key={d.materiaNome} style={{ fontSize:10, background:"#fdf0f0", color:"#b94040", padding:"2px 7px", borderRadius:3 }}>
+                                                            {d.materiaNome}
+                                                            {d.mediaAnual < 6 && ` (${d.mediaAnual})`}
+                                                            {d.frequencia < 75 && ` ${d.frequencia.toFixed(0)}%`}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
+
+            {/* Turmas do ano */}
+            {turmasDoAno.length > 0 && (
+                <div className="dd-section">
+                    <div className="dd-section-header">
+                        <span className="dd-section-title">Turmas em {anoLetivo}</span>
+                        <span className="dd-section-count">{turmasDoAno.length} turmas</span>
+                    </div>
+                    <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
+                        <thead><tr><th>Turma</th><th>Série</th></tr></thead>
+                        <tbody>
+                            {turmasDoAno.map(t => (
+                                <tr key={t.id}>
+                                    <td style={{ fontWeight:500 }}>{t.nome}</td>
+                                    <td style={{ color:"#9aaa9f" }}>{t.serie?.nome ?? "—"}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </div>
     );
 }
