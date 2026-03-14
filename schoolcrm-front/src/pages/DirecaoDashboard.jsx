@@ -4604,7 +4604,7 @@ function FinContratos({ anoLetivo }) {
                                     </div>
                                     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                                         <div style={{ textAlign:"right" }}>
-                                            <div style={{ fontWeight:700, fontSize:14, color:"#0d1f18" }}>{fmt(c.valorTotal)}</div>
+                                            <div style={{ fontWeight:700, fontSize:14, color:"#0d1f18" }}>{fmt(c.valorMensal ?? c.valorTotal)}</div>
                                             {(Number(c.desconto||0) > 0 || Number(c.acrescimo||0) > 0) && (
                                                 <div style={{ fontSize:10, color:"#9aaa9f" }}>base {fmt(c.valorBase)}</div>
                                             )}
@@ -4619,7 +4619,7 @@ function FinContratos({ anoLetivo }) {
                                 {expandido === c.id && (
                                     <div style={{ padding:"0 20px 20px", background:"#f8faf8" }}>
                                         <div style={{ display:"flex", gap:16, flexWrap:"wrap", padding:"12px 0 16px", borderBottom:"1px solid #eaeef2", marginBottom:12 }}>
-                                            {[["Valor Base", fmt(c.valorBase), "#0d1f18"], ["Desconto", fmt(c.desconto), "#b94040"], ["Acréscimo", fmt(c.acrescimo), "#2d6a4f"], ["Total Mensal", fmt(c.valorTotal), "#2563eb"]].map(([l,v,col]) => (
+                                            {[["Valor Base", fmt(c.valorBase), "#0d1f18"], ["Desconto", fmt(c.desconto), "#b94040"], ["Acréscimo", fmt(c.acrescimo), "#2d6a4f"], ["Total Mensal", fmt(c.valorMensal ?? c.valorTotal), "#2563eb"]].map(([l,v,col]) => (
                                                 <div key={l} style={{ minWidth:80 }}>
                                                     <div style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.4px" }}>{l}</div>
                                                     <div style={{ fontSize:15, fontWeight:700, color:col, marginTop:2 }}>{v}</div>
