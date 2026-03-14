@@ -50,6 +50,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         // 🔒 Módulo financeiro — exclusivo para DIRECAO (redundante com @PreAuthorize, mas garante proteção mesmo se anotação for esquecida)
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/fin/configuracoes").authenticated()
                         .requestMatchers("/fin/**").hasRole("DIRECAO")
 
                         // 🔒 Regras específicas
