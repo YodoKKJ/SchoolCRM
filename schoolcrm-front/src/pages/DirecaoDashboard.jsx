@@ -4001,7 +4001,7 @@ function FinPessoas() {
             </div>
 
             {modal && (
-                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModal(null)}>
+                <div className="dd-modal-overlay" onMouseDown={e => e.target===e.currentTarget &&setModal(null)}>
                     <div className="dd-modal" style={{ maxWidth:520, maxHeight:"90vh", overflowY:"auto" }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                             <div>
@@ -4264,7 +4264,7 @@ function FinFuncionarios() {
             </div>
 
             {modal && (
-                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModal(null)}>
+                <div className="dd-modal-overlay" onMouseDown={e => e.target===e.currentTarget &&setModal(null)}>
                     <div className="dd-modal" style={{ maxWidth:460 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                             <div>
@@ -4780,7 +4780,7 @@ function FinContratos({ anoLetivo }) {
 
             {/* Modal Contrato */}
             {modalContrato && (
-                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalContrato(false)}>
+                <div className="dd-modal-overlay" onMouseDown={e => e.target===e.currentTarget &&setModalContrato(false)}>
                     <div className="dd-modal" style={{ maxWidth:440 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                             <div><p className="dd-modal-title">Novo Contrato</p><p className="dd-modal-sub">Gera parcelas automaticamente</p></div>
@@ -4852,7 +4852,7 @@ function FinContratos({ anoLetivo }) {
 
             {/* Modal Baixar Parcela */}
             {modalBaixar && (
-                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalBaixar(null)}>
+                <div className="dd-modal-overlay" onMouseDown={e => e.target===e.currentTarget && setModalBaixar(null)}>
                     <div className="dd-modal" style={{ maxWidth:400 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                             <div>
@@ -4996,7 +4996,7 @@ function FinContratos({ anoLetivo }) {
 
             {/* Modal CR Avulsa */}
             {modalCRAvulsa && (
-                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalCRAvulsa(false)}>
+                <div className="dd-modal-overlay" onMouseDown={e => e.target===e.currentTarget &&setModalCRAvulsa(false)}>
                     <div className="dd-modal" style={{ maxWidth:420 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                             <div><p className="dd-modal-title">Nova CR Avulsa</p><p className="dd-modal-sub">Recebimento avulso</p></div>
@@ -5360,7 +5360,7 @@ function FinContasPagar() {
 
             {/* Modal Baixar CP */}
             {modalBaixar && (
-                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalBaixar(null)}>
+                <div className="dd-modal-overlay" onMouseDown={e => e.target===e.currentTarget &&setModalBaixar(null)}>
                     <div className="dd-modal" style={{ maxWidth:380 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                             <div><p className="dd-modal-title">Dar Baixa</p><p className="dd-modal-sub">{modalBaixar.descricao}{modalBaixar.status === "PARCIALMENTE_PAGO" ? ` — Saldo: ${fmt(modalBaixar.saldoDevedor)}` : ""}</p></div>
@@ -5451,7 +5451,7 @@ function FinContasPagar() {
 
             {/* Modal Gerar Folha */}
             {modalGerarFolha && (
-                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalGerarFolha(false)}>
+                <div className="dd-modal-overlay" onMouseDown={e => e.target===e.currentTarget &&setModalGerarFolha(false)}>
                     <div className="dd-modal" style={{ maxWidth:340 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                             <div><p className="dd-modal-title">Gerar Folha de Pagamento</p><p className="dd-modal-sub">Salários de todos os funcionários ativos</p></div>
@@ -5472,7 +5472,7 @@ function FinContasPagar() {
 
             {/* Modal Gerar Recorrentes */}
             {modalGerarRec && (
-                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalGerarRec(false)}>
+                <div className="dd-modal-overlay" onMouseDown={e => e.target===e.currentTarget &&setModalGerarRec(false)}>
                     <div className="dd-modal" style={{ maxWidth:340 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                             <div><p className="dd-modal-title">Gerar Contas Recorrentes</p><p className="dd-modal-sub">Instâncias de todos os modelos ativos</p></div>
@@ -5493,7 +5493,7 @@ function FinContasPagar() {
 
             {/* Modal Modelo */}
             {modalModelo && (
-                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalModelo(null)}>
+                <div className="dd-modal-overlay" onMouseDown={e => e.target===e.currentTarget &&setModalModelo(null)}>
                     <div className="dd-modal" style={{ maxWidth:400 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                             <div><p className="dd-modal-title">{modalModelo.modo==="criar"?"Novo Modelo":"Editar Modelo"}</p></div>
@@ -5691,7 +5691,7 @@ function FinMovimentacoes() {
             </div>
 
             {modal && (
-                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModal(false)}>
+                <div className="dd-modal-overlay" onMouseDown={e => e.target===e.currentTarget &&setModal(false)}>
                     <div className="dd-modal" style={{ maxWidth:440 }}>
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
                             <div><p className="dd-modal-title">Nova Movimentação</p><p className="dd-modal-sub">Caixa rápido</p></div>

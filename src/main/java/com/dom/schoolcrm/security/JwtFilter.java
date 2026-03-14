@@ -41,7 +41,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
                 var usuario = usuarioRepository.findByLogin(login);
 
-                if (usuario.isPresent()) {
+                if (usuario.isPresent() && Boolean.TRUE.equals(usuario.get().getAtivo())) {
                     var auth = new UsernamePasswordAuthenticationToken(
                             login,
                             null,

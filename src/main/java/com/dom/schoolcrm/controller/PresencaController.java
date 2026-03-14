@@ -35,11 +35,27 @@ public class PresencaController {
     @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
     @Transactional
     public ResponseEntity<?> lancarPresenca(@RequestBody Map<String, String> body) {
-        Long alunoId = Long.parseLong(body.get("alunoId"));
-        Long turmaId = Long.parseLong(body.get("turmaId"));
-        Long materiaId = Long.parseLong(body.get("materiaId"));
+        Long alunoId;
+        Long turmaId;
+        Long materiaId;
+        LocalDate data;
+        try {
+            alunoId   = Long.parseLong(body.get("alunoId"));
+            turmaId   = Long.parseLong(body.get("turmaId"));
+            materiaId = Long.parseLong(body.get("materiaId"));
+        } catch (NumberFormatException | NullPointerException e) {
+            return ResponseEntity.badRequest().body("alunoId, turmaId e materiaId são obrigatórios e devem ser numéricos.");
+        }
+        try {
+            data = LocalDate.parse(body.get("data"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("data é obrigatória e deve estar no formato YYYY-MM-DD.");
+        }
+
+        if (body.get("presente") == null) {
+            return ResponseEntity.badRequest().body("presente é obrigatório (true ou false).");
+        }
         Boolean presente = Boolean.parseBoolean(body.get("presente"));
-        LocalDate data = LocalDate.parse(body.get("data"));
 
         // Permite até +1 dia para cobrir diferenças de fuso horário entre cliente e servidor
         if (data.isAfter(LocalDate.now().plusDays(1)))
@@ -48,11 +64,13 @@ public class PresencaController {
         // Campos opcionais para presença por período (null = registro legado)
         String ordemAulaStr = body.get("ordemAula");
         Integer ordemAula = null;
-        try {
-            if (ordemAulaStr != null && !ordemAulaStr.isBlank() && !"null".equals(ordemAulaStr)) {
+        if (ordemAulaStr != null && !ordemAulaStr.isBlank() && !"null".equals(ordemAulaStr)) {
+            try {
                 ordemAula = Integer.parseInt(ordemAulaStr);
+            } catch (NumberFormatException e) {
+                return ResponseEntity.badRequest().body("ordemAula deve ser um número inteiro.");
             }
-        } catch (NumberFormatException ignored) {}
+        }
         String horarioInicio = body.get("horarioInicio");
         if ("null".equals(horarioInicio)) horarioInicio = null;
 
@@ -95,7 +113,18 @@ public class PresencaController {
     @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'ALUNO')")
     public ResponseEntity<?> listarPresencas(@PathVariable Long alunoId,
                                              @PathVariable Long turmaId,
-                                             @PathVariable Long materiaId) {
+                                             @PathVariable Long materiaId,
+                                             Authentication auth) {
+        // ALUNO só pode consultar suas próprias presenças
+        boolean isAluno = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ALUNO"));
+        if (isAluno) {
+            Optional<Usuario> autenticado = usuarioRepository.findByLogin(auth.getName());
+            if (autenticado.isEmpty() || !autenticado.get().getId().equals(alunoId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
+            }
+        }
+
         List<Presenca> presencas = presencaRepository
                 .findByAlunoIdAndTurmaIdAndMateriaId(alunoId, turmaId, materiaId);
 

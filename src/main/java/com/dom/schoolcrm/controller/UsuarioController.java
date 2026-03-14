@@ -45,6 +45,9 @@ public class UsuarioController {
     @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> cadastrar(@RequestBody Map<String, String> body, Authentication auth) {
         String login = body.get("login");
+        if (login == null || login.isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Login é obrigatório.");
+        }
 
         if (usuarioRepository.findByLogin(login).isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
@@ -56,10 +59,20 @@ public class UsuarioController {
             return ResponseEntity.badRequest().body("Role inválida. Use: ALUNO, PROFESSOR, DIRECAO ou COORDENACAO");
         }
 
+        String senha = body.get("senha");
+        if (senha == null || senha.isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Senha é obrigatória.");
+        }
+
+        String nome = body.get("nome");
+        if (nome == null || nome.isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Nome é obrigatório.");
+        }
+
         Usuario usuario = new Usuario();
-        usuario.setNome(body.get("nome"));
+        usuario.setNome(nome.trim());
         usuario.setLogin(login);
-        usuario.setSenhaHash(passwordEncoder.encode(body.get("senha")));
+        usuario.setSenhaHash(passwordEncoder.encode(senha));
         usuario.setRole(role);
         usuario.setAtivo(true);
 

@@ -49,6 +49,9 @@ public class SecurityConfig {
                         // 🔓 Preflight CORS
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+                        // 🔒 Módulo financeiro — exclusivo para DIRECAO (redundante com @PreAuthorize, mas garante proteção mesmo se anotação for esquecida)
+                        .requestMatchers("/fin/**").hasRole("DIRECAO")
+
                         // 🔒 Regras específicas
                         .requestMatchers(HttpMethod.DELETE, "/turmas/**").hasAnyRole("DIRECAO", "COORDENACAO")
                         .requestMatchers(HttpMethod.DELETE, "/materias/**").hasAnyRole("DIRECAO", "COORDENACAO")

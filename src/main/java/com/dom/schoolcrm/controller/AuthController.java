@@ -6,6 +6,8 @@ import com.dom.schoolcrm.security.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -22,7 +24,7 @@ public class AuthController {
     private UsuarioRepository usuarioRepository;
 
     @Autowired
-    private JwtUtil jwtUtil;
+    private JwtUtil jwtUtil; // usado em gerarToken no login
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -62,16 +64,14 @@ public class AuthController {
         ));
 
     }
-    @GetMapping("/gerar-hash")
-    @PreAuthorize("hasRole('DIRECAO')")
-    public String gerarHash() {
-        return passwordEncoder.encode("123456");
-    }
     @GetMapping("/me")
-    public ResponseEntity<?> me(@RequestHeader("Authorization") String authHeader) {
-        String token = authHeader.substring(7);
-        String login = jwtUtil.extrairLogin(token);
-        String role = jwtUtil.extrairRole(token);
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> me(Authentication auth) {
+        String login = auth.getName();
+        String role = auth.getAuthorities().stream()
+                .findFirst()
+                .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .orElse("");
         return ResponseEntity.ok(Map.of("login", login, "role", role));
     }
 }

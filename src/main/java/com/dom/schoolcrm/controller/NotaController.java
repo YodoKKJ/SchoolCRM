@@ -49,18 +49,26 @@ public class NotaController {
     @PostMapping("/avaliacao")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> criarAvaliacao(@RequestBody Map<String, String> body, Authentication auth) {
-        Long turmaId = Long.parseLong(body.get("turmaId"));
-        Long materiaId = Long.parseLong(body.get("materiaId"));
+        Long turmaId;
+        Long materiaId;
+        try {
+            turmaId   = Long.parseLong(body.get("turmaId"));
+            materiaId = Long.parseLong(body.get("materiaId"));
+        } catch (NumberFormatException | NullPointerException e) {
+            return ResponseEntity.badRequest().body("turmaId e materiaId são obrigatórios e devem ser numéricos.");
+        }
+
+
         String tipo = body.get("tipo");
+        if (!List.of("PROVA", "TRABALHO", "SIMULADO", "RECUPERACAO").contains(tipo)) {
+            return ResponseEntity.badRequest().body("Tipo inválido. Use PROVA, TRABALHO, SIMULADO ou RECUPERACAO");
+        }
 
         Optional<Turma> turma = turmaRepository.findById(turmaId);
         Optional<Materia> materia = materiaRepository.findById(materiaId);
 
         if (turma.isEmpty()) return ResponseEntity.badRequest().body("Turma não encontrada");
         if (materia.isEmpty()) return ResponseEntity.badRequest().body("Matéria não encontrada");
-        if (!List.of("PROVA", "TRABALHO", "SIMULADO", "RECUPERACAO").contains(tipo)) {
-            return ResponseEntity.badRequest().body("Tipo inválido. Use PROVA, TRABALHO, SIMULADO ou RECUPERACAO");
-        }
 
         Avaliacao avaliacao = new Avaliacao();
         avaliacao.setTurma(turma.get());
@@ -75,23 +83,39 @@ public class NotaController {
             avaliacao.setBonificacao("SIMULADO".equals(tipo));
         } else {
             String pesoStr = body.get("peso");
-            avaliacao.setPeso(pesoStr != null && !pesoStr.isBlank() ? new BigDecimal(pesoStr) : new BigDecimal("1.0"));
+            if (pesoStr != null && !pesoStr.isBlank()) {
+                try {
+                    BigDecimal peso = new BigDecimal(pesoStr);
+                    if (peso.compareTo(new BigDecimal("0.1")) < 0 || peso.compareTo(BigDecimal.TEN) > 0) {
+                        return ResponseEntity.badRequest().body("Peso deve ser entre 0.1 e 10.");
+                    }
+                    avaliacao.setPeso(peso);
+                } catch (NumberFormatException e) {
+                    return ResponseEntity.badRequest().body("Peso inválido.");
+                }
+            } else {
+                avaliacao.setPeso(new BigDecimal("1.0"));
+            }
             avaliacao.setBonificacao(false);
         }
 
         String bimestreStr = body.get("bimestre");
         if (bimestreStr != null && !bimestreStr.isBlank()) {
-            int bim = Integer.parseInt(bimestreStr);
-            if (bim < 1 || bim > 4)
-                return ResponseEntity.badRequest().body("Bimestre deve ser entre 1 e 4.");
-            avaliacao.setBimestre(bim);
+            try {
+                int bimestre = Integer.parseInt(bimestreStr);
+                if (bimestre < 1 || bimestre > 4) {
+                    return ResponseEntity.badRequest().body("Bimestre deve ser entre 1 e 4.");
+                }
+                avaliacao.setBimestre(bimestre);
+            } catch (NumberFormatException e) {
+                return ResponseEntity.badRequest().body("Bimestre inválido.");
+            }
         } else {
             return ResponseEntity.badRequest().body("bimestre é obrigatório (1 a 4).");
         }
         avaliacaoRepository.save(avaliacao);
         auditService.log(auth, "CRIAR", "AVALIACAO", String.valueOf(avaliacao.getId()),
                 "Tipo=" + avaliacao.getTipo() + " Turma=" + turmaId + " Materia=" + materiaId + " Bimestre=" + avaliacao.getBimestre());
-
         return ResponseEntity.status(HttpStatus.CREATED).body(avaliacao);
     }
 
@@ -126,9 +150,16 @@ public class NotaController {
     @PostMapping("/lancar")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> lancarNota(@RequestBody Map<String, String> body, Authentication auth) {
-        Long avaliacaoId = Long.parseLong(body.get("avaliacaoId"));
-        Long alunoId = Long.parseLong(body.get("alunoId"));
-        BigDecimal valor = new BigDecimal(body.get("valor"));
+        Long avaliacaoId;
+        Long alunoId;
+        BigDecimal valor;
+        try {
+            avaliacaoId = Long.parseLong(body.get("avaliacaoId"));
+            alunoId     = Long.parseLong(body.get("alunoId"));
+            valor       = new BigDecimal(body.get("valor"));
+        } catch (NumberFormatException | NullPointerException e) {
+            return ResponseEntity.badRequest().body("avaliacaoId, alunoId e valor são obrigatórios e devem ser numéricos.");
+        }
 
         Optional<Avaliacao> avaliacao = avaliacaoRepository.findById(avaliacaoId);
         Optional<Usuario> aluno = usuarioRepository.findById(alunoId);
@@ -161,7 +192,18 @@ public class NotaController {
     @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'ALUNO')")
     public ResponseEntity<?> calcularMedia(@PathVariable Long alunoId,
                                            @PathVariable Long turmaId,
-                                           @PathVariable Long materiaId) {
+                                           @PathVariable Long materiaId,
+                                           Authentication auth) {
+        // ALUNO só pode consultar suas próprias notas
+        boolean isAluno = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ALUNO"));
+        if (isAluno) {
+            Optional<Usuario> autenticado = usuarioRepository.findByLogin(auth.getName());
+            if (autenticado.isEmpty() || !autenticado.get().getId().equals(alunoId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acesso negado.");
+            }
+        }
+
         List<Nota> notas = notaRepository
                 .findByAlunoIdAndAvaliacaoTurmaIdAndAvaliacaoMateriaId(alunoId, turmaId, materiaId);
 
@@ -266,6 +308,19 @@ public class NotaController {
                 .findByAlunoIdAndTurmaId(alunoId, turmaId);
 
         Map<Long, Map<String, Object>> porMateria = new LinkedHashMap<>();
+
+        // Inicializar entradas para matérias com presenças registradas mas sem notas
+        // (garante que disciplinas com 100% de falta apareçam no boletim)
+        for (com.dom.schoolcrm.entity.Presenca p : todasPresencas) {
+            Long matId = p.getMateria().getId();
+            porMateria.computeIfAbsent(matId, k -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("materiaId", matId);
+                m.put("materiaNome", p.getMateria().getNome());
+                m.put("bimestres", new java.util.TreeMap<Integer, Map<String,Object>>());
+                return m;
+            });
+        }
 
         for (Nota nota : todasNotas) {
             Long matId = nota.getAvaliacao().getMateria().getId();
