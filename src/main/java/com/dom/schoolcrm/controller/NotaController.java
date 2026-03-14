@@ -49,6 +49,21 @@ public class NotaController {
     @Autowired
     private com.dom.schoolcrm.repository.AlunoTurmaRepository alunoTurmaRepository;
 
+    @Autowired
+    private com.dom.schoolcrm.repository.FinConfiguracaoRepository finConfiguracaoRepository;
+
+    private double getMediaMinima() {
+        return finConfiguracaoRepository.findAll().stream().findFirst()
+                .map(c -> c.getMediaMinima() != null ? c.getMediaMinima().doubleValue() : 6.0)
+                .orElse(6.0);
+    }
+
+    private double getFreqMinima() {
+        return finConfiguracaoRepository.findAll().stream().findFirst()
+                .map(c -> c.getFreqMinima() != null ? c.getFreqMinima().doubleValue() : 75.0)
+                .orElse(75.0);
+    }
+
     @PostMapping("/avaliacao")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> criarAvaliacao(@RequestBody Map<String, String> body, Authentication auth) {
@@ -541,7 +556,7 @@ public class NotaController {
                     long faltas = presencas.stream().filter(p -> p.getMateria().getId().equals(matId) && !Boolean.TRUE.equals(p.getPresente())).count();
                     double freq = totalAulas > 0 ? Math.round((totalAulas - faltas) * 1000.0 / totalAulas) / 10.0 : 100.0;
                     disciplinas.add(Map.of("materiaNome", matNome, "mediaAnual", mediaAnual, "frequencia", freq,
-                            "emRisco", mediaAnual.compareTo(new BigDecimal("6.0")) < 0 || freq < 75.0));
+                            "emRisco", mediaAnual.compareTo(BigDecimal.valueOf(getMediaMinima())) < 0 || freq < getFreqMinima()));
                 }
             }
 
@@ -552,7 +567,7 @@ public class NotaController {
             long faltasG = presencas.stream().filter(p -> !Boolean.TRUE.equals(p.getPresente())).count();
             double freqGeral = totalAulas > 0 ? Math.round((totalAulas - faltasG) * 1000.0 / totalAulas) / 10.0 : 100.0;
 
-            boolean emRisco = (mediaGeral != null && mediaGeral.compareTo(new BigDecimal("6.0")) < 0) || freqGeral < 75.0;
+            boolean emRisco = (mediaGeral != null && mediaGeral.compareTo(BigDecimal.valueOf(getMediaMinima())) < 0) || freqGeral < getFreqMinima();
             String situacao = mediaGeral == null ? "Cursando" : emRisco ? "Em Risco" : "Aprovando";
 
             Map<String, Object> row = new LinkedHashMap<>();
