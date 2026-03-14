@@ -270,71 +270,192 @@ export default function ProfessorDashboard() {
 // INÍCIO — visão geral das turmas do professor
 // ═══════════════════════════════════════════════════════════════
 function Inicio({ vinculos }) {
-    // Agrupa por turma
+    const [resumos, setResumos] = useState({});   // { turmaId: { ...resumo, carregando } }
+
     const porTurma = vinculos.reduce((acc, v) => {
         const key = v.turma?.id;
         if (!acc[key]) acc[key] = { turma: v.turma, materias: [] };
         acc[key].materias.push(v.materia);
         return acc;
     }, {});
-
     const turmas = Object.values(porTurma);
+
+    useEffect(() => {
+        turmas.forEach(({ turma }) => {
+            if (!turma?.id || resumos[turma.id]) return;
+            setResumos(prev => ({ ...prev, [turma.id]: { carregando: true } }));
+            api.get(`/notas/turma/${turma.id}/resumo`)
+               .then(r => setResumos(prev => ({ ...prev, [turma.id]: { ...r.data, carregando: false } })))
+               .catch(() => setResumos(prev => ({ ...prev, [turma.id]: { carregando: false, erro: true } })));
+        });
+    }, [vinculos.length]); // eslint-disable-line
+
+    const totalEmRisco = Object.values(resumos).reduce((s, r) => s + (r.emRiscoCount || 0), 0);
+    const totalAlunos  = Object.values(resumos).reduce((s, r) => s + (r.totalAlunos  || 0), 0);
+
+    const corSit = s => s === "Em Risco" ? "#b94040" : s === "Aprovando" ? "#3a7a5a" : "#9aaa9f";
+    const bgSit  = s => s === "Em Risco" ? "#fdf0f0" : s === "Aprovando" ? "#f0f5f2" : "#f5f7f5";
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:24 }}>
-            {/* Resumo */}
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16 }}>
+            {/* Cards gerais */}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:16 }}>
                 {[
-                    { label:"Turmas", value: turmas.length, accent:"#0d1f18" },
-                    { label:"Matérias", value: vinculos.length, accent:"#2d6a4f" },
-                    { label:"Aulas / semana", value:"—", accent:"#7ec8a0" },
+                    { label:"Turmas",     value: turmas.length,    accent:"#0d1f18" },
+                    { label:"Matérias",   value: vinculos.length,  accent:"#2d6a4f" },
+                    { label:"Alunos",     value: totalAlunos || "—", accent:"#7ec8a0" },
+                    { label:"Em Risco",   value: totalEmRisco || "0", accent: totalEmRisco > 0 ? "#e63946" : "#b7dfc8",
+                      valueColor: totalEmRisco > 0 ? "#e63946" : undefined },
                 ].map(c => (
                     <div key={c.label} className="pd-section" style={{ borderTop:`2px solid ${c.accent}`, padding:"20px" }}>
-                        <p style={{ fontFamily:"'Playfair Display',serif", fontSize:30, fontWeight:700, color:"#0d1f18", lineHeight:1 }}>{c.value}</p>
+                        <p style={{ fontFamily:"'Playfair Display',serif", fontSize:30, fontWeight:700,
+                                    color: c.valueColor || "#0d1f18", lineHeight:1 }}>{c.value}</p>
                         <p style={{ fontSize:11, letterSpacing:".06em", textTransform:"uppercase", color:"#9aaa9f", marginTop:4 }}>{c.label}</p>
                     </div>
                 ))}
             </div>
 
-            {/* Turmas */}
-            <div className="pd-section">
-                <div className="pd-section-header">
-                    <span className="pd-section-title">Minhas Turmas</span>
-                    <span className="pd-section-count">{turmas.length} turma(s)</span>
-                </div>
-                {turmas.length === 0
-                    ? <p style={{ padding:"40px", textAlign:"center", fontSize:13, color:"#9aaa9f" }}>
-                        Nenhuma turma vinculada. Solicite à direção.
-                    </p>
-                    : <table className="pd-table">
-                        <thead>
-                        <tr>
-                            <th>Turma</th>
-                            <th>Série</th>
-                            <th>Matérias que leciona</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        {turmas.map(({ turma, materias }) => (
-                            <tr key={turma?.id}>
-                                <td style={{ fontWeight:500 }}>{turma?.nome}</td>
-                                <td style={{ color:"#9aaa9f" }}>{turma?.serie?.nome}</td>
-                                <td>
-                                    <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-                                        {materias.map(m => (
-                                            <span key={m?.id} className="pd-badge"
-                                                  style={{ background:"#f0f5f2", color:"#2d6a4f" }}>
-                                                {m?.nome}
+            {/* Painel por turma */}
+            {turmas.map(({ turma, materias }) => {
+                const res = resumos[turma?.id];
+                const alunos = res?.alunos || [];
+                const emRisco = alunos.filter(a => a.emRisco);
+
+                return (
+                    <div key={turma?.id} className="pd-section">
+                        {/* cabeçalho turma */}
+                        <div className="pd-section-header" style={{ flexWrap:"wrap", gap:8 }}>
+                            <div>
+                                <span className="pd-section-title">{turma?.nome}</span>
+                                <span style={{ marginLeft:8, fontSize:11, color:"#9aaa9f" }}>{turma?.serie?.nome}</span>
+                            </div>
+                            <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+                                {materias.map(m => (
+                                    <span key={m?.id} className="pd-badge" style={{ background:"#f0f5f2", color:"#2d6a4f" }}>{m?.nome}</span>
+                                ))}
+                                {res && !res.carregando && !res.erro && (
+                                    <>
+                                        <span style={{ fontSize:12, color:"#9aaa9f" }}>·</span>
+                                        <span style={{ fontSize:12, color:"#5a7060" }}>{res.totalAlunos} alunos</span>
+                                        <span style={{ fontSize:12, color:"#9aaa9f" }}>·</span>
+                                        <span style={{ fontSize:12, fontWeight:600, color:"#0d1f18" }}>
+                                            Média: {res.mediaTurma ?? "—"}
+                                        </span>
+                                        {res.emRiscoCount > 0 && (
+                                            <span className="pd-badge" style={{ background:"#fdf0f0", color:"#b94040" }}>
+                                                ⚠ {res.emRiscoCount} em risco
                                             </span>
-                                        ))}
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+
+                        {res?.carregando && (
+                            <p style={{ padding:"20px", color:"#9aaa9f", fontSize:13, textAlign:"center" }}>Carregando...</p>
+                        )}
+
+                        {!res?.carregando && alunos.length === 0 && (
+                            <p style={{ padding:"20px", color:"#9aaa9f", fontSize:13, textAlign:"center" }}>Nenhum aluno vinculado.</p>
+                        )}
+
+                        {!res?.carregando && alunos.length > 0 && (
+                            <>
+                                {/* Alunos em risco — destaque vermelho */}
+                                {emRisco.length > 0 && (
+                                    <div style={{ margin:"0 20px 16px", border:"1px solid #f5c6c6", borderRadius:6, overflow:"hidden" }}>
+                                        <div style={{ background:"#fdf0f0", padding:"8px 14px", display:"flex", alignItems:"center", gap:8, borderBottom:"1px solid #f5c6c6" }}>
+                                            <span style={{ fontSize:14 }}>⚠</span>
+                                            <span style={{ fontSize:12, fontWeight:600, color:"#b94040", letterSpacing:".02em" }}>
+                                                {emRisco.length} aluno{emRisco.length > 1 ? "s" : ""} em risco de reprovação
+                                            </span>
+                                        </div>
+                                        <table className="pd-table" style={{ margin:0 }}>
+                                            <thead>
+                                                <tr>
+                                                    <th>Aluno</th>
+                                                    <th>Média</th>
+                                                    <th>Frequência</th>
+                                                    <th>Disciplinas com problema</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {emRisco.map(a => {
+                                                    const discRisco = (a.disciplinas || []).filter(d => d.emRisco);
+                                                    return (
+                                                        <tr key={a.alunoId}>
+                                                            <td style={{ fontWeight:500 }}>{a.alunoNome}</td>
+                                                            <td>
+                                                                <span style={{ fontWeight:700, color: a.mediaGeral !== null && a.mediaGeral < 6 ? "#b94040" : "#0d1f18" }}>
+                                                                    {a.mediaGeral ?? "—"}
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                <span style={{ fontWeight:700, color: a.frequenciaGeral < 75 ? "#b94040" : "#0d1f18" }}>
+                                                                    {a.frequenciaGeral?.toFixed(1)}%
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+                                                                    {discRisco.map(d => (
+                                                                        <span key={d.materiaNome} style={{ fontSize:10, background:"#fdf0f0", color:"#b94040", padding:"2px 7px", borderRadius:3 }}>
+                                                                            {d.materiaNome}
+                                                                            {d.mediaAnual < 6 && ` (${d.mediaAnual})`}
+                                                                            {d.frequencia < 75 && ` ${d.frequencia.toFixed(0)}%`}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
                                     </div>
-                                </td>
-                            </tr>
-                        ))}
-                        </tbody>
-                    </table>
-                }
-            </div>
+                                )}
+
+                                {/* Todos os alunos */}
+                                <div style={{ overflowX:"auto" }}>
+                                    <table className="pd-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Aluno</th>
+                                                <th>Média Geral</th>
+                                                <th>Frequência</th>
+                                                <th>Situação</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {alunos.map(a => (
+                                                <tr key={a.alunoId}>
+                                                    <td style={{ fontWeight:500 }}>{a.alunoNome}</td>
+                                                    <td style={{ fontWeight:700, color: a.mediaGeral !== null && a.mediaGeral < 6 ? "#b94040" : "#0d1f18" }}>
+                                                        {a.mediaGeral ?? "—"}
+                                                    </td>
+                                                    <td style={{ fontWeight:600, color: a.frequenciaGeral < 75 ? "#b94040" : "#3a7a5a" }}>
+                                                        {a.frequenciaGeral?.toFixed(1)}%
+                                                    </td>
+                                                    <td>
+                                                        <span className="pd-badge" style={{ color:corSit(a.situacao), background:bgSit(a.situacao) }}>
+                                                            {a.situacao}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                );
+            })}
+
+            {turmas.length === 0 && (
+                <div className="pd-section" style={{ padding:"40px", textAlign:"center" }}>
+                    <p style={{ fontSize:13, color:"#9aaa9f" }}>Nenhuma turma vinculada. Solicite à direção.</p>
+                </div>
+            )}
         </div>
     );
 }
