@@ -199,9 +199,10 @@ const modulos = [
         id: "gestao",
         label: "Gestão",
         items: [
-            { id: "usuarios",     label: "Usuários",    icon: Users },
-            { id: "comunicados",  label: "Comunicados", icon: Megaphone },
-            { id: "auditoria",    label: "Auditoria",   icon: Shield, direcaoOnly: true },
+            { id: "usuarios",     label: "Usuários",      icon: Users },
+            { id: "comunicados",  label: "Comunicados",   icon: Megaphone },
+            { id: "fin-config",   label: "Configurações", icon: Settings },
+            { id: "auditoria",    label: "Auditoria",     icon: Shield, direcaoOnly: true },
         ]
     },
     {
@@ -214,7 +215,6 @@ const modulos = [
             { id: "fin-contratos",     label: "Contratos / CR",   icon: Receipt },
             { id: "fin-pagar",         label: "Contas a Pagar",   icon: TrendingDown },
             { id: "fin-movimentacoes", label: "Movimentações",    icon: ArrowLeftRight },
-            { id: "fin-config",        label: "Configurações",    icon: Settings },
         ]
     },
     {
@@ -636,7 +636,7 @@ export default function DirecaoDashboard() {
         : modulos;
 
     // Se por algum motivo a aba ativa for financeira e o usuário for COORDENACAO, redireciona para início
-    const FIN_ABAS = ["fin-dashboard","fin-pessoas","fin-funcionarios","fin-contratos","fin-pagar","fin-movimentacoes","fin-config"];
+    const FIN_ABAS = ["fin-dashboard","fin-pessoas","fin-funcionarios","fin-contratos","fin-pagar","fin-movimentacoes"];
     const setAbaSegura = (id) => {
         if (isCoord && FIN_ABAS.includes(id)) return;
         setAba(id);
