@@ -408,11 +408,8 @@ function Relatorios({ anoLetivo }) {
                                 }
                                 const blob = await resp.blob();
                                 const url = URL.createObjectURL(blob);
-                                const a = document.createElement("a");
-                                a.href = url;
-                                a.download = `relatorio_${tipoRel}_${fmtTurma(turmaSel).replace(/\s+/g, "_").replace(/—/g, "-")}.pdf`;
-                                a.click();
-                                URL.revokeObjectURL(url);
+                                window.open(url, "_blank");
+                                setTimeout(() => URL.revokeObjectURL(url), 60000);
                             } catch (e) { alert("Erro ao gerar PDF: " + e.message); }
                         }}>Baixar PDF →</button>
                     </div>
@@ -3236,13 +3233,8 @@ function Boletins({ anoLetivo }) {
             }
             const blob = await resp.blob();
             const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            const nomeAluno = (alunos.find(a => String(a.id) === String(alunoId))?.nome || "aluno")
-                .replace(/\s+/g, "_").toLowerCase();
-            a.download = `boletim_${nomeAluno}.pdf`;
-            a.click();
-            URL.revokeObjectURL(url);
+            window.open(url, "_blank");
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
         } catch (e) {
             alert("Erro ao gerar boletim PDF: " + e.message);
         } finally {
