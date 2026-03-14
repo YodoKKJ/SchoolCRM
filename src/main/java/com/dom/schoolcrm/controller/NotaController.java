@@ -469,6 +469,125 @@ public class NotaController {
         return ResponseEntity.ok(Map.of("mensagem", "Avaliação e notas removidas com sucesso"));
     }
 
+    /**
+     * Resumo gerencial de uma turma: todos os alunos com média, frequência e situação.
+     * Usado pelo Professor e Direção para identificar alunos em risco.
+     */
+    @GetMapping("/turma/{turmaId}/resumo")
+    @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
+    public ResponseEntity<?> resumoTurma(@PathVariable Long turmaId,
+            @Autowired com.dom.schoolcrm.repository.AlunoTurmaRepository alunoTurmaRepository) {
+        var turmaOpt = turmaRepository.findById(turmaId);
+        if (turmaOpt.isEmpty()) return ResponseEntity.badRequest().body("Turma não encontrada");
+        var turma = turmaOpt.get();
+
+        List<Map<String, Object>> result = new ArrayList<>();
+
+        for (com.dom.schoolcrm.entity.AlunoTurma vinculo : alunoTurmaRepository.findByTurmaId(turmaId)) {
+            Usuario aluno = vinculo.getAluno();
+            Long alunoId  = aluno.getId();
+
+            List<Nota> notas = notaRepository.findByAlunoId(alunoId).stream()
+                    .filter(n -> n.getAvaliacao().getTurma().getId().equals(turmaId))
+                    .toList();
+            List<Presenca> presencas = presencaRepository.findByAlunoIdAndTurmaId(alunoId, turmaId);
+
+            // Agrupa notas por matéria → bimestre e calcula médias
+            Map<Long, List<Nota>> porMateria = new LinkedHashMap<>();
+            notas.forEach(n -> porMateria
+                    .computeIfAbsent(n.getAvaliacao().getMateria().getId(), k -> new ArrayList<>())
+                    .add(n));
+
+            List<Map<String, Object>> disciplinas = new ArrayList<>();
+            List<BigDecimal> mediasArr = new ArrayList<>();
+
+            for (Map.Entry<Long, List<Nota>> mEntry : porMateria.entrySet()) {
+                Long matId = mEntry.getKey();
+                Map<Integer, List<Nota>> porBim = new LinkedHashMap<>();
+                mEntry.getValue().forEach(n -> {
+                    int bim = n.getAvaliacao().getBimestre() != null ? n.getAvaliacao().getBimestre() : 1;
+                    porBim.computeIfAbsent(bim, k -> new ArrayList<>()).add(n);
+                });
+
+                BigDecimal somaMediasBim = BigDecimal.ZERO;
+                int cntBim = 0;
+                for (List<Nota> bimNotas : porBim.values()) {
+                    BigDecimal soma = BigDecimal.ZERO, pesos = BigDecimal.ZERO, bonus = BigDecimal.ZERO;
+                    BigDecimal rec = null;
+                    for (Nota n : bimNotas) {
+                        String tipo = n.getAvaliacao().getTipo();
+                        boolean isBon = Boolean.TRUE.equals(n.getAvaliacao().getBonificacao());
+                        BigDecimal val = n.getValor(), peso = n.getAvaliacao().getPeso();
+                        if ("RECUPERACAO".equals(tipo)) rec = val;
+                        else if (isBon) bonus = bonus.add(val);
+                        else { soma = soma.add(val.multiply(peso)); pesos = pesos.add(peso); }
+                    }
+                    if (pesos.compareTo(BigDecimal.ZERO) > 0 || rec != null) {
+                        BigDecimal media = pesos.compareTo(BigDecimal.ZERO) > 0
+                                ? soma.divide(pesos, 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+                        if (rec != null) media = media.max(rec);
+                        BigDecimal mComBonus = media.add(bonus).min(BigDecimal.TEN).setScale(1, RoundingMode.HALF_UP);
+                        somaMediasBim = somaMediasBim.add(mComBonus);
+                        cntBim++;
+                    }
+                }
+                if (cntBim > 0) {
+                    BigDecimal mediaAnual = somaMediasBim.divide(new BigDecimal(cntBim), 1, RoundingMode.HALF_UP);
+                    mediasArr.add(mediaAnual);
+                    String matNome = mEntry.getValue().get(0).getAvaliacao().getMateria().getNome();
+                    long totalAulas = presencas.stream().filter(p -> p.getMateria().getId().equals(matId)).count();
+                    long faltas = presencas.stream().filter(p -> p.getMateria().getId().equals(matId) && !Boolean.TRUE.equals(p.getPresente())).count();
+                    double freq = totalAulas > 0 ? Math.round((totalAulas - faltas) * 1000.0 / totalAulas) / 10.0 : 100.0;
+                    disciplinas.add(Map.of("materiaNome", matNome, "mediaAnual", mediaAnual, "frequencia", freq,
+                            "emRisco", mediaAnual.compareTo(new BigDecimal("6.0")) < 0 || freq < 75.0));
+                }
+            }
+
+            BigDecimal mediaGeral = mediasArr.isEmpty() ? null
+                    : mediasArr.stream().reduce(BigDecimal.ZERO, BigDecimal::add)
+                               .divide(new BigDecimal(mediasArr.size()), 1, RoundingMode.HALF_UP);
+            long totalAulas = presencas.size();
+            long faltasG = presencas.stream().filter(p -> !Boolean.TRUE.equals(p.getPresente())).count();
+            double freqGeral = totalAulas > 0 ? Math.round((totalAulas - faltasG) * 1000.0 / totalAulas) / 10.0 : 100.0;
+
+            boolean emRisco = (mediaGeral != null && mediaGeral.compareTo(new BigDecimal("6.0")) < 0) || freqGeral < 75.0;
+            String situacao = mediaGeral == null ? "Cursando" : emRisco ? "Em Risco" : "Aprovando";
+
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("alunoId",   alunoId);
+            row.put("alunoNome", aluno.getNome());
+            row.put("mediaGeral", mediaGeral);
+            row.put("frequenciaGeral", freqGeral);
+            row.put("disciplinas", disciplinas);
+            row.put("situacao", situacao);
+            row.put("emRisco", emRisco);
+            result.add(row);
+        }
+
+        result.sort((a, b) -> {
+            boolean ar = (boolean) a.get("emRisco"), br = (boolean) b.get("emRisco");
+            if (ar != br) return ar ? -1 : 1;
+            return ((String) a.get("alunoNome")).compareTo((String) b.get("alunoNome"));
+        });
+
+        List<BigDecimal> todasMedias = result.stream()
+                .filter(r -> r.get("mediaGeral") != null)
+                .map(r -> (BigDecimal) r.get("mediaGeral")).toList();
+        BigDecimal mediaTurma = todasMedias.isEmpty() ? null
+                : todasMedias.stream().reduce(BigDecimal.ZERO, BigDecimal::add)
+                             .divide(new BigDecimal(todasMedias.size()), 1, RoundingMode.HALF_UP);
+        long emRiscoCount = result.stream().filter(r -> (boolean) r.get("emRisco")).count();
+
+        return ResponseEntity.ok(Map.of(
+                "turmaId", turmaId,
+                "turmaNome", turma.getNome(),
+                "serie", turma.getSerie() != null ? turma.getSerie().getNome() : "",
+                "totalAlunos", result.size(),
+                "mediaTurma", mediaTurma != null ? mediaTurma : BigDecimal.ZERO,
+                "emRiscoCount", emRiscoCount,
+                "alunos", result));
+    }
+
     @GetMapping("/calendario")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO', 'ALUNO')")
     public ResponseEntity<?> calendario(
