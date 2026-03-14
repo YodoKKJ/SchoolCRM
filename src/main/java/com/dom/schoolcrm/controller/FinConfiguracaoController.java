@@ -17,7 +17,6 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/fin/configuracoes")
-@PreAuthorize("hasRole('DIRECAO')")
 public class FinConfiguracaoController {
 
     @Autowired
@@ -32,6 +31,7 @@ public class FinConfiguracaoController {
         return ResponseEntity.ok(config);
     }
 
+    @PreAuthorize("hasRole('DIRECAO')")
     @PutMapping
     public ResponseEntity<?> salvar(@RequestBody Map<String, Object> body) {
         FinConfiguracao config = repository.findAll()

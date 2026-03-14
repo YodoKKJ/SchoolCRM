@@ -201,7 +201,7 @@ const modulos = [
         items: [
             { id: "usuarios",     label: "Usuários",      icon: Users },
             { id: "comunicados",  label: "Comunicados",   icon: Megaphone },
-            { id: "fin-config",   label: "Configurações", icon: Settings },
+            { id: "fin-config",   label: "Configurações", icon: Settings, direcaoOnly: true },
             { id: "auditoria",    label: "Auditoria",     icon: Shield, direcaoOnly: true },
         ]
     },
