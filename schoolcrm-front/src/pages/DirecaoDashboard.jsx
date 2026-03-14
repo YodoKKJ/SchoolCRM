@@ -27,6 +27,89 @@ api.interceptors.request.use(config => {
 
 let redirectingTo401 = false;
 
+// ── Toast ─────────────────────────────────────────────────────────────────────
+const _toastListeners = [];
+function showToast(msg, tipo = "ok") { _toastListeners.forEach(fn => fn(msg, tipo)); }
+
+function ToastContainer() {
+    const [toasts, setToasts] = useState([]);
+    useEffect(() => {
+        const handler = (msg, tipo) => {
+            const id = Date.now() + Math.random();
+            setToasts(t => [...t, { id, msg, tipo }]);
+            setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 4000);
+        };
+        _toastListeners.push(handler);
+        return () => { const i = _toastListeners.indexOf(handler); if (i >= 0) _toastListeners.splice(i, 1); };
+    }, []);
+    if (toasts.length === 0) return null;
+    return (
+        <div style={{ position:"fixed", bottom:24, right:24, zIndex:9999, display:"flex", flexDirection:"column", gap:8, pointerEvents:"none" }}>
+            {toasts.map(t => (
+                <div key={t.id} style={{
+                    padding:"12px 18px",
+                    background: t.tipo === "err" ? "#fdf0f0" : "#f0f5f2",
+                    borderLeft: `3px solid ${t.tipo === "err" ? "#b94040" : "#7ec8a0"}`,
+                    color: t.tipo === "err" ? "#b94040" : "#3a6649",
+                    fontSize:13, fontFamily:"'DM Sans',sans-serif",
+                    boxShadow:"0 2px 12px rgba(0,0,0,.12)",
+                    minWidth:220, maxWidth:380,
+                    animation:"ddToastIn .2s ease",
+                }}>
+                    {t.msg}
+                </div>
+            ))}
+        </div>
+    );
+}
+
+// ── ConfirmDialog ─────────────────────────────────────────────────────────────
+let _confirmResolve = null;
+const _confirmListeners = [];
+function showConfirm(msg) {
+    return new Promise(resolve => {
+        _confirmResolve = resolve;
+        _confirmListeners.forEach(fn => fn(msg));
+    });
+}
+
+function ConfirmDialog() {
+    const [state, setState] = useState({ visible: false, msg: "" });
+    useEffect(() => {
+        const handler = (msg) => setState({ visible: true, msg });
+        _confirmListeners.push(handler);
+        return () => { const i = _confirmListeners.indexOf(handler); if (i >= 0) _confirmListeners.splice(i, 1); };
+    }, []);
+    if (!state.visible) return null;
+    const resolve = val => {
+        setState({ visible: false, msg: "" });
+        if (_confirmResolve) { _confirmResolve(val); _confirmResolve = null; }
+    };
+    return (
+        <div style={{ position:"fixed", inset:0, background:"rgba(13,31,24,.55)", zIndex:9998, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}
+             onClick={() => resolve(false)}>
+            <div style={{ background:"#fff", padding:32, maxWidth:400, width:"100%", boxShadow:"0 8px 32px rgba(0,0,0,.18)" }}
+                 onClick={e => e.stopPropagation()}>
+                <p style={{ fontSize:14, color:"#0d1f18", margin:"0 0 24px", lineHeight:1.6, whiteSpace:"pre-line" }}>{state.msg}</p>
+                <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
+                    <button onClick={() => resolve(false)}
+                            style={{ background:"#f4f7f4", color:"#5a7060", border:"none", padding:"9px 20px",
+                                     fontFamily:"'DM Sans',sans-serif", fontSize:12, fontWeight:500,
+                                     letterSpacing:".06em", textTransform:"uppercase", cursor:"pointer" }}>
+                        Cancelar
+                    </button>
+                    <button onClick={() => resolve(true)}
+                            style={{ background:"#7a1a1a", color:"#fff", border:"none", padding:"9px 20px",
+                                     fontFamily:"'DM Sans',sans-serif", fontSize:12, fontWeight:500,
+                                     letterSpacing:".06em", textTransform:"uppercase", cursor:"pointer" }}>
+                        Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // Hook debounce — espera Xms após parar de digitar
 function useDebounce(value, delay = 400) {
     const [debounced, setDebounced] = useState(value);
@@ -151,6 +234,7 @@ const GLOBAL_STYLE = `
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap');
 * { box-sizing: border-box; }
 :root { font-family: 'DM Sans', sans-serif; }
+@keyframes ddToastIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 .dd-sidebar { background: #0d1f18; }
 .dd-sidebar-logo-wrap { border-bottom: 1px solid rgba(255,255,255,0.07); }
 .dd-user-wrap { border-bottom: 1px solid rgba(255,255,255,0.07); }
@@ -298,7 +382,7 @@ function Relatorios({ anoLetivo }) {
             setRelatorio(boletins.filter(Boolean).sort((a, b) =>
                 (a.aluno?.nome ?? "").localeCompare(b.aluno?.nome ?? "")
             ));
-        } catch { alert("Erro ao gerar relatório."); }
+        } catch { showToast("Erro ao gerar relatório.", "err"); }
         finally { setCarregando(false); }
     };
 
@@ -403,14 +487,14 @@ function Relatorios({ anoLetivo }) {
                                 );
                                 if (!resp.ok) {
                                     const err = await resp.text().catch(() => "");
-                                    alert("Erro ao gerar PDF" + (err ? ":\n" + err : "."));
+                                    showToast("Erro ao gerar PDF" + (err ? ": " + err : "."), "err");
                                     return;
                                 }
                                 const blob = await resp.blob();
                                 const url = URL.createObjectURL(blob);
                                 window.open(url, "_blank");
                                 setTimeout(() => URL.revokeObjectURL(url), 60000);
-                            } catch (e) { alert("Erro ao gerar PDF: " + e.message); }
+                            } catch (e) { showToast("Erro ao gerar PDF: " + e.message, "err"); }
                         }}>Baixar PDF →</button>
                     </div>
 
@@ -573,6 +657,8 @@ export default function DirecaoDashboard() {
     return (
         <>
             <style>{GLOBAL_STYLE}</style>
+            <ToastContainer />
+            <ConfirmDialog />
             <div style={{ display:"flex", minHeight:"100vh", background:"#f5f8f5" }}>
                 {/* overlay mobile */}
                 {sidebarAberta && (
@@ -936,7 +1022,7 @@ function Usuarios() {
         try {
             await api.patch(`/usuarios/${u.id}/status`);
             carregar();
-        } catch { alert("Erro ao alterar status."); }
+        } catch { showToast("Erro ao alterar status.", "err"); }
     };
 
     const excluirUsuario = async (u) => {
@@ -946,7 +1032,7 @@ function Usuarios() {
             carregar();
         } catch (err) {
             const raw = err.response?.data;
-            alert(typeof raw === "string" ? raw : "Erro ao excluir.");
+            showToast(typeof raw === "string" ? raw : "Erro ao excluir.", "err");
         }
     };
 
@@ -1526,7 +1612,7 @@ function Turmas({ anoLetivo }) {
             );
             setAlunosPromocao(lista.sort((a, b) => (a.aluno.nome || "").localeCompare(b.aluno.nome || "")));
         } catch {
-            alert("Erro ao carregar alunos da turma.");
+            showToast("Erro ao carregar alunos da turma.", "err");
             setTurmaParaPromover(null);
         } finally {
             setCarregandoPromocao(false);
@@ -1567,7 +1653,7 @@ function Turmas({ anoLetivo }) {
             carregar();
         } catch (e) {
             const raw = e.response?.data;
-            alert(typeof raw === "string" ? raw : "Erro ao promover turma.");
+            showToast(typeof raw === "string" ? raw : "Erro ao promover turma.", "err");
             setTurmaParaPromover(null);
         } finally {
             setPromovendo(false);
@@ -3228,7 +3314,7 @@ function Boletins({ anoLetivo }) {
             );
             if (!resp.ok) {
                 const err = await resp.text().catch(() => "");
-                alert("Erro ao gerar boletim PDF" + (err ? ":\n" + err : "."));
+                showToast("Erro ao gerar boletim PDF" + (err ? ": " + err : "."), "err");
                 return;
             }
             const blob = await resp.blob();
@@ -3236,7 +3322,7 @@ function Boletins({ anoLetivo }) {
             window.open(url, "_blank");
             setTimeout(() => URL.revokeObjectURL(url), 60000);
         } catch (e) {
-            alert("Erro ao gerar boletim PDF: " + e.message);
+            showToast("Erro ao gerar boletim PDF: " + e.message, "err");
         } finally {
             setGerando(false);
         }
@@ -3252,7 +3338,7 @@ function Boletins({ anoLetivo }) {
             );
             if (!resp.ok) {
                 const err = await resp.text().catch(() => "");
-                alert("Erro ao gerar boletins em lote" + (err ? ":\n" + err : "."));
+                showToast("Erro ao gerar boletins em lote" + (err ? ": " + err : "."), "err");
                 return;
             }
             const blob = await resp.blob();
@@ -3265,7 +3351,7 @@ function Boletins({ anoLetivo }) {
             a.click();
             URL.revokeObjectURL(url);
         } catch (e) {
-            alert("Erro ao gerar boletins em lote: " + e.message);
+            showToast("Erro ao gerar boletins em lote: " + e.message, "err");
         } finally {
             setGerando(false);
         }
@@ -3490,7 +3576,7 @@ function Horarios({ anoLetivo }) {
 
     const limparGrade = async () => {
         if (!turmaId) return;
-        if (!window.confirm("Tem certeza que deseja limpar todos os horários desta turma?")) return;
+        if (!await showConfirm("Tem certeza que deseja limpar todos os horários desta turma?")) return;
         try {
             await api.delete(`/horarios/turma/${turmaId}`);
             setGrid({});
@@ -4127,7 +4213,7 @@ function FinPessoas() {
     };
 
     const deletar = async p => {
-        if (!window.confirm(`Remover "${p.nome}"?`)) return;
+        if (!await showConfirm(`Remover "${p.nome}"?`)) return;
         try {
             await api.delete(`/fin/pessoas/${p.id}`);
             flash("Pessoa removida.");
@@ -4599,7 +4685,7 @@ function FinContratos({ anoLetivo }) {
 
     const cancelarContrato = async (contratoId, e) => {
         e.stopPropagation();
-        if (!window.confirm("Cancelar este contrato? Todas as parcelas pendentes serão canceladas.\nContratos com parcelas já pagas não podem ser cancelados.")) return;
+        if (!await showConfirm("Cancelar este contrato? Todas as parcelas pendentes serão canceladas.\nContratos com parcelas já pagas não podem ser cancelados.")) return;
         try {
             await api.delete(`/fin/contratos/${contratoId}`);
             flash("Contrato cancelado.");
@@ -4659,7 +4745,7 @@ function FinContratos({ anoLetivo }) {
     };
 
     const cancelarParcela = async (crId, contratoId) => {
-        if (!window.confirm("Cancelar esta parcela?")) return;
+        if (!await showConfirm("Cancelar esta parcela?")) return;
         try {
             await api.patch(`/fin/contas-receber/${crId}/cancelar`);
             flash("Parcela cancelada.");
@@ -4668,7 +4754,7 @@ function FinContratos({ anoLetivo }) {
     };
 
     const cancelarAvulsa = async id => {
-        if (!window.confirm("Cancelar este recebimento avulso?")) return;
+        if (!await showConfirm("Cancelar este recebimento avulso?")) return;
         try {
             await api.patch(`/fin/contas-receber/${id}/cancelar`);
             flash("Recebimento cancelado.");
@@ -4681,7 +4767,7 @@ function FinContratos({ anoLetivo }) {
             flash("Não é possível excluir um título parcialmente baixado. Cancele-o em vez de excluir.", "err");
             return;
         }
-        if (!window.confirm("Excluir permanentemente este recebimento? Esta ação não pode ser desfeita.")) return;
+        if (!await showConfirm("Excluir permanentemente este recebimento? Esta ação não pode ser desfeita.")) return;
         try {
             await api.delete(`/fin/contas-receber/${cr.id}`);
             flash("Recebimento excluído.");
@@ -5301,7 +5387,7 @@ function FinContasPagar() {
     };
 
     const cancelarConta = async id => {
-        if (!window.confirm("Cancelar esta conta?")) return;
+        if (!await showConfirm("Cancelar esta conta?")) return;
         try { await api.patch(`/fin/contas-pagar/${id}/cancelar`); flash("Cancelada."); carregar(); }
         catch(err) { flash(err.response?.data || "Erro.", "err"); }
     };
@@ -5355,7 +5441,7 @@ function FinContasPagar() {
     };
 
     const deletarModelo = async id => {
-        if (!window.confirm("Remover modelo?")) return;
+        if (!await showConfirm("Remover modelo?")) return;
         try { await api.delete(`/fin/modelos-cp/${id}`); flash("Modelo removido."); api.get("/fin/modelos-cp").then(r => setModelos(Array.isArray(r.data) ? r.data : [])); }
         catch(err) { flash(err.response?.data || "Erro.", "err"); }
     };
@@ -5829,7 +5915,7 @@ function FinMovimentacoes() {
     };
 
     const deletar = async id => {
-        if (!window.confirm("Remover esta movimentação?")) return;
+        if (!await showConfirm("Remover esta movimentação?")) return;
         try { await api.delete(`/fin/movimentacoes/${id}`); flash("Removida."); carregar(); }
         catch(err) { flash(err.response?.data || "Erro.", "err"); }
     };
@@ -6019,7 +6105,7 @@ function FinConfiguracoes({ anoLetivo }) {
     };
 
     const deletarForma = async id => {
-        if (!window.confirm("Remover forma de pagamento?")) return;
+        if (!await showConfirm("Remover forma de pagamento?")) return;
         await api.delete(`/fin/formas-pagamento/${id}`).catch(err => flash(err.response?.data || "Erro.", "err"));
         carregarFormas();
     };
@@ -6187,7 +6273,7 @@ function Comunicados() {
     };
 
     const deletar = async id => {
-        if (!window.confirm("Remover este comunicado?")) return;
+        if (!await showConfirm("Remover este comunicado?")) return;
         try {
             await api.delete(`/comunicados/${id}`);
             flash("Comunicado removido.");
