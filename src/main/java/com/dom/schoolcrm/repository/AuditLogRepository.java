@@ -11,7 +11,8 @@ import java.util.List;
 @Repository
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
 
-    @Query("SELECT a FROM AuditLog a WHERE (:dataInicio IS NULL OR a.timestamp >= :dataInicio) AND (:dataFim IS NULL OR a.timestamp <= :dataFim) ORDER BY a.timestamp DESC")
+    @Query(value = "SELECT * FROM audit_log WHERE timestamp >= :dataInicio AND timestamp <= :dataFim ORDER BY timestamp DESC",
+           nativeQuery = true)
     List<AuditLog> buscar(@org.springframework.data.repository.query.Param("dataInicio") LocalDateTime dataInicio,
                           @org.springframework.data.repository.query.Param("dataFim") LocalDateTime dataFim);
 }
