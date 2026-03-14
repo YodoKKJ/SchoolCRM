@@ -1061,6 +1061,7 @@ function Chamada({ vinculos }) {
     const salvarChamada = async () => {
         setSalvando(true);
         let erros = 0;
+        let primeiroErro = null;
         for (const aula of aulasNoDia) {
             for (const aluno of alunos) {
                 try {
@@ -1073,11 +1074,21 @@ function Chamada({ vinculos }) {
                         ordemAula: String(aula.ordemAula),
                         horarioInicio: aula.horarioInicio,
                     });
-                } catch { erros++; }
+                } catch (err) {
+                    erros++;
+                    if (!primeiroErro) {
+                        primeiroErro = err?.response?.data || err?.message || "Erro desconhecido";
+                        if (typeof primeiroErro === "object") primeiroErro = JSON.stringify(primeiroErro);
+                    }
+                }
             }
         }
         setSalvando(false);
-        flash(setMsg, erros > 0 ? `${erros} erro(s).` : "Chamada salva!", erros > 0 ? "erro" : "ok");
+        flash(setMsg,
+            erros > 0
+                ? `${erros} erro(s): ${primeiroErro}`
+                : "Chamada salva!",
+            erros > 0 ? "erro" : "ok");
         const r = await api.get(`/presencas/turma/${turmaId}/materia/${materiaId}`);
         setHistorico(r.data || {});
     };
@@ -1147,6 +1158,7 @@ function Chamada({ vinculos }) {
                                 <label className="pd-label">Data da Aula</label>
                                 <div className="pd-input-wrap" style={{ width:180 }}>
                                     <input className="pd-input" type="date" value={dataAula}
+                                           max={new Date().toLocaleDateString("en-CA")}
                                            onChange={e => setDataAula(e.target.value)} />
                                     <div className="pd-input-line" />
                                 </div>
