@@ -1,5 +1,9 @@
 package com.dom.schoolcrm.controller;
 
+import com.dom.schoolcrm.entity.AlunoTurma;
+import com.dom.schoolcrm.entity.Usuario;
+import com.dom.schoolcrm.repository.AlunoTurmaRepository;
+import com.dom.schoolcrm.repository.UsuarioRepository;
 import com.dom.schoolcrm.service.RelatorioService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,6 +12,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
@@ -20,6 +25,52 @@ public class RelatorioController {
 
     @Autowired
     private RelatorioService relatorioService;
+
+    @Autowired
+    private UsuarioRepository usuarioRepository;
+
+    @Autowired
+    private AlunoTurmaRepository alunoTurmaRepository;
+
+    /** Aluno baixa o próprio boletim — extrai alunoId do JWT e valida vínculo na turma */
+    @GetMapping("/boletim/meu/{turmaId}")
+    @PreAuthorize("hasRole('ALUNO')")
+    public ResponseEntity<byte[]> meuBoletim(
+            @PathVariable Long turmaId,
+            Authentication auth) {
+        String login = auth.getName();
+        Usuario usuario = usuarioRepository.findByLogin(login).orElse(null);
+        if (usuario == null) {
+            return ResponseEntity.badRequest()
+                    .body("Usuário não encontrado.".getBytes(StandardCharsets.UTF_8));
+        }
+        Long alunoId = usuario.getId();
+        // Valida que o aluno está vinculado à turma solicitada
+        boolean vinculado = alunoTurmaRepository.findByAlunoId(alunoId)
+                .stream().anyMatch(v -> turmaId.equals(v.getTurma().getId()));
+        if (!vinculado) {
+            return ResponseEntity.status(403)
+                    .body("Acesso negado: você não está vinculado a esta turma.".getBytes(StandardCharsets.UTF_8));
+        }
+        try {
+            byte[] pdf = relatorioService.gerarBoletimPDF(alunoId, turmaId);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .header(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"boletim.pdf\"")
+                    .body(pdf);
+        } catch (IllegalArgumentException e) {
+            log.warn("Meu boletim: aluno ou turma não encontrado — alunoId={} turmaId={}", alunoId, turmaId);
+            return ResponseEntity.badRequest()
+                    .body(e.getMessage().getBytes(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            log.error("Erro ao gerar meu boletim — alunoId={} turmaId={}: {} {}",
+                    alunoId, turmaId, e.getClass().getSimpleName(), e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body((e.getClass().getSimpleName() + ": " + e.getMessage()).getBytes(StandardCharsets.UTF_8));
+        }
+    }
 
     @GetMapping("/boletim/{alunoId}/{turmaId}")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { Home, BookOpen, LogOut, CalendarDays, BarChart2, Menu, ChevronDown, Megaphone } from "lucide-react";
+import { Home, BookOpen, LogOut, CalendarDays, BarChart2, Menu, ChevronDown, Megaphone, FileText } from "lucide-react";
 
 const api = axios.create({ baseURL: "" });
 api.interceptors.request.use(config => {
@@ -209,8 +209,36 @@ function Inicio({ vinculos, notas }) {
 }
 
 // ── Seção: Boletim ────────────────────────────────────────────────────────────
-function Boletim({ notas }) {
+function Boletim({ notas, turmaId }) {
     const porMateria = agruparPorMateria(notas);
+    const [baixando, setBaixando] = useState(false);
+    const [erroPdf, setErroPdf] = useState(null);
+
+    const baixarPdf = async () => {
+        if (!turmaId) { setErroPdf("Turma não identificada."); return; }
+        setBaixando(true);
+        setErroPdf(null);
+        try {
+            const token = localStorage.getItem("token");
+            const res = await fetch(`/relatorios/boletim/meu/${turmaId}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok) {
+                const txt = await res.text();
+                setErroPdf(txt || "Erro ao gerar boletim.");
+                return;
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = "boletim.pdf"; a.click();
+            URL.revokeObjectURL(url);
+        } catch {
+            setErroPdf("Falha na conexão com o servidor.");
+        } finally {
+            setBaixando(false);
+        }
+    };
 
     if (notas.length === 0) {
         return <div style={{ color:"#9aaa9f", fontSize:13, padding:"24px 0" }}>Nenhuma nota registrada.</div>;
@@ -218,6 +246,18 @@ function Boletim({ notas }) {
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+            {/* botão PDF */}
+            <div style={{ display:"flex", alignItems:"center", gap:12, justifyContent:"flex-end" }}>
+                {erroPdf && <span style={{ fontSize:12, color:"#e05252" }}>{erroPdf}</span>}
+                <button onClick={baixarPdf} disabled={baixando}
+                        style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 16px",
+                                 background: baixando ? "#9aaa9f" : "#0d1f18", color:"#fff",
+                                 border:"none", borderRadius:6, fontSize:13, fontWeight:500,
+                                 cursor: baixando ? "not-allowed" : "pointer", transition:"background .15s" }}>
+                    <FileText size={14} />
+                    {baixando ? "Gerando..." : "Baixar Boletim PDF"}
+                </button>
+            </div>
             {Object.values(porMateria).map(({ materia, notas: nts }, idx) => {
                 const media = mediaMateria(nts);
                 const accent = CORES_MATERIA[idx % CORES_MATERIA.length];
@@ -638,7 +678,7 @@ export default function AlunoDashboard() {
                             </div>
                         )}
                         {aba === "inicio"      && <Inicio vinculos={vinculosAno} notas={notasAno} />}
-                        {aba === "boletim"     && <Boletim notas={notasAno} />}
+                        {aba === "boletim"     && <Boletim notas={notasAno} turmaId={turmaIdAno} />}
                         {aba === "frequencia"  && <Frequencia notas={notasAno} turmaId={turmaIdAno} />}
                         {aba === "horarios"    && <Horarios />}
                         {aba === "comunicados" && <ComunicadosAluno />}
