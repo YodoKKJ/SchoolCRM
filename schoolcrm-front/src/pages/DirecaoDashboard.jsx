@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, Component } from "react";
 import axios from "axios";
+import SearchSelect from "../components/SearchSelect";
 import {
     Home, Users, School, BookOpen, LogOut,
     GraduationCap, UserCheck, LayoutGrid, BookMarked, Menu,
@@ -40,10 +41,11 @@ function useDebounce(value, delay = 400) {
 function BarraBusca({ campos, campoBusca, setCampoBusca, termoBusca, setTermoBusca }) {
     return (
         <div className="dd-search-wrap">
-            <select className="dd-search-select" value={campoBusca}
-                    onChange={e => { setCampoBusca(e.target.value); setTermoBusca(""); }}>
-                {campos.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-            </select>
+            <SearchSelect
+                value={campoBusca}
+                onChange={v => { setCampoBusca(v); setTermoBusca(""); }}
+                options={campos}
+            />
             <div className="dd-search-input-wrap">
                 <Search size={12} className="dd-search-icon" />
                 <input className="dd-search-input" value={termoBusca}
@@ -144,104 +146,6 @@ const modulos = [
 // helper para buscar label de qualquer aba
 const allMenuItems = modulos.flatMap(m => m.items);
 
-// ---- SEARCH SELECT ----
-function SearchSelect({ options, value, onChange, placeholder }) {
-    const [open, setOpen] = useState(false);
-    const [search, setSearch] = useState("");
-    const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
-    const divRef = useRef(null);
-
-    const selected = options.find(o => String(o.value) === String(value));
-    const filtered = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()));
-
-    useEffect(() => {
-        if (!open) return;
-        const handleClick = (e) => {
-            if (divRef.current && !divRef.current.contains(e.target)) {
-                setOpen(false);
-                setSearch("");
-            }
-        };
-        document.addEventListener("mousedown", handleClick);
-        return () => document.removeEventListener("mousedown", handleClick);
-    }, [open]);
-
-    const handleOpen = (e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        setCoords({
-            top: rect.bottom + window.scrollY + 4,
-            left: rect.left + window.scrollX,
-            width: rect.width,
-        });
-        setOpen(prev => !prev);
-    };
-
-    return (
-        <div ref={el => divRef.current = el} style={{ flex: 1, position: "relative" }}>
-            <button type="button" onClick={handleOpen}
-                    className="w-full flex items-center justify-between gap-2 text-left text-sm transition"
-                    style={{
-                        border: `1px solid ${open ? '#0d1f18' : '#eaeef2'}`,
-                        borderRadius: "8px",
-                        padding: "8px 12px",
-                        background: "white",
-                        color: selected ? '#0d1f18' : '#9aaa9f',
-                    }}>
-                <span className="truncate">{selected ? selected.label : placeholder}</span>
-                <ChevronDown size={14} color='#9aaa9f'
-                             style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s", flexShrink: 0 }} />
-            </button>
-
-            {open && (
-                <div style={{
-                    position: "fixed",
-                    top: coords.top,
-                    left: coords.left,
-                    width: coords.width,
-                    zIndex: 9999,
-                    background: "white",
-                    border: '1px solid #eaeef2',
-                    borderRadius: '4px',
-                    boxShadow: "0 8px 32px rgba(26,117,159,0.15)",
-                    overflow: "hidden",
-                }}>
-                    <div className="p-2" style={{ borderBottom: '1px solid #eaeef2' }}>
-                        <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg" style={{ background: C.bg }}>
-                            <Search size={13} color='#9aaa9f' />
-                            <input autoFocus placeholder="Buscar..." value={search}
-                                   onChange={e => setSearch(e.target.value)}
-                                   className="flex-1 text-xs outline-none bg-transparent"
-                                   style={{ color: '#0d1f18' }}
-                                   onClick={e => e.stopPropagation()} />
-                        </div>
-                    </div>
-                    <div style={{ maxHeight: "200px", overflowY: "auto" }}>
-                        {filtered.length === 0 && (
-                            <p className="px-4 py-3 text-xs text-center" style={{ color: '#9aaa9f' }}>Nenhum resultado</p>
-                        )}
-                        {filtered.map(o => {
-                            const active = String(o.value) === String(value);
-                            return (
-                                <button key={o.value} type="button"
-                                        onClick={() => { onChange(o.value); setOpen(false); setSearch(""); }}
-                                        className="w-full text-left px-4 py-2.5 text-sm transition flex items-center gap-2"
-                                        style={{
-                                            color: active ? '#1a4d3a' : '#0d1f18',
-                                            background: active ? '#f0f5f2' : 'transparent',
-                                            fontWeight: active ? 600 : 400,
-                                        }}>
-                                    {active && <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#1a4d3a' }} />}
-                                    {o.label}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
-
 // ---- DASHBOARD ----
 const GLOBAL_STYLE = `
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap');
@@ -314,14 +218,21 @@ const GLOBAL_STYLE = `
 .dd-cards-grid { display:grid; gap:12px; grid-template-columns:repeat(4,1fr); }
 .dd-table-wrap { overflow-x:auto; -webkit-overflow-scrolling:touch; }
 
-@media (max-width: 767px) {
+@media (max-width: 1100px) {
+  .dd-sidebar { width: 180px !important; flex-shrink: 0; }
+  .dd-sidebar-logo-wrap span { font-size: 13px !important; }
+  .dd-nav-btn { font-size: 12px !important; padding: 8px 10px !important; }
+  .dd-cards-grid { grid-template-columns: repeat(3, 1fr) !important; }
+}
+
+@media (max-width: 900px) {
   .dd-sidebar {
     position: fixed !important;
     top: 0; left: 0; bottom: 0;
     z-index: 30;
     transform: translateX(-100%);
     transition: transform .25s ease;
-    width: 210px !important;
+    width: 220px !important;
   }
   .dd-sidebar.open { transform: translateX(0); }
   .dd-hamburger { display: flex !important; }
@@ -334,8 +245,10 @@ const GLOBAL_STYLE = `
   .dd-section { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .dd-table { min-width: 480px; }
 }
+
 @media (max-width: 479px) {
   .dd-cards-grid { grid-template-columns: 1fr !important; }
+  .dd-page-title { font-size: 18px !important; }
 }
 `;
 
@@ -695,10 +608,11 @@ export default function DirecaoDashboard() {
                     {/* ano letivo */}
                     <div style={{ padding:"10px 20px 14px", borderBottom:"1px solid rgba(255,255,255,.06)" }}>
                         <p style={{ fontSize:9, color:"rgba(255,255,255,.3)", letterSpacing:".12em", textTransform:"uppercase", marginBottom:6 }}>Ano Letivo</p>
-                        <select value={anoLetivo} onChange={e => setAnoLetivo(Number(e.target.value))}
-                                style={{ width:"100%", background:"rgba(255,255,255,.07)", border:"1px solid rgba(255,255,255,.12)", color:"#7ec8a0", fontFamily:"'DM Sans',sans-serif", fontSize:13, fontWeight:500, padding:"6px 10px", cursor:"pointer", outline:"none" }}>
-                            {anosDisponiveis.map(ano => <option key={ano} value={ano} style={{ background:"#1a2e23", color:"#7ec8a0" }}>{ano}</option>)}
-                        </select>
+                        <SearchSelect
+                            value={String(anoLetivo)}
+                            onChange={v => setAnoLetivo(Number(v))}
+                            options={anosDisponiveis.map(ano => ({ value: String(ano), label: String(ano) }))}
+                        />
                     </div>
 
                     {/* nav */}
@@ -1383,12 +1297,11 @@ function Turmas({ anoLetivo }) {
                         {/* Série destino */}
                         <div style={{ marginBottom:20 }}>
                             <label className="dd-label">Série de destino</label>
-                            <select value={serieDestinoId} onChange={e => setSerieDestinoId(e.target.value)}
-                                    style={{ width:"100%", padding:"8px 12px", border:"1px solid #eaeef2", background:"#fff", fontSize:13, color:"#0d1f18", outline:"none", fontFamily:"'DM Sans',sans-serif" }}>
-                                {[...series].sort(sortSeries).map(s => (
-                                    <option key={s.id} value={String(s.id)}>{s.nome}</option>
-                                ))}
-                            </select>
+                            <SearchSelect
+                                value={serieDestinoId}
+                                onChange={v => setSerieDestinoId(v)}
+                                options={[...series].sort(sortSeries).map(s => ({ value: String(s.id), label: s.nome }))}
+                            />
                         </div>
 
                         {/* Lista de alunos */}
@@ -2095,19 +2008,22 @@ function Lancamentos({ anoLetivo }) {
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
                     <div>
                         <label className="dd-label">Turma</label>
-                        <select className="dd-search-input" style={{ width:"100%", paddingLeft:12 }}
-                                value={turmaId} onChange={e => { setTurmaId(e.target.value); setMateriaId(""); }}>
-                            <option value="">Selecione a turma...</option>
-                            {turmas.filter(t => t.anoLetivo === anoLetivo).map(t => <option key={t.id} value={t.id}>{fmtTurma(t)}</option>)}
-                        </select>
+                        <SearchSelect
+                            value={turmaId}
+                            onChange={v => { setTurmaId(v); setMateriaId(""); }}
+                            placeholder="Selecione a turma..."
+                            options={[{ value: "", label: "Selecione a turma..." }, ...turmas.filter(t => t.anoLetivo === anoLetivo).map(t => ({ value: String(t.id), label: fmtTurma(t) }))]}
+                        />
                     </div>
                     <div>
                         <label className="dd-label">Matéria</label>
-                        <select className="dd-search-input" style={{ width:"100%", paddingLeft:12 }}
-                                value={materiaId} onChange={e => setMateriaId(e.target.value)} disabled={!turmaId}>
-                            <option value="">Selecione a matéria...</option>
-                            {materias.map(m => <option key={m.id} value={m.id}>{m.nome}</option>)}
-                        </select>
+                        <SearchSelect
+                            value={materiaId}
+                            onChange={v => setMateriaId(v)}
+                            placeholder="Selecione a matéria..."
+                            disabled={!turmaId}
+                            options={[{ value: "", label: "Selecione a matéria..." }, ...materias.map(m => ({ value: String(m.id), label: m.nome }))]}
+                        />
                     </div>
                 </div>
                 {!semSelecao && (
@@ -3563,10 +3479,9 @@ function Horarios({ anoLetivo }) {
                                                                 background: "#f0f5f2", verticalAlign: "top",
                                                             }}>
                                                                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                                                                    <select
+                                                                    <SearchSelect
                                                                         value={slot?.professorId || ""}
-                                                                        onChange={e => {
-                                                                            const newProfId = e.target.value;
+                                                                        onChange={newProfId => {
                                                                             setSlot(dia, ordem, "professorId", newProfId);
                                                                             // Auto-limpa matéria se professor mudou
                                                                             const matsValidas = vinculosTurma
@@ -3577,36 +3492,16 @@ function Horarios({ anoLetivo }) {
                                                                                 setSlot(dia, ordem, "materiaId", matsValidas.length === 1 ? matsValidas[0] : "");
                                                                             }
                                                                         }}
-                                                                        style={{
-                                                                            fontSize: 11, padding: "4px 6px",
-                                                                            border: "1px solid #d4ddd8",
-                                                                            fontFamily: "'DM Sans',sans-serif",
-                                                                            outline: "none", background: "#fff",
-                                                                        }}
-                                                                    >
-                                                                        <option value="">Professor...</option>
-                                                                        {profsVinculados.map(p => (
-                                                                            <option key={p.id} value={p.id}>{p.nome}</option>
-                                                                        ))}
-                                                                    </select>
-                                                                    <select
+                                                                        placeholder="Professor..."
+                                                                        options={[{ value: "", label: "Professor..." }, ...profsVinculados.map(p => ({ value: String(p.id), label: p.nome }))]}
+                                                                    />
+                                                                    <SearchSelect
                                                                         value={slot?.materiaId || ""}
-                                                                        onChange={e => setSlot(dia, ordem, "materiaId", e.target.value)}
+                                                                        onChange={v => setSlot(dia, ordem, "materiaId", v)}
                                                                         disabled={!selectedProfId}
-                                                                        style={{
-                                                                            fontSize: 11, padding: "4px 6px",
-                                                                            border: "1px solid #d4ddd8",
-                                                                            fontFamily: "'DM Sans',sans-serif",
-                                                                            outline: "none",
-                                                                            background: selectedProfId ? "#fff" : "#f5f5f5",
-                                                                            color: selectedProfId ? "#0d1f18" : "#b8c4be",
-                                                                        }}
-                                                                    >
-                                                                        <option value="">{selectedProfId ? "Matéria..." : "Selecione professor primeiro"}</option>
-                                                                        {matsDoProf.map(m => (
-                                                                            <option key={m.id} value={m.id}>{m.nome}</option>
-                                                                        ))}
-                                                                    </select>
+                                                                        placeholder={selectedProfId ? "Matéria..." : "Selecione professor primeiro"}
+                                                                        options={[{ value: "", label: selectedProfId ? "Matéria..." : "Selecione professor primeiro" }, ...matsDoProf.map(m => ({ value: String(m.id), label: m.nome }))]}
+                                                                    />
                                                                     <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
                                                                         <button
                                                                             onClick={() => setEditingSlot(null)}
@@ -3957,12 +3852,15 @@ function FinPessoas() {
                     <BarraBusca campos={[{ value:"nome", label:"Nome" },{ value:"cpf", label:"CPF" },{ value:"cnpj", label:"CNPJ" }]}
                         campoBusca={campoBusca} setCampoBusca={setCampoBusca} termoBusca={termoBusca} setTermoBusca={setTermoBusca} />
                 </div>
-                <select value={filtraTipo} onChange={e => setFiltraTipo(e.target.value)}
-                    style={{ fontSize:11, padding:"8px 12px", border:"1px solid #eaeef2", background:"white", color:"#5a7060", outline:"none", fontFamily:"'DM Sans',sans-serif" }}>
-                    <option value="">Todos os tipos</option>
-                    <option value="FISICA">Pessoa Física</option>
-                    <option value="JURIDICA">Pessoa Jurídica</option>
-                </select>
+                <SearchSelect
+                    value={filtraTipo}
+                    onChange={v => setFiltraTipo(v)}
+                    options={[
+                        { value: "", label: "Todos os tipos" },
+                        { value: "FISICA", label: "Pessoa Física" },
+                        { value: "JURIDICA", label: "Pessoa Jurídica" },
+                    ]}
+                />
                 <button className="dd-btn-primary" onClick={abrirCriar} style={{ whiteSpace:"nowrap" }}>+ Nova Pessoa</button>
             </div>
 
@@ -4052,11 +3950,12 @@ function FinPessoas() {
                             </div>
                             <div>
                                 <label className="dd-label">Vínculo com usuário do sistema (opcional)</label>
-                                <select value={form.usuarioId||""} onChange={e => ff("usuarioId", e.target.value)}
-                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
-                                    <option value="">— Sem vínculo —</option>
-                                    {usuarios.map(u => <option key={u.id} value={u.id}>{u.nome} ({u.login})</option>)}
-                                </select>
+                                <SearchSelect
+                                    value={form.usuarioId||""}
+                                    onChange={v => ff("usuarioId", v)}
+                                    placeholder="— Sem vínculo —"
+                                    options={[{ value: "", label: "— Sem vínculo —" }, ...usuarios.map(u => ({ value: String(u.id), label: `${u.nome} (${u.login})` }))]}
+                                />
                             </div>
                             <div style={{ display:"flex", gap:8, marginTop:8 }}>
                                 <button type="button" className="dd-btn-ghost" onClick={() => setModal(null)}>Cancelar</button>
@@ -4234,10 +4133,11 @@ function FinFuncionarios() {
                                                 <form onSubmit={e => { setFormBenef(b => ({ ...b, funcionarioId: f.id })); adicionarBeneficio(e); }} style={{ display:"flex", gap:8, alignItems:"flex-end", flexWrap:"wrap" }}>
                                                     <div>
                                                         <label className="dd-label">Tipo</label>
-                                                        <select value={formBenef.tipo} onChange={e => setFormBenef(b => ({ ...b, tipo: e.target.value }))}
-                                                            style={{ fontSize:12, padding:"6px 8px", border:"1px solid #eaeef2", fontFamily:"'DM Sans',sans-serif", outline:"none" }}>
-                                                            {tiposBenef.map(t => <option key={t} value={t}>{t.replace("_"," ")}</option>)}
-                                                        </select>
+                                                        <SearchSelect
+                                                            value={formBenef.tipo}
+                                                            onChange={v => setFormBenef(b => ({ ...b, tipo: v }))}
+                                                            options={tiposBenef.map(t => ({ value: t, label: t.replace("_"," ") }))}
+                                                        />
                                                     </div>
                                                     <div>
                                                         <label className="dd-label">Valor</label>
@@ -4276,11 +4176,12 @@ function FinFuncionarios() {
                         <form onSubmit={salvar} style={{ display:"flex", flexDirection:"column", gap:14 }}>
                             <div>
                                 <label className="dd-label">Pessoa (cadastrada) *</label>
-                                <select value={form.pessoaId||""} onChange={e => ff("pessoaId", e.target.value)} required
-                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
-                                    <option value="">Selecione uma pessoa...</option>
-                                    {pessoas.map(p => <option key={p.id} value={p.id}>{p.nome} {p.cpf ? `(${p.cpf})` : ""}</option>)}
-                                </select>
+                                <SearchSelect
+                                    value={form.pessoaId||""}
+                                    onChange={v => ff("pessoaId", v)}
+                                    placeholder="Selecione uma pessoa..."
+                                    options={[{ value: "", label: "Selecione uma pessoa..." }, ...pessoas.map(p => ({ value: String(p.id), label: `${p.nome}${p.cpf ? ` (${p.cpf})` : ""}` }))]}
+                                />
                             </div>
                             {[
                                 { k:"cargo", label:"Cargo *", required:true },
@@ -4552,11 +4453,12 @@ function FinContratos({ anoLetivo }) {
                 <div style={{ display:"flex", gap:12, alignItems:"flex-end", flexWrap:"wrap" }}>
                     <div style={{ flex:1, minWidth:200 }}>
                         <label className="dd-label">Aluno</label>
-                        <select value={alunoSel} onChange={e => setAlunoSel(e.target.value)}
-                            style={{ width:"100%", border:"1px solid #eaeef2", borderRadius:4, padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
-                            <option value="">— Selecione um aluno —</option>
-                            {alunos.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
-                        </select>
+                        <SearchSelect
+                            value={alunoSel}
+                            onChange={v => setAlunoSel(v)}
+                            placeholder="— Selecione um aluno —"
+                            options={[{ value: "", label: "— Selecione um aluno —" }, ...alunos.map(a => ({ value: String(a.id), label: a.nome }))]}
+                        />
                     </div>
                     {alunoSel && <button className="dd-btn-primary" onClick={() => { setFormContrato(f => ({ ...f, anoLetivo: String(anoLetivo), mesInicio: mesAtual(), responsavelPrincipalId:"", numParcelas:"12", desconto:"0", acrescimo:"0" })); setModalContrato(true); }}>+ Novo Contrato</button>}
                     <button className="dd-btn-ghost" onClick={() => { setFormCRAvulsa({ tipo:"OUTRO", descricao:"", valor:"", dataVencimento:"", pessoaId:"", formaPagamentoId:"", observacoes:"" }); setModalCRAvulsa(true); }}>+ CR Avulsa</button>
@@ -4700,20 +4602,16 @@ function FinContratos({ anoLetivo }) {
                         onChange={e => setFiltroAvulsa(f => ({ ...f, busca: e.target.value }))}
                         style={{ flex:1, minWidth:180, border:"1px solid #eaeef2", padding:"5px 10px", fontSize:12, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff", borderRadius:4 }}
                     />
-                    <select
+                    <SearchSelect
                         value={filtroAvulsa.status}
-                        onChange={e => setFiltroAvulsa(f => ({ ...f, status: e.target.value }))}
-                        style={{ border:"1px solid #eaeef2", padding:"5px 10px", fontSize:12, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff", borderRadius:4 }}>
-                        <option value="">Todos os status</option>
-                        {["PENDENTE","VENCIDO","PARCIALMENTE_PAGO","PAGO","CANCELADO"].map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <select
+                        onChange={v => setFiltroAvulsa(f => ({ ...f, status: v }))}
+                        options={[{ value: "", label: "Todos os status" }, ...["PENDENTE","VENCIDO","PARCIALMENTE_PAGO","PAGO","CANCELADO"].map(s => ({ value: s, label: s }))]}
+                    />
+                    <SearchSelect
                         value={filtroAvulsa.pessoaId}
-                        onChange={e => setFiltroAvulsa(f => ({ ...f, pessoaId: e.target.value }))}
-                        style={{ border:"1px solid #eaeef2", padding:"5px 10px", fontSize:12, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff", borderRadius:4 }}>
-                        <option value="">Todas as pessoas</option>
-                        {responsaveis.map(p => <option key={p.id} value={String(p.id)}>{p.nome}</option>)}
-                    </select>
+                        onChange={v => setFiltroAvulsa(f => ({ ...f, pessoaId: v }))}
+                        options={[{ value: "", label: "Todas as pessoas" }, ...responsaveis.map(p => ({ value: String(p.id), label: p.nome }))]}
+                    />
                     {(filtroAvulsa.busca || filtroAvulsa.status || filtroAvulsa.pessoaId) && (
                         <button onClick={() => setFiltroAvulsa({ busca:"", status:"", pessoaId:"" })}
                             style={{ border:"1px solid #eaeef2", padding:"5px 10px", fontSize:12, fontFamily:"'DM Sans',sans-serif", cursor:"pointer", background:"#fff", borderRadius:4, color:"#9aaa9f" }}>
@@ -4789,19 +4687,21 @@ function FinContratos({ anoLetivo }) {
                         <form onSubmit={criarContrato} style={{ display:"flex", flexDirection:"column", gap:14 }}>
                             <div>
                                 <label className="dd-label">Série *</label>
-                                <select value={formContrato.serieId} onChange={e => fc("serieId", e.target.value)} required
-                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
-                                    <option value="">Selecione a série...</option>
-                                    {series.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
-                                </select>
+                                <SearchSelect
+                                    value={formContrato.serieId}
+                                    onChange={v => fc("serieId", v)}
+                                    placeholder="Selecione a série..."
+                                    options={[{ value: "", label: "Selecione a série..." }, ...series.map(s => ({ value: String(s.id), label: s.nome }))]}
+                                />
                             </div>
                             <div>
                                 <label className="dd-label">Responsável Principal *</label>
-                                <select value={formContrato.responsavelPrincipalId} onChange={e => fc("responsavelPrincipalId", e.target.value)} required
-                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
-                                    <option value="">Selecione o responsável...</option>
-                                    {responsaveis.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                                </select>
+                                <SearchSelect
+                                    value={formContrato.responsavelPrincipalId}
+                                    onChange={v => fc("responsavelPrincipalId", v)}
+                                    placeholder="Selecione o responsável..."
+                                    options={[{ value: "", label: "Selecione o responsável..." }, ...responsaveis.map(p => ({ value: String(p.id), label: p.nome }))]}
+                                />
                             </div>
                             {[
                                 { k:"anoLetivo", label:"Ano Letivo *", type:"number", required:true },
@@ -4936,11 +4836,12 @@ function FinContratos({ anoLetivo }) {
                             </div>
                             <div>
                                 <label className="dd-label">Forma de Pagamento</label>
-                                <select value={formBaixar.formaPagamentoId||""} onChange={e => setFormBaixar(b => ({ ...b, formaPagamentoId: e.target.value }))}
-                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
-                                    <option value="">— Não informar —</option>
-                                    {formasPagamento.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
-                                </select>
+                                <SearchSelect
+                                    value={formBaixar.formaPagamentoId||""}
+                                    onChange={v => setFormBaixar(b => ({ ...b, formaPagamentoId: v }))}
+                                    placeholder="— Não informar —"
+                                    options={[{ value: "", label: "— Não informar —" }, ...formasPagamento.map(f => ({ value: String(f.id), label: f.nome }))]}
+                                />
                             </div>
                             <div style={{ display:"flex", gap:8, marginTop:8 }}>
                                 <button type="button" className="dd-btn-ghost" onClick={() => setModalBaixar(null)}>Cancelar</button>
@@ -5005,10 +4906,11 @@ function FinContratos({ anoLetivo }) {
                         <form onSubmit={criarCRAvulsa} style={{ display:"flex", flexDirection:"column", gap:14 }}>
                             <div>
                                 <label className="dd-label">Tipo *</label>
-                                <select value={formCRAvulsa.tipo||"OUTRO"} onChange={e => setFormCRAvulsa(b => ({ ...b, tipo: e.target.value }))}
-                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
-                                    {["MENSALIDADE","MATRICULA","UNIFORME","EVENTO","OUTRO"].map(t => <option key={t} value={t}>{t}</option>)}
-                                </select>
+                                <SearchSelect
+                                    value={formCRAvulsa.tipo||"OUTRO"}
+                                    onChange={v => setFormCRAvulsa(b => ({ ...b, tipo: v }))}
+                                    options={["MENSALIDADE","MATRICULA","UNIFORME","EVENTO","OUTRO"].map(t => ({ value: t, label: t }))}
+                                />
                             </div>
                             {[
                                 { k:"descricao", label:"Descrição *", required:true },
@@ -5025,11 +4927,12 @@ function FinContratos({ anoLetivo }) {
                             ))}
                             <div>
                                 <label className="dd-label">Pessoa (opcional)</label>
-                                <select value={formCRAvulsa.pessoaId||""} onChange={e => setFormCRAvulsa(b => ({ ...b, pessoaId: e.target.value }))}
-                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
-                                    <option value="">— Sem pessoa —</option>
-                                    {responsaveis.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                                </select>
+                                <SearchSelect
+                                    value={formCRAvulsa.pessoaId||""}
+                                    onChange={v => setFormCRAvulsa(b => ({ ...b, pessoaId: v }))}
+                                    placeholder="— Sem pessoa —"
+                                    options={[{ value: "", label: "— Sem pessoa —" }, ...responsaveis.map(p => ({ value: String(p.id), label: p.nome }))]}
+                                />
                             </div>
                             <div style={{ display:"flex", gap:8, marginTop:8 }}>
                                 <button type="button" className="dd-btn-ghost" onClick={() => setModalCRAvulsa(false)}>Cancelar</button>
@@ -5260,10 +5163,9 @@ function FinContasPagar() {
                             { k:"status", opts:[["","Todos status"],["PENDENTE","Pendente"],["VENCIDO","Vencido"],["PARCIALMENTE_PAGO","Parc. Pago"],["PAGO","Pago"],["CANCELADO","Cancelado"]] },
                             { k:"tipo",   opts:[["","Todos tipos"],["SALARIO","Salário"],["CONTA_FIXA","Conta Fixa"],["FORNECEDOR","Fornecedor"],["OUTRO","Outro"]] },
                         ].map(f => (
-                            <select key={f.k} value={filtros[f.k]} onChange={e => ff(f.k, e.target.value)}
-                                style={{ fontSize:12, padding:"7px 10px", border:"1px solid #eaeef2", fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff", color:"#5a7060", borderRadius:4 }}>
-                                {f.opts.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
-                            </select>
+                            <SearchSelect key={f.k} value={filtros[f.k]} onChange={v => ff(f.k, v)}
+                                options={f.opts.map(([v,l]) => ({ value: v, label: l }))}
+                            />
                         ))}
                         <input type="month" value={filtros.mesReferencia} onChange={e => ff("mesReferencia", e.target.value)}
                             style={{ fontSize:12, padding:"7px 10px", border:"1px solid #eaeef2", fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff", borderRadius:4 }} />
@@ -5381,11 +5283,12 @@ function FinContasPagar() {
                             ))}
                             <div>
                                 <label className="dd-label">Forma de Pagamento</label>
-                                <select value={formBaixar.formaPagamentoId||""} onChange={e => setFormBaixar(b => ({ ...b, formaPagamentoId: e.target.value }))}
-                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
-                                    <option value="">— Não informar —</option>
-                                    {formasPagamento.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
-                                </select>
+                                <SearchSelect
+                                    value={formBaixar.formaPagamentoId||""}
+                                    onChange={v => setFormBaixar(b => ({ ...b, formaPagamentoId: v }))}
+                                    placeholder="— Não informar —"
+                                    options={[{ value: "", label: "— Não informar —" }, ...formasPagamento.map(f => ({ value: String(f.id), label: f.nome }))]}
+                                />
                             </div>
                             <div style={{ display:"flex", gap:8, marginTop:8 }}>
                                 <button type="button" className="dd-btn-ghost" onClick={() => setModalBaixar(null)}>Cancelar</button>
@@ -5428,10 +5331,11 @@ function FinContasPagar() {
                             </div>
                             <div>
                                 <label className="dd-label">Categoria</label>
-                                <select value={formEditarCP.categoria} onChange={e => setFormEditarCP(f => ({ ...f, categoria: e.target.value }))}
-                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
-                                    {["AGUA","LUZ","INTERNET","ALUGUEL","SALARIO","LIMPEZA","MANUTENCAO","MATERIAL","OUTRO"].map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
+                                <SearchSelect
+                                    value={formEditarCP.categoria}
+                                    onChange={v => setFormEditarCP(f => ({ ...f, categoria: v }))}
+                                    options={["AGUA","LUZ","INTERNET","ALUGUEL","SALARIO","LIMPEZA","MANUTENCAO","MATERIAL","OUTRO"].map(c => ({ value: c, label: c }))}
+                                />
                             </div>
                             <div>
                                 <label className="dd-label">Observações</label>
@@ -5502,10 +5406,11 @@ function FinContasPagar() {
                         <form onSubmit={salvarModelo} style={{ display:"flex", flexDirection:"column", gap:14 }}>
                             <div>
                                 <label className="dd-label">Categoria</label>
-                                <select value={formModelo.categoria} onChange={e => setFormModelo(m => ({ ...m, categoria: e.target.value }))}
-                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
-                                    {["CONTA_FIXA","FORNECEDOR","OUTRO"].map(c => <option key={c} value={c}>{c.replace("_"," ")}</option>)}
-                                </select>
+                                <SearchSelect
+                                    value={formModelo.categoria}
+                                    onChange={v => setFormModelo(m => ({ ...m, categoria: v }))}
+                                    options={["CONTA_FIXA","FORNECEDOR","OUTRO"].map(c => ({ value: c, label: c.replace("_"," ") }))}
+                                />
                             </div>
                             {[
                                 { k:"descricao", label:"Descrição *", required:true },
@@ -5522,11 +5427,12 @@ function FinContasPagar() {
                             ))}
                             <div>
                                 <label className="dd-label">Fornecedor / Pessoa <span style={{ color:"#9aaa9f", fontWeight:400 }}>(opcional)</span></label>
-                                <select value={formModelo.pessoaId||""} onChange={e => setFormModelo(m => ({ ...m, pessoaId: e.target.value }))}
-                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
-                                    <option value="">— Nenhum —</option>
-                                    {pessoas.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                                </select>
+                                <SearchSelect
+                                    value={formModelo.pessoaId||""}
+                                    onChange={v => setFormModelo(m => ({ ...m, pessoaId: v }))}
+                                    placeholder="— Nenhum —"
+                                    options={[{ value: "", label: "— Nenhum —" }, ...pessoas.map(p => ({ value: String(p.id), label: p.nome }))]}
+                                />
                             </div>
                             <div style={{ display:"flex", gap:8, marginTop:8 }}>
                                 <button type="button" className="dd-btn-ghost" onClick={() => setModalModelo(null)}>Cancelar</button>
@@ -5724,19 +5630,21 @@ function FinMovimentacoes() {
                             ))}
                             <div>
                                 <label className="dd-label">Forma de Pagamento (opcional)</label>
-                                <select value={form.formaPagamentoId||""} onChange={e => ff("formaPagamentoId", e.target.value)}
-                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
-                                    <option value="">— Não informar —</option>
-                                    {formasPagamento.map(f => <option key={f.id} value={f.id}>{f.nome}</option>)}
-                                </select>
+                                <SearchSelect
+                                    value={form.formaPagamentoId||""}
+                                    onChange={v => ff("formaPagamentoId", v)}
+                                    placeholder="— Não informar —"
+                                    options={[{ value: "", label: "— Não informar —" }, ...formasPagamento.map(f => ({ value: String(f.id), label: f.nome }))]}
+                                />
                             </div>
                             <div>
                                 <label className="dd-label">Pessoa / Empresa (opcional)</label>
-                                <select value={form.pessoaId||""} onChange={e => ff("pessoaId", e.target.value)}
-                                    style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }}>
-                                    <option value="">— Sem pessoa —</option>
-                                    {pessoas.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                                </select>
+                                <SearchSelect
+                                    value={form.pessoaId||""}
+                                    onChange={v => ff("pessoaId", v)}
+                                    placeholder="— Sem pessoa —"
+                                    options={[{ value: "", label: "— Sem pessoa —" }, ...pessoas.map(p => ({ value: String(p.id), label: p.nome }))]}
+                                />
                             </div>
                             <div>
                                 <label className="dd-label">Observações</label>
@@ -6019,28 +5927,27 @@ function Comunicados() {
                                 </div>
                                 <div>
                                     <label className="dd-label">Destinatários</label>
-                                    <select value={form.destinatarios}
-                                            onChange={e => setForm(f => ({...f, destinatarios:e.target.value, turmaId:""}))}
-                                            className="dd-input" style={{ height:38, cursor:"pointer" }}>
-                                        <option value="TODOS">Todos</option>
-                                        <option value="PROFESSORES">Professores</option>
-                                        <option value="ALUNOS">Alunos</option>
-                                        <option value="TURMA">Por Turma</option>
-                                    </select>
+                                    <SearchSelect
+                                        value={form.destinatarios}
+                                        onChange={v => setForm(f => ({...f, destinatarios:v, turmaId:""}))}
+                                        options={[
+                                            { value: "TODOS", label: "Todos" },
+                                            { value: "PROFESSORES", label: "Professores" },
+                                            { value: "ALUNOS", label: "Alunos" },
+                                            { value: "TURMA", label: "Por Turma" },
+                                        ]}
+                                    />
                                 </div>
                             </div>
                             {form.destinatarios === "TURMA" && (
                                 <div>
                                     <label className="dd-label">Turma</label>
-                                    <select value={form.turmaId} onChange={e => setForm(f => ({...f, turmaId:e.target.value}))}
-                                            className="dd-input" style={{ height:38, cursor:"pointer" }} required>
-                                        <option value="">Selecione a turma…</option>
-                                        {turmas.map(t => (
-                                            <option key={t.id} value={t.id}>
-                                                {t.serie?.nome ? `${t.serie.nome} — ` : ""}{t.nome}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <SearchSelect
+                                        value={form.turmaId}
+                                        onChange={v => setForm(f => ({...f, turmaId:v}))}
+                                        placeholder="Selecione a turma…"
+                                        options={[{ value: "", label: "Selecione a turma…" }, ...turmas.map(t => ({ value: String(t.id), label: `${t.serie?.nome ? `${t.serie.nome} — ` : ""}${t.nome}` }))]}
+                                    />
                                 </div>
                             )}
                             <div>

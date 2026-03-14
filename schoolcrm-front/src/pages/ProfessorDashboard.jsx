@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import SearchSelect from "../components/SearchSelect";
 import {
     Home, BookOpen, LogOut, GraduationCap,
     Menu, ChevronRight, Search, X, UserPlus, ArrowLeft, CalendarDays, Megaphone, Send, Trash2
@@ -83,14 +84,19 @@ const STYLE = `
 .pd-ano-btn:hover { background:#f0f5f2; }
 .pd-ano-btn--active { background:#0d1f18; color:#fff; border-color:#0d1f18; }
 
-@media (max-width: 767px) {
+@media (max-width: 1100px) {
+  .pd-sidebar { width: 180px !important; flex-shrink: 0; }
+  .pd-nav-btn { font-size: 12px !important; padding: 8px 10px !important; }
+}
+
+@media (max-width: 900px) {
   .pd-sidebar {
     position: fixed !important;
     top: 0; left: 0; bottom: 0;
     z-index: 30;
     transform: translateX(-100%);
     transition: transform .25s ease;
-    width: 210px !important;
+    width: 220px !important;
   }
   .pd-sidebar.open { transform: translateX(0); }
   .pd-hamburger { display: flex !important; }
@@ -100,80 +106,16 @@ const STYLE = `
   .pd-section { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   .pd-table { min-width: 480px; }
 }
+
+@media (max-width: 479px) {
+  .pd-page-title { font-size: 18px !important; }
+}
 `;
 
 // ── Helpers ────────────────────────────────────────────────────
 function flash(setMsg, texto, tipo = "ok") {
     setMsg({ texto, tipo });
     setTimeout(() => setMsg({ texto: "", tipo: "" }), 3000);
-}
-
-// ── SearchSelect reutilizável ──────────────────────────────────
-function SearchSelect({ options, value, onChange, placeholder }) {
-    const [open, setOpen] = useState(false);
-    const [search, setSearch] = useState("");
-    const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
-    const ref = { current: null };
-    const selected = options.find(o => String(o.value) === String(value));
-    const filtered = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()));
-
-    useEffect(() => {
-        if (!open) return;
-        const h = (e) => { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setSearch(""); } };
-        document.addEventListener("mousedown", h);
-        return () => document.removeEventListener("mousedown", h);
-    }, [open]);
-
-    return (
-        <div ref={el => ref.current = el} style={{ flex:1, position:"relative" }}>
-            <button type="button" onClick={e => {
-                const r = e.currentTarget.getBoundingClientRect();
-                setCoords({ top: r.bottom + window.scrollY + 4, left: r.left + window.scrollX, width: r.width });
-                setOpen(p => !p);
-            }} style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", gap:8,
-                border:`1px solid ${open ? "#0d1f18" : "#eaeef2"}`, padding:"8px 12px", background:"white",
-                color: selected ? "#0d1f18" : "#9aaa9f", cursor:"pointer", fontFamily:"'DM Sans',sans-serif", fontSize:13 }}>
-                <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                    {selected ? selected.label : placeholder}
-                </span>
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink:0, transform: open ? "rotate(180deg)" : "none", transition:"transform .2s" }}>
-                    <path d="M2 4l4 4 4-4" stroke="#9aaa9f" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
-            </button>
-            {open && (
-                <div style={{ position:"fixed", top:coords.top, left:coords.left, width:coords.width, zIndex:9999,
-                    background:"white", border:"1px solid #eaeef2", boxShadow:"0 8px 32px rgba(13,31,24,.12)", overflow:"hidden" }}>
-                    <div style={{ padding:8, borderBottom:"1px solid #eaeef2" }}>
-                        <div style={{ position:"relative" }}>
-                            <Search size={12} style={{ position:"absolute", left:8, top:"50%", transform:"translateY(-50%)", color:"#9aaa9f" }} />
-                            <input autoFocus value={search} onChange={e => setSearch(e.target.value)}
-                                   placeholder="Buscar..." onClick={e => e.stopPropagation()}
-                                   style={{ width:"100%", padding:"6px 8px 6px 26px", border:"1px solid #eaeef2",
-                                       fontSize:12, outline:"none", fontFamily:"'DM Sans',sans-serif", color:"#0d1f18" }} />
-                        </div>
-                    </div>
-                    <div style={{ maxHeight:200, overflowY:"auto" }}>
-                        {filtered.length === 0
-                            ? <p style={{ padding:"12px 16px", fontSize:12, color:"#9aaa9f", textAlign:"center" }}>Nenhum resultado</p>
-                            : filtered.map(o => {
-                                const active = String(o.value) === String(value);
-                                return (
-                                    <button key={o.value} type="button"
-                                            onClick={() => { onChange(o.value); setOpen(false); setSearch(""); }}
-                                            style={{ width:"100%", textAlign:"left", padding:"10px 16px", fontSize:13,
-                                                background: active ? "#f0f5f2" : "transparent", color: active ? "#1a4d3a" : "#0d1f18",
-                                                fontWeight: active ? 500 : 400, border:"none", cursor:"pointer",
-                                                display:"flex", alignItems:"center", gap:8, fontFamily:"'DM Sans',sans-serif" }}>
-                                        {active && <div style={{ width:6, height:6, background:"#7ec8a0", flexShrink:0 }} />}
-                                        {o.label}
-                                    </button>
-                                );
-                            })}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1364,27 +1306,27 @@ function ComunicadosProfessor({ vinculos }) {
                                 </div>
                                 <div>
                                     <label className="pd-label">Destinatários</label>
-                                    <select value={form.destinatarios}
-                                            onChange={e => setForm(f => ({...f, destinatarios:e.target.value, turmaId:""}))}
-                                            className="pd-input" style={{ height:38, cursor:"pointer" }}>
-                                        <option value="TODOS">Todos</option>
-                                        <option value="PROFESSORES">Professores</option>
-                                        <option value="ALUNOS">Alunos</option>
-                                        <option value="TURMA">Turma específica</option>
-                                    </select>
+                                    <SearchSelect
+                                        value={form.destinatarios}
+                                        onChange={v => setForm(f => ({...f, destinatarios:v, turmaId:""}))}
+                                        options={[
+                                            { value: "TODOS", label: "Todos" },
+                                            { value: "PROFESSORES", label: "Professores" },
+                                            { value: "ALUNOS", label: "Alunos" },
+                                            { value: "TURMA", label: "Turma específica" },
+                                        ]}
+                                    />
                                 </div>
                             </div>
                             {form.destinatarios === "TURMA" && (
                                 <div>
                                     <label className="pd-label">Turma</label>
-                                    <select value={form.turmaId}
-                                            onChange={e => setForm(f => ({...f, turmaId:e.target.value}))}
-                                            className="pd-input" style={{ height:38, cursor:"pointer" }} required>
-                                        <option value="">Selecione…</option>
-                                        {turmas.map(t => (
-                                            <option key={t.id} value={t.id}>{fmtTurmaLocal(t)}</option>
-                                        ))}
-                                    </select>
+                                    <SearchSelect
+                                        value={form.turmaId}
+                                        onChange={v => setForm(f => ({...f, turmaId:v}))}
+                                        placeholder="Selecione…"
+                                        options={[{ value: "", label: "Selecione…" }, ...turmas.map(t => ({ value: String(t.id), label: fmtTurmaLocal(t) }))]}
+                                    />
                                 </div>
                             )}
                             <div>
@@ -1496,20 +1438,17 @@ function HorariosView() {
                     <label style={{ fontSize: 11, fontWeight: 500, letterSpacing: ".08em", textTransform: "uppercase", color: "#9aaa9f" }}>
                         Filtrar turma:
                     </label>
-                    <select
+                    <SearchSelect
                         value={filtroTurma}
-                        onChange={e => setFiltroTurma(e.target.value)}
-                        style={{
-                            fontSize: 12, padding: "6px 12px", border: "1px solid #eaeef2",
-                            fontFamily: "'DM Sans',sans-serif", outline: "none", color: "#0d1f18",
-                            background: "white",
-                        }}
-                    >
-                        <option value="todas">Todas as minhas turmas</option>
-                        {turmaIds.map(id => (
-                            <option key={id} value={id}>{fmtTurmaNomes(horarios.find(h => h.turmaId === id)?.turmaSerieNome, horarios.find(h => h.turmaId === id)?.turmaNome) || `Turma ${id}`}</option>
-                        ))}
-                    </select>
+                        onChange={v => setFiltroTurma(v)}
+                        options={[
+                            { value: "todas", label: "Todas as minhas turmas" },
+                            ...turmaIds.map(id => ({
+                                value: String(id),
+                                label: fmtTurmaNomes(horarios.find(h => h.turmaId === id)?.turmaSerieNome, horarios.find(h => h.turmaId === id)?.turmaNome) || `Turma ${id}`
+                            }))
+                        ]}
+                    />
 
                     <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", userSelect: "none" }}>
                         <input
