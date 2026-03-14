@@ -864,8 +864,13 @@ function Usuarios() {
     const [campoBusca, setCampoBusca] = useState("nome");
     const [termoBusca, setTermoBusca] = useState("");
     const termoDebounced = useDebounce(termoBusca);
-    const [historicoAluno, setHistoricoAluno] = useState(null);
-    const [historico, setHistorico] = useState([]);
+    const [fichaAluno, setFichaAluno] = useState(null);
+    const [fichaHistorico, setFichaHistorico] = useState([]);
+    const [fichaBoletim, setFichaBoletim] = useState(null);
+    const [fichaContratos, setFichaContratos] = useState([]);
+    const [fichaParcelas, setFichaParcelas] = useState({});
+    const [fichaExpandido, setFichaExpandido] = useState(null);
+    const [fichaLoading, setFichaLoading] = useState(false);
 
     const carregarVinculos = () => {
         api.get("/usuarios/com-vinculos").then(r => {
@@ -948,13 +953,36 @@ function Usuarios() {
         }
     };
 
-    const verHistorico = async (u) => {
-        setHistoricoAluno(u);
-        setHistorico([]);
+    const fmtValor = v => Number(v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const fmtDt = d => d ? new Date(d + "T12:00").toLocaleDateString("pt-BR") : "—";
+
+    const abrirFicha = async (u) => {
+        setFichaAluno(u);
+        setFichaHistorico([]);
+        setFichaBoletim(null);
+        setFichaContratos([]);
+        setFichaParcelas({});
+        setFichaExpandido(null);
+        setFichaLoading(true);
         try {
-            const r = await api.get(`/vinculos/aluno-turma/historico/${u.id}`);
-            setHistorico(Array.isArray(r.data) ? r.data : []);
-        } catch { setHistorico([]); }
+            const [histR, contratoR] = await Promise.all([
+                api.get(`/vinculos/aluno-turma/historico/${u.id}`),
+                api.get(`/fin/contratos`, { params: { alunoId: u.id } }),
+            ]);
+            const hist = Array.isArray(histR.data) ? histR.data : [];
+            setFichaHistorico(hist);
+            setFichaContratos(Array.isArray(contratoR.data) ? contratoR.data : []);
+            // Boletim da turma mais recente
+            const sorted = [...hist].sort((a, b) => (b.turma?.anoLetivo ?? 0) - (a.turma?.anoLetivo ?? 0));
+            const vincAtual = sorted[0];
+            if (vincAtual?.turma?.id) {
+                try {
+                    const bolR = await api.get(`/notas/boletim/${u.id}/${vincAtual.turma.id}`);
+                    setFichaBoletim(bolR.data);
+                } catch { setFichaBoletim(null); }
+            }
+        } catch {}
+        finally { setFichaLoading(false); }
     };
 
 
@@ -1037,39 +1065,238 @@ function Usuarios() {
                 </div>
             )}
 
-            {/* Modal histórico do aluno */}
-            {historicoAluno && (
-                <div className="dd-modal-overlay">
-                    <div className="dd-modal" style={{ maxWidth:480 }}>
-                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
-                            <div>
-                                <p className="dd-modal-title">Histórico de Turmas</p>
-                                <p className="dd-modal-sub">{historicoAluno.nome}</p>
+            {/* Ficha Completa do Aluno */}
+            {fichaAluno && (
+                <div className="dd-modal-overlay" onMouseDown={e => e.target === e.currentTarget && setFichaAluno(null)}>
+                    <div className="dd-modal" style={{ maxWidth:780, width:"100%", maxHeight:"88vh", overflowY:"auto", display:"flex", flexDirection:"column" }}>
+
+                        {/* Header */}
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20, flexShrink:0 }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                                <div style={{ width:44, height:44, borderRadius:"50%", background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:17, fontWeight:700, color:"#7ec8a0", flexShrink:0 }}>
+                                    {fichaAluno.nome.charAt(0)}
+                                </div>
+                                <div>
+                                    <p className="dd-modal-title" style={{ marginBottom:2 }}>Ficha do Aluno</p>
+                                    <p className="dd-modal-sub">{fichaAluno.nome} · {fichaAluno.login}</p>
+                                </div>
                             </div>
-                            <button onClick={() => setHistoricoAluno(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f", padding:4 }}>
+                            <button onClick={() => setFichaAluno(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f", padding:4 }}>
                                 <X size={16} />
                             </button>
                         </div>
 
-                        {historico.length === 0 ? (
-                            <p style={{ color:"#9aaa9f", fontSize:13, textAlign:"center", padding:"24px 0" }}>Nenhuma turma encontrada.</p>
+                        {fichaLoading ? (
+                            <div style={{ textAlign:"center", padding:"48px 0", color:"#9aaa9f", fontSize:13 }}>Carregando ficha...</div>
                         ) : (
-                            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                                {historico.map((v, i) => (
-                                    <div key={i} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", background:"#f8fafb", borderRadius:6, border:"1px solid #eef0ec" }}>
-                                        <div style={{ width:36, height:36, background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#7ec8a0", flexShrink:0 }}>
-                                            {v.turma?.anoLetivo ?? "—"}
-                                        </div>
-                                        <div>
-                                            <p style={{ fontSize:13, fontWeight:600, color:"#1a2332", margin:0 }}>{v.turma?.nome ?? "—"}</p>
-                                            <p style={{ fontSize:11, color:"#9aaa9f", margin:0 }}>{v.turma?.serie?.nome ?? ""}</p>
-                                        </div>
+                            <div style={{ display:"flex", flexDirection:"column", gap:22 }}>
+
+                                {/* 1. Dados Pessoais */}
+                                <div style={{ background:"#f8faf8", borderRadius:8, padding:"14px 16px" }}>
+                                    <p style={{ fontSize:10, fontWeight:700, color:"#7ec8a0", textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:12, margin:"0 0 12px" }}>Dados Pessoais</p>
+                                    <div style={{ display:"flex", gap:24, flexWrap:"wrap" }}>
+                                        {[
+                                            ["Nascimento", fichaAluno.dataNascimento ? new Date(fichaAluno.dataNascimento + "T12:00").toLocaleDateString("pt-BR") : "—"],
+                                            ["Nome do Pai", fichaAluno.nomePai || "—"],
+                                            ["Nome da Mãe", fichaAluno.nomeMae || "—"],
+                                        ].map(([label, val]) => (
+                                            <div key={label} style={{ minWidth:140 }}>
+                                                <div style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.4px" }}>{label}</div>
+                                                <div style={{ fontSize:13, fontWeight:500, color:"#0d1f18", marginTop:3 }}>{val}</div>
+                                            </div>
+                                        ))}
                                     </div>
-                                ))}
+                                </div>
+
+                                {/* 2. Situação Acadêmica */}
+                                <div>
+                                    <p style={{ fontSize:10, fontWeight:700, color:"#7ec8a0", textTransform:"uppercase", letterSpacing:"0.8px", margin:"0 0 12px" }}>
+                                        Situação Acadêmica {fichaBoletim ? `— ${fichaBoletim.turma?.anoLetivo}` : ""}
+                                    </p>
+                                    {fichaBoletim ? (() => {
+                                        const discs = fichaBoletim.disciplinas || [];
+                                        const comNotas = discs.filter(d => Number(d.mediaAnual) > 0 || Number(d.totalAulas) > 0);
+                                        const mediaGeral = comNotas.length > 0
+                                            ? (comNotas.reduce((s, d) => s + Number(d.mediaAnual || 0), 0) / comNotas.length).toFixed(1)
+                                            : null;
+                                        const freqGeral = Number(fichaBoletim.frequenciaGeral || 100);
+                                        const aprovado = mediaGeral !== null && Number(mediaGeral) >= 6 && freqGeral >= 75;
+                                        return (<>
+                                            <div style={{ display:"flex", gap:12, flexWrap:"wrap", marginBottom:14 }}>
+                                                {[
+                                                    ["Turma", `${fichaBoletim.turma?.nome} (${fichaBoletim.turma?.anoLetivo})`, "#0d1f18", "#f0f5f2"],
+                                                    ["Série", fichaBoletim.turma?.serie || "—", "#0d1f18", "#f0f5f2"],
+                                                    ["Freq. Geral", `${freqGeral.toFixed(1)}%`, freqGeral < 75 ? "#b94040" : "#2d6a4f", freqGeral < 75 ? "#fdf0f0" : "#f0f5f2"],
+                                                    mediaGeral !== null
+                                                        ? ["Situação", aprovado ? "Aprovando" : "Em Risco", aprovado ? "#2d6a4f" : "#b94040", aprovado ? "#f0f5f2" : "#fdf0f0"]
+                                                        : null,
+                                                ].filter(Boolean).map(([label, val, color, bg]) => (
+                                                    <div key={label} style={{ background: bg, borderRadius:6, padding:"8px 14px" }}>
+                                                        <div style={{ fontSize:10, color:"#6b8f7a", textTransform:"uppercase", letterSpacing:"0.4px" }}>{label}</div>
+                                                        <div style={{ fontSize:13, fontWeight:600, color, marginTop:2 }}>{val}</div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            {discs.length > 0 && (
+                                                <div style={{ overflowX:"auto" }}>
+                                                    <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                                                        <thead>
+                                                            <tr style={{ background:"#f0f4f0" }}>
+                                                                {["Disciplina","B1","B2","B3","B4","Média Anual","Freq.","Situação"].map(h => (
+                                                                    <th key={h} style={{ padding:"7px 10px", textAlign: h==="Disciplina"?"left":"center", color:"#6b8f7a", fontSize:10, textTransform:"uppercase", letterSpacing:"0.4px", fontWeight:600, whiteSpace:"nowrap" }}>{h}</th>
+                                                                ))}
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {discs.map((d, i) => {
+                                                                const sit = Number(d.mediaAnual) >= 6 && Number(d.frequenciaMateria) >= 75 ? "Aprovando" : "Em Risco";
+                                                                const bim = d.bimestres || {};
+                                                                return (
+                                                                    <tr key={i} style={{ borderBottom:"1px solid #eaeef2", background: sit==="Em Risco" ? "#fff8f8" : "white" }}>
+                                                                        <td style={{ padding:"7px 10px", fontWeight:500, color:"#0d1f18" }}>{d.materiaNome}</td>
+                                                                        {[1,2,3,4].map(b => (
+                                                                            <td key={b} style={{ padding:"7px 10px", textAlign:"center", color:"#6b7a8d" }}>
+                                                                                {bim[b]?.media != null ? Number(bim[b].media).toFixed(1) : "—"}
+                                                                            </td>
+                                                                        ))}
+                                                                        <td style={{ padding:"7px 10px", textAlign:"center", fontWeight:700, color: Number(d.mediaAnual) >= 6 ? "#2d6a4f" : "#b94040" }}>
+                                                                            {Number(d.mediaAnual || 0).toFixed(1)}
+                                                                        </td>
+                                                                        <td style={{ padding:"7px 10px", textAlign:"center", color: Number(d.frequenciaMateria) < 75 ? "#b94040" : "#6b7a8d" }}>
+                                                                            {Number(d.frequenciaMateria || 0).toFixed(1)}%
+                                                                        </td>
+                                                                        <td style={{ padding:"7px 10px", textAlign:"center" }}>
+                                                                            <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:4, background: sit==="Em Risco"?"#fdf0f0":"#f0f5f2", color: sit==="Em Risco"?"#b94040":"#2d6a4f" }}>
+                                                                                {sit}
+                                                                            </span>
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </>);
+                                    })() : (
+                                        <p style={{ color:"#9aaa9f", fontSize:13 }}>Nenhum boletim disponível.</p>
+                                    )}
+                                </div>
+
+                                {/* 3. Financeiro */}
+                                <div>
+                                    <p style={{ fontSize:10, fontWeight:700, color:"#7ec8a0", textTransform:"uppercase", letterSpacing:"0.8px", margin:"0 0 12px" }}>Financeiro</p>
+                                    {fichaContratos.length === 0 ? (
+                                        <p style={{ color:"#9aaa9f", fontSize:13 }}>Nenhum contrato encontrado.</p>
+                                    ) : (
+                                        <div style={{ border:"1px solid #eaeef2", borderRadius:8, overflow:"hidden" }}>
+                                            {fichaContratos.map((c, ci) => {
+                                                const plist = fichaParcelas[c.id] || [];
+                                                const pagas = plist.filter(p => p.status === "PAGO").length;
+                                                const vencidas = plist.filter(p => p.status === "VENCIDO").length;
+                                                const isOpen = fichaExpandido === c.id;
+                                                const stColors = { PAGO:{bg:"#f0f5f2",color:"#2d6a4f"}, VENCIDO:{bg:"#fdf0f0",color:"#b94040"}, PENDENTE:{bg:"#fff8e1",color:"#c47a00"}, CANCELADO:{bg:"#f5f5f5",color:"#9aaa9f"}, PARCIALMENTE_PAGO:{bg:"#e8f0ff",color:"#2563eb"} };
+                                                return (
+                                                    <div key={c.id} style={{ borderBottom: ci < fichaContratos.length-1 ? "1px solid #eaeef2" : "none" }}>
+                                                        <div style={{ padding:"12px 16px", display:"flex", alignItems:"center", gap:10, cursor:"pointer", background: isOpen ? "#f8faf8" : "white" }}
+                                                            onClick={async () => {
+                                                                const newId = isOpen ? null : c.id;
+                                                                setFichaExpandido(newId);
+                                                                if (newId && !fichaParcelas[c.id]) {
+                                                                    try {
+                                                                        const r = await api.get(`/fin/contas-receber`, { params: { contratoId: c.id } });
+                                                                        setFichaParcelas(p => ({ ...p, [c.id]: Array.isArray(r.data) ? r.data : [] }));
+                                                                    } catch {}
+                                                                }
+                                                            }}>
+                                                            <ChevronRight size={14} style={{ transform: isOpen ? "rotate(90deg)" : "none", transition:".2s", color:"#9aaa9f", flexShrink:0 }} />
+                                                            <div style={{ flex:1 }}>
+                                                                <div style={{ fontWeight:600, fontSize:13, color:"#0d1f18" }}>{c.anoLetivo} — {c.serieNome || "—"}</div>
+                                                                <div style={{ fontSize:11, color:"#9aaa9f", marginTop:2 }}>
+                                                                    {c.numParcelas}x · {fmtValor(c.valorMensal ?? c.valorTotal)}/mês · Resp.: {c.responsavelPrincipalNome || "—"}
+                                                                    {plist.length > 0 && (
+                                                                        <span style={{ marginLeft:8 }}>
+                                                                            {pagas}/{c.numParcelas} pagas
+                                                                            {vencidas > 0 && <span style={{ color:"#b94040", marginLeft:4 }}>· {vencidas} vencida{vencidas>1?"s":""}</span>}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ fontWeight:700, fontSize:14, color:"#0d1f18" }}>{fmtValor(c.valorMensal ?? c.valorTotal)}</div>
+                                                        </div>
+                                                        {isOpen && (
+                                                            <div style={{ padding:"0 16px 14px", background:"#f8faf8" }}>
+                                                                {/* Contract details */}
+                                                                <div style={{ display:"flex", gap:16, flexWrap:"wrap", padding:"10px 0 12px", borderBottom:"1px solid #eaeef2", marginBottom:10 }}>
+                                                                    {[["Valor Base", fmtValor(c.valorBase), "#0d1f18"], ["Desconto", fmtValor(c.desconto), "#b94040"], ["Acréscimo", fmtValor(c.acrescimo), "#2d6a4f"], ["Mensal", fmtValor(c.valorMensal ?? c.valorTotal), "#2563eb"]].map(([l,v,col]) => (
+                                                                        <div key={l}>
+                                                                            <div style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.4px" }}>{l}</div>
+                                                                            <div style={{ fontSize:14, fontWeight:700, color:col, marginTop:2 }}>{v}</div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                                {plist.length === 0 ? (
+                                                                    <p style={{ color:"#9aaa9f", fontSize:12, padding:"8px 0" }}>Carregando parcelas...</p>
+                                                                ) : (
+                                                                    <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                                                                        <thead>
+                                                                            <tr style={{ background:"#f0f4f0" }}>
+                                                                                {["#","Vencimento","Valor","Status","Pago em"].map(h => (
+                                                                                    <th key={h} style={{ padding:"6px 10px", textAlign:"left", color:"#6b8f7a", fontSize:10, textTransform:"uppercase", letterSpacing:"0.4px", fontWeight:600 }}>{h}</th>
+                                                                                ))}
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                            {plist.map((cr, idx) => {
+                                                                                const sc = stColors[cr.status] || { bg:"#f5f5f5", color:"#9aaa9f" };
+                                                                                return (
+                                                                                    <tr key={cr.id} style={{ borderBottom:"1px solid #eaeef2", background: cr.status==="VENCIDO"?"#fff8f8":cr.status==="PAGO"?"#f8fffe":"white" }}>
+                                                                                        <td style={{ padding:"7px 10px", color:"#9aaa9f" }}>{idx+1}</td>
+                                                                                        <td style={{ padding:"7px 10px", color: cr.status==="VENCIDO"?"#b94040":"#0d1f18" }}>{fmtDt(cr.dataVencimento)}</td>
+                                                                                        <td style={{ padding:"7px 10px", fontWeight:600 }}>{fmtValor(cr.valor)}</td>
+                                                                                        <td style={{ padding:"7px 10px" }}><span style={{ fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:4, ...sc }}>{cr.status}</span></td>
+                                                                                        <td style={{ padding:"7px 10px", color:"#9aaa9f" }}>{cr.dataPagamento ? fmtDt(cr.dataPagamento) : "—"}</td>
+                                                                                    </tr>
+                                                                                );
+                                                                            })}
+                                                                        </tbody>
+                                                                    </table>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* 4. Histórico de Turmas */}
+                                <div>
+                                    <p style={{ fontSize:10, fontWeight:700, color:"#7ec8a0", textTransform:"uppercase", letterSpacing:"0.8px", margin:"0 0 12px" }}>Histórico de Turmas</p>
+                                    {fichaHistorico.length === 0 ? (
+                                        <p style={{ color:"#9aaa9f", fontSize:13 }}>Nenhuma turma encontrada.</p>
+                                    ) : (
+                                        <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                                            {[...fichaHistorico].sort((a,b) => (b.turma?.anoLetivo ?? 0) - (a.turma?.anoLetivo ?? 0)).map((v, i) => (
+                                                <div key={i} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", background:"#f8fafb", borderRadius:6, border:"1px solid #eef0ec" }}>
+                                                    <div style={{ width:38, height:38, background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#7ec8a0", flexShrink:0, borderRadius:5 }}>
+                                                        {v.turma?.anoLetivo ?? "—"}
+                                                    </div>
+                                                    <div style={{ flex:1 }}>
+                                                        <p style={{ fontSize:13, fontWeight:600, color:"#1a2332", margin:0 }}>{v.turma?.nome ?? "—"}</p>
+                                                        <p style={{ fontSize:11, color:"#9aaa9f", margin:0 }}>{v.turma?.serie?.nome ?? ""}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
                             </div>
                         )}
 
-                        <button onClick={() => setHistoricoAluno(null)} className="dd-btn-ghost" style={{ width:"100%", marginTop:20 }}>Fechar</button>
+                        <button onClick={() => setFichaAluno(null)} className="dd-btn-ghost" style={{ width:"100%", marginTop:22, flexShrink:0 }}>Fechar</button>
                     </div>
                 </div>
             )}
@@ -1188,7 +1415,7 @@ function Usuarios() {
                                 <td style={{ textAlign:"right" }}>
                                     <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
                                         {u.role === "ALUNO" && (
-                                            <button className="dd-btn-edit" onClick={() => verHistorico(u)}>Histórico</button>
+                                            <button className="dd-btn-edit" onClick={() => abrirFicha(u)}>Ficha</button>
                                         )}
                                         <button className="dd-btn-edit" onClick={() => abrirEdicao(u)}>Editar</button>
                                         {idsComVinculos.has(u.id) ? (
