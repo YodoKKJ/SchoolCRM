@@ -82,9 +82,10 @@ public class FinContratoService {
 
         BigDecimal desconto   = body.containsKey("desconto")   ? parseBigDecimal(body.get("desconto"))   : BigDecimal.ZERO;
         BigDecimal acrescimo  = body.containsKey("acrescimo")  ? parseBigDecimal(body.get("acrescimo"))  : BigDecimal.ZERO;
-        BigDecimal valorTotal = valorBase.subtract(desconto).add(acrescimo);
+        // valorMensal = valor de cada parcela (mensalidade ajustada)
+        BigDecimal valorMensal = valorBase.subtract(desconto).add(acrescimo);
 
-        if (valorTotal.compareTo(BigDecimal.ZERO) <= 0) {
+        if (valorMensal.compareTo(BigDecimal.ZERO) <= 0) {
             return ResponseEntity.badRequest().body("Valor total do contrato deve ser maior que zero.");
         }
 
@@ -117,6 +118,9 @@ public class FinContratoService {
         contrato.setResponsavelPrincipal(respPrincipal);
         contrato.setSerie(serie);
         contrato.setAnoLetivo(anoLetivo);
+        // valorTotal do contrato = mensalidade ajustada × número de parcelas
+        BigDecimal valorTotal = valorMensal.multiply(BigDecimal.valueOf(numParcelas));
+
         contrato.setValorBase(valorBase);
         contrato.setValorTotal(valorTotal);
         contrato.setNumParcelas(numParcelas);
@@ -131,7 +135,7 @@ public class FinContratoService {
 
         contratoRepository.save(contrato);
 
-        List<FinContaReceber> parcelas = gerarParcelas(contrato, valorTotal, numParcelas, inicioBase, serie.getNome());
+        List<FinContaReceber> parcelas = gerarParcelas(contrato, valorMensal, numParcelas, inicioBase, serie.getNome());
         crRepository.saveAll(parcelas);
 
         Map<String, Object> resposta = toMap(contrato, true);
@@ -165,11 +169,8 @@ public class FinContratoService {
             FinContrato contrato, BigDecimal valorTotal,
             int numParcelas, LocalDate inicioBase, String serieNome) {
 
-        BigDecimal valorParcela = valorTotal.divide(
-                BigDecimal.valueOf(numParcelas), 2, RoundingMode.HALF_UP);
-
-        BigDecimal totalGerado = valorParcela.multiply(BigDecimal.valueOf(numParcelas - 1));
-        BigDecimal ultimaParcela = valorTotal.subtract(totalGerado);
+        BigDecimal valorParcela = valorTotal.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal ultimaParcela = valorParcela;
 
         List<FinContaReceber> parcelas = new ArrayList<>();
         for (int i = 1; i <= numParcelas; i++) {
@@ -193,10 +194,14 @@ public class FinContratoService {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id",         c.getId());
         m.put("anoLetivo",  c.getAnoLetivo());
-        m.put("valorBase",  c.getValorBase());
-        m.put("desconto",   c.getDesconto());
-        m.put("acrescimo",  c.getAcrescimo());
-        m.put("valorTotal", c.getValorTotal());
+        m.put("valorBase",   c.getValorBase());
+        m.put("desconto",    c.getDesconto());
+        m.put("acrescimo",   c.getAcrescimo());
+        m.put("valorTotal",  c.getValorTotal());
+        // valorMensal = valor de cada parcela (valorBase - desconto + acrescimo)
+        BigDecimal desc = c.getDesconto() != null ? c.getDesconto() : BigDecimal.ZERO;
+        BigDecimal acr  = c.getAcrescimo() != null ? c.getAcrescimo() : BigDecimal.ZERO;
+        m.put("valorMensal", c.getValorBase().subtract(desc).add(acr));
         m.put("numParcelas", c.getNumParcelas());
         m.put("observacoes", c.getObservacoes());
         m.put("createdAt",  c.getCreatedAt());
