@@ -156,13 +156,13 @@
                 <textFieldExpression><![CDATA[$F{valor}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">
-                <reportElement x="704" y="1" width="48" height="12"/>
-                <textElement textAlignment="Right"><font size="7" forecolor="#c47a00" fontName="SansSerif"/></textElement>
+                <reportElement x="704" y="1" width="48" height="12" forecolor="#c47a00"/>
+                <textElement textAlignment="Right"><font size="7" fontName="SansSerif"/></textElement>
                 <textFieldExpression><![CDATA[$F{jurosMulta}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">
-                <reportElement x="754" y="1" width="46" height="12"/>
-                <textElement textAlignment="Right"><font size="7" isBold="true" forecolor="#b94040" fontName="SansSerif"/></textElement>
+                <reportElement x="754" y="1" width="46" height="12" forecolor="#b94040"/>
+                <textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement>
                 <textFieldExpression><![CDATA[$F{saldo}]]></textFieldExpression>
             </textField>
             <line>

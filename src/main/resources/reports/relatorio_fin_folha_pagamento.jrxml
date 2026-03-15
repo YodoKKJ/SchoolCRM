@@ -100,8 +100,8 @@
                 <textFieldExpression><![CDATA[$F{cargo}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">
-                <reportElement x="254" y="2" width="50" height="14"/>
-                <textElement textAlignment="Center"><font size="8" forecolor="#555555" fontName="SansSerif"/></textElement>
+                <reportElement x="254" y="2" width="50" height="14" forecolor="#555555"/>
+                <textElement textAlignment="Center"><font size="8" fontName="SansSerif"/></textElement>
                 <textFieldExpression><![CDATA[$F{cargaHoraria}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">
@@ -110,13 +110,13 @@
                 <textFieldExpression><![CDATA[$F{salarioBase}]]></textFieldExpression>
             </textField>
             <textField isStretchWithOverflow="true" isBlankWhenNull="true">
-                <reportElement x="378" y="2" width="100" height="14"/>
-                <textElement><font size="7" forecolor="#555555" fontName="SansSerif"/></textElement>
+                <reportElement x="378" y="2" width="100" height="14" forecolor="#555555"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
                 <textFieldExpression><![CDATA[$F{beneficios}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">
-                <reportElement x="480" y="2" width="75" height="14"/>
-                <textElement textAlignment="Right"><font size="8" isBold="true" forecolor="#1a1a2e" fontName="SansSerif"/></textElement>
+                <reportElement x="480" y="2" width="75" height="14" forecolor="#1a1a2e"/>
+                <textElement textAlignment="Right"><font size="8" isBold="true" fontName="SansSerif"/></textElement>
                 <textFieldExpression><![CDATA[$F{totalBruto}]]></textFieldExpression>
             </textField>
             <line>
