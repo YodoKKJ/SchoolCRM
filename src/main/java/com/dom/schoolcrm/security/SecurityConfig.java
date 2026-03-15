@@ -49,8 +49,10 @@ public class SecurityConfig {
                         // 🔓 Preflight CORS
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // 🔒 Módulo financeiro — exclusivo para DIRECAO (redundante com @PreAuthorize, mas garante proteção mesmo se anotação for esquecida)
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/fin/configuracoes").authenticated()
+                        // 🔓 Config acadêmica (mediaMinima/freqMinima) — acessível a todos os usuários autenticados
+                        .requestMatchers(HttpMethod.GET, "/notas/config").authenticated()
+                        // 🔒 Módulo financeiro — /fin/configuracoes restrito a DIRECAO/COORDENACAO (contém dados financeiros sensíveis)
+                        .requestMatchers(HttpMethod.GET, "/fin/configuracoes").hasAnyRole("DIRECAO", "COORDENACAO")
                         .requestMatchers("/fin/**").hasRole("DIRECAO")
 
                         // 🔒 Regras específicas

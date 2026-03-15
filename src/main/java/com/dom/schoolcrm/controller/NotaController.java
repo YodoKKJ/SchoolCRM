@@ -64,6 +64,19 @@ public class NotaController {
                 .orElse(75.0);
     }
 
+    /**
+     * Retorna os parâmetros acadêmicos (mediaMinima e freqMinima) para qualquer
+     * usuário autenticado — usado pelo AlunoDashboard, ProfessorDashboard, etc.
+     * Não expõe dados financeiros sensíveis (juros, multa) do FinConfiguracao.
+     */
+    @GetMapping("/config")
+    public ResponseEntity<Map<String, Object>> getConfigAcademica() {
+        return ResponseEntity.ok(Map.of(
+                "mediaMinima", getMediaMinima(),
+                "freqMinima",  getFreqMinima()
+        ));
+    }
+
     @PostMapping("/avaliacao")
     @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> criarAvaliacao(@RequestBody Map<String, String> body, Authentication auth) {

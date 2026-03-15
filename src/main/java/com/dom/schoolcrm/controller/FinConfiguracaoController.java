@@ -23,6 +23,8 @@ public class FinConfiguracaoController {
     private FinConfiguracaoRepository repository;
 
     // Retorna a config atual; cria com valores padrão se ainda não existir
+    // Restrito a DIRECAO/COORDENACAO — contém dados financeiros sensíveis (juros, multa, etc.)
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     @GetMapping
     public ResponseEntity<FinConfiguracao> obter() {
         FinConfiguracao config = repository.findAll()
