@@ -50,19 +50,10 @@ public class NotaController {
     private com.dom.schoolcrm.repository.AlunoTurmaRepository alunoTurmaRepository;
 
     @Autowired
-    private com.dom.schoolcrm.repository.FinConfiguracaoRepository finConfiguracaoRepository;
+    private com.dom.schoolcrm.service.FinConfiguracaoService configuracaoService;
 
-    private double getMediaMinima() {
-        return finConfiguracaoRepository.findAll().stream().findFirst()
-                .map(c -> c.getMediaMinima() != null ? c.getMediaMinima().doubleValue() : 6.0)
-                .orElse(6.0);
-    }
-
-    private double getFreqMinima() {
-        return finConfiguracaoRepository.findAll().stream().findFirst()
-                .map(c -> c.getFreqMinima() != null ? c.getFreqMinima().doubleValue() : 75.0)
-                .orElse(75.0);
-    }
+    private double getMediaMinima() { return configuracaoService.getMediaMinima(); }
+    private double getFreqMinima()  { return configuracaoService.getFreqMinima(); }
 
     /**
      * Retorna os parâmetros acadêmicos (mediaMinima e freqMinima) para qualquer

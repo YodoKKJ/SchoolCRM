@@ -163,5 +163,25 @@ public class SchemaMigration {
         try {
             jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(timestamp);");
         } catch (Exception ignored) {}
+
+        // Performance: índices compostos para queries frequentes
+        try {
+            jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_presencas_aluno_turma_materia ON presencas(aluno_id, turma_id, materia_id);");
+        } catch (Exception ignored) {}
+        try {
+            jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_presencas_turma_materia ON presencas(turma_id, materia_id);");
+        } catch (Exception ignored) {}
+        try {
+            jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_presencas_aluno_turma ON presencas(aluno_id, turma_id);");
+        } catch (Exception ignored) {}
+        try {
+            jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_notas_aluno_id ON notas(aluno_id);");
+        } catch (Exception ignored) {}
+        try {
+            jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_aluno_turma_turma_id ON aluno_turma(turma_id);");
+        } catch (Exception ignored) {}
+        try {
+            jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_aluno_turma_aluno_id ON aluno_turma(aluno_id);");
+        } catch (Exception ignored) {}
     }
 }
