@@ -4,6 +4,7 @@ import Login from "./pages/Login";
 import DirecaoDashboard from "./pages/DirecaoDashboard";
 import ProfessorDashboard from "./pages/ProfessorDashboard";
 import AlunoDashboard from "./pages/AlunoDashboard";
+import LandingEscola from "./pages/LandingEscola";
 
 class AppErrorBoundary extends Component {
     constructor(props) {
@@ -71,6 +72,7 @@ function App() {
                             <AlunoDashboard />
                         </PrivateRoute>
                     } />
+                    <Route path="/escola" element={<LandingEscola />} />
                 </Routes>
             </BrowserRouter>
         </AppErrorBoundary>
