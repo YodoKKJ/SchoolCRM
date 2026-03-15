@@ -123,7 +123,8 @@
             <staticText><reportElement x="504" y="3" width="64"  height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[VALOR]]></text></staticText>
             <staticText><reportElement x="570" y="3" width="64"  height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[RECEBIDO]]></text></staticText>
             <staticText><reportElement x="636" y="3" width="64"  height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[SALDO]]></text></staticText>
-            <staticText><reportElement x="702" y="3" width="100" height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[STATUS / FORMA]]></text></staticText>
+            <staticText><reportElement x="700" y="3" width="54"  height="12"/><textElement textAlignment="Center"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[STATUS]]></text></staticText>
+            <staticText><reportElement x="756" y="3" width="46"  height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[FORMA]]></text></staticText>
         </band>
     </columnHeader>
 
@@ -176,12 +177,12 @@
                 <textFieldExpression><![CDATA[$F{saldo}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">
-                <reportElement x="702" y="1" width="60" height="12" style="statusStyle"/>
-                <textElement textAlignment="Right"><font size="7" fontName="SansSerif"/></textElement>
+                <reportElement x="700" y="1" width="54" height="12" style="statusStyle"/>
+                <textElement textAlignment="Center"><font size="7" fontName="SansSerif"/></textElement>
                 <textFieldExpression><![CDATA[$F{status}]]></textFieldExpression>
             </textField>
-            <textField isBlankWhenNull="true">
-                <reportElement x="764" y="1" width="38" height="12" forecolor="#888888"/>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="756" y="1" width="46" height="12" forecolor="#888888"/>
                 <textElement textAlignment="Right"><font size="6" fontName="SansSerif"/></textElement>
                 <textFieldExpression><![CDATA[$F{formaPagamento}]]></textFieldExpression>
             </textField>
