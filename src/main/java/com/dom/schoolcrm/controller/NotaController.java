@@ -107,7 +107,15 @@ public class NotaController {
         avaliacao.setTipo(tipo);
         avaliacao.setDescricao(body.get("descricao"));
         String dataAplic = body.get("dataAplicacao");
-        avaliacao.setDataAplicacao(dataAplic != null && !dataAplic.isBlank() ? LocalDate.parse(dataAplic) : LocalDate.now());
+        if (dataAplic != null && !dataAplic.isBlank()) {
+            LocalDate dataAvaliacao = LocalDate.parse(dataAplic);
+            if (dataAvaliacao.isAfter(LocalDate.now().plusYears(1))) {
+                return ResponseEntity.badRequest().body("Data de aplicação não pode ser superior a 1 ano no futuro.");
+            }
+            avaliacao.setDataAplicacao(dataAvaliacao);
+        } else {
+            avaliacao.setDataAplicacao(LocalDate.now());
+        }
 
         if ("RECUPERACAO".equals(tipo) || "SIMULADO".equals(tipo)) {
             avaliacao.setPeso(new BigDecimal("1.0"));
@@ -162,12 +170,20 @@ public class NotaController {
 
         List<Long> alunoIds = body.getOrDefault("alunoIds", List.of());
 
+        Long turmaIdRecup = avOpt.get().getTurma().getId();
+        // Pré-carrega alunos da turma para validar pertencimento sem N+1
+        Set<Long> alunosDaTurma = alunoTurmaRepository.findByTurmaId(turmaIdRecup).stream()
+                .map(at -> at.getAluno().getId())
+                .collect(java.util.stream.Collectors.toSet());
+
         recuperacaoParticipanteRepository.deleteByAvaliacaoId(id);
 
         List<Map<String, Object>> resultado = new ArrayList<>();
         for (Long alunoId : alunoIds) {
             Optional<Usuario> alunoOpt = usuarioRepository.findById(alunoId);
             if (alunoOpt.isEmpty()) continue;
+            // Garante que o aluno pertence à turma da avaliação
+            if (!alunosDaTurma.contains(alunoId)) continue;
             RecuperacaoParticipante rp = new RecuperacaoParticipante();
             rp.setAvaliacao(avOpt.get());
             rp.setAluno(alunoOpt.get());

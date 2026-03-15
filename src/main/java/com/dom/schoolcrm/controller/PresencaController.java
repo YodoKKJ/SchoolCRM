@@ -128,8 +128,10 @@ public class PresencaController {
         List<Presenca> presencas = presencaRepository
                 .findByAlunoIdAndTurmaIdAndMateriaId(alunoId, turmaId, materiaId);
 
-        long total = presencas.size();
-        long presentes = presencas.stream().filter(p -> Boolean.TRUE.equals(p.getPresente())).count();
+        // Exclui registros com presente=null (dados incompletos não devem influenciar o percentual)
+        List<Presenca> comValor = presencas.stream().filter(p -> p.getPresente() != null).toList();
+        long total = comValor.size();
+        long presentes = comValor.stream().filter(p -> Boolean.TRUE.equals(p.getPresente())).count();
         double percentual = total > 0 ? (presentes * 100.0 / total) : 0;
 
         return ResponseEntity.ok(Map.of(
@@ -179,8 +181,10 @@ public class PresencaController {
         List<Presenca> presencas = presencaRepository
                 .findByAlunoIdAndTurmaIdAndMateriaId(aluno.get().getId(), turmaId, materiaId);
 
-        long total = presencas.size();
-        long presentes = presencas.stream().filter(p -> Boolean.TRUE.equals(p.getPresente())).count();
+        // Exclui registros com presente=null (dados incompletos não devem influenciar o percentual)
+        List<Presenca> comValor = presencas.stream().filter(p -> p.getPresente() != null).toList();
+        long total = comValor.size();
+        long presentes = comValor.stream().filter(p -> Boolean.TRUE.equals(p.getPresente())).count();
         double percentual = total > 0 ? (presentes * 100.0 / total) : 0;
 
         return ResponseEntity.ok(Map.of(

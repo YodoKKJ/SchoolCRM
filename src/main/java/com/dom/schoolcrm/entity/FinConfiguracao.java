@@ -29,6 +29,10 @@ public class FinConfiguracao {
     @Column(name = "freq_minima", precision = 4, scale = 2)
     private BigDecimal freqMinima;    // padrão 75.0
 
+    // Sentinel que garante apenas um registro na tabela (singleton pattern)
+    @Column(name = "singleton_key", unique = true, nullable = false, length = 8)
+    private String singletonKey = "default";
+
     public Long getId() { return id; }
     public Integer getNumParcelasPadrao() { return numParcelasPadrao; }
     public Integer getDiaVencimentoPadrao() { return diaVencimentoPadrao; }
