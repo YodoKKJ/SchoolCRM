@@ -8,6 +8,7 @@ import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.InputStream;
 import java.math.BigDecimal;
@@ -19,6 +20,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 public class FinRelatorioService {
 
     private static final DateTimeFormatter FMT_DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -150,7 +152,7 @@ public class FinRelatorioService {
 
             if (cr.getContrato() != null && cr.getContrato().getAluno() != null) {
                 Usuario aluno = cr.getContrato().getAluno();
-                alunoNome = aluno.getNome();
+                alunoNome = aluno.getNome() != null ? aluno.getNome() : "-";
                 Long alunoId = aluno.getId();
                 if (!cacheResp.containsKey(alunoId)) {
                     List<FinResponsavelAluno> resps = respRepo.findByAlunoId(alunoId);
@@ -305,10 +307,7 @@ public class FinRelatorioService {
             BigDecimal totalBruto = f.getSalarioBase().add(totalBeneficios);
             totalFolha = totalFolha.add(totalBruto);
 
-            String descBeneficios = beneficiosAtivos.isEmpty() ? "-" :
-                    beneficiosAtivos.stream()
-                            .map(b -> b.getDescricao() != null ? b.getDescricao() : b.getTipo())
-                            .collect(Collectors.joining(", "));
+            String descBeneficios = brl(totalBeneficios);
 
             String carga = f.getCargaHoraria() != null
                     ? f.getCargaHoraria().setScale(0, RoundingMode.HALF_UP) + "h/sem" : "-";

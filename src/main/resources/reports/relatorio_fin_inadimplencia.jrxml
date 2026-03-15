@@ -8,7 +8,7 @@
               orientation="Landscape"
               columnWidth="802" leftMargin="20" rightMargin="20"
               topMargin="15" bottomMargin="15"
-              whenNoDataType="AllSectionsNoDetail">
+              whenNoDataType="NoDataSection">
 
     <style name="default" isDefault="true" fontName="SansSerif" fontSize="7"/>
 

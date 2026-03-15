@@ -120,11 +120,11 @@
             <staticText><reportElement x="336" y="3" width="38"  height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[PARC.]]></text></staticText>
             <staticText><reportElement x="376" y="3" width="62"  height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[VENCIMENTO]]></text></staticText>
             <staticText><reportElement x="440" y="3" width="62"  height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[PAGAMENTO]]></text></staticText>
-            <staticText><reportElement x="504" y="3" width="64"  height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[VALOR]]></text></staticText>
-            <staticText><reportElement x="570" y="3" width="64"  height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[RECEBIDO]]></text></staticText>
-            <staticText><reportElement x="636" y="3" width="64"  height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[SALDO]]></text></staticText>
-            <staticText><reportElement x="700" y="3" width="54"  height="12"/><textElement textAlignment="Center"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[STATUS]]></text></staticText>
-            <staticText><reportElement x="756" y="3" width="46"  height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[FORMA]]></text></staticText>
+            <staticText><reportElement x="504" y="3" width="60"  height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[VALOR]]></text></staticText>
+            <staticText><reportElement x="566" y="3" width="56"  height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[RECEBIDO]]></text></staticText>
+            <staticText><reportElement x="624" y="3" width="50"  height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[SALDO]]></text></staticText>
+            <staticText><reportElement x="676" y="3" width="48"  height="12"/><textElement textAlignment="Center"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[STATUS]]></text></staticText>
+            <staticText><reportElement x="726" y="3" width="76"  height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[FORMA PGTO.]]></text></staticText>
         </band>
     </columnHeader>
 
@@ -162,28 +162,28 @@
                 <textFieldExpression><![CDATA[$F{pagamento}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">
-                <reportElement x="504" y="1" width="64" height="12"/>
+                <reportElement x="504" y="1" width="60" height="12"/>
                 <textElement textAlignment="Right"><font size="7" fontName="SansSerif"/></textElement>
                 <textFieldExpression><![CDATA[$F{valor}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">
-                <reportElement x="570" y="1" width="64" height="12"/>
+                <reportElement x="566" y="1" width="56" height="12"/>
                 <textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement>
                 <textFieldExpression><![CDATA[$F{valorPago}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">
-                <reportElement x="636" y="1" width="64" height="12"/>
+                <reportElement x="624" y="1" width="50" height="12"/>
                 <textElement textAlignment="Right"><font size="7" fontName="SansSerif"/></textElement>
                 <textFieldExpression><![CDATA[$F{saldo}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">
-                <reportElement x="700" y="1" width="54" height="12" style="statusStyle"/>
+                <reportElement x="676" y="1" width="48" height="12" style="statusStyle"/>
                 <textElement textAlignment="Center"><font size="7" fontName="SansSerif"/></textElement>
                 <textFieldExpression><![CDATA[$F{status}]]></textFieldExpression>
             </textField>
             <textField isStretchWithOverflow="true" isBlankWhenNull="true">
-                <reportElement x="756" y="1" width="46" height="12" forecolor="#888888"/>
-                <textElement textAlignment="Right"><font size="6" fontName="SansSerif"/></textElement>
+                <reportElement x="726" y="1" width="76" height="12" forecolor="#888888"/>
+                <textElement textAlignment="Right"><font size="7" fontName="SansSerif"/></textElement>
                 <textFieldExpression><![CDATA[$F{formaPagamento}]]></textFieldExpression>
             </textField>
             <line>
