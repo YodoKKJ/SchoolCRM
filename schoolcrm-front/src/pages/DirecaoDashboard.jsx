@@ -6164,11 +6164,7 @@ function FinRelatorios() {
             }
             const blob = await resp.blob();
             const objUrl = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = objUrl;
-            a.download = modalRel.filename;
-            a.click();
-            URL.revokeObjectURL(objUrl);
+            window.open(objUrl, "_blank");
             fecharModal();
         } catch (e) {
             setErro(e.message || "Erro ao gerar relatório.");
