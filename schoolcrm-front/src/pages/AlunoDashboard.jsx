@@ -735,7 +735,8 @@ export default function AlunoDashboard() {
     const logout = () => { localStorage.clear(); window.location.href = "/"; };
 
     useEffect(() => {
-      api.get('/fin/configuracoes')
+      // /notas/config expõe apenas mediaMinima e freqMinima (sem dados financeiros sensíveis)
+      api.get('/notas/config')
         .then(r => setConfig({ mediaMinima: Number(r.data.mediaMinima) || 6.0, freqMinima: Number(r.data.freqMinima) || 75.0 }))
         .catch(() => {}); // fallback to defaults silently
     }, []);

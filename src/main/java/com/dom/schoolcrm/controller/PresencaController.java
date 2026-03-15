@@ -3,6 +3,8 @@ package com.dom.schoolcrm.controller;
 import com.dom.schoolcrm.entity.*;
 import com.dom.schoolcrm.repository.*;
 import java.util.LinkedHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +19,8 @@ import java.util.*;
 @RestController
 @RequestMapping("/presencas")
 public class PresencaController {
+
+    private static final Logger log = LoggerFactory.getLogger(PresencaController.class);
 
     @Autowired
     private PresencaRepository presencaRepository;
@@ -98,8 +102,9 @@ public class PresencaController {
             presenca.setHorarioInicio(horarioInicio);
             presencaRepository.save(presenca);
         } catch (Exception e) {
+            log.error("Erro ao salvar presença aluno={} turma={} materia={}: {}", alunoId, turmaId, materiaId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro ao salvar presença: " + e.getMessage());
+                    .body("Erro ao salvar presença. Tente novamente ou contate o suporte.");
         }
 
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -128,8 +133,10 @@ public class PresencaController {
         List<Presenca> presencas = presencaRepository
                 .findByAlunoIdAndTurmaIdAndMateriaId(alunoId, turmaId, materiaId);
 
-        long total = presencas.size();
-        long presentes = presencas.stream().filter(p -> Boolean.TRUE.equals(p.getPresente())).count();
+        // Exclui registros com presente=null (dados incompletos não devem influenciar o percentual)
+        List<Presenca> comValor = presencas.stream().filter(p -> p.getPresente() != null).toList();
+        long total = comValor.size();
+        long presentes = comValor.stream().filter(p -> Boolean.TRUE.equals(p.getPresente())).count();
         double percentual = total > 0 ? (presentes * 100.0 / total) : 0;
 
         return ResponseEntity.ok(Map.of(
@@ -179,8 +186,10 @@ public class PresencaController {
         List<Presenca> presencas = presencaRepository
                 .findByAlunoIdAndTurmaIdAndMateriaId(aluno.get().getId(), turmaId, materiaId);
 
-        long total = presencas.size();
-        long presentes = presencas.stream().filter(p -> Boolean.TRUE.equals(p.getPresente())).count();
+        // Exclui registros com presente=null (dados incompletos não devem influenciar o percentual)
+        List<Presenca> comValor = presencas.stream().filter(p -> p.getPresente() != null).toList();
+        long total = comValor.size();
+        long presentes = comValor.stream().filter(p -> Boolean.TRUE.equals(p.getPresente())).count();
         double percentual = total > 0 ? (presentes * 100.0 / total) : 0;
 
         return ResponseEntity.ok(Map.of(

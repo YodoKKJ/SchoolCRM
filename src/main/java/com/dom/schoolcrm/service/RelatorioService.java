@@ -5,6 +5,7 @@ import com.dom.schoolcrm.dto.relatorio.TurmaJasperRowDTO;
 import com.dom.schoolcrm.dto.relatorio.TurmaSituacaoRowDTO;
 import com.dom.schoolcrm.entity.*;
 import com.dom.schoolcrm.repository.*;
+import com.dom.schoolcrm.service.FinConfiguracaoService;
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,21 +30,12 @@ public class RelatorioService {
     @Autowired private UsuarioRepository usuarioRepository;
     @Autowired private TurmaRepository turmaRepository;
     @Autowired private AlunoTurmaRepository alunoTurmaRepository;
-    @Autowired private FinConfiguracaoRepository finConfiguracaoRepository;
+    @Autowired private FinConfiguracaoService configuracaoService;
 
-    // ─── Thresholds configuráveis ────────────────────────────────────────
+    // ─── Thresholds configuráveis (via cache — evita N findAll() por requisição) ──
 
-    private double getMediaMinima() {
-        return finConfiguracaoRepository.findAll().stream().findFirst()
-                .map(c -> c.getMediaMinima() != null ? c.getMediaMinima().doubleValue() : 6.0)
-                .orElse(6.0);
-    }
-
-    private double getFreqMinima() {
-        return finConfiguracaoRepository.findAll().stream().findFirst()
-                .map(c -> c.getFreqMinima() != null ? c.getFreqMinima().doubleValue() : 75.0)
-                .orElse(75.0);
-    }
+    private double getMediaMinima() { return configuracaoService.getMediaMinima(); }
+    private double getFreqMinima()  { return configuracaoService.getFreqMinima(); }
 
     // ─── Boletim individual ───────────────────────────────────────────────
 
