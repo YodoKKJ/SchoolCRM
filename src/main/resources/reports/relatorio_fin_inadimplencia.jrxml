@@ -145,8 +145,8 @@
                 <textElement><font size="7" fontName="SansSerif"/></textElement>
                 <textFieldExpression><![CDATA[$F{vencimento}]]></textFieldExpression>
             </textField>
-            <textField isBlankWhenNull="true" style="diasStyle">
-                <reportElement x="592" y="1" width="44" height="12"/>
+            <textField isBlankWhenNull="true">
+                <reportElement x="592" y="1" width="44" height="12" style="diasStyle"/>
                 <textElement textAlignment="Center"><font size="7" fontName="SansSerif"/></textElement>
                 <textFieldExpression><![CDATA[$F{diasAtraso}]]></textFieldExpression>
             </textField>

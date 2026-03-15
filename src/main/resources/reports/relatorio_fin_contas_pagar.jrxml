@@ -165,8 +165,8 @@
                 <textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement>
                 <textFieldExpression><![CDATA[$F{valorPago}]]></textFieldExpression>
             </textField>
-            <textField isBlankWhenNull="true" style="statusStyle">
-                <reportElement x="688" y="1" width="112" height="12"/>
+            <textField isBlankWhenNull="true">
+                <reportElement x="688" y="1" width="112" height="12" style="statusStyle"/>
                 <textElement textAlignment="Right"><font size="7" fontName="SansSerif"/></textElement>
                 <textFieldExpression><![CDATA[$F{status}]]></textFieldExpression>
             </textField>

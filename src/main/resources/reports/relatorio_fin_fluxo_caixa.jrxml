@@ -126,8 +126,8 @@
                 <textElement><font size="7" fontName="SansSerif"/></textElement>
                 <textFieldExpression><![CDATA[$F{descricao}]]></textFieldExpression>
             </textField>
-            <textField isBlankWhenNull="true" style="tipoStyle">
-                <reportElement x="334" y="1" width="60" height="12"/>
+            <textField isBlankWhenNull="true">
+                <reportElement x="334" y="1" width="60" height="12" style="tipoStyle"/>
                 <textElement><font size="7" fontName="SansSerif"/></textElement>
                 <textFieldExpression><![CDATA[$F{tipo}]]></textFieldExpression>
             </textField>
@@ -141,8 +141,8 @@
                 <textElement><font size="7" fontName="SansSerif"/></textElement>
                 <textFieldExpression><![CDATA[$F{categoria}]]></textFieldExpression>
             </textField>
-            <textField isBlankWhenNull="true" style="tipoStyle">
-                <reportElement x="570" y="1" width="110" height="12"/>
+            <textField isBlankWhenNull="true">
+                <reportElement x="570" y="1" width="110" height="12" style="tipoStyle"/>
                 <textElement textAlignment="Right"><font size="7" fontName="SansSerif"/></textElement>
                 <textFieldExpression><![CDATA[$F{valor}]]></textFieldExpression>
             </textField>
