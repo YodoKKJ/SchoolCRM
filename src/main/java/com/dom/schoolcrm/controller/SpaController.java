@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 @Controller
 public class SpaController implements ErrorController {
 
-    @RequestMapping(value = {"/direcao", "/professor", "/aluno"})
+    @RequestMapping(value = {"/direcao", "/professor", "/aluno", "/escola"})
     public String handleSpaRoutes() {
         return "forward:/index.html";
     }

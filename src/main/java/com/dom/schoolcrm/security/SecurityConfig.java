@@ -117,7 +117,9 @@ public class SecurityConfig {
                 // Rotas SPA do React — navegação do browser não carrega JWT header
                 new AntPathRequestMatcher("/direcao"),
                 new AntPathRequestMatcher("/professor"),
-                new AntPathRequestMatcher("/aluno")
+                new AntPathRequestMatcher("/aluno"),
+                // Landing page pública da escola — sem autenticação
+                new AntPathRequestMatcher("/escola")
         );
     }
 
