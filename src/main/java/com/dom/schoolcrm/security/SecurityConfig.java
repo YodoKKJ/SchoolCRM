@@ -7,6 +7,7 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -26,6 +27,7 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(proxyTargetClass = true)
+@EnableCaching
 public class SecurityConfig {
 
     @Autowired
@@ -49,7 +51,10 @@ public class SecurityConfig {
                         // 🔓 Preflight CORS
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // 🔒 Módulo financeiro — exclusivo para DIRECAO (redundante com @PreAuthorize, mas garante proteção mesmo se anotação for esquecida)
+                        // 🔓 Config acadêmica (mediaMinima/freqMinima) — acessível a todos os usuários autenticados
+                        .requestMatchers(HttpMethod.GET, "/notas/config").authenticated()
+                        // 🔒 Módulo financeiro — /fin/configuracoes restrito a DIRECAO/COORDENACAO (contém dados financeiros sensíveis)
+                        .requestMatchers(HttpMethod.GET, "/fin/configuracoes").hasAnyRole("DIRECAO", "COORDENACAO")
                         .requestMatchers("/fin/**").hasRole("DIRECAO")
 
                         // 🔒 Regras específicas

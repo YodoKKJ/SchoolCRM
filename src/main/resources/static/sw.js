@@ -1,4 +1,4 @@
-const CACHE = 'domgestao-v2';
+const CACHE = 'domgestao-v3';
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -25,7 +25,8 @@ self.addEventListener('fetch', event => {
     if (isApi) return;
 
     // Network-first for index.html: always fetch the latest so new bundle hashes load correctly
-    const isHtml = url.pathname === '/' || url.pathname.endsWith('.html');
+    const isHtml = url.pathname === '/' || url.pathname.endsWith('.html') ||
+               url.pathname === '/aluno' || url.pathname === '/direcao' || url.pathname === '/professor';
     if (isHtml) {
         event.respondWith(
             fetch(event.request)

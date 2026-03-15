@@ -201,7 +201,7 @@ const modulos = [
         items: [
             { id: "usuarios",     label: "Usuários",      icon: Users },
             { id: "comunicados",  label: "Comunicados",   icon: Megaphone },
-            { id: "fin-config",   label: "Configurações", icon: Settings },
+            { id: "fin-config",   label: "Configurações", icon: Settings, direcaoOnly: true },
             { id: "auditoria",    label: "Auditoria",     icon: Shield, direcaoOnly: true },
         ]
     },
@@ -635,13 +635,13 @@ export default function DirecaoDashboard() {
         ? modulos.filter(m => m.id !== "financeiro")
         : modulos;
 
-    // Se por algum motivo a aba ativa for financeira e o usuário for COORDENACAO, redireciona para início
-    const FIN_ABAS = ["fin-dashboard","fin-pessoas","fin-funcionarios","fin-contratos","fin-pagar","fin-movimentacoes"];
+    // Se por algum motivo a aba ativa for restrita e o usuário for COORDENACAO, redireciona para início
+    const COORD_BLOQUEADAS = ["fin-dashboard","fin-pessoas","fin-funcionarios","fin-contratos","fin-pagar","fin-movimentacoes","fin-config","auditoria"];
     const setAbaSegura = (id) => {
-        if (isCoord && FIN_ABAS.includes(id)) return;
+        if (isCoord && COORD_BLOQUEADAS.includes(id)) return;
         setAba(id);
     };
-    if (isCoord && FIN_ABAS.includes(aba)) { setAba("inicio"); }
+    if (isCoord && COORD_BLOQUEADAS.includes(aba)) { setAba("inicio"); }
 
     const anoAtual = new Date().getFullYear();
     const [anoLetivo, setAnoLetivo] = useState(anoAtual);
@@ -779,7 +779,7 @@ export default function DirecaoDashboard() {
                         {aba === "fin-contratos"    && <ErrorBoundary key="fin-contratos"><FinContratos anoLetivo={anoLetivo} /></ErrorBoundary>}
                         {aba === "fin-pagar"        && <ErrorBoundary key="fin-pagar"><FinContasPagar /></ErrorBoundary>}
                         {aba === "fin-movimentacoes" && <ErrorBoundary key="fin-movimentacoes"><FinMovimentacoes /></ErrorBoundary>}
-                        {aba === "fin-config"       && <ErrorBoundary key="fin-config"><FinConfiguracoes anoLetivo={anoLetivo} /></ErrorBoundary>}
+                        {aba === "fin-config"       && !isCoord && <ErrorBoundary key="fin-config"><FinConfiguracoes anoLetivo={anoLetivo} /></ErrorBoundary>}
                         {aba === "comunicados"      && <ErrorBoundary key="comunicados"><Comunicados /></ErrorBoundary>}
                         {aba === "auditoria"        && !isCoord && <ErrorBoundary key="auditoria"><AuditLog /></ErrorBoundary>}
                     </main>

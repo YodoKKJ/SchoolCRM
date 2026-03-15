@@ -177,7 +177,7 @@ const DIAS = ["SEG", "TER", "QUA", "QUI", "SEX"];
 const DIA_LABEL = { SEG: "Segunda-feira", TER: "Terça-feira", QUA: "Quarta-feira", QUI: "Quinta-feira", SEX: "Sexta-feira" };
 
 // ── Seção: Início ─────────────────────────────────────────────────────────────
-function Inicio({ vinculos, notas, turmaId }) {
+function Inicio({ vinculos, notas, turmaId, config = { mediaMinima: 6.0, freqMinima: 75.0 } }) {
     const porMateria = agruparPorMateria(notas);
     const [frequencias, setFrequencias] = useState({});
     const [proximas, setProximas] = useState([]);
@@ -214,14 +214,14 @@ function Inicio({ vinculos, notas, turmaId }) {
 
     const situacaoMateria = (media, freq) => {
         if (media === null) return { label:"Em Curso", color:"#9aaa9f", bg:"#f5f7f5" };
-        if (freq !== null && freq < 75) return { label:"Freq. Insuficiente", color:"#b94040", bg:"#fdf0f0" };
-        if (media < 6) return { label:"Reprovado", color:"#b94040", bg:"#fdf0f0" };
+        if (freq !== null && freq < config.freqMinima) return { label:"Freq. Insuficiente", color:"#b94040", bg:"#fdf0f0" };
+        if (media < config.mediaMinima) return { label:"Reprovado", color:"#b94040", bg:"#fdf0f0" };
         return { label:"Aprovado", color:"#3a7a5a", bg:"#f0f5f2" };
     };
 
     const { label: sitLabel, color: sitColor } = (() => {
         if (!mediasArr.length) return { label:"Em Curso", color:"#9aaa9f" };
-        if (freqVals.some(f => f < 75) || mediasArr.some(m => m < 6))
+        if (freqVals.some(f => f < config.freqMinima) || mediasArr.some(m => m < config.mediaMinima))
             return { label:"Em Risco", color:"#b94040" };
         return { label:"Aprovando", color:"#3a7a5a" };
     })();
@@ -236,8 +236,8 @@ function Inicio({ vinculos, notas, turmaId }) {
                     <div className="ad-card-num">{mediaGeral !== null ? fmt(mediaGeral) : "—"}</div>
                     <div className="ad-card-label">Média Geral</div>
                 </div>
-                <div className="ad-card" style={{ "--accent": freqMedia !== null && freqMedia < 75 ? "#e63946" : "#52b69a" }}>
-                    <div className="ad-card-num" style={{ color: freqMedia !== null && freqMedia < 75 ? "#e63946" : undefined }}>
+                <div className="ad-card" style={{ "--accent": freqMedia !== null && freqMedia < config.freqMinima ? "#e63946" : "#52b69a" }}>
+                    <div className="ad-card-num" style={{ color: freqMedia !== null && freqMedia < config.freqMinima ? "#e63946" : undefined }}>
                         {freqMedia !== null ? `${fmt(freqMedia)}%` : carregando ? "..." : "—"}
                     </div>
                     <div className="ad-card-label">Frequência Geral</div>
@@ -257,7 +257,7 @@ function Inicio({ vinculos, notas, turmaId }) {
                 <div className="ad-section">
                     <div className="ad-section-header">
                         <span className="ad-section-title">Situação por Matéria</span>
-                        <span className="ad-section-count">Aprovação: média ≥ 6.0 e freq. ≥ 75%</span>
+                        <span className="ad-section-count">{`Aprovação: média ≥ ${config.mediaMinima} e freq. ≥ ${config.freqMinima}%`}</span>
                     </div>
                     <div className="ad-table-wrap">
                         <table className="ad-table">
@@ -361,7 +361,7 @@ function Inicio({ vinculos, notas, turmaId }) {
 }
 
 // ── Seção: Boletim ────────────────────────────────────────────────────────────
-function Boletim({ notas, turmaId }) {
+function Boletim({ notas, turmaId, config = { mediaMinima: 6.0, freqMinima: 75.0 } }) {
     const porMateria = agruparPorMateria(notas);
     const [baixando, setBaixando] = useState(false);
     const [erroPdf, setErroPdf] = useState(null);
@@ -420,9 +420,9 @@ function Boletim({ notas, turmaId }) {
             {Object.values(porMateria).map(({ materia, notas: nts }, idx) => {
                 const media = mediaMateria(nts);
                 const accent = CORES_MATERIA[idx % CORES_MATERIA.length];
-                const sitColor = media === null ? "#9aaa9f" : media >= 6 ? "#3a7a5a" : "#b94040";
-                const sitLabel = media === null ? "Em Curso" : media >= 6 ? "Aprovado" : "Reprovado";
-                const sitBg    = media === null ? "#f5f7f5" : media >= 6 ? "#f0f5f2" : "#fdf0f0";
+                const sitColor = media === null ? "#9aaa9f" : media >= config.mediaMinima ? "#3a7a5a" : "#b94040";
+                const sitLabel = media === null ? "Em Curso" : media >= config.mediaMinima ? "Aprovado" : "Reprovado";
+                const sitBg    = media === null ? "#f5f7f5" : media >= config.mediaMinima ? "#f0f5f2" : "#fdf0f0";
                 const aberta   = expandidas.has(materia.id);
                 return (
                     <div key={materia.id} className="ad-section" style={{ borderTop:`2px solid ${accent}`, overflow:"hidden" }}>
@@ -520,7 +520,7 @@ function Boletim({ notas, turmaId }) {
 }
 
 // ── Seção Frequência ──────────────────────────────────────────────
-function Frequencia({ notas, turmaId }) {
+function Frequencia({ notas, turmaId, config = { mediaMinima: 6.0, freqMinima: 75.0 } }) {
     const [frequencias, setFrequencias] = useState({});
     const [carregando, setCarregando] = useState(false);
 
@@ -550,7 +550,7 @@ function Frequencia({ notas, turmaId }) {
         <div className="ad-section">
             <div className="ad-section-header">
                 <span className="ad-section-title">Frequência por Matéria</span>
-                <span className="ad-section-count">Mínimo: 75%</span>
+                <span className="ad-section-count">{`Mínimo: ${config.freqMinima}%`}</span>
             </div>
             <div className="ad-table-wrap">
                 <table className="ad-table">
@@ -576,7 +576,7 @@ function Frequencia({ notas, turmaId }) {
                                     <td>
                                         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                                             <div style={{ width:72, height:6, background:"#eaeef2", borderRadius:3, overflow:"hidden" }}>
-                                                <div style={{ height:"100%", width:`${Math.min(pct,100)}%`, background: pct>=75?"#7ec8a0":pct>=60?"#e9c46a":"#e63946", borderRadius:3, transition:"width .4s" }} />
+                                                <div style={{ height:"100%", width:`${Math.min(pct,100)}%`, background: pct>=config.freqMinima?"#7ec8a0":pct>=60?"#e9c46a":"#e63946", borderRadius:3, transition:"width .4s" }} />
                                             </div>
                                             <span style={{ fontSize:12, fontWeight:600, color:corFreq(pct), minWidth:36 }}>
                                                 {fmt(pct)}%
@@ -585,7 +585,7 @@ function Frequencia({ notas, turmaId }) {
                                     </td>
                                     <td>
                                         <span className="ad-badge" style={{ color:corFreq(pct), background:bgFreq(pct) }}>
-                                            {pct>=75?"Regular":pct>=60?"Atenção":"Irregular"}
+                                            {pct>=config.freqMinima?"Regular":pct>=60?"Atenção":"Irregular"}
                                         </span>
                                     </td>
                                 </tr>
@@ -730,8 +730,16 @@ export default function AlunoDashboard() {
     const [vinculos, setVinculos] = useState([]);
     const [notas, setNotas] = useState([]);
     const [anoSelecionado, setAnoSelecionado] = useState(null);
+    const [config, setConfig] = useState({ mediaMinima: 6.0, freqMinima: 75.0 });
     const nome = localStorage.getItem("nome") || "Aluno";
     const logout = () => { localStorage.clear(); window.location.href = "/"; };
+
+    useEffect(() => {
+      // /notas/config expõe apenas mediaMinima e freqMinima (sem dados financeiros sensíveis)
+      api.get('/notas/config')
+        .then(r => setConfig({ mediaMinima: Number(r.data.mediaMinima) || 6.0, freqMinima: Number(r.data.freqMinima) || 75.0 }))
+        .catch(() => {}); // fallback to defaults silently
+    }, []);
 
     useEffect(() => {
         api.get("/vinculos/aluno-turma/minhas")
@@ -852,9 +860,9 @@ export default function AlunoDashboard() {
                                 ))}
                             </div>
                         )}
-                        {aba === "inicio"      && <Inicio vinculos={vinculosAno} notas={notasAno} turmaId={turmaIdAno} />}
-                        {aba === "boletim"     && <Boletim notas={notasAno} turmaId={turmaIdAno} />}
-                        {aba === "frequencia"  && <Frequencia notas={notasAno} turmaId={turmaIdAno} />}
+                        {aba === "inicio"      && <Inicio vinculos={vinculosAno} notas={notasAno} turmaId={turmaIdAno} config={config} />}
+                        {aba === "boletim"     && <Boletim notas={notasAno} turmaId={turmaIdAno} config={config} />}
+                        {aba === "frequencia"  && <Frequencia notas={notasAno} turmaId={turmaIdAno} config={config} />}
                         {aba === "horarios"    && <Horarios />}
                         {aba === "comunicados" && <ComunicadosAluno />}
                     </main>

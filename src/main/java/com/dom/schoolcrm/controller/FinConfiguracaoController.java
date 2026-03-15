@@ -1,7 +1,7 @@
 package com.dom.schoolcrm.controller;
 
 import com.dom.schoolcrm.entity.FinConfiguracao;
-import com.dom.schoolcrm.repository.FinConfiguracaoRepository;
+import com.dom.schoolcrm.service.FinConfiguracaoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -13,30 +13,26 @@ import java.util.Map;
 /**
  * Configurações globais do módulo financeiro.
  * Existe sempre um único registro (singleton) — GET retorna ou cria com defaults,
- * PUT atualiza os valores.
+ * PUT atualiza os valores e evict o cache automaticamente via FinConfiguracaoService.
  */
 @RestController
 @RequestMapping("/fin/configuracoes")
-@PreAuthorize("hasRole('DIRECAO')")
 public class FinConfiguracaoController {
 
     @Autowired
-    private FinConfiguracaoRepository repository;
+    private FinConfiguracaoService configuracaoService;
 
-    // Retorna a config atual; cria com valores padrão se ainda não existir
+    // Retorna a config atual (cached) — restrito a DIRECAO/COORDENACAO (dados financeiros sensíveis)
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     @GetMapping
     public ResponseEntity<FinConfiguracao> obter() {
-        FinConfiguracao config = repository.findAll()
-                .stream().findFirst()
-                .orElseGet(this::criarDefault);
-        return ResponseEntity.ok(config);
+        return ResponseEntity.ok(configuracaoService.getConfig());
     }
 
+    @PreAuthorize("hasRole('DIRECAO')")
     @PutMapping
     public ResponseEntity<?> salvar(@RequestBody Map<String, Object> body) {
-        FinConfiguracao config = repository.findAll()
-                .stream().findFirst()
-                .orElseGet(FinConfiguracao::new);
+        FinConfiguracao config = configuracaoService.getConfig();
 
         if (body.containsKey("numParcelasPadrao")) {
             config.setNumParcelasPadrao(((Number) body.get("numParcelasPadrao")).intValue());
@@ -69,17 +65,7 @@ public class FinConfiguracaoController {
             config.setFreqMinima(fm);
         }
 
-        return ResponseEntity.ok(repository.save(config));
-    }
-
-    private FinConfiguracao criarDefault() {
-        FinConfiguracao config = new FinConfiguracao();
-        config.setNumParcelasPadrao(12);
-        config.setDiaVencimentoPadrao(10);
-        config.setJurosAtrasoPct(new BigDecimal("1.00"));
-        config.setMultaAtrasoPct(new BigDecimal("2.00"));
-        config.setMediaMinima(new BigDecimal("6.00"));
-        config.setFreqMinima(new BigDecimal("75.00"));
-        return repository.save(config);
+        // save() via serviço evict o cache automaticamente
+        return ResponseEntity.ok(configuracaoService.save(config));
     }
 }

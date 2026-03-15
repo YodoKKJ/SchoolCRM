@@ -129,6 +129,21 @@ public class SchemaMigration {
             jdbcTemplate.execute("ALTER TABLE fin_configuracoes ADD COLUMN IF NOT EXISTS freq_minima NUMERIC(4,2) DEFAULT 75.0;");
         } catch (Exception ignored) {}
 
+        // Bug fix: garante singleton em fin_configuracoes — remove duplicatas e adiciona constraint única
+        try {
+            // Remove duplicatas mantendo apenas o registro com menor id
+            jdbcTemplate.execute("DELETE FROM fin_configuracoes WHERE id NOT IN (SELECT MIN(id) FROM fin_configuracoes);");
+        } catch (Exception ignored) {}
+        try {
+            jdbcTemplate.execute("ALTER TABLE fin_configuracoes ADD COLUMN IF NOT EXISTS singleton_key VARCHAR(8) NOT NULL DEFAULT 'default';");
+        } catch (Exception ignored) {}
+        try {
+            jdbcTemplate.execute("UPDATE fin_configuracoes SET singleton_key = 'default' WHERE singleton_key IS NULL OR singleton_key = '';");
+        } catch (Exception ignored) {}
+        try {
+            jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_fin_configuracoes_singleton ON fin_configuracoes(singleton_key);");
+        } catch (Exception ignored) {}
+
         // Feature 12: Log de auditoria
         try {
             jdbcTemplate.execute("""
@@ -147,6 +162,26 @@ public class SchemaMigration {
         } catch (Exception ignored) {}
         try {
             jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(timestamp);");
+        } catch (Exception ignored) {}
+
+        // Performance: índices compostos para queries frequentes
+        try {
+            jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_presencas_aluno_turma_materia ON presencas(aluno_id, turma_id, materia_id);");
+        } catch (Exception ignored) {}
+        try {
+            jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_presencas_turma_materia ON presencas(turma_id, materia_id);");
+        } catch (Exception ignored) {}
+        try {
+            jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_presencas_aluno_turma ON presencas(aluno_id, turma_id);");
+        } catch (Exception ignored) {}
+        try {
+            jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_notas_aluno_id ON notas(aluno_id);");
+        } catch (Exception ignored) {}
+        try {
+            jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_aluno_turma_turma_id ON aluno_turma(turma_id);");
+        } catch (Exception ignored) {}
+        try {
+            jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_aluno_turma_aluno_id ON aluno_turma(aluno_id);");
         } catch (Exception ignored) {}
     }
 }
