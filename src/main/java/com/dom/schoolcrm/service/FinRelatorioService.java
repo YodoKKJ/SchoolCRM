@@ -344,7 +344,7 @@ public class FinRelatorioService {
         InputStream is = getClass().getResourceAsStream(path);
         if (is == null) throw new IllegalStateException("Template não encontrado: " + path);
         JasperReport compiled = JasperCompileManager.compileReport(is);
-        JRBeanCollectionDataSource ds = new JRBeanCollectionDataSource(dados.isEmpty() ? List.of(new Object()) : dados);
+        JRBeanCollectionDataSource ds = new JRBeanCollectionDataSource(dados);
         JasperPrint print = JasperFillManager.fillReport(compiled, params, ds);
         return JasperExportManager.exportReportToPdf(print);
     }
