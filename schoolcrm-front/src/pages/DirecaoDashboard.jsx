@@ -215,6 +215,7 @@ const modulos = [
             { id: "fin-contratos",     label: "Contratos / CR",   icon: Receipt },
             { id: "fin-pagar",         label: "Contas a Pagar",   icon: TrendingDown },
             { id: "fin-movimentacoes", label: "Movimentações",    icon: ArrowLeftRight },
+            { id: "fin-relatorios",    label: "Relatórios Fin.",   icon: FileText },
         ]
     },
     {
@@ -779,6 +780,7 @@ export default function DirecaoDashboard() {
                         {aba === "fin-contratos"    && <ErrorBoundary key="fin-contratos"><FinContratos anoLetivo={anoLetivo} /></ErrorBoundary>}
                         {aba === "fin-pagar"        && <ErrorBoundary key="fin-pagar"><FinContasPagar /></ErrorBoundary>}
                         {aba === "fin-movimentacoes" && <ErrorBoundary key="fin-movimentacoes"><FinMovimentacoes /></ErrorBoundary>}
+                        {aba === "fin-relatorios"    && <ErrorBoundary key="fin-relatorios"><FinRelatorios /></ErrorBoundary>}
                         {aba === "fin-config"       && !isCoord && <ErrorBoundary key="fin-config"><FinConfiguracoes anoLetivo={anoLetivo} /></ErrorBoundary>}
                         {aba === "comunicados"      && <ErrorBoundary key="comunicados"><Comunicados /></ErrorBoundary>}
                         {aba === "auditoria"        && !isCoord && <ErrorBoundary key="auditoria"><AuditLog /></ErrorBoundary>}
@@ -6082,6 +6084,286 @@ function FinMovimentacoes() {
                                 <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando?"Salvando...":"Registrar"}</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ---- FIN RELATORIOS ----
+const FIN_RELATORIOS_LIST = [
+    {
+        id: 1,
+        descricao: "Contas a Receber por Período",
+        filtros: ["periodo", "status_cr", "tipo_cr"],
+        endpoint: (f) => `/relatorios/financeiro/contas-receber?de=${f.de}&ate=${f.ate}${f.status ? `&status=${f.status}` : ""}${f.tipo ? `&tipo=${f.tipo}` : ""}`,
+        filename: "contas_receber.pdf",
+    },
+    {
+        id: 2,
+        descricao: "Contas a Pagar por Período",
+        filtros: ["periodo", "status_cp", "tipo_cp", "categoria_cp"],
+        endpoint: (f) => `/relatorios/financeiro/contas-pagar?de=${f.de}&ate=${f.ate}${f.status ? `&status=${f.status}` : ""}${f.tipo ? `&tipo=${f.tipo}` : ""}${f.categoria ? `&categoria=${f.categoria}` : ""}`,
+        filename: "contas_pagar.pdf",
+    },
+    {
+        id: 3,
+        descricao: "Inadimplência",
+        filtros: ["data_base"],
+        endpoint: (f) => `/relatorios/financeiro/inadimplencia${f.dataBase ? `?dataBase=${f.dataBase}` : ""}`,
+        filename: "inadimplencia.pdf",
+    },
+    {
+        id: 4,
+        descricao: "Fluxo de Caixa",
+        filtros: ["periodo"],
+        endpoint: (f) => `/relatorios/financeiro/fluxo-caixa?de=${f.de}&ate=${f.ate}`,
+        filename: "fluxo_caixa.pdf",
+    },
+    {
+        id: 5,
+        descricao: "Folha de Pagamento",
+        filtros: ["mes_referencia"],
+        endpoint: (f) => `/relatorios/financeiro/folha-pagamento?mes=${f.mes}`,
+        filename: "folha_pagamento.pdf",
+    },
+];
+
+function FinRelatorios() {
+    const [modalRel, setModalRel]   = useState(null); // relatório selecionado
+    const [filtros, setFiltros]     = useState({});
+    const [carregando, setCarregando] = useState(false);
+    const [erro, setErro]           = useState(null);
+
+    // defaults ao abrir modal
+    const abrirModal = (rel) => {
+        const hoje = new Date().toISOString().slice(0, 10);
+        const primeiroDiaMes = hoje.slice(0, 7) + "-01";
+        const mesAtual = hoje.slice(0, 7);
+        setFiltros({ de: primeiroDiaMes, ate: hoje, dataBase: hoje, mes: mesAtual });
+        setErro(null);
+        setModalRel(rel);
+    };
+
+    const fecharModal = () => { setModalRel(null); setErro(null); };
+
+    const set = (k, v) => setFiltros(prev => ({ ...prev, [k]: v }));
+
+    const gerarPDF = async () => {
+        if (!modalRel) return;
+        setCarregando(true);
+        setErro(null);
+        try {
+            const token = localStorage.getItem("token");
+            const url = modalRel.endpoint(filtros);
+            const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+            if (!resp.ok) {
+                const txt = await resp.text();
+                throw new Error(txt || `Erro ${resp.status}`);
+            }
+            const blob = await resp.blob();
+            const objUrl = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = objUrl;
+            a.download = modalRel.filename;
+            a.click();
+            URL.revokeObjectURL(objUrl);
+            fecharModal();
+        } catch (e) {
+            setErro(e.message || "Erro ao gerar relatório.");
+        } finally {
+            setCarregando(false);
+        }
+    };
+
+    const temFiltro = (nome) => modalRel?.filtros?.includes(nome);
+
+    return (
+        <div>
+            <style>{`
+                .fin-rel-table { width:100%; border-collapse:collapse; }
+                .fin-rel-table th { font-size:10px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:#9aaa9f; padding:10px 20px; text-align:left; background:#f8faf8; border-bottom:1px solid #eaeef2; }
+                .fin-rel-table td { padding:12px 20px; border-bottom:1px solid #f2f5f2; font-size:13px; color:#2a3a2e; }
+                .fin-rel-table tr:last-child td { border-bottom:none; }
+                .fin-rel-table tr:hover td { background:#fafcfa; }
+                .fin-rel-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000; display:flex; align-items:center; justify-content:center; }
+                .fin-rel-modal { background:#fff; border-radius:6px; padding:28px 32px; min-width:420px; max-width:580px; width:100%; box-shadow:0 8px 32px rgba(0,0,0,.18); position:relative; }
+                .fin-rel-modal h3 { font-size:16px; font-weight:600; color:#0d1f18; margin:0 0 20px; }
+                .fin-rel-field { margin-bottom:14px; }
+                .fin-rel-field label { display:block; font-size:11px; font-weight:500; color:#5a6a60; margin-bottom:5px; letter-spacing:.04em; text-transform:uppercase; }
+                .fin-rel-field input, .fin-rel-field select { width:100%; padding:8px 10px; border:1px solid #d0d8d4; border-radius:4px; font-size:13px; color:#0d1f18; background:#fff; }
+                .fin-rel-field input:focus, .fin-rel-field select:focus { outline:none; border-color:#7ec8a0; }
+                .fin-rel-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+                .fin-rel-btn-primary { background:#0d1f18; color:#fff; border:none; padding:9px 22px; border-radius:4px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; }
+                .fin-rel-btn-primary:hover { background:#1a3a28; }
+                .fin-rel-btn-primary:disabled { opacity:.5; cursor:default; }
+                .fin-rel-btn-cancel { background:transparent; color:#888; border:1px solid #d0d8d4; padding:9px 18px; border-radius:4px; font-size:13px; cursor:pointer; }
+                .fin-rel-btn-cancel:hover { background:#f5f5f5; }
+                .fin-rel-icon-btn { background:#0d1f18; border:none; width:32px; height:32px; border-radius:4px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+                .fin-rel-icon-btn:hover { background:#1a3a28; }
+            `}</style>
+
+            <div className="dd-section" style={{ marginBottom: 24 }}>
+                <div className="dd-section-header">
+                    <span className="dd-section-title">Relatórios Financeiros</span>
+                    <span className="dd-section-count">{FIN_RELATORIOS_LIST.length} relatório(s)</span>
+                </div>
+                <table className="fin-rel-table">
+                    <thead>
+                        <tr>
+                            <th style={{ width: 50 }}>Nº</th>
+                            <th>Descrição</th>
+                            <th style={{ width: 80, textAlign: "right" }}>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {FIN_RELATORIOS_LIST.map(rel => (
+                            <tr key={rel.id}>
+                                <td style={{ color: "#9aaa9f" }}>{rel.id}</td>
+                                <td>{rel.descricao}</td>
+                                <td style={{ textAlign: "right" }}>
+                                    <button
+                                        className="fin-rel-icon-btn"
+                                        title="Gerar PDF"
+                                        onClick={() => abrirModal(rel)}
+                                    >
+                                        <FileText size={14} color="#7ec8a0" />
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* MODAL */}
+            {modalRel && (
+                <div className="fin-rel-modal-overlay" onClick={fecharModal}>
+                    <div className="fin-rel-modal" onClick={e => e.stopPropagation()}>
+                        <h3>{modalRel.descricao}</h3>
+
+                        {/* Período (de / ate) */}
+                        {temFiltro("periodo") && (
+                            <div className="fin-rel-row">
+                                <div className="fin-rel-field">
+                                    <label>Data inicial *</label>
+                                    <input type="date" value={filtros.de || ""} onChange={e => set("de", e.target.value)} />
+                                </div>
+                                <div className="fin-rel-field">
+                                    <label>Data final *</label>
+                                    <input type="date" value={filtros.ate || ""} onChange={e => set("ate", e.target.value)} />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Data base (inadimplência) */}
+                        {temFiltro("data_base") && (
+                            <div className="fin-rel-field">
+                                <label>Data base</label>
+                                <input type="date" value={filtros.dataBase || ""} onChange={e => set("dataBase", e.target.value)} />
+                            </div>
+                        )}
+
+                        {/* Mês referência (folha) */}
+                        {temFiltro("mes_referencia") && (
+                            <div className="fin-rel-field">
+                                <label>Mês de referência *</label>
+                                <input type="month" value={filtros.mes || ""} onChange={e => set("mes", e.target.value)} />
+                            </div>
+                        )}
+
+                        {/* Status CR */}
+                        {temFiltro("status_cr") && (
+                            <div className="fin-rel-field">
+                                <label>Status</label>
+                                <select value={filtros.status || ""} onChange={e => set("status", e.target.value)}>
+                                    <option value="">Todos</option>
+                                    <option value="PENDENTE">Pendente</option>
+                                    <option value="PAGO">Pago</option>
+                                    <option value="VENCIDO">Vencido</option>
+                                    <option value="CANCELADO">Cancelado</option>
+                                </select>
+                            </div>
+                        )}
+
+                        {/* Tipo CR */}
+                        {temFiltro("tipo_cr") && (
+                            <div className="fin-rel-field">
+                                <label>Tipo</label>
+                                <select value={filtros.tipo || ""} onChange={e => set("tipo", e.target.value)}>
+                                    <option value="">Todos</option>
+                                    <option value="MENSALIDADE">Mensalidade</option>
+                                    <option value="MATRICULA">Matrícula</option>
+                                    <option value="UNIFORME">Uniforme</option>
+                                    <option value="EVENTO">Evento</option>
+                                    <option value="OUTRO">Outro</option>
+                                </select>
+                            </div>
+                        )}
+
+                        {/* Status CP */}
+                        {temFiltro("status_cp") && (
+                            <div className="fin-rel-field">
+                                <label>Status</label>
+                                <select value={filtros.status || ""} onChange={e => set("status", e.target.value)}>
+                                    <option value="">Todos</option>
+                                    <option value="PENDENTE">Pendente</option>
+                                    <option value="PAGO">Pago</option>
+                                    <option value="VENCIDO">Vencido</option>
+                                    <option value="CANCELADO">Cancelado</option>
+                                </select>
+                            </div>
+                        )}
+
+                        {/* Tipo CP */}
+                        {temFiltro("tipo_cp") && (
+                            <div className="fin-rel-field">
+                                <label>Tipo</label>
+                                <select value={filtros.tipo || ""} onChange={e => set("tipo", e.target.value)}>
+                                    <option value="">Todos</option>
+                                    <option value="SALARIO">Salário</option>
+                                    <option value="CONTA_FIXA">Conta Fixa</option>
+                                    <option value="FORNECEDOR">Fornecedor</option>
+                                    <option value="OUTRO">Outro</option>
+                                </select>
+                            </div>
+                        )}
+
+                        {/* Categoria CP */}
+                        {temFiltro("categoria_cp") && (
+                            <div className="fin-rel-field">
+                                <label>Categoria</label>
+                                <select value={filtros.categoria || ""} onChange={e => set("categoria", e.target.value)}>
+                                    <option value="">Todas</option>
+                                    <option value="AGUA">Água</option>
+                                    <option value="LUZ">Luz</option>
+                                    <option value="INTERNET">Internet</option>
+                                    <option value="ALUGUEL">Aluguel</option>
+                                    <option value="SALARIO">Salário</option>
+                                    <option value="LIMPEZA">Limpeza</option>
+                                    <option value="MANUTENCAO">Manutenção</option>
+                                    <option value="MATERIAL">Material</option>
+                                    <option value="OUTRO">Outro</option>
+                                </select>
+                            </div>
+                        )}
+
+                        {erro && (
+                            <div style={{ background:"#fff5f5", border:"1px solid #f5c0c0", borderRadius:4, padding:"10px 14px", color:"#b94040", fontSize:12, marginBottom:14 }}>
+                                {erro}
+                            </div>
+                        )}
+
+                        <div style={{ display:"flex", gap:10, justifyContent:"flex-end", marginTop:8 }}>
+                            <button className="fin-rel-btn-cancel" onClick={fecharModal} disabled={carregando}>
+                                Cancelar
+                            </button>
+                            <button className="fin-rel-btn-primary" onClick={gerarPDF} disabled={carregando}>
+                                <FileText size={14} />
+                                {carregando ? "Gerando..." : "Gerar PDF"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
