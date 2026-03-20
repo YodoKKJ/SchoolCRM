@@ -409,51 +409,76 @@ const GLOBAL_STYLE = `
 
 /* ── Dark Mode ─────────────────────────────────────────────── */
 @keyframes ddThemeToggle { from { transform: rotate(-90deg) scale(.7); opacity:0; } to { transform: rotate(0) scale(1); opacity:1; } }
-.dd-theme-btn { background:none; border:1px solid #eaeef2; width:34px; height:34px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background .2s, border-color .2s; }
-.dd-theme-btn:hover { background:#f0f5f2; }
-.dd-theme-btn svg { animation: ddThemeToggle .3s ease; }
-[data-theme="dark"] .dd-theme-btn { border-color:#2a3d32; }
-[data-theme="dark"] .dd-theme-btn:hover { background:#1f3329; }
+.dd-theme-btn { background:none; border:1px solid #dde3df; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .25s ease; }
+.dd-theme-btn:hover { background:#eef3f0; border-color:#b5c4ba; transform:scale(1.05); }
+.dd-theme-btn svg { animation: ddThemeToggle .35s ease; }
 
-[data-theme="dark"] { background:#0f1a14 !important; }
-[data-theme="dark"] .dd-sidebar { background:#091210; }
-[data-theme="dark"] .dd-sidebar-logo-wrap { border-bottom-color: rgba(255,255,255,.05); }
-[data-theme="dark"] .dd-user-wrap { border-bottom-color: rgba(255,255,255,.05); }
-[data-theme="dark"] .dd-header { background:#131f1a !important; border-bottom-color:#1e3028 !important; }
-[data-theme="dark"] .dd-page-title { color:#e0ebe3 !important; }
-[data-theme="dark"] .dd-page-sub { color:#5a7a65 !important; }
-[data-theme="dark"] .dd-card { background:#1a2e23 !important; border-color:#243d30 !important; }
-[data-theme="dark"] .dd-card-num { color:#e0ebe3 !important; }
+[data-theme="dark"] { background:#111816 !important; color:#d4ddd7 !important; }
+[data-theme="dark"] .dd-sidebar { background:#0c1210; border-right:1px solid #1e2e25; }
+[data-theme="dark"] .dd-sidebar-logo-wrap { border-bottom-color:#1e2e25; }
+[data-theme="dark"] .dd-user-wrap { border-bottom-color:#1e2e25; }
+[data-theme="dark"] .dd-nav-section-label { color:#4a6a55 !important; }
+[data-theme="dark"] .dd-theme-btn { border-color:#2a3d32; background:#1a2822; }
+[data-theme="dark"] .dd-theme-btn:hover { background:#243d30; border-color:#3a5a45; }
+
+[data-theme="dark"] .dd-header { background:#0f1a15 !important; border-bottom:1px solid #1e2e25 !important; box-shadow:0 1px 8px rgba(0,0,0,.3) !important; }
+[data-theme="dark"] .dd-page-title { color:#e8f0ea !important; }
+[data-theme="dark"] .dd-page-sub { color:#6a8a72 !important; }
+
+[data-theme="dark"] .dd-card { background:linear-gradient(135deg, #182822 0%, #1a2e24 100%) !important; border:1px solid #243d30 !important; box-shadow:0 2px 8px rgba(0,0,0,.2) !important; }
+[data-theme="dark"] .dd-card:hover { border-color:#3a5a45 !important; box-shadow:0 4px 16px rgba(0,0,0,.3) !important; }
+[data-theme="dark"] .dd-card-num { color:#e8f0ea !important; }
 [data-theme="dark"] .dd-card-label { color:#6a9a78 !important; }
-[data-theme="dark"] .dd-section { background:#1a2e23 !important; border-color:#243d30 !important; }
-[data-theme="dark"] .dd-section-header { border-bottom-color:#243d30 !important; }
-[data-theme="dark"] .dd-section-title { color:#e0ebe3 !important; }
+
+[data-theme="dark"] .dd-section { background:#151f1a !important; border:1px solid #1e2e25 !important; box-shadow:0 2px 8px rgba(0,0,0,.15) !important; }
+[data-theme="dark"] .dd-section-header { border-bottom-color:#1e2e25 !important; }
+[data-theme="dark"] .dd-section-title { color:#e8f0ea !important; }
 [data-theme="dark"] .dd-section-count { color:#5a7a65 !important; }
-[data-theme="dark"] .dd-table th { background:#14251c !important; border-bottom-color:#243d30 !important; color:#6a9a78 !important; }
-[data-theme="dark"] .dd-table td { border-bottom-color:#1e3028 !important; color:#b5ccba !important; }
-[data-theme="dark"] .dd-table tr:hover td { background:#1f3329 !important; }
-[data-theme="dark"] .dd-modal-overlay { background:rgba(0,0,0,.7) !important; }
-[data-theme="dark"] .dd-modal { background:#1a2e23 !important; }
-[data-theme="dark"] .dd-modal-title { color:#e0ebe3 !important; }
-[data-theme="dark"] .dd-modal-sub { color:#5a7a65 !important; }
-[data-theme="dark"] .dd-input { color:#e0ebe3 !important; border-bottom-color:#3a5a48 !important; }
-[data-theme="dark"] .dd-input:focus { border-bottom-color:#7ec8a0 !important; }
-[data-theme="dark"] .dd-input::placeholder { color:#4a6a55 !important; }
-[data-theme="dark"] .dd-label { color:#5a7a65 !important; }
-[data-theme="dark"] .dd-btn-primary { background:#7ec8a0 !important; color:#0a1a12 !important; }
-[data-theme="dark"] .dd-btn-primary:hover { background:#5db88a !important; }
-[data-theme="dark"] .dd-btn-ghost { background:#14251c !important; color:#7a9a85 !important; }
-[data-theme="dark"] .dd-btn-ghost:hover { background:#1a3025 !important; }
-[data-theme="dark"] .dd-btn-danger { background:rgba(185,64,64,.15) !important; }
-[data-theme="dark"] .dd-btn-edit { background:rgba(126,200,160,.1) !important; }
-[data-theme="dark"] .dd-btn-toggle-on { background:rgba(185,64,64,.15) !important; }
-[data-theme="dark"] .dd-btn-toggle-off { background:rgba(126,200,160,.1) !important; }
-[data-theme="dark"] .dd-err { background:rgba(185,64,64,.12) !important; border-left-color:#b94040 !important; }
-[data-theme="dark"] .dd-ok { background:rgba(126,200,160,.12) !important; border-left-color:#7ec8a0 !important; }
-[data-theme="dark"] .dd-search-input { background:#14251c !important; border-color:#2a3d32 !important; color:#e0ebe3 !important; }
-[data-theme="dark"] .dd-search-select { background:#14251c !important; border-color:#2a3d32 !important; color:#b5ccba !important; }
-[data-theme="dark"] .dd-nav-section-label { color:rgba(255,255,255,.25) !important; }
-[data-theme="dark"] .dd-badge { background:rgba(126,200,160,.1) !important; }
+
+[data-theme="dark"] .dd-table th { background:#121e18 !important; border-bottom:2px solid #243d30 !important; color:#7aaa88 !important; }
+[data-theme="dark"] .dd-table td { border-bottom-color:#1a2822 !important; color:#c5d8ca !important; }
+[data-theme="dark"] .dd-table tr:hover td { background:#1a2e24 !important; }
+
+[data-theme="dark"] .dd-modal-overlay { background:rgba(0,0,0,.75) !important; backdrop-filter:blur(4px) !important; }
+[data-theme="dark"] .dd-modal { background:#151f1a !important; border:1px solid #243d30; box-shadow:0 16px 48px rgba(0,0,0,.5) !important; }
+[data-theme="dark"] .dd-modal-title { color:#e8f0ea !important; }
+[data-theme="dark"] .dd-modal-sub { color:#6a8a72 !important; }
+
+[data-theme="dark"] .dd-input { background:transparent !important; color:#e0ebe3 !important; border-bottom-color:#2a4035 !important; }
+[data-theme="dark"] .dd-input:focus { border-bottom-color:#5db88a !important; }
+[data-theme="dark"] .dd-input::placeholder { color:#3a5a45 !important; }
+[data-theme="dark"] .dd-label { color:#6a8a72 !important; }
+[data-theme="dark"] select.dd-input { background:#1a2822 !important; }
+
+[data-theme="dark"] .dd-btn-primary { background:linear-gradient(135deg, #2d6a4f 0%, #40916c 100%) !important; color:#fff !important; box-shadow:0 2px 8px rgba(45,106,79,.3) !important; }
+[data-theme="dark"] .dd-btn-primary:hover { background:linear-gradient(135deg, #40916c 0%, #52b788 100%) !important; box-shadow:0 4px 12px rgba(45,106,79,.4) !important; }
+[data-theme="dark"] .dd-btn-ghost { background:#1a2822 !important; color:#8aaa95 !important; border:1px solid #243d30 !important; }
+[data-theme="dark"] .dd-btn-ghost:hover { background:#1e3028 !important; border-color:#3a5a45 !important; }
+[data-theme="dark"] .dd-btn-danger { background:rgba(220,80,80,.12) !important; color:#f08080 !important; }
+[data-theme="dark"] .dd-btn-danger:hover { background:rgba(220,80,80,.2) !important; }
+[data-theme="dark"] .dd-btn-edit { background:rgba(93,184,138,.1) !important; color:#7ec8a0 !important; }
+[data-theme="dark"] .dd-btn-toggle-on { background:rgba(220,80,80,.12) !important; color:#f08080 !important; }
+[data-theme="dark"] .dd-btn-toggle-off { background:rgba(93,184,138,.1) !important; color:#7ec8a0 !important; }
+
+[data-theme="dark"] .dd-err { background:rgba(220,80,80,.08) !important; border-left-color:#e06060 !important; color:#f0a0a0 !important; }
+[data-theme="dark"] .dd-ok { background:rgba(93,184,138,.08) !important; border-left-color:#5db88a !important; color:#8ad4aa !important; }
+
+[data-theme="dark"] .dd-search-input { background:#1a2822 !important; border:1px solid #2a3d32 !important; color:#e0ebe3 !important; }
+[data-theme="dark"] .dd-search-input:focus { border-color:#3a5a45 !important; }
+[data-theme="dark"] .dd-search-select { background:#1a2822 !important; border:1px solid #2a3d32 !important; color:#c5d8ca !important; }
+[data-theme="dark"] .dd-badge { background:rgba(93,184,138,.12) !important; color:#7ec8a0 !important; }
+
+/* Recharts dark */
+[data-theme="dark"] .recharts-cartesian-grid line { stroke:#1e2e25 !important; }
+[data-theme="dark"] .recharts-text { fill:#6a8a72 !important; }
+[data-theme="dark"] .recharts-tooltip-wrapper .recharts-default-tooltip { background:#1a2822 !important; border:1px solid #2a3d32 !important; }
+[data-theme="dark"] .recharts-legend-item-text { color:#8aaa95 !important; }
+
+/* Scrollbar dark */
+[data-theme="dark"] ::-webkit-scrollbar { width:6px; height:6px; }
+[data-theme="dark"] ::-webkit-scrollbar-track { background:#111816; }
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background:#2a3d32; border-radius:3px; }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background:#3a5a45; }
 `;
 
 // ---- RELATÓRIOS ----
@@ -773,7 +798,7 @@ export default function DirecaoDashboard() {
             <style>{GLOBAL_STYLE}</style>
             <ToastContainer />
             <ConfirmDialog />
-            <div data-theme={dark ? "dark" : "light"} style={{ display:"flex", minHeight:"100vh", background: dark ? "#0f1a14" : "#f5f8f5" }}>
+            <div data-theme={dark ? "dark" : "light"} style={{ display:"flex", minHeight:"100vh", background: dark ? "#111816" : "#f5f8f5" }}>
                 {/* overlay mobile */}
                 {sidebarAberta && (
                     <div style={{ position:"fixed", inset:0, background:"rgba(13,31,24,.4)", zIndex:20 }}
@@ -971,8 +996,9 @@ function Inicio({ anoLetivo }) {
                             if (a.mediaGeral != null) { sm += a.mediaGeral; cm++; somaMedia += a.mediaGeral; cntMedia++; }
                             if (a.frequenciaGeral != null) { sf += a.frequenciaGeral; cf++; somaFreq += a.frequenciaGeral; cntFreq++; }
                         });
+                        const fullName = res.serie ? `${res.serie} — ${res.turmaNome}` : res.turmaNome;
                         turmaChart.push({
-                            turma: res.turmaNome?.length > 14 ? res.turmaNome.substring(0, 14) + "…" : res.turmaNome,
+                            turma: fullName?.length > 20 ? fullName.substring(0, 20) + "…" : fullName,
                             media: cm > 0 ? Number((sm / cm).toFixed(1)) : 0,
                             frequencia: cf > 0 ? Number((sf / cf).toFixed(1)) : 0,
                             total: alunos.length,

@@ -136,40 +136,63 @@ const STYLE = `
 
 /* ── Dark Mode ─────────────────────────────────────────────── */
 @keyframes pdThemeToggle { from { transform: rotate(-90deg) scale(.7); opacity:0; } to { transform: rotate(0) scale(1); opacity:1; } }
-.pd-theme-btn { background:none; border:1px solid #eaeef2; width:34px; height:34px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background .2s, border-color .2s; }
-.pd-theme-btn:hover { background:#f0f5f2; }
-.pd-theme-btn svg { animation: pdThemeToggle .3s ease; }
-[data-theme="dark"] .pd-theme-btn { border-color:#2a3d32; }
-[data-theme="dark"] .pd-theme-btn:hover { background:#1f3329; }
-[data-theme="dark"] { background:#0f1a14 !important; }
-[data-theme="dark"] .pd-sidebar { background:#091210; }
-[data-theme="dark"] .pd-header { background:#131f1a !important; border-bottom-color:#1e3028 !important; }
-[data-theme="dark"] .pd-page-title { color:#e0ebe3 !important; }
-[data-theme="dark"] .pd-page-sub { color:#5a7a65 !important; }
-[data-theme="dark"] .pd-section { background:#1a2e23 !important; border-color:#243d30 !important; }
-[data-theme="dark"] .pd-section-header { border-bottom-color:#243d30 !important; }
-[data-theme="dark"] .pd-section-title { color:#e0ebe3 !important; }
+.pd-theme-btn { background:none; border:1px solid #dde3df; width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all .25s ease; }
+.pd-theme-btn:hover { background:#eef3f0; border-color:#b5c4ba; transform:scale(1.05); }
+.pd-theme-btn svg { animation: pdThemeToggle .35s ease; }
+
+[data-theme="dark"] { background:#111816 !important; color:#d4ddd7 !important; }
+[data-theme="dark"] .pd-sidebar { background:#0c1210; border-right:1px solid #1e2e25; }
+[data-theme="dark"] .pd-theme-btn { border-color:#2a3d32; background:#1a2822; }
+[data-theme="dark"] .pd-theme-btn:hover { background:#243d30; border-color:#3a5a45; }
+
+[data-theme="dark"] .pd-header { background:#0f1a15 !important; border-bottom:1px solid #1e2e25 !important; box-shadow:0 1px 8px rgba(0,0,0,.3) !important; }
+[data-theme="dark"] .pd-page-title { color:#e8f0ea !important; }
+[data-theme="dark"] .pd-page-sub { color:#6a8a72 !important; }
+
+[data-theme="dark"] .pd-section { background:#151f1a !important; border:1px solid #1e2e25 !important; box-shadow:0 2px 8px rgba(0,0,0,.15) !important; }
+[data-theme="dark"] .pd-section-header { border-bottom-color:#1e2e25 !important; }
+[data-theme="dark"] .pd-section-title { color:#e8f0ea !important; }
 [data-theme="dark"] .pd-section-count { color:#5a7a65 !important; }
-[data-theme="dark"] .pd-table th { background:#14251c !important; border-bottom-color:#243d30 !important; color:#6a9a78 !important; }
-[data-theme="dark"] .pd-table td { border-bottom-color:#1e3028 !important; color:#b5ccba !important; }
-[data-theme="dark"] .pd-table tr:hover td { background:#1f3329 !important; }
-[data-theme="dark"] .pd-modal-overlay { background:rgba(0,0,0,.7) !important; }
-[data-theme="dark"] .pd-modal { background:#1a2e23 !important; }
-[data-theme="dark"] .pd-modal-title { color:#e0ebe3 !important; }
-[data-theme="dark"] .pd-modal-sub { color:#5a7a65 !important; }
-[data-theme="dark"] .pd-input { color:#e0ebe3 !important; border-bottom-color:#3a5a48 !important; }
-[data-theme="dark"] .pd-input:focus { border-bottom-color:#7ec8a0 !important; }
-[data-theme="dark"] .pd-input::placeholder { color:#4a6a55 !important; }
-[data-theme="dark"] .pd-label { color:#5a7a65 !important; }
-[data-theme="dark"] .pd-btn-primary { background:#7ec8a0 !important; color:#0a1a12 !important; }
-[data-theme="dark"] .pd-btn-primary:hover { background:#5db88a !important; }
-[data-theme="dark"] .pd-btn-ghost { background:#14251c !important; color:#7a9a85 !important; }
-[data-theme="dark"] .pd-err { background:rgba(185,64,64,.12) !important; }
-[data-theme="dark"] .pd-ok { background:rgba(126,200,160,.12) !important; }
-[data-theme="dark"] .pd-search-input { background:#14251c !important; border-color:#2a3d32 !important; color:#e0ebe3 !important; }
-[data-theme="dark"] .pd-ano-btn { background:#14251c !important; border-color:#2a3d32 !important; color:#7a9a85 !important; }
-[data-theme="dark"] .pd-ano-btn:hover { background:#1f3329 !important; }
-[data-theme="dark"] .pd-ano-btn--active { background:#7ec8a0 !important; color:#0a1a12 !important; border-color:#7ec8a0 !important; }
+
+[data-theme="dark"] .pd-table th { background:#121e18 !important; border-bottom:2px solid #243d30 !important; color:#7aaa88 !important; }
+[data-theme="dark"] .pd-table td { border-bottom-color:#1a2822 !important; color:#c5d8ca !important; }
+[data-theme="dark"] .pd-table tr:hover td { background:#1a2e24 !important; }
+
+[data-theme="dark"] .pd-modal-overlay { background:rgba(0,0,0,.75) !important; backdrop-filter:blur(4px) !important; }
+[data-theme="dark"] .pd-modal { background:#151f1a !important; border:1px solid #243d30; box-shadow:0 16px 48px rgba(0,0,0,.5) !important; }
+[data-theme="dark"] .pd-modal-title { color:#e8f0ea !important; }
+[data-theme="dark"] .pd-modal-sub { color:#6a8a72 !important; }
+
+[data-theme="dark"] .pd-input { background:transparent !important; color:#e0ebe3 !important; border-bottom-color:#2a4035 !important; }
+[data-theme="dark"] .pd-input:focus { border-bottom-color:#5db88a !important; }
+[data-theme="dark"] .pd-input::placeholder { color:#3a5a45 !important; }
+[data-theme="dark"] .pd-label { color:#6a8a72 !important; }
+[data-theme="dark"] select.pd-input { background:#1a2822 !important; }
+
+[data-theme="dark"] .pd-btn-primary { background:linear-gradient(135deg, #2d6a4f 0%, #40916c 100%) !important; color:#fff !important; box-shadow:0 2px 8px rgba(45,106,79,.3) !important; }
+[data-theme="dark"] .pd-btn-primary:hover { background:linear-gradient(135deg, #40916c 0%, #52b788 100%) !important; }
+[data-theme="dark"] .pd-btn-ghost { background:#1a2822 !important; color:#8aaa95 !important; border:1px solid #243d30 !important; }
+[data-theme="dark"] .pd-btn-ghost:hover { background:#1e3028 !important; border-color:#3a5a45 !important; }
+
+[data-theme="dark"] .pd-err { background:rgba(220,80,80,.08) !important; border-left-color:#e06060 !important; color:#f0a0a0 !important; }
+[data-theme="dark"] .pd-ok { background:rgba(93,184,138,.08) !important; border-left-color:#5db88a !important; color:#8ad4aa !important; }
+
+[data-theme="dark"] .pd-search-input { background:#1a2822 !important; border:1px solid #2a3d32 !important; color:#e0ebe3 !important; }
+[data-theme="dark"] .pd-search-input:focus { border-color:#3a5a45 !important; }
+[data-theme="dark"] .pd-ano-btn { background:#1a2822 !important; border:1px solid #2a3d32 !important; color:#8aaa95 !important; }
+[data-theme="dark"] .pd-ano-btn:hover { background:#1e3028 !important; border-color:#3a5a45 !important; }
+[data-theme="dark"] .pd-ano-btn--active { background:linear-gradient(135deg, #2d6a4f 0%, #40916c 100%) !important; color:#fff !important; border-color:#40916c !important; }
+
+/* Recharts dark */
+[data-theme="dark"] .recharts-cartesian-grid line { stroke:#1e2e25 !important; }
+[data-theme="dark"] .recharts-text { fill:#6a8a72 !important; }
+[data-theme="dark"] .recharts-tooltip-wrapper .recharts-default-tooltip { background:#1a2822 !important; border:1px solid #2a3d32 !important; }
+
+/* Scrollbar dark */
+[data-theme="dark"] ::-webkit-scrollbar { width:6px; height:6px; }
+[data-theme="dark"] ::-webkit-scrollbar-track { background:#111816; }
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background:#2a3d32; border-radius:3px; }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background:#3a5a45; }
 `;
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -217,7 +240,7 @@ export default function ProfessorDashboard() {
     return (
         <>
             <style>{STYLE}</style>
-            <div data-theme={dark ? "dark" : "light"} style={{ display:"flex", minHeight:"100vh", background: dark ? "#0f1a14" : "#f5f8f5" }}>
+            <div data-theme={dark ? "dark" : "light"} style={{ display:"flex", minHeight:"100vh", background: dark ? "#111816" : "#f5f8f5" }}>
 
                 {sidebarAberta && (
                     <div style={{ position:"fixed", inset:0, background:"rgba(13,31,24,.4)", zIndex:20 }}
@@ -285,7 +308,7 @@ export default function ProfessorDashboard() {
 
                 {/* ── Main ── */}
                 <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0 }}>
-                    <header className="pd-header" style={{ background: dark ? "#131f1a" : "#fff", boxShadow: dark ? "none" : "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", borderBottom: dark ? "1px solid #1e3028" : "none", padding:"18px 32px",
+                    <header className="pd-header" style={{ background: dark ? "#0f1a15" : "#fff", boxShadow: dark ? "0 1px 8px rgba(0,0,0,.3)" : "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", borderBottom: dark ? "1px solid #1e2e25" : "none", padding:"18px 32px",
                         display:"flex", alignItems:"center", justifyContent:"space-between",
                         position:"sticky", top:0, zIndex:10 }}>
                         <div style={{ display:"flex", alignItems:"center", gap:16 }}>
