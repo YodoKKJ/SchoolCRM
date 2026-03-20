@@ -153,14 +153,21 @@ const STYLE = `
 [data-theme="dark"] .recharts-text { fill:#6a8a72 !important; }
 [data-theme="dark"] .recharts-tooltip-wrapper .recharts-default-tooltip { background:#1a2822 !important; border:1px solid #2a3d32 !important; }
 
-/* Native select & date inputs dark */
+/* ALL inputs/selects/textareas dark — catch-all */
+[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
 [data-theme="dark"] select,
-[data-theme="dark"] input[type="date"] {
+[data-theme="dark"] textarea {
     background:#1a2822 !important; color:#e0ebe3 !important; border-color:#2a3d32 !important;
     color-scheme: dark;
 }
+[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus { border-color:#5db88a !important; }
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder { color:#4a6a55 !important; }
 [data-theme="dark"] option { background:#1a2822 !important; color:#c5d8ca !important; }
-[data-theme="dark"] input[type="checkbox"] { accent-color:#5db88a; }
+[data-theme="dark"] input[type="checkbox"],
+[data-theme="dark"] input[type="radio"] { accent-color:#5db88a; }
 
 /* Scrollbar dark */
 [data-theme="dark"] ::-webkit-scrollbar { width:6px; height:6px; }
