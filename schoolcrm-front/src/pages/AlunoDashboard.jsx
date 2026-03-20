@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { Home, BookOpen, LogOut, CalendarDays, BarChart2, Menu, ChevronDown, ChevronRight, Megaphone, FileText } from "lucide-react";
+import { Home, BookOpen, LogOut, CalendarDays, BarChart2, Menu, ChevronDown, ChevronRight, Megaphone, FileText, Moon, Sun } from "lucide-react";
 
 const api = axios.create({ baseURL: "" });
 api.interceptors.request.use(config => {
@@ -106,6 +106,39 @@ const STYLE = `
   .ad-cards-grid { grid-template-columns: 1fr !important; }
   .ad-page-title { font-size: 18px !important; }
 }
+
+/* ── Dark Mode ─────────────────────────────────────────────── */
+@keyframes adThemeToggle { from { transform: rotate(-90deg) scale(.7); opacity:0; } to { transform: rotate(0) scale(1); opacity:1; } }
+.ad-theme-btn { background:none; border:1px solid #eaeef2; width:34px; height:34px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background .2s, border-color .2s; }
+.ad-theme-btn:hover { background:#f0f5f2; }
+.ad-theme-btn svg { animation: adThemeToggle .3s ease; }
+[data-theme="dark"] .ad-theme-btn { border-color:#2a3d32; }
+[data-theme="dark"] .ad-theme-btn:hover { background:#1f3329; }
+[data-theme="dark"] { background:#0f1a14 !important; }
+[data-theme="dark"] .ad-sidebar { background:#091210; }
+[data-theme="dark"] .ad-sidebar-logo-wrap { border-bottom-color: rgba(255,255,255,.05); }
+[data-theme="dark"] .ad-user-wrap { border-bottom-color: rgba(255,255,255,.05); }
+[data-theme="dark"] .ad-header { background:#131f1a !important; border-bottom-color:#1e3028 !important; }
+[data-theme="dark"] .ad-page-title { color:#e0ebe3 !important; }
+[data-theme="dark"] .ad-page-sub { color:#5a7a65 !important; }
+[data-theme="dark"] .ad-card { background:#1a2e23 !important; border-color:#243d30 !important; }
+[data-theme="dark"] .ad-card-num { color:#e0ebe3 !important; }
+[data-theme="dark"] .ad-card-label { color:#6a9a78 !important; }
+[data-theme="dark"] .ad-section { background:#1a2e23 !important; border-color:#243d30 !important; }
+[data-theme="dark"] .ad-section-header { border-bottom-color:#243d30 !important; }
+[data-theme="dark"] .ad-section-title { color:#e0ebe3 !important; }
+[data-theme="dark"] .ad-section-count { color:#5a7a65 !important; }
+[data-theme="dark"] .ad-table th { background:#14251c !important; border-bottom-color:#243d30 !important; color:#6a9a78 !important; }
+[data-theme="dark"] .ad-table td { border-bottom-color:#1e3028 !important; color:#b5ccba !important; }
+[data-theme="dark"] .ad-table tr:hover td { background:#1f3329 !important; }
+[data-theme="dark"] .ad-accordion-btn { color:#e0ebe3 !important; }
+[data-theme="dark"] .ad-accordion-btn:hover { background:#14251c !important; }
+[data-theme="dark"] .ad-accordion-row { border-bottom-color:#243d30 !important; }
+[data-theme="dark"] .ad-progress-bar-bg { background:#243d30 !important; }
+[data-theme="dark"] .ad-badge { background:rgba(126,200,160,.1) !important; }
+[data-theme="dark"] .ad-ano-btn { background:#14251c !important; border-color:#2a3d32 !important; color:#7a9a85 !important; }
+[data-theme="dark"] .ad-ano-btn:hover { background:#1f3329 !important; }
+[data-theme="dark"] .ad-ano-btn--active { background:#7ec8a0 !important; color:#0a1a12 !important; border-color:#7ec8a0 !important; }
 `;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -746,6 +779,8 @@ export default function AlunoDashboard() {
     const [notas, setNotas] = useState([]);
     const [anoSelecionado, setAnoSelecionado] = useState(null);
     const [config, setConfig] = useState({ mediaMinima: 6.0, freqMinima: 75.0 });
+    const [dark, setDark] = useState(() => localStorage.getItem("theme") === "dark");
+    const toggleDark = () => setDark(prev => { const next = !prev; localStorage.setItem("theme", next ? "dark" : "light"); return next; });
     const nome = localStorage.getItem("nome") || "Aluno";
     const logout = () => { localStorage.clear(); window.location.href = "/"; };
 
@@ -781,7 +816,7 @@ export default function AlunoDashboard() {
     return (
         <>
             <style>{STYLE}</style>
-            <div style={{ display:"flex", minHeight:"100vh", background:"#f5f8f5" }}>
+            <div data-theme={dark ? "dark" : "light"} style={{ display:"flex", minHeight:"100vh", background: dark ? "#0f1a14" : "#f5f8f5" }}>
 
                 {/* overlay mobile */}
                 {sidebarAberta && (
@@ -850,7 +885,7 @@ export default function AlunoDashboard() {
                     <header className="ad-header" style={{ padding:"18px 32px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                         <div style={{ display:"flex", alignItems:"center", gap:16 }}>
                             <button className="ad-hamburger" onClick={() => setSidebarAberta(true)}>
-                                <Menu size={20} color="#0d1f18" />
+                                <Menu size={20} color={dark ? "#e0ebe3" : "#0d1f18"} />
                             </button>
                             <div>
                                 <h1 className="ad-page-title">{abas.find(a => a.id === aba)?.label}</h1>
@@ -858,11 +893,14 @@ export default function AlunoDashboard() {
                             </div>
                         </div>
                         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                            <button className="ad-theme-btn" onClick={toggleDark} title={dark ? "Modo claro" : "Modo escuro"}>
+                                {dark ? <Sun size={15} color="#f0c040" /> : <Moon size={15} color="#5a7060" />}
+                            </button>
                             <div style={{ textAlign:"right", marginRight:4 }}>
-                                <p style={{ fontSize:12, fontWeight:500, color:"#2a3a2e", lineHeight:1 }}>{nome}</p>
-                                <p style={{ fontSize:10, color:"#9aaa9f", marginTop:2 }}>Estudante</p>
+                                <p style={{ fontSize:12, fontWeight:500, color: dark ? "#c5d5ca" : "#2a3a2e", lineHeight:1 }}>{nome}</p>
+                                <p style={{ fontSize:10, color: dark ? "#5a7a65" : "#9aaa9f", marginTop:2 }}>Estudante</p>
                             </div>
-                            <div style={{ width:34, height:34, borderRadius:"50%", background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:600, color:"#7ec8a0", letterSpacing:".04em" }}>
+                            <div style={{ width:34, height:34, borderRadius:"50%", background: dark ? "#243d30" : "#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:600, color:"#7ec8a0", letterSpacing:".04em" }}>
                                 {nome.charAt(0).toUpperCase()}
                             </div>
                         </div>

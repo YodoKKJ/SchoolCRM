@@ -9,6 +9,7 @@ export default function Login() {
     const [focusLogin, setFocusLogin] = useState(false);
     const [focusSenha, setFocusSenha] = useState(false);
     const [lembrar, setLembrar] = useState(false);
+    const dark = localStorage.getItem("theme") === "dark";
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -390,9 +391,31 @@ export default function Login() {
                     color: #b0bab6;
                     letter-spacing: 0.04em;
                 }
+
+                /* ── Dark Mode ── */
+                [data-theme="dark"].login-root { background: #0f1a14; }
+                [data-theme="dark"] .right-panel { background: #0f1a14; }
+                [data-theme="dark"] .form-title { color: #e0ebe3; }
+                [data-theme="dark"] .form-subtitle { color: #5a7a65; }
+                [data-theme="dark"] .form-eyebrow { color: #7ec8a0; }
+                [data-theme="dark"] .field-label { color: #5a7a65; }
+                [data-theme="dark"] .field-wrap { border-bottom-color: #2a3d32; }
+                [data-theme="dark"] .field-wrap.focused { border-color: #7ec8a0; }
+                [data-theme="dark"] .field-input { color: #e0ebe3; }
+                [data-theme="dark"] .field-input::placeholder { color: #3a5a48; }
+                [data-theme="dark"] .field-line { background: #7ec8a0; }
+                [data-theme="dark"] .lembrar-label { color: #5a7a65; }
+                [data-theme="dark"] .lembrar-box { border-color: #2a3d32; }
+                [data-theme="dark"] .lembrar-box.checked { border-color: #7ec8a0; background: #7ec8a0; }
+                [data-theme="dark"] .btn-submit { background: #7ec8a0; color: #0a1a12; }
+                [data-theme="dark"] .btn-submit:hover:not(:disabled) { background: #5db88a; }
+                [data-theme="dark"] .erro-msg { background: rgba(185,64,64,.15); }
+                [data-theme="dark"] .form-footer { color: #3a5a48; }
+                [data-theme="dark"] .mobile-logo-mark { background: #1a2e23; }
+                [data-theme="dark"] .mobile-logo-name { color: #7a9a85; }
             `}</style>
 
-            <div className="login-root">
+            <div className="login-root" data-theme={dark ? "dark" : "light"}>
 
                 {/* ── Painel esquerdo (desktop) ── */}
                 <div className="left-panel">

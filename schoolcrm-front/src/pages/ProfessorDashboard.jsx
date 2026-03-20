@@ -3,7 +3,7 @@ import axios from "axios";
 import SearchSelect from "../components/SearchSelect";
 import {
     Home, BookOpen, LogOut, GraduationCap,
-    Menu, ChevronRight, Search, X, UserPlus, ArrowLeft, CalendarDays, Megaphone, Send, Trash2
+    Menu, ChevronRight, Search, X, UserPlus, ArrowLeft, CalendarDays, Megaphone, Send, Trash2, Moon, Sun
 } from "lucide-react";
 
 const api = axios.create({ baseURL: "" });
@@ -133,6 +133,43 @@ const STYLE = `
 @media (max-width: 479px) {
   .pd-page-title { font-size: 18px !important; }
 }
+
+/* ── Dark Mode ─────────────────────────────────────────────── */
+@keyframes pdThemeToggle { from { transform: rotate(-90deg) scale(.7); opacity:0; } to { transform: rotate(0) scale(1); opacity:1; } }
+.pd-theme-btn { background:none; border:1px solid #eaeef2; width:34px; height:34px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background .2s, border-color .2s; }
+.pd-theme-btn:hover { background:#f0f5f2; }
+.pd-theme-btn svg { animation: pdThemeToggle .3s ease; }
+[data-theme="dark"] .pd-theme-btn { border-color:#2a3d32; }
+[data-theme="dark"] .pd-theme-btn:hover { background:#1f3329; }
+[data-theme="dark"] { background:#0f1a14 !important; }
+[data-theme="dark"] .pd-sidebar { background:#091210; }
+[data-theme="dark"] .pd-header { background:#131f1a !important; border-bottom-color:#1e3028 !important; }
+[data-theme="dark"] .pd-page-title { color:#e0ebe3 !important; }
+[data-theme="dark"] .pd-page-sub { color:#5a7a65 !important; }
+[data-theme="dark"] .pd-section { background:#1a2e23 !important; border-color:#243d30 !important; }
+[data-theme="dark"] .pd-section-header { border-bottom-color:#243d30 !important; }
+[data-theme="dark"] .pd-section-title { color:#e0ebe3 !important; }
+[data-theme="dark"] .pd-section-count { color:#5a7a65 !important; }
+[data-theme="dark"] .pd-table th { background:#14251c !important; border-bottom-color:#243d30 !important; color:#6a9a78 !important; }
+[data-theme="dark"] .pd-table td { border-bottom-color:#1e3028 !important; color:#b5ccba !important; }
+[data-theme="dark"] .pd-table tr:hover td { background:#1f3329 !important; }
+[data-theme="dark"] .pd-modal-overlay { background:rgba(0,0,0,.7) !important; }
+[data-theme="dark"] .pd-modal { background:#1a2e23 !important; }
+[data-theme="dark"] .pd-modal-title { color:#e0ebe3 !important; }
+[data-theme="dark"] .pd-modal-sub { color:#5a7a65 !important; }
+[data-theme="dark"] .pd-input { color:#e0ebe3 !important; border-bottom-color:#3a5a48 !important; }
+[data-theme="dark"] .pd-input:focus { border-bottom-color:#7ec8a0 !important; }
+[data-theme="dark"] .pd-input::placeholder { color:#4a6a55 !important; }
+[data-theme="dark"] .pd-label { color:#5a7a65 !important; }
+[data-theme="dark"] .pd-btn-primary { background:#7ec8a0 !important; color:#0a1a12 !important; }
+[data-theme="dark"] .pd-btn-primary:hover { background:#5db88a !important; }
+[data-theme="dark"] .pd-btn-ghost { background:#14251c !important; color:#7a9a85 !important; }
+[data-theme="dark"] .pd-err { background:rgba(185,64,64,.12) !important; }
+[data-theme="dark"] .pd-ok { background:rgba(126,200,160,.12) !important; }
+[data-theme="dark"] .pd-search-input { background:#14251c !important; border-color:#2a3d32 !important; color:#e0ebe3 !important; }
+[data-theme="dark"] .pd-ano-btn { background:#14251c !important; border-color:#2a3d32 !important; color:#7a9a85 !important; }
+[data-theme="dark"] .pd-ano-btn:hover { background:#1f3329 !important; }
+[data-theme="dark"] .pd-ano-btn--active { background:#7ec8a0 !important; color:#0a1a12 !important; border-color:#7ec8a0 !important; }
 `;
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -149,6 +186,8 @@ export default function ProfessorDashboard() {
     const [sidebarAberta, setSidebarAberta] = useState(false);
     const [vinculos, setVinculos] = useState([]);
     const [anoSelecionado, setAnoSelecionado] = useState(null);
+    const [dark, setDark] = useState(() => localStorage.getItem("theme") === "dark");
+    const toggleDark = () => setDark(prev => { const next = !prev; localStorage.setItem("theme", next ? "dark" : "light"); return next; });
     const nome = localStorage.getItem("nome") || "Professor";
     const logout = () => { localStorage.clear(); window.location.href = "/"; };
 
@@ -178,7 +217,7 @@ export default function ProfessorDashboard() {
     return (
         <>
             <style>{STYLE}</style>
-            <div style={{ display:"flex", minHeight:"100vh", background:"#f5f8f5" }}>
+            <div data-theme={dark ? "dark" : "light"} style={{ display:"flex", minHeight:"100vh", background: dark ? "#0f1a14" : "#f5f8f5" }}>
 
                 {sidebarAberta && (
                     <div style={{ position:"fixed", inset:0, background:"rgba(13,31,24,.4)", zIndex:20 }}
@@ -246,12 +285,12 @@ export default function ProfessorDashboard() {
 
                 {/* ── Main ── */}
                 <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0 }}>
-                    <header style={{ background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", padding:"18px 32px",
+                    <header className="pd-header" style={{ background: dark ? "#131f1a" : "#fff", boxShadow: dark ? "none" : "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", borderBottom: dark ? "1px solid #1e3028" : "none", padding:"18px 32px",
                         display:"flex", alignItems:"center", justifyContent:"space-between",
                         position:"sticky", top:0, zIndex:10 }}>
                         <div style={{ display:"flex", alignItems:"center", gap:16 }}>
                             <button className="pd-hamburger" onClick={() => setSidebarAberta(true)}>
-                                <Menu size={20} color="#0d1f18" />
+                                <Menu size={20} color={dark ? "#e0ebe3" : "#0d1f18"} />
                             </button>
                             <div>
                                 <h1 className="pd-page-title">{menu.find(m => m.id===aba)?.label}</h1>
@@ -259,11 +298,14 @@ export default function ProfessorDashboard() {
                             </div>
                         </div>
                         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                            <button className="pd-theme-btn" onClick={toggleDark} title={dark ? "Modo claro" : "Modo escuro"}>
+                                {dark ? <Sun size={15} color="#f0c040" /> : <Moon size={15} color="#5a7060" />}
+                            </button>
                             <div style={{ textAlign:"right", marginRight:4 }}>
-                                <p style={{ fontSize:12, fontWeight:500, color:"#2a3a2e", lineHeight:1 }}>{nome}</p>
-                                <p style={{ fontSize:10, color:"#9aaa9f", marginTop:2 }}>Professor</p>
+                                <p style={{ fontSize:12, fontWeight:500, color: dark ? "#c5d5ca" : "#2a3a2e", lineHeight:1 }}>{nome}</p>
+                                <p style={{ fontSize:10, color: dark ? "#5a7a65" : "#9aaa9f", marginTop:2 }}>Professor</p>
                             </div>
-                            <div style={{ width:34, height:34, borderRadius:"50%", background:"#0d1f18", display:"flex", alignItems:"center",
+                            <div style={{ width:34, height:34, borderRadius:"50%", background: dark ? "#243d30" : "#0d1f18", display:"flex", alignItems:"center",
                                 justifyContent:"center", fontSize:13, fontWeight:600, color:"#7ec8a0" }}>
                                 {nome.charAt(0).toUpperCase()}
                             </div>
