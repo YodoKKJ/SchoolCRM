@@ -25,35 +25,50 @@ api.interceptors.response.use(
 
 // ── Design tokens — idênticos ao DirecaoDashboard ──────────────────────────
 const STYLE = `
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap');
 * { box-sizing: border-box; }
 :root { font-family: 'DM Sans', sans-serif; }
 
-.ad-sidebar { background: #0d1f18; }
-.ad-sidebar-logo-wrap { border-bottom: 1px solid rgba(255,255,255,0.07); }
-.ad-user-wrap { border-bottom: 1px solid rgba(255,255,255,0.07); }
-.ad-nav-btn { display:flex; align-items:center; gap:10px; padding:9px 12px; font-size:13px; font-weight:400; color:rgba(255,255,255,.45); border:none; background:transparent; width:100%; text-align:left; cursor:pointer; border-left:2px solid transparent; transition:color .15s, background .15s, border-color .15s; }
-.ad-nav-btn:hover { color:rgba(255,255,255,.8); background:rgba(255,255,255,.04); }
-.ad-nav-btn.active { color:#7ec8a0; border-left-color:#7ec8a0; background:rgba(126,200,160,.07); font-weight:500; }
-.ad-header { background:#fff; border-bottom:1px solid #eaeef2; position:sticky; top:0; z-index:10; }
+/* ── Sidebar ───────────────────────────────────────────────── */
+.ad-sidebar { background: linear-gradient(180deg, #0d1f18 0%, #0a1a14 100%); }
+.ad-sidebar-logo-wrap { border-bottom: 1px solid rgba(255,255,255,0.08); }
+.ad-user-wrap { border-bottom: 1px solid rgba(255,255,255,0.08); }
+.ad-nav-btn { display:flex; align-items:center; gap:10px; padding:8px 14px; font-size:13px; font-weight:400; color:rgba(255,255,255,.45); border:none; background:transparent; width:100%; text-align:left; cursor:pointer; border-left:2px solid transparent; transition:all .18s ease; border-radius:0 4px 4px 0; }
+.ad-nav-btn:hover { color:rgba(255,255,255,.85); background:rgba(255,255,255,.05); }
+.ad-nav-btn.active { color:#7ec8a0; border-left-color:#7ec8a0; background:rgba(126,200,160,.08); font-weight:500; }
+
+/* ── Header ────────────────────────────────────────────────── */
+.ad-header { background:#fff; border-bottom:none; box-shadow:0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04); position:sticky; top:0; z-index:10; }
 .ad-page-title { font-family:'Playfair Display', serif; font-size:22px; font-weight:700; color:#0d1f18; letter-spacing:-.02em; line-height:1; }
 .ad-page-sub { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#9aaa9f; margin-top:3px; }
-.ad-card { background:#fff; border:1px solid #eaeef2; border-top:2px solid var(--accent, #0d1f18); padding:18px 20px; }
+.ad-breadcrumb { font-size:10px; letter-spacing:.06em; color:#b8c4be; margin-top:2px; }
+.ad-breadcrumb span { color:#7ec8a0; }
+
+/* ── Cards ─────────────────────────────────────────────────── */
+.ad-card { background:#fff; border:1px solid #eaeef2; border-top:2px solid var(--accent, #0d1f18); padding:18px 20px; transition:box-shadow .25s ease, transform .2s ease; }
+.ad-card:hover { box-shadow:0 4px 12px rgba(0,0,0,.06); transform:translateY(-1px); }
 .ad-card-num { font-family:'Playfair Display', serif; font-size:28px; font-weight:700; color:#0d1f18; line-height:1; }
 .ad-card-label { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:#9aaa9f; margin-top:4px; }
-.ad-section { background:#fff; border:1px solid #eaeef2; }
+
+/* ── Sections ──────────────────────────────────────────────── */
+.ad-section { background:#fff; border:1px solid #eaeef2; border-radius:2px; transition:box-shadow .2s ease; }
+.ad-section:hover { box-shadow:0 2px 8px rgba(0,0,0,.04); }
 .ad-section-header { border-bottom:1px solid #eaeef2; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; }
 .ad-section-title { font-size:13px; font-weight:500; color:#0d1f18; letter-spacing:.01em; }
 .ad-section-count { font-size:11px; color:#9aaa9f; letter-spacing:.04em; }
+
+/* ── Tables ────────────────────────────────────────────────── */
 .ad-table { width:100%; border-collapse:collapse; }
-.ad-table th { font-size:10px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:#9aaa9f; padding:10px 20px; text-align:left; background:#f8faf8; border-bottom:1px solid #eaeef2; }
-.ad-table td { padding:12px 20px; border-bottom:1px solid #f2f5f2; font-size:13px; color:#2a3a2e; }
+.ad-table th { font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#7a8a80; padding:10px 20px; text-align:left; background:#f6f8f6; border-bottom:2px solid #eaeef2; }
+.ad-table td { padding:12px 20px; border-bottom:1px solid #f2f5f2; font-size:13px; color:#2a3a2e; transition:background .12s ease; }
 .ad-table tr:last-child td { border-bottom:none; }
-.ad-table tr:hover td { background:#fafcfa; }
-.ad-badge { font-size:11px; font-weight:500; padding:3px 10px; letter-spacing:.02em; display:inline-block; }
+.ad-table tr:hover td { background:#f4f8f5; }
+.ad-badge { font-size:11px; font-weight:500; padding:3px 10px; letter-spacing:.02em; display:inline-block; border-radius:2px; }
+
+/* ── Accordion ─────────────────────────────────────────────── */
 .ad-accordion-row { border-bottom:1px solid #eaeef2; }
-.ad-accordion-btn { width:100%; display:flex; align-items:center; justify-content:space-between; padding:14px 20px; background:none; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; font-size:13px; font-weight:500; color:#0d1f18; text-align:left; }
-.ad-accordion-btn:hover { background:#f8faf8; }
+.ad-accordion-btn { width:100%; display:flex; align-items:center; justify-content:space-between; padding:14px 20px; background:none; border:none; cursor:pointer; font-family:'DM Sans',sans-serif; font-size:13px; font-weight:500; color:#0d1f18; text-align:left; transition:background .12s ease; }
+.ad-accordion-btn:hover { background:#f4f8f5; }
 .ad-accordion-body { padding:0 20px 16px; }
 .ad-progress-bar-bg { background:#eaeef2; height:6px; border-radius:3px; overflow:hidden; }
 .ad-progress-bar-fill { height:100%; border-radius:3px; transition:width .4s ease; }
@@ -811,43 +826,44 @@ export default function AlunoDashboard() {
 
                 {/* ── Sidebar ── */}
                 <aside className={`ad-sidebar${sidebarAberta ? " open" : ""}`} style={{
-                    width:210, flexShrink:0, display:"flex", flexDirection:"column",
+                    width:230, flexShrink:0, display:"flex", flexDirection:"column",
                     position:"sticky", top:0, height:"100vh", overflowY:"auto",
                 }}>
                     {/* logo */}
-                    <div className="ad-sidebar-logo-wrap" style={{ padding:"24px 20px 20px", display:"flex", alignItems:"center", gap:12 }}>
-                        <div style={{ width:28, height:28, border:"1.5px solid rgba(255,255,255,.2)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                                <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="rgba(255,255,255,.5)" strokeWidth="1.2"/>
-                                <circle cx="8" cy="8" r="2" fill="#7ec8a0"/>
+                    <div className="ad-sidebar-logo-wrap" style={{ padding:"24px 22px 20px", display:"flex", alignItems:"center", gap:12 }}>
+                        <div style={{ width:32, height:32, borderRadius:"8px", background:"linear-gradient(135deg, #7ec8a0 0%, #3a8d5c 100%)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 2px 8px rgba(126,200,160,.3)" }}>
+                            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="rgba(255,255,255,.9)" strokeWidth="1.2"/>
+                                <circle cx="8" cy="8" r="2" fill="#fff"/>
                             </svg>
                         </div>
                         <div>
-                            <p style={{ fontFamily:"'DM Sans',sans-serif", fontWeight:500, fontSize:13, letterSpacing:"0.08em", color:"rgba(255,255,255,.75)", lineHeight:1 }}>DomGestão</p>
-                            <p style={{ fontSize:10, letterSpacing:"0.1em", textTransform:"uppercase", color:"rgba(255,255,255,.3)", marginTop:3 }}>Aluno</p>
+                            <p style={{ fontFamily:"'Playfair Display',serif", fontWeight:700, fontSize:15, color:"rgba(255,255,255,.9)", lineHeight:1, letterSpacing:"-.01em" }}>DomGestão</p>
+                            <p style={{ fontSize:9, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,.35)", marginTop:4, fontWeight:500 }}>Aluno</p>
                         </div>
                     </div>
 
                     {/* user */}
-                    <div className="ad-user-wrap" style={{ padding:"14px 20px", display:"flex", alignItems:"center", gap:10 }}>
-                        <div style={{ width:28, height:28, background:"rgba(126,200,160,.15)", border:"1px solid rgba(126,200,160,.3)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:12, fontWeight:600, color:"#7ec8a0" }}>
+                    <div className="ad-user-wrap" style={{ padding:"16px 22px", display:"flex", alignItems:"center", gap:10 }}>
+                        <div style={{ width:32, height:32, borderRadius:"50%", background:"linear-gradient(135deg, rgba(126,200,160,.2) 0%, rgba(126,200,160,.1) 100%)", border:"1.5px solid rgba(126,200,160,.3)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:12, fontWeight:600, color:"#7ec8a0" }}>
                             {nome.charAt(0).toUpperCase()}
                         </div>
-                        <div style={{ minWidth:0 }}>
-                            <p style={{ fontSize:12, fontWeight:500, color:"rgba(255,255,255,.65)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{nome}</p>
-                            <p style={{ fontSize:10, color:"rgba(255,255,255,.25)", letterSpacing:"0.04em" }}>Estudante</p>
+                        <div style={{ minWidth:0, flex:1 }}>
+                            <p style={{ fontSize:13, fontWeight:500, color:"rgba(255,255,255,.75)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{nome}</p>
+                            <p style={{ fontSize:10, color:"rgba(255,255,255,.3)", letterSpacing:"0.04em" }}>Estudante</p>
                         </div>
                     </div>
 
                     {/* nav */}
-                    <nav style={{ flex:1, padding:"16px 8px", display:"flex", flexDirection:"column", gap:4, overflowY:"auto" }}>
+                    <nav style={{ flex:1, padding:"16px 10px", display:"flex", flexDirection:"column", gap:4, overflowY:"auto" }}>
                         {abas.map(item => {
                             const Icon = item.icon;
+                            const active = aba === item.id;
                             return (
                                 <button key={item.id}
-                                        className={`ad-nav-btn${aba === item.id ? " active" : ""}`}
+                                        className={`ad-nav-btn${active ? " active" : ""}`}
                                         onClick={() => { setAba(item.id); setSidebarAberta(false); }}>
-                                    <Icon size={14} style={{ flexShrink:0 }} />
+                                    <Icon size={15} style={{ flexShrink:0, opacity: active ? 1 : .7 }} />
                                     <span>{item.label}</span>
                                 </button>
                             );
@@ -855,7 +871,7 @@ export default function AlunoDashboard() {
                     </nav>
 
                     {/* logout */}
-                    <div style={{ padding:"12px 8px", borderTop:"1px solid rgba(255,255,255,.06)" }}>
+                    <div style={{ padding:"14px 10px", borderTop:"1px solid rgba(255,255,255,.06)" }}>
                         <button className="ad-nav-btn" onClick={logout} style={{ color:"rgba(255,100,100,.5)" }}>
                             <LogOut size={14} />
                             <span>Sair</span>
@@ -873,14 +889,18 @@ export default function AlunoDashboard() {
                             </button>
                             <div>
                                 <h1 className="ad-page-title">{abas.find(a => a.id === aba)?.label}</h1>
-                                <p className="ad-page-sub">DomGestão — Sistema Escolar</p>
+                                <p className="ad-breadcrumb"><span>Aluno</span> / {abas.find(a => a.id === aba)?.label}</p>
                             </div>
                         </div>
-                        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                             <button className="ad-theme-btn" onClick={toggleDark} title={dark ? "Modo claro" : "Modo escuro"}>
                                 {dark ? <Sun size={15} color="#f0c040" /> : <Moon size={15} color="#5a7060" />}
                             </button>
-                            <div style={{ width:32, height:32, background: dark ? "#243d30" : "#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:600, color:"#7ec8a0", letterSpacing:".04em" }}>
+                            <div style={{ textAlign:"right", marginRight:4 }}>
+                                <p style={{ fontSize:12, fontWeight:500, color: dark ? "#c5d5ca" : "#2a3a2e", lineHeight:1 }}>{nome}</p>
+                                <p style={{ fontSize:10, color: dark ? "#5a7a65" : "#9aaa9f", marginTop:2 }}>Estudante</p>
+                            </div>
+                            <div style={{ width:34, height:34, borderRadius:"50%", background: dark ? "#243d30" : "#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:600, color:"#7ec8a0", letterSpacing:".04em" }}>
                                 {nome.charAt(0).toUpperCase()}
                             </div>
                         </div>

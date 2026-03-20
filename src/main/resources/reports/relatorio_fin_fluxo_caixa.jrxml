@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports
+                http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="relatorio_fin_fluxo_caixa"
+              pageWidth="842" pageHeight="595"
+              orientation="Landscape"
+              columnWidth="802" leftMargin="20" rightMargin="20"
+              topMargin="15" bottomMargin="15"
+              whenNoDataType="AllSectionsNoDetail">
+
+    <style name="default" isDefault="true" fontName="SansSerif" fontSize="7"/>
+
+    <style name="tipoStyle" fontName="SansSerif" fontSize="7" isBold="true">
+        <conditionalStyle>
+            <conditionExpression><![CDATA["ENTRADA".equals($F{tipo})]]></conditionExpression>
+            <style forecolor="#2d6a4f"/>
+        </conditionalStyle>
+        <conditionalStyle>
+            <conditionExpression><![CDATA["SAÍDA".equals($F{tipo})]]></conditionExpression>
+            <style forecolor="#b94040"/>
+        </conditionalStyle>
+    </style>
+
+    <parameter name="PERIODO"          class="java.lang.String"/>
+    <parameter name="DATA_EMISSAO"     class="java.lang.String"/>
+    <parameter name="TOTAL_REGISTROS"  class="java.lang.Integer"/>
+    <parameter name="TOTAL_ENTRADAS"   class="java.lang.String"/>
+    <parameter name="TOTAL_SAIDAS"     class="java.lang.String"/>
+    <parameter name="SALDO"            class="java.lang.String"/>
+
+    <field name="data"           class="java.lang.String"/>
+    <field name="descricao"      class="java.lang.String"/>
+    <field name="tipo"           class="java.lang.String"/>
+    <field name="origem"         class="java.lang.String"/>
+    <field name="categoria"      class="java.lang.String"/>
+    <field name="valor"          class="java.lang.String"/>
+    <field name="formaPagamento" class="java.lang.String"/>
+
+    <title>
+        <band height="60" splitType="Stretch">
+            <rectangle>
+                <reportElement x="0" y="0" width="802" height="40" backcolor="#0d1a2a" forecolor="#0d1a2a"/>
+                <graphicElement><pen lineWidth="0"/></graphicElement>
+            </rectangle>
+            <staticText>
+                <reportElement x="10" y="8" width="500" height="22" forecolor="#ffffff"/>
+                <textElement><font size="13" isBold="true" fontName="SansSerif"/></textElement>
+                <text><![CDATA[FLUXO DE CAIXA POR PERÍODO]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="580" y="8" width="220" height="14" forecolor="#a0c8e8"/>
+                <textElement textAlignment="Right"><font size="8" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA["Período: " + $P{PERIODO}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="580" y="24" width="220" height="12" forecolor="#aaaaaa"/>
+                <textElement textAlignment="Right"><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA["Emissão: " + $P{DATA_EMISSAO}]]></textFieldExpression>
+            </textField>
+            <!-- Totais -->
+            <staticText>
+                <reportElement x="0" y="44" width="80" height="14" forecolor="#555555"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <text><![CDATA[Total entradas:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="82" y="44" width="130" height="14" forecolor="#2d6a4f"/>
+                <textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$P{TOTAL_ENTRADAS}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="220" y="44" width="70" height="14" forecolor="#555555"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <text><![CDATA[Total saídas:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="292" y="44" width="130" height="14" forecolor="#b94040"/>
+                <textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$P{TOTAL_SAIDAS}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="430" y="44" width="50" height="14" forecolor="#555555"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <text><![CDATA[Saldo:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="482" y="44" width="140" height="14" forecolor="#0d1f18"/>
+                <textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$P{SALDO}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="680" y="44" width="120" height="14" forecolor="#888888"/>
+                <textElement textAlignment="Right"><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$P{TOTAL_REGISTROS} + " lançamento(s)"]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="18" splitType="Stretch">
+            <rectangle>
+                <reportElement x="0" y="0" width="802" height="18" backcolor="#eef0f4" forecolor="#eef0f4"/>
+                <graphicElement><pen lineWidth="0"/></graphicElement>
+            </rectangle>
+            <staticText><reportElement x="0"   y="3" width="70"  height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[DATA]]></text></staticText>
+            <staticText><reportElement x="72"  y="3" width="260" height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[DESCRIÇÃO]]></text></staticText>
+            <staticText><reportElement x="334" y="3" width="60"  height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[TIPO]]></text></staticText>
+            <staticText><reportElement x="396" y="3" width="50"  height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[ORIGEM]]></text></staticText>
+            <staticText><reportElement x="448" y="3" width="120" height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[CATEGORIA]]></text></staticText>
+            <staticText><reportElement x="570" y="3" width="110" height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[VALOR]]></text></staticText>
+            <staticText><reportElement x="682" y="3" width="118" height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[FORMA DE PAGAMENTO]]></text></staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="14" splitType="Stretch">
+            <textField isBlankWhenNull="true">
+                <reportElement x="0"   y="1" width="70" height="12"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{data}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="72"  y="1" width="260" height="12"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{descricao}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="334" y="1" width="60" height="12" style="tipoStyle"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{tipo}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="396" y="1" width="50" height="12" forecolor="#888888"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{origem}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="448" y="1" width="120" height="12"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{categoria}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="570" y="1" width="110" height="12" style="tipoStyle"/>
+                <textElement textAlignment="Right"><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{valor}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="682" y="1" width="118" height="12" forecolor="#555555"/>
+                <textElement textAlignment="Right"><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{formaPagamento}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="0" y="13" width="802" height="1" forecolor="#eeeeee"/>
+            </line>
+        </band>
+    </detail>
+
+    <noData>
+        <band height="30">
+            <staticText>
+                <reportElement x="0" y="8" width="802" height="20" forecolor="#888888"/>
+                <textElement textAlignment="Center"><font size="9" fontName="SansSerif"/></textElement>
+                <text><![CDATA[Nenhum lançamento encontrado para o período informado.]]></text>
+            </staticText>
+        </band>
+    </noData>
+</jasperReport>

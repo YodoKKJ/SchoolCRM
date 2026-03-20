@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports
+                http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="relatorio_fin_contas_pagar"
+              pageWidth="842" pageHeight="595"
+              orientation="Landscape"
+              columnWidth="802" leftMargin="20" rightMargin="20"
+              topMargin="15" bottomMargin="15"
+              whenNoDataType="AllSectionsNoDetail">
+
+    <style name="default" isDefault="true" fontName="SansSerif" fontSize="7"/>
+
+    <style name="statusStyle" fontName="SansSerif" fontSize="7" isBold="true">
+        <conditionalStyle>
+            <conditionExpression><![CDATA["PAGO".equals($F{status})]]></conditionExpression>
+            <style forecolor="#2d6a4f"/>
+        </conditionalStyle>
+        <conditionalStyle>
+            <conditionExpression><![CDATA["VENCIDO".equals($F{status})]]></conditionExpression>
+            <style forecolor="#b94040"/>
+        </conditionalStyle>
+        <conditionalStyle>
+            <conditionExpression><![CDATA["CANCELADO".equals($F{status})]]></conditionExpression>
+            <style forecolor="#888888"/>
+        </conditionalStyle>
+    </style>
+
+    <parameter name="PERIODO"          class="java.lang.String"/>
+    <parameter name="DATA_EMISSAO"     class="java.lang.String"/>
+    <parameter name="TOTAL_REGISTROS"  class="java.lang.Integer"/>
+    <parameter name="TOTAL_VALOR"      class="java.lang.String"/>
+    <parameter name="TOTAL_PAGO"       class="java.lang.String"/>
+    <parameter name="TOTAL_SALDO"      class="java.lang.String"/>
+
+    <field name="descricao"      class="java.lang.String"/>
+    <field name="tipo"           class="java.lang.String"/>
+    <field name="categoria"      class="java.lang.String"/>
+    <field name="beneficiario"   class="java.lang.String"/>
+    <field name="vencimento"     class="java.lang.String"/>
+    <field name="pagamento"      class="java.lang.String"/>
+    <field name="valor"          class="java.lang.String"/>
+    <field name="valorPago"      class="java.lang.String"/>
+    <field name="saldo"          class="java.lang.String"/>
+    <field name="status"         class="java.lang.String"/>
+    <field name="formaPagamento" class="java.lang.String"/>
+
+    <title>
+        <band height="60" splitType="Stretch">
+            <rectangle>
+                <reportElement x="0" y="0" width="802" height="40" backcolor="#1f0d0d" forecolor="#1f0d0d"/>
+                <graphicElement><pen lineWidth="0"/></graphicElement>
+            </rectangle>
+            <staticText>
+                <reportElement x="10" y="8" width="500" height="22" forecolor="#ffffff"/>
+                <textElement><font size="13" isBold="true" fontName="SansSerif"/></textElement>
+                <text><![CDATA[CONTAS A PAGAR POR PERÍODO]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="600" y="8" width="200" height="14" forecolor="#e8a0a0"/>
+                <textElement textAlignment="Right"><font size="8" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA["Período: " + $P{PERIODO}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="600" y="24" width="200" height="12" forecolor="#aaaaaa"/>
+                <textElement textAlignment="Right"><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA["Emissão: " + $P{DATA_EMISSAO}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="0" y="44" width="100" height="14" forecolor="#555555"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <text><![CDATA[Total previsto:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="100" y="44" width="120" height="14" forecolor="#0d1f18"/>
+                <textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$P{TOTAL_VALOR}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="230" y="44" width="80" height="14" forecolor="#555555"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <text><![CDATA[Total pago:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="310" y="44" width="120" height="14" forecolor="#b94040"/>
+                <textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$P{TOTAL_PAGO}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="440" y="44" width="80" height="14" forecolor="#555555"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <text><![CDATA[Saldo a pagar:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="520" y="44" width="120" height="14" forecolor="#b94040"/>
+                <textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$P{TOTAL_SALDO}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="680" y="44" width="120" height="14" forecolor="#888888"/>
+                <textElement textAlignment="Right"><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$P{TOTAL_REGISTROS} + " registro(s)"]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="18" splitType="Stretch">
+            <rectangle>
+                <reportElement x="0" y="0" width="802" height="18" backcolor="#f4f0f0" forecolor="#f4f0f0"/>
+                <graphicElement><pen lineWidth="0"/></graphicElement>
+            </rectangle>
+            <staticText><reportElement x="0"   y="3" width="150" height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[DESCRIÇÃO]]></text></staticText>
+            <staticText><reportElement x="152" y="3" width="70"  height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[TIPO]]></text></staticText>
+            <staticText><reportElement x="224" y="3" width="80"  height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[CATEGORIA]]></text></staticText>
+            <staticText><reportElement x="306" y="3" width="120" height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[BENEFICIÁRIO]]></text></staticText>
+            <staticText><reportElement x="428" y="3" width="62"  height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[VENCIMENTO]]></text></staticText>
+            <staticText><reportElement x="492" y="3" width="62"  height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[PAGAMENTO]]></text></staticText>
+            <staticText><reportElement x="556" y="3" width="64"  height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[VALOR]]></text></staticText>
+            <staticText><reportElement x="622" y="3" width="64"  height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[PAGO]]></text></staticText>
+            <staticText><reportElement x="688" y="3" width="112" height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[STATUS]]></text></staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="14" splitType="Stretch">
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="0"   y="1" width="150" height="12"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{descricao}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="152" y="1" width="70" height="12"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{tipo}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="224" y="1" width="80" height="12"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{categoria}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="306" y="1" width="120" height="12"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{beneficiario}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="428" y="1" width="62" height="12"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{vencimento}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="492" y="1" width="62" height="12"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{pagamento}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="556" y="1" width="64" height="12"/>
+                <textElement textAlignment="Right"><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{valor}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="622" y="1" width="64" height="12"/>
+                <textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{valorPago}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="688" y="1" width="112" height="12" style="statusStyle"/>
+                <textElement textAlignment="Right"><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{status}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="0" y="13" width="802" height="1" forecolor="#eeeeee"/>
+            </line>
+        </band>
+    </detail>
+
+    <noData>
+        <band height="30">
+            <staticText>
+                <reportElement x="0" y="8" width="802" height="20" forecolor="#888888"/>
+                <textElement textAlignment="Center"><font size="9" fontName="SansSerif"/></textElement>
+                <text><![CDATA[Nenhum registro encontrado para os filtros informados.]]></text>
+            </staticText>
+        </band>
+    </noData>
+</jasperReport>

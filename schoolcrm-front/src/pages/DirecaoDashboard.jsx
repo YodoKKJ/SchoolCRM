@@ -44,21 +44,39 @@ function ToastContainer() {
     }, []);
     if (toasts.length === 0) return null;
     return (
-        <div style={{ position:"fixed", bottom:24, right:24, zIndex:9999, display:"flex", flexDirection:"column", gap:8, pointerEvents:"none" }}>
-            {toasts.map(t => (
-                <div key={t.id} style={{
-                    padding:"12px 18px",
-                    background: t.tipo === "err" ? "#fdf0f0" : "#f0f5f2",
-                    borderLeft: `3px solid ${t.tipo === "err" ? "#b94040" : "#7ec8a0"}`,
-                    color: t.tipo === "err" ? "#b94040" : "#3a6649",
-                    fontSize:13, fontFamily:"'DM Sans',sans-serif",
-                    boxShadow:"0 2px 12px rgba(0,0,0,.12)",
-                    minWidth:220, maxWidth:380,
-                    animation:"ddToastIn .2s ease",
-                }}>
-                    {t.msg}
-                </div>
-            ))}
+        <div style={{ position:"fixed", bottom:24, right:24, zIndex:9999, display:"flex", flexDirection:"column", gap:10, pointerEvents:"none" }}>
+            {toasts.map(t => {
+                const isErr = t.tipo === "err";
+                return (
+                    <div key={t.id} style={{
+                        padding:"14px 18px 16px",
+                        background: isErr ? "#fdf0f0" : "#f0f5f2",
+                        borderLeft: `3px solid ${isErr ? "#b94040" : "#7ec8a0"}`,
+                        color: isErr ? "#b94040" : "#3a6649",
+                        fontSize:13, fontFamily:"'DM Sans',sans-serif",
+                        boxShadow:"0 4px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08)",
+                        minWidth:260, maxWidth:380,
+                        animation:"ddToastIn .25s ease",
+                        borderRadius:"0 3px 3px 0",
+                        display:"flex", flexDirection:"column", gap:8,
+                        position:"relative", overflow:"hidden",
+                    }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                            {isErr
+                                ? <AlertCircle size={15} style={{ flexShrink:0 }} />
+                                : <CheckCircle2 size={15} style={{ flexShrink:0 }} />
+                            }
+                            <span>{t.msg}</span>
+                        </div>
+                        <div style={{
+                            position:"absolute", bottom:0, left:0, height:2,
+                            background: isErr ? "#b94040" : "#7ec8a0",
+                            animation:"ddToastProgress 4s linear forwards",
+                            opacity:.4,
+                        }} />
+                    </div>
+                );
+            })}
         </div>
     );
 }
@@ -86,22 +104,34 @@ function ConfirmDialog() {
         if (_confirmResolve) { _confirmResolve(val); _confirmResolve = null; }
     };
     return (
-        <div style={{ position:"fixed", inset:0, background:"rgba(13,31,24,.55)", zIndex:9998, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}
+        <div style={{ position:"fixed", inset:0, background:"rgba(13,31,24,.55)", zIndex:9998, display:"flex", alignItems:"center", justifyContent:"center", padding:24, animation:"ddOverlayIn .2s ease", backdropFilter:"blur(2px)" }}
              onClick={() => resolve(false)}>
-            <div style={{ background:"#fff", padding:32, maxWidth:400, width:"100%", boxShadow:"0 8px 32px rgba(0,0,0,.18)" }}
+            <div style={{ background:"#fff", padding:32, maxWidth:400, width:"100%", boxShadow:"0 20px 60px rgba(0,0,0,.2)", borderRadius:3, animation:"ddModalIn .25s ease" }}
                  onClick={e => e.stopPropagation()}>
-                <p style={{ fontSize:14, color:"#0d1f18", margin:"0 0 24px", lineHeight:1.6, whiteSpace:"pre-line" }}>{state.msg}</p>
+                <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20 }}>
+                    <div style={{ width:36, height:36, borderRadius:"50%", background:"#fdf0f0", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        <AlertCircle size={18} color="#b94040" />
+                    </div>
+                    <p style={{ fontFamily:"'Playfair Display',serif", fontSize:16, fontWeight:700, color:"#0d1f18" }}>Confirmação</p>
+                </div>
+                <p style={{ fontSize:14, color:"#2a3a2e", margin:"0 0 24px", lineHeight:1.6, whiteSpace:"pre-line" }}>{state.msg}</p>
                 <div style={{ display:"flex", gap:10, justifyContent:"flex-end" }}>
                     <button onClick={() => resolve(false)}
                             style={{ background:"#f4f7f4", color:"#5a7060", border:"none", padding:"9px 20px",
                                      fontFamily:"'DM Sans',sans-serif", fontSize:12, fontWeight:500,
-                                     letterSpacing:".06em", textTransform:"uppercase", cursor:"pointer" }}>
+                                     letterSpacing:".06em", textTransform:"uppercase", cursor:"pointer", borderRadius:2,
+                                     transition:"background .15s" }}
+                            onMouseEnter={e => e.target.style.background="#ebf0eb"}
+                            onMouseLeave={e => e.target.style.background="#f4f7f4"}>
                         Cancelar
                     </button>
                     <button onClick={() => resolve(true)}
                             style={{ background:"#7a1a1a", color:"#fff", border:"none", padding:"9px 20px",
                                      fontFamily:"'DM Sans',sans-serif", fontSize:12, fontWeight:500,
-                                     letterSpacing:".06em", textTransform:"uppercase", cursor:"pointer" }}>
+                                     letterSpacing:".06em", textTransform:"uppercase", cursor:"pointer", borderRadius:2,
+                                     transition:"background .15s" }}
+                            onMouseEnter={e => e.target.style.background="#5c1414"}
+                            onMouseLeave={e => e.target.style.background="#7a1a1a"}>
                         Confirmar
                     </button>
                 </div>
@@ -215,6 +245,7 @@ const modulos = [
             { id: "fin-contratos",     label: "Contratos / CR",   icon: Receipt },
             { id: "fin-pagar",         label: "Contas a Pagar",   icon: TrendingDown },
             { id: "fin-movimentacoes", label: "Movimentações",    icon: ArrowLeftRight },
+            { id: "fin-relatorios",    label: "Relatórios Fin.",   icon: FileText },
         ]
     },
     {
@@ -231,43 +262,66 @@ const allMenuItems = modulos.flatMap(m => m.items);
 
 // ---- DASHBOARD ----
 const GLOBAL_STYLE = `
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap');
 * { box-sizing: border-box; }
 :root { font-family: 'DM Sans', sans-serif; }
+
+/* ── Animações ─────────────────────────────────────────────── */
 @keyframes ddToastIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-.dd-sidebar { background: #0d1f18; }
-.dd-sidebar-logo-wrap { border-bottom: 1px solid rgba(255,255,255,0.07); }
-.dd-user-wrap { border-bottom: 1px solid rgba(255,255,255,0.07); }
-/* scrollbar fina e discreta no nav do sidebar */
+@keyframes ddToastProgress { from { width:100%; } to { width:0%; } }
+@keyframes ddModalIn { from { opacity:0; transform:scale(.96) translateY(8px); } to { opacity:1; transform:scale(1) translateY(0); } }
+@keyframes ddOverlayIn { from { opacity:0; } to { opacity:1; } }
+@keyframes ddSectionCollapse { from { opacity:1; max-height:500px; } to { opacity:0; max-height:0; } }
+@keyframes ddSectionExpand { from { opacity:0; max-height:0; } to { opacity:1; max-height:500px; } }
+
+/* ── Sidebar ───────────────────────────────────────────────── */
+.dd-sidebar { background: linear-gradient(180deg, #0d1f18 0%, #0a1a14 100%); }
+.dd-sidebar-logo-wrap { border-bottom: 1px solid rgba(255,255,255,0.08); }
+.dd-user-wrap { border-bottom: 1px solid rgba(255,255,255,0.08); }
 .dd-sidebar nav::-webkit-scrollbar { width: 3px; }
 .dd-sidebar nav::-webkit-scrollbar-track { background: transparent; }
 .dd-sidebar nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 2px; }
 .dd-sidebar nav::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.25); }
-/* ano letivo: botão sem box visível, parece nativo do sidebar */
 .dd-ano-letivo-btn { width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; background:transparent; border:none; border-bottom:1px solid rgba(255,255,255,.15); border-radius:0; padding:5px 2px 6px; cursor:pointer; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:500; color:#7ec8a0; letter-spacing:.01em; transition: border-color .15s; }
 .dd-ano-letivo-btn:hover { border-bottom-color: rgba(255,255,255,.3); }
-.dd-nav-section-label { font-size:10px; font-weight:500; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.3); padding: 0 12px; margin-bottom:4px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; border:none; background:none; width:100%; }
-.dd-nav-section-label:hover { color:rgba(255,255,255,.5); }
-.dd-nav-btn { display:flex; align-items:center; gap:10px; padding:9px 12px; font-size:13px; font-weight:400; color:rgba(255,255,255,.45); border:none; background:transparent; width:100%; text-align:left; cursor:pointer; border-left:2px solid transparent; transition:color .15s, background .15s, border-color .15s; }
-.dd-nav-btn:hover { color:rgba(255,255,255,.8); background:rgba(255,255,255,.04); }
-.dd-nav-btn.active { color:#7ec8a0; border-left-color:#7ec8a0; background:rgba(126,200,160,.07); font-weight:500; }
-.dd-nav-btn.disabled { color:rgba(255,255,255,.18); cursor:default; }
-.dd-badge-soon { font-size:9px; letter-spacing:.08em; text-transform:uppercase; padding:2px 6px; background:rgba(255,255,255,.06); color:rgba(255,255,255,.25); }
-.dd-header { background:#fff; border-bottom:1px solid #eaeef2; position:sticky; top:0; z-index:10; }
+.dd-nav-section-label { font-size:9px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:rgba(255,255,255,.28); padding:0 14px; margin-bottom:6px; margin-top:4px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; border:none; background:none; width:100%; transition:color .2s; }
+.dd-nav-section-label:hover { color:rgba(255,255,255,.55); }
+.dd-nav-section-items { overflow:hidden; transition: max-height .25s ease, opacity .2s ease; }
+.dd-nav-btn { display:flex; align-items:center; gap:10px; padding:8px 14px; font-size:13px; font-weight:400; color:rgba(255,255,255,.45); border:none; background:transparent; width:100%; text-align:left; cursor:pointer; border-left:2px solid transparent; transition:all .18s ease; border-radius:0 4px 4px 0; margin-left:0; }
+.dd-nav-btn:hover { color:rgba(255,255,255,.85); background:rgba(255,255,255,.05); }
+.dd-nav-btn.active { color:#7ec8a0; border-left-color:#7ec8a0; background:rgba(126,200,160,.08); font-weight:500; }
+.dd-nav-btn.disabled { color:rgba(255,255,255,.15); cursor:default; }
+.dd-nav-btn.disabled:hover { background:transparent; color:rgba(255,255,255,.15); }
+.dd-badge-soon { font-size:8px; letter-spacing:.08em; text-transform:uppercase; padding:2px 6px; background:rgba(255,255,255,.06); color:rgba(255,255,255,.2); border-radius:2px; }
+
+/* ── Header ────────────────────────────────────────────────── */
+.dd-header { background:#fff; border-bottom:none; box-shadow:0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04); position:sticky; top:0; z-index:10; }
 .dd-page-title { font-family:'Playfair Display', serif; font-size:22px; font-weight:700; color:#0d1f18; letter-spacing:-.02em; line-height:1; }
 .dd-page-sub { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#9aaa9f; margin-top:3px; }
-.dd-card { background:#fff; border:1px solid #eaeef2; border-top:2px solid var(--accent, #0d1f18); }
+.dd-breadcrumb { font-size:10px; letter-spacing:.06em; color:#b8c4be; margin-top:2px; }
+.dd-breadcrumb span { color:#7ec8a0; }
+
+/* ── Cards ─────────────────────────────────────────────────── */
+.dd-card { background:#fff; border:1px solid #eaeef2; border-top:2px solid var(--accent, #0d1f18); transition:box-shadow .25s ease, transform .2s ease; }
+.dd-card:hover { box-shadow:0 4px 12px rgba(0,0,0,.06); transform:translateY(-1px); }
 .dd-card-num { font-family:'Playfair Display', serif; font-size:30px; font-weight:700; color:#0d1f18; line-height:1; }
 .dd-card-label { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:#9aaa9f; margin-top:4px; }
-.dd-section { background:#fff; border:1px solid #eaeef2; }
+
+/* ── Sections ──────────────────────────────────────────────── */
+.dd-section { background:#fff; border:1px solid #eaeef2; border-radius:2px; transition:box-shadow .2s ease; }
+.dd-section:hover { box-shadow:0 2px 8px rgba(0,0,0,.04); }
 .dd-section-header { border-bottom:1px solid #eaeef2; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; }
 .dd-section-title { font-size:13px; font-weight:500; color:#0d1f18; letter-spacing:.01em; }
 .dd-section-count { font-size:11px; color:#9aaa9f; letter-spacing:.04em; }
-.dd-table th { font-size:10px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:#9aaa9f; padding:10px 20px; text-align:left; background:#f8faf8; border-bottom:1px solid #eaeef2; }
-.dd-table td { padding:12px 20px; border-bottom:1px solid #f2f5f2; font-size:13px; color:#2a3a2e; }
+
+/* ── Tables ────────────────────────────────────────────────── */
+.dd-table th { font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#7a8a80; padding:10px 20px; text-align:left; background:#f6f8f6; border-bottom:2px solid #eaeef2; }
+.dd-table td { padding:12px 20px; border-bottom:1px solid #f2f5f2; font-size:13px; color:#2a3a2e; transition:background .12s ease; }
 .dd-table tr:last-child td { border-bottom:none; }
-.dd-table tr:hover td { background:#fafcfa; }
-.dd-badge { font-size:11px; font-weight:500; padding:3px 10px; letter-spacing:.02em; }
+.dd-table tr:hover td { background:#f4f8f5; }
+.dd-badge { font-size:11px; font-weight:500; padding:3px 10px; letter-spacing:.02em; border-radius:2px; }
+
+/* ── Inputs ────────────────────────────────────────────────── */
 .dd-input { border:none; border-bottom:1.5px solid #d4ddd8; background:transparent; padding:9px 0; font-size:14px; font-family:'DM Sans',sans-serif; color:#0d1f18; outline:none; width:100%; transition:border-color .2s; }
 .dd-input:focus { border-bottom-color:#0d1f18; }
 .dd-input::placeholder { color:#b8c4be; }
@@ -275,30 +329,40 @@ const GLOBAL_STYLE = `
 .dd-input-line { position:absolute; bottom:-1.5px; left:0; height:1.5px; background:#0d1f18; width:0; transition:width .25s ease; }
 .dd-input-wrap:focus-within .dd-input-line { width:100%; }
 .dd-label { font-size:10px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:#9aaa9f; display:block; margin-bottom:6px; }
-.dd-btn-primary { background:#0d1f18; color:#fff; border:none; padding:11px 20px; font-family:'DM Sans',sans-serif; font-size:12px; font-weight:500; letter-spacing:.08em; text-transform:uppercase; cursor:pointer; transition:background .2s; }
-.dd-btn-primary:hover { background:#1a4d3a; }
-.dd-btn-primary:disabled { opacity:.4; cursor:default; }
-.dd-btn-ghost { background:#f4f7f4; color:#5a7060; border:none; padding:7px 14px; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; transition:background .2s; }
-.dd-btn-ghost:hover { background:#ebf0eb; }
-.dd-btn-danger { background:#fdf0f0; color:#b94040; border:none; padding:7px 14px; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; }
-.dd-btn-danger:hover { background:#fbe0e0; }
-.dd-btn-edit { background:#f0f5f2; color:#3a6649; border:none; padding:7px 14px; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; }
-.dd-btn-edit:hover { background:#e4ede7; }
-.dd-btn-toggle-on { background:#fdf0f0; color:#b94040; border:none; padding:7px 14px; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; }
-.dd-btn-toggle-off { background:#f0f5f2; color:#3a6649; border:none; padding:7px 14px; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; }
-.dd-modal-overlay { position:fixed; inset:0; background:rgba(13,31,24,.55); z-index:50; display:flex; align-items:center; justify-content:center; padding:24px; }
-.dd-modal { background:#fff; width:100%; max-width:420px; padding:32px; }
+
+/* ── Buttons ───────────────────────────────────────────────── */
+.dd-btn-primary { background:#0d1f18; color:#fff; border:none; padding:11px 20px; font-family:'DM Sans',sans-serif; font-size:12px; font-weight:500; letter-spacing:.08em; text-transform:uppercase; cursor:pointer; transition:all .2s ease; border-radius:2px; }
+.dd-btn-primary:hover { background:#1a4d3a; box-shadow:0 2px 8px rgba(13,31,24,.2); }
+.dd-btn-primary:active { transform:scale(.98); }
+.dd-btn-primary:disabled { opacity:.4; cursor:default; box-shadow:none; transform:none; }
+.dd-btn-ghost { background:#f4f7f4; color:#5a7060; border:none; padding:7px 14px; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; transition:all .2s ease; border-radius:2px; }
+.dd-btn-ghost:hover { background:#ebf0eb; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+.dd-btn-danger { background:#fdf0f0; color:#b94040; border:none; padding:7px 14px; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; transition:all .15s ease; border-radius:2px; }
+.dd-btn-danger:hover { background:#fbe0e0; box-shadow:0 1px 4px rgba(185,64,64,.1); }
+.dd-btn-edit { background:#f0f5f2; color:#3a6649; border:none; padding:7px 14px; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; transition:all .15s ease; border-radius:2px; }
+.dd-btn-edit:hover { background:#e4ede7; box-shadow:0 1px 4px rgba(58,102,73,.1); }
+.dd-btn-toggle-on { background:#fdf0f0; color:#b94040; border:none; padding:7px 14px; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; border-radius:2px; }
+.dd-btn-toggle-off { background:#f0f5f2; color:#3a6649; border:none; padding:7px 14px; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; border-radius:2px; }
+
+/* ── Modais ─────────────────────────────────────────────────── */
+.dd-modal-overlay { position:fixed; inset:0; background:rgba(13,31,24,.55); z-index:50; display:flex; align-items:center; justify-content:center; padding:24px; animation:ddOverlayIn .2s ease; backdrop-filter:blur(2px); }
+.dd-modal { background:#fff; width:100%; max-width:420px; padding:32px; border-radius:3px; animation:ddModalIn .25s ease; box-shadow:0 20px 60px rgba(0,0,0,.2); }
 .dd-modal-title { font-family:'Playfair Display',serif; font-size:20px; font-weight:700; color:#0d1f18; }
 .dd-modal-sub { font-size:12px; color:#9aaa9f; margin-top:2px; letter-spacing:.04em; }
-.dd-err { font-size:12px; color:#b94040; padding:10px 14px; background:#fdf0f0; border-left:3px solid #b94040; margin-top:4px; }
-.dd-ok { font-size:12px; color:#3a6649; padding:10px 14px; background:#f0f5f2; border-left:3px solid #7ec8a0; margin-top:4px; }
+
+/* ── Feedback ──────────────────────────────────────────────── */
+.dd-err { font-size:12px; color:#b94040; padding:10px 14px; background:#fdf0f0; border-left:3px solid #b94040; margin-top:4px; border-radius:0 2px 2px 0; }
+.dd-ok { font-size:12px; color:#3a6649; padding:10px 14px; background:#f0f5f2; border-left:3px solid #7ec8a0; margin-top:4px; border-radius:0 2px 2px 0; }
+
+/* ── Search ────────────────────────────────────────────────── */
 .dd-search-wrap { display:flex; gap:8px; align-items:center; }
-.dd-search-select { font-size:11px; padding:8px 12px; border:1px solid #eaeef2; background:white; color:#5a7060; outline:none; letter-spacing:.04em; font-family:'DM Sans',sans-serif; }
+.dd-search-select { font-size:11px; padding:8px 12px; border:1px solid #eaeef2; background:white; color:#5a7060; outline:none; letter-spacing:.04em; font-family:'DM Sans',sans-serif; border-radius:2px; }
 .dd-search-input-wrap { position:relative; flex:1; }
-.dd-search-input { width:100%; padding:8px 32px 8px 32px; font-size:12px; border:1px solid #eaeef2; background:white; color:#0d1f18; outline:none; font-family:'DM Sans',sans-serif; transition:border-color .15s; }
+.dd-search-input { width:100%; padding:8px 32px 8px 32px; font-size:12px; border:1px solid #eaeef2; background:white; color:#0d1f18; outline:none; font-family:'DM Sans',sans-serif; transition:border-color .15s; border-radius:2px; }
 .dd-search-input:focus { border-color:#0d1f18; }
 .dd-search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#9aaa9f; pointer-events:none; }
 .dd-search-clear { position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:#9aaa9f; cursor:pointer; padding:0; }
+
 @media print {
   body > * { display:none !important; }
   .print-section { display:block !important; position:fixed; inset:0; background:white; z-index:9999; padding:24px; }
@@ -718,37 +782,37 @@ export default function DirecaoDashboard() {
 
                 {/* ── Sidebar ── */}
                 <aside className={`dd-sidebar${sidebarAberta ? " open" : ""}`} style={{
-                    width:210, flexShrink:0, display:"flex", flexDirection:"column",
+                    width:230, flexShrink:0, display:"flex", flexDirection:"column",
                     position:"sticky", top:0, height:"100vh", overflowY:"auto",
                 }}>
                     {/* logo */}
-                    <div className="dd-sidebar-logo-wrap" style={{ padding:"24px 20px 20px", display:"flex", alignItems:"center", gap:12 }}>
-                        <div style={{ width:28, height:28, border:"1.5px solid rgba(255,255,255,.2)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                                <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="rgba(255,255,255,.5)" strokeWidth="1.2"/>
-                                <circle cx="8" cy="8" r="2" fill="#7ec8a0"/>
+                    <div className="dd-sidebar-logo-wrap" style={{ padding:"24px 22px 20px", display:"flex", alignItems:"center", gap:12 }}>
+                        <div style={{ width:32, height:32, borderRadius:"8px", background:"linear-gradient(135deg, #7ec8a0 0%, #3a8d5c 100%)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 2px 8px rgba(126,200,160,.3)" }}>
+                            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="rgba(255,255,255,.9)" strokeWidth="1.2"/>
+                                <circle cx="8" cy="8" r="2" fill="#fff"/>
                             </svg>
                         </div>
                         <div>
-                            <p style={{ fontFamily:"'DM Sans',sans-serif", fontWeight:500, fontSize:13, letterSpacing:"0.08em", color:"rgba(255,255,255,.75)", lineHeight:1 }}>DomGestão</p>
-                            <p style={{ fontSize:10, letterSpacing:"0.1em", textTransform:"uppercase", color:"rgba(255,255,255,.3)", marginTop:3 }}>Direção</p>
+                            <p style={{ fontFamily:"'Playfair Display',serif", fontWeight:700, fontSize:15, color:"rgba(255,255,255,.9)", lineHeight:1, letterSpacing:"-.01em" }}>DomGestão</p>
+                            <p style={{ fontSize:9, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,.35)", marginTop:4, fontWeight:500 }}>{isCoord ? "Coordenação" : "Direção"}</p>
                         </div>
                     </div>
 
                     {/* user */}
-                    <div className="dd-user-wrap" style={{ padding:"14px 20px", display:"flex", alignItems:"center", gap:10 }}>
-                        <div style={{ width:28, height:28, background:"rgba(126,200,160,.15)", border:"1px solid rgba(126,200,160,.3)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:12, fontWeight:600, color:"#7ec8a0" }}>
+                    <div className="dd-user-wrap" style={{ padding:"16px 22px", display:"flex", alignItems:"center", gap:10 }}>
+                        <div style={{ width:32, height:32, borderRadius:"50%", background:"linear-gradient(135deg, rgba(126,200,160,.2) 0%, rgba(126,200,160,.1) 100%)", border:"1.5px solid rgba(126,200,160,.3)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:12, fontWeight:600, color:"#7ec8a0" }}>
                             {nome.charAt(0).toUpperCase()}
                         </div>
-                        <div style={{ minWidth:0 }}>
-                            <p style={{ fontSize:12, fontWeight:500, color:"rgba(255,255,255,.65)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{nome}</p>
-                            <p style={{ fontSize:10, color:"rgba(255,255,255,.25)", letterSpacing:"0.04em" }}>Administrador</p>
+                        <div style={{ minWidth:0, flex:1 }}>
+                            <p style={{ fontSize:13, fontWeight:500, color:"rgba(255,255,255,.75)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{nome}</p>
+                            <p style={{ fontSize:10, color:"rgba(255,255,255,.3)", letterSpacing:"0.04em" }}>{isCoord ? "Coordenação" : "Administrador"}</p>
                         </div>
                     </div>
 
                     {/* ano letivo */}
-                    <div style={{ padding:"10px 20px 14px", borderBottom:"1px solid rgba(255,255,255,.06)" }}>
-                        <p style={{ fontSize:9, color:"rgba(255,255,255,.3)", letterSpacing:".12em", textTransform:"uppercase", marginBottom:6 }}>Ano Letivo</p>
+                    <div style={{ padding:"12px 22px 16px", borderBottom:"1px solid rgba(255,255,255,.06)" }}>
+                        <p style={{ fontSize:9, color:"rgba(255,255,255,.3)", letterSpacing:".12em", textTransform:"uppercase", marginBottom:6, fontWeight:500 }}>Ano Letivo</p>
                         <select value={anoLetivo} onChange={e => setAnoLetivo(Number(e.target.value))}
                                 style={{ width:"100%", background:"transparent", border:"none", borderBottom:"1px solid rgba(255,255,255,.2)", color:"#7ec8a0", fontFamily:"'DM Sans',sans-serif", fontSize:14, fontWeight:500, padding:"4px 2px 6px", cursor:"pointer", outline:"none", appearance:"none", WebkitAppearance:"none" }}>
                             {anosDisponiveis.map(ano => <option key={ano} value={ano} style={{ background:"#1a2e23", color:"#7ec8a0" }}>{ano}</option>)}
@@ -756,7 +820,7 @@ export default function DirecaoDashboard() {
                     </div>
 
                     {/* nav */}
-                    <nav style={{ flex:1, padding:"16px 8px", display:"flex", flexDirection:"column", gap:16, overflowY:"auto" }}>
+                    <nav style={{ flex:1, padding:"16px 10px", display:"flex", flexDirection:"column", gap:18, overflowY:"auto" }}>
                         {modulosVisiveis.map(modulo => {
                             const colapsado = !!colapsados[modulo.id];
                             return (
@@ -764,30 +828,36 @@ export default function DirecaoDashboard() {
                                     {modulo.label && (
                                         <button className="dd-nav-section-label" onClick={() => toggleColapso(modulo.id)}>
                                             <span>{modulo.label}</span>
-                                            <ChevronRight size={11} style={{ opacity:.4, transform: colapsado ? "rotate(0deg)" : "rotate(90deg)", transition:"transform .2s" }} />
+                                            <ChevronDown size={10} style={{ opacity:.4, transform: colapsado ? "rotate(-90deg)" : "rotate(0deg)", transition:"transform .25s ease" }} />
                                         </button>
                                     )}
-                                    {!colapsado && modulo.items.filter(item => !(item.direcaoOnly && isCoord)).map(item => {
-                                        const Icon = item.icon;
-                                        const active = aba === item.id;
-                                        return (
-                                            <button key={item.id}
-                                                    className={`dd-nav-btn${active ? " active" : ""}${item.disabled ? " disabled" : ""}`}
-                                                    disabled={item.disabled}
-                                                    onClick={() => { if (!item.disabled) { setAbaSegura(item.id); setSidebarAberta(false); } }}>
-                                                <Icon size={14} style={{ flexShrink:0 }} />
-                                                <span style={{ flex:1 }}>{item.label}</span>
-                                                {item.disabled && <span className="dd-badge-soon">Em breve</span>}
-                                            </button>
-                                        );
-                                    })}
+                                    <div className="dd-nav-section-items" style={{
+                                        maxHeight: modulo.label && colapsado ? 0 : 500,
+                                        opacity: modulo.label && colapsado ? 0 : 1,
+                                        marginTop: modulo.label && colapsado ? 0 : 2,
+                                    }}>
+                                        {modulo.items.filter(item => !(item.direcaoOnly && isCoord)).map(item => {
+                                            const Icon = item.icon;
+                                            const active = aba === item.id;
+                                            return (
+                                                <button key={item.id}
+                                                        className={`dd-nav-btn${active ? " active" : ""}${item.disabled ? " disabled" : ""}`}
+                                                        disabled={item.disabled}
+                                                        onClick={() => { if (!item.disabled) { setAbaSegura(item.id); setSidebarAberta(false); } }}>
+                                                    <Icon size={15} style={{ flexShrink:0, opacity: active ? 1 : .7 }} />
+                                                    <span style={{ flex:1 }}>{item.label}</span>
+                                                    {item.disabled && <span className="dd-badge-soon">Em breve</span>}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             );
                         })}
                     </nav>
 
                     {/* logout */}
-                    <div style={{ padding:"12px 8px", borderTop:"1px solid rgba(255,255,255,.06)" }}>
+                    <div style={{ padding:"14px 10px", borderTop:"1px solid rgba(255,255,255,.06)" }}>
                         <button className="dd-nav-btn" onClick={logout} style={{ color:"rgba(255,100,100,.5)" }}>
                             <LogOut size={14} />
                             <span>Sair</span>
@@ -805,14 +875,24 @@ export default function DirecaoDashboard() {
                             </button>
                             <div>
                                 <h1 className="dd-page-title">{allMenuItems.find(m => m.id === aba)?.label}</h1>
-                                <p className="dd-page-sub">DomGestão — Sistema Escolar</p>
+                                <p className="dd-breadcrumb">
+                                    {(() => {
+                                        const mod = modulosVisiveis.find(m => m.items.some(i => i.id === aba));
+                                        if (mod && mod.label) return <><span>{mod.label}</span>{" / "}{allMenuItems.find(m => m.id === aba)?.label}</>;
+                                        return "DomGestão — Sistema Escolar";
+                                    })()}
+                                </p>
                             </div>
                         </div>
-                        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                             <button className="dd-theme-btn" onClick={toggleDark} title={dark ? "Modo claro" : "Modo escuro"}>
                                 {dark ? <Sun size={15} color="#f0c040" /> : <Moon size={15} color="#5a7060" />}
                             </button>
-                            <div style={{ width:32, height:32, background: dark ? "#243d30" : "#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:600, color:"#7ec8a0", letterSpacing:".04em" }}>
+                            <div style={{ textAlign:"right", marginRight:4 }}>
+                                <p style={{ fontSize:12, fontWeight:500, color: dark ? "#c5d5ca" : "#2a3a2e", lineHeight:1 }}>{nome}</p>
+                                <p style={{ fontSize:10, color: dark ? "#5a7a65" : "#9aaa9f", marginTop:2 }}>{isCoord ? "Coordenação" : "Direção"}</p>
+                            </div>
+                            <div style={{ width:34, height:34, borderRadius:"50%", background: dark ? "#243d30" : "#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:600, color:"#7ec8a0", letterSpacing:".04em" }}>
                                 {nome.charAt(0).toUpperCase()}
                             </div>
                         </div>
@@ -834,6 +914,7 @@ export default function DirecaoDashboard() {
                         {aba === "fin-contratos"    && <ErrorBoundary key="fin-contratos"><FinContratos anoLetivo={anoLetivo} /></ErrorBoundary>}
                         {aba === "fin-pagar"        && <ErrorBoundary key="fin-pagar"><FinContasPagar /></ErrorBoundary>}
                         {aba === "fin-movimentacoes" && <ErrorBoundary key="fin-movimentacoes"><FinMovimentacoes /></ErrorBoundary>}
+                        {aba === "fin-relatorios"    && <ErrorBoundary key="fin-relatorios"><FinRelatorios /></ErrorBoundary>}
                         {aba === "fin-config"       && !isCoord && <ErrorBoundary key="fin-config"><FinConfiguracoes anoLetivo={anoLetivo} /></ErrorBoundary>}
                         {aba === "comunicados"      && <ErrorBoundary key="comunicados"><Comunicados /></ErrorBoundary>}
                         {aba === "auditoria"        && !isCoord && <ErrorBoundary key="auditoria"><AuditLog /></ErrorBoundary>}
@@ -6315,6 +6396,282 @@ function FinMovimentacoes() {
                                 <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando?"Salvando...":"Registrar"}</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ---- FIN RELATORIOS ----
+const FIN_RELATORIOS_LIST = [
+    {
+        id: 1,
+        descricao: "Contas a Receber por Período",
+        filtros: ["periodo", "status_cr", "tipo_cr"],
+        endpoint: (f) => `/relatorios/financeiro/contas-receber?de=${f.de}&ate=${f.ate}${f.status ? `&status=${f.status}` : ""}${f.tipo ? `&tipo=${f.tipo}` : ""}`,
+        filename: "contas_receber.pdf",
+    },
+    {
+        id: 2,
+        descricao: "Contas a Pagar por Período",
+        filtros: ["periodo", "status_cp", "tipo_cp", "categoria_cp"],
+        endpoint: (f) => `/relatorios/financeiro/contas-pagar?de=${f.de}&ate=${f.ate}${f.status ? `&status=${f.status}` : ""}${f.tipo ? `&tipo=${f.tipo}` : ""}${f.categoria ? `&categoria=${f.categoria}` : ""}`,
+        filename: "contas_pagar.pdf",
+    },
+    {
+        id: 3,
+        descricao: "Inadimplência",
+        filtros: ["data_base"],
+        endpoint: (f) => `/relatorios/financeiro/inadimplencia${f.dataBase ? `?dataBase=${f.dataBase}` : ""}`,
+        filename: "inadimplencia.pdf",
+    },
+    {
+        id: 4,
+        descricao: "Fluxo de Caixa",
+        filtros: ["periodo"],
+        endpoint: (f) => `/relatorios/financeiro/fluxo-caixa?de=${f.de}&ate=${f.ate}`,
+        filename: "fluxo_caixa.pdf",
+    },
+    {
+        id: 5,
+        descricao: "Folha de Pagamento",
+        filtros: ["mes_referencia"],
+        endpoint: (f) => `/relatorios/financeiro/folha-pagamento?mes=${f.mes}`,
+        filename: "folha_pagamento.pdf",
+    },
+];
+
+function FinRelatorios() {
+    const [modalRel, setModalRel]   = useState(null); // relatório selecionado
+    const [filtros, setFiltros]     = useState({});
+    const [carregando, setCarregando] = useState(false);
+    const [erro, setErro]           = useState(null);
+
+    // defaults ao abrir modal
+    const abrirModal = (rel) => {
+        const hoje = new Date().toISOString().slice(0, 10);
+        const primeiroDiaMes = hoje.slice(0, 7) + "-01";
+        const mesAtual = hoje.slice(0, 7);
+        setFiltros({ de: primeiroDiaMes, ate: hoje, dataBase: hoje, mes: mesAtual });
+        setErro(null);
+        setModalRel(rel);
+    };
+
+    const fecharModal = () => { setModalRel(null); setErro(null); };
+
+    const set = (k, v) => setFiltros(prev => ({ ...prev, [k]: v }));
+
+    const gerarPDF = async () => {
+        if (!modalRel) return;
+        setCarregando(true);
+        setErro(null);
+        try {
+            const token = localStorage.getItem("token");
+            const url = modalRel.endpoint(filtros);
+            const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+            if (!resp.ok) {
+                const txt = await resp.text();
+                throw new Error(txt || `Erro ${resp.status}`);
+            }
+            const blob = await resp.blob();
+            const objUrl = URL.createObjectURL(blob);
+            window.open(objUrl, "_blank");
+            fecharModal();
+        } catch (e) {
+            setErro(e.message || "Erro ao gerar relatório.");
+        } finally {
+            setCarregando(false);
+        }
+    };
+
+    const temFiltro = (nome) => modalRel?.filtros?.includes(nome);
+
+    return (
+        <div>
+            <style>{`
+                .fin-rel-table { width:100%; border-collapse:collapse; }
+                .fin-rel-table th { font-size:10px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:#9aaa9f; padding:10px 20px; text-align:left; background:#f8faf8; border-bottom:1px solid #eaeef2; }
+                .fin-rel-table td { padding:12px 20px; border-bottom:1px solid #f2f5f2; font-size:13px; color:#2a3a2e; }
+                .fin-rel-table tr:last-child td { border-bottom:none; }
+                .fin-rel-table tr:hover td { background:#fafcfa; }
+                .fin-rel-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000; display:flex; align-items:center; justify-content:center; }
+                .fin-rel-modal { background:#fff; border-radius:6px; padding:28px 32px; min-width:420px; max-width:580px; width:100%; box-shadow:0 8px 32px rgba(0,0,0,.18); position:relative; }
+                .fin-rel-modal h3 { font-size:16px; font-weight:600; color:#0d1f18; margin:0 0 20px; }
+                .fin-rel-field { margin-bottom:14px; }
+                .fin-rel-field label { display:block; font-size:11px; font-weight:500; color:#5a6a60; margin-bottom:5px; letter-spacing:.04em; text-transform:uppercase; }
+                .fin-rel-field input, .fin-rel-field select { width:100%; padding:8px 10px; border:1px solid #d0d8d4; border-radius:4px; font-size:13px; color:#0d1f18; background:#fff; }
+                .fin-rel-field input:focus, .fin-rel-field select:focus { outline:none; border-color:#7ec8a0; }
+                .fin-rel-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+                .fin-rel-btn-primary { background:#0d1f18; color:#fff; border:none; padding:9px 22px; border-radius:4px; font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; gap:6px; }
+                .fin-rel-btn-primary:hover { background:#1a3a28; }
+                .fin-rel-btn-primary:disabled { opacity:.5; cursor:default; }
+                .fin-rel-btn-cancel { background:transparent; color:#888; border:1px solid #d0d8d4; padding:9px 18px; border-radius:4px; font-size:13px; cursor:pointer; }
+                .fin-rel-btn-cancel:hover { background:#f5f5f5; }
+                .fin-rel-icon-btn { background:#0d1f18; border:none; width:32px; height:32px; border-radius:4px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+                .fin-rel-icon-btn:hover { background:#1a3a28; }
+            `}</style>
+
+            <div className="dd-section" style={{ marginBottom: 24 }}>
+                <div className="dd-section-header">
+                    <span className="dd-section-title">Relatórios Financeiros</span>
+                    <span className="dd-section-count">{FIN_RELATORIOS_LIST.length} relatório(s)</span>
+                </div>
+                <table className="fin-rel-table">
+                    <thead>
+                        <tr>
+                            <th style={{ width: 50 }}>Nº</th>
+                            <th>Descrição</th>
+                            <th style={{ width: 80, textAlign: "right" }}>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {FIN_RELATORIOS_LIST.map(rel => (
+                            <tr key={rel.id}>
+                                <td style={{ color: "#9aaa9f" }}>{rel.id}</td>
+                                <td>{rel.descricao}</td>
+                                <td style={{ textAlign: "right" }}>
+                                    <button
+                                        className="fin-rel-icon-btn"
+                                        title="Gerar PDF"
+                                        onClick={() => abrirModal(rel)}
+                                    >
+                                        <FileText size={14} color="#7ec8a0" />
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            {/* MODAL */}
+            {modalRel && (
+                <div className="fin-rel-modal-overlay" onClick={fecharModal}>
+                    <div className="fin-rel-modal" onClick={e => e.stopPropagation()}>
+                        <h3>{modalRel.descricao}</h3>
+
+                        {/* Período (de / ate) */}
+                        {temFiltro("periodo") && (
+                            <div className="fin-rel-row">
+                                <div className="fin-rel-field">
+                                    <label>Data inicial *</label>
+                                    <input type="date" value={filtros.de || ""} onChange={e => set("de", e.target.value)} />
+                                </div>
+                                <div className="fin-rel-field">
+                                    <label>Data final *</label>
+                                    <input type="date" value={filtros.ate || ""} onChange={e => set("ate", e.target.value)} />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Data base (inadimplência) */}
+                        {temFiltro("data_base") && (
+                            <div className="fin-rel-field">
+                                <label>Data base</label>
+                                <input type="date" value={filtros.dataBase || ""} onChange={e => set("dataBase", e.target.value)} />
+                            </div>
+                        )}
+
+                        {/* Mês referência (folha) */}
+                        {temFiltro("mes_referencia") && (
+                            <div className="fin-rel-field">
+                                <label>Mês de referência *</label>
+                                <input type="month" value={filtros.mes || ""} onChange={e => set("mes", e.target.value)} />
+                            </div>
+                        )}
+
+                        {/* Status CR */}
+                        {temFiltro("status_cr") && (
+                            <div className="fin-rel-field">
+                                <label>Status</label>
+                                <select value={filtros.status || ""} onChange={e => set("status", e.target.value)}>
+                                    <option value="">Todos</option>
+                                    <option value="PENDENTE">Pendente</option>
+                                    <option value="PAGO">Pago</option>
+                                    <option value="VENCIDO">Vencido</option>
+                                    <option value="CANCELADO">Cancelado</option>
+                                </select>
+                            </div>
+                        )}
+
+                        {/* Tipo CR */}
+                        {temFiltro("tipo_cr") && (
+                            <div className="fin-rel-field">
+                                <label>Tipo</label>
+                                <select value={filtros.tipo || ""} onChange={e => set("tipo", e.target.value)}>
+                                    <option value="">Todos</option>
+                                    <option value="MENSALIDADE">Mensalidade</option>
+                                    <option value="MATRICULA">Matrícula</option>
+                                    <option value="UNIFORME">Uniforme</option>
+                                    <option value="EVENTO">Evento</option>
+                                    <option value="OUTRO">Outro</option>
+                                </select>
+                            </div>
+                        )}
+
+                        {/* Status CP */}
+                        {temFiltro("status_cp") && (
+                            <div className="fin-rel-field">
+                                <label>Status</label>
+                                <select value={filtros.status || ""} onChange={e => set("status", e.target.value)}>
+                                    <option value="">Todos</option>
+                                    <option value="PENDENTE">Pendente</option>
+                                    <option value="PAGO">Pago</option>
+                                    <option value="VENCIDO">Vencido</option>
+                                    <option value="CANCELADO">Cancelado</option>
+                                </select>
+                            </div>
+                        )}
+
+                        {/* Tipo CP */}
+                        {temFiltro("tipo_cp") && (
+                            <div className="fin-rel-field">
+                                <label>Tipo</label>
+                                <select value={filtros.tipo || ""} onChange={e => set("tipo", e.target.value)}>
+                                    <option value="">Todos</option>
+                                    <option value="SALARIO">Salário</option>
+                                    <option value="CONTA_FIXA">Conta Fixa</option>
+                                    <option value="FORNECEDOR">Fornecedor</option>
+                                    <option value="OUTRO">Outro</option>
+                                </select>
+                            </div>
+                        )}
+
+                        {/* Categoria CP */}
+                        {temFiltro("categoria_cp") && (
+                            <div className="fin-rel-field">
+                                <label>Categoria</label>
+                                <select value={filtros.categoria || ""} onChange={e => set("categoria", e.target.value)}>
+                                    <option value="">Todas</option>
+                                    <option value="AGUA">Água</option>
+                                    <option value="LUZ">Luz</option>
+                                    <option value="INTERNET">Internet</option>
+                                    <option value="ALUGUEL">Aluguel</option>
+                                    <option value="SALARIO">Salário</option>
+                                    <option value="LIMPEZA">Limpeza</option>
+                                    <option value="MANUTENCAO">Manutenção</option>
+                                    <option value="MATERIAL">Material</option>
+                                    <option value="OUTRO">Outro</option>
+                                </select>
+                            </div>
+                        )}
+
+                        {erro && (
+                            <div style={{ background:"#fff5f5", border:"1px solid #f5c0c0", borderRadius:4, padding:"10px 14px", color:"#b94040", fontSize:12, marginBottom:14 }}>
+                                {erro}
+                            </div>
+                        )}
+
+                        <div style={{ display:"flex", gap:10, justifyContent:"flex-end", marginTop:8 }}>
+                            <button className="fin-rel-btn-cancel" onClick={fecharModal} disabled={carregando}>
+                                Cancelar
+                            </button>
+                            <button className="fin-rel-btn-primary" onClick={gerarPDF} disabled={carregando}>
+                                <FileText size={14} />
+                                {carregando ? "Gerando..." : "Gerar PDF"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports
+                http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="relatorio_fin_inadimplencia"
+              pageWidth="842" pageHeight="595"
+              orientation="Landscape"
+              columnWidth="802" leftMargin="20" rightMargin="20"
+              topMargin="15" bottomMargin="15"
+              whenNoDataType="NoDataSection">
+
+    <style name="default" isDefault="true" fontName="SansSerif" fontSize="7"/>
+
+    <style name="diasStyle" fontName="SansSerif" fontSize="7" isBold="true">
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$F{diasAtraso} != null && $F{diasAtraso} > 30]]></conditionExpression>
+            <style forecolor="#b94040"/>
+        </conditionalStyle>
+        <conditionalStyle>
+            <conditionExpression><![CDATA[$F{diasAtraso} != null && $F{diasAtraso} <= 30]]></conditionExpression>
+            <style forecolor="#c47a00"/>
+        </conditionalStyle>
+    </style>
+
+    <parameter name="DATA_BASE"        class="java.lang.String"/>
+    <parameter name="DATA_EMISSAO"     class="java.lang.String"/>
+    <parameter name="TOTAL_REGISTROS"  class="java.lang.Integer"/>
+    <parameter name="QTD_ALUNOS"       class="java.lang.Integer"/>
+    <parameter name="TOTAL_SALDO"      class="java.lang.String"/>
+
+    <field name="alunoNome"           class="java.lang.String"/>
+    <field name="responsavelNome"     class="java.lang.String"/>
+    <field name="responsavelTelefone" class="java.lang.String"/>
+    <field name="descricao"           class="java.lang.String"/>
+    <field name="parcela"             class="java.lang.String"/>
+    <field name="vencimento"          class="java.lang.String"/>
+    <field name="diasAtraso"          class="java.lang.Integer"/>
+    <field name="valor"               class="java.lang.String"/>
+    <field name="jurosMulta"          class="java.lang.String"/>
+    <field name="saldo"               class="java.lang.String"/>
+
+    <title>
+        <band height="60" splitType="Stretch">
+            <rectangle>
+                <reportElement x="0" y="0" width="802" height="40" backcolor="#4a1010" forecolor="#4a1010"/>
+                <graphicElement><pen lineWidth="0"/></graphicElement>
+            </rectangle>
+            <staticText>
+                <reportElement x="10" y="8" width="500" height="22" forecolor="#ffffff"/>
+                <textElement><font size="13" isBold="true" fontName="SansSerif"/></textElement>
+                <text><![CDATA[RELATÓRIO DE INADIMPLÊNCIA]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="580" y="8" width="220" height="14" forecolor="#ffaaaa"/>
+                <textElement textAlignment="Right"><font size="8" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA["Data base: " + $P{DATA_BASE}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="580" y="24" width="220" height="12" forecolor="#aaaaaa"/>
+                <textElement textAlignment="Right"><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA["Emissão: " + $P{DATA_EMISSAO}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="0" y="44" width="80" height="14" forecolor="#555555"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <text><![CDATA[Alunos inadimpl.:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="82" y="44" width="60" height="14" forecolor="#b94040"/>
+                <textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$P{QTD_ALUNOS} + " aluno(s)"]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="160" y="44" width="60" height="14" forecolor="#555555"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <text><![CDATA[Parcelas:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="220" y="44" width="60" height="14" forecolor="#b94040"/>
+                <textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$P{TOTAL_REGISTROS} + " parcela(s)"]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="300" y="44" width="80" height="14" forecolor="#555555"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <text><![CDATA[Total inadimplente:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="382" y="44" width="140" height="14" forecolor="#b94040"/>
+                <textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$P{TOTAL_SALDO}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="18" splitType="Stretch">
+            <rectangle>
+                <reportElement x="0" y="0" width="802" height="18" backcolor="#f4f0f0" forecolor="#f4f0f0"/>
+                <graphicElement><pen lineWidth="0"/></graphicElement>
+            </rectangle>
+            <staticText><reportElement x="0"   y="3" width="140" height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[ALUNO]]></text></staticText>
+            <staticText><reportElement x="142" y="3" width="120" height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[RESPONSÁVEL]]></text></staticText>
+            <staticText><reportElement x="264" y="3" width="90"  height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[TELEFONE]]></text></staticText>
+            <staticText><reportElement x="356" y="3" width="130" height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[DESCRIÇÃO]]></text></staticText>
+            <staticText><reportElement x="488" y="3" width="38"  height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[PARC.]]></text></staticText>
+            <staticText><reportElement x="528" y="3" width="62"  height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[VENCIMENTO]]></text></staticText>
+            <staticText><reportElement x="592" y="3" width="44"  height="12"/><textElement textAlignment="Center"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[DIAS]]></text></staticText>
+            <staticText><reportElement x="638" y="3" width="64"  height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[VALOR]]></text></staticText>
+            <staticText><reportElement x="704" y="3" width="48"  height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[JRS/MULTA]]></text></staticText>
+            <staticText><reportElement x="754" y="3" width="46"  height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[SALDO]]></text></staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="14" splitType="Stretch">
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="0"   y="1" width="140" height="12"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{alunoNome}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="142" y="1" width="120" height="12"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{responsavelNome}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="264" y="1" width="90" height="12"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{responsavelTelefone}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="356" y="1" width="130" height="12"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{descricao}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="488" y="1" width="38" height="12"/>
+                <textElement textAlignment="Center"><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{parcela}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="528" y="1" width="62" height="12"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{vencimento}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="592" y="1" width="44" height="12" style="diasStyle"/>
+                <textElement textAlignment="Center"><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{diasAtraso}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="638" y="1" width="64" height="12"/>
+                <textElement textAlignment="Right"><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{valor}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="704" y="1" width="48" height="12" forecolor="#c47a00"/>
+                <textElement textAlignment="Right"><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{jurosMulta}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="754" y="1" width="46" height="12" forecolor="#b94040"/>
+                <textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{saldo}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="0" y="13" width="802" height="1" forecolor="#eeeeee"/>
+            </line>
+        </band>
+    </detail>
+
+    <noData>
+        <band height="30">
+            <staticText>
+                <reportElement x="0" y="8" width="802" height="20" forecolor="#2d6a4f"/>
+                <textElement textAlignment="Center"><font size="9" isBold="true" fontName="SansSerif"/></textElement>
+                <text><![CDATA[Nenhuma inadimplência encontrada para a data informada.]]></text>
+            </staticText>
+        </band>
+    </noData>
+</jasperReport>

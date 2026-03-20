@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports
+                http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="relatorio_fin_folha_pagamento"
+              pageWidth="595" pageHeight="842"
+              columnWidth="555" leftMargin="20" rightMargin="20"
+              topMargin="15" bottomMargin="15"
+              whenNoDataType="AllSectionsNoDetail">
+
+    <style name="default" isDefault="true" fontName="SansSerif" fontSize="8"/>
+
+    <parameter name="MES_REFERENCIA"     class="java.lang.String"/>
+    <parameter name="DATA_EMISSAO"       class="java.lang.String"/>
+    <parameter name="TOTAL_FUNCIONARIOS" class="java.lang.Integer"/>
+    <parameter name="TOTAL_FOLHA"        class="java.lang.String"/>
+
+    <field name="funcionarioNome" class="java.lang.String"/>
+    <field name="cargo"           class="java.lang.String"/>
+    <field name="cargaHoraria"    class="java.lang.String"/>
+    <field name="salarioBase"     class="java.lang.String"/>
+    <field name="beneficios"      class="java.lang.String"/>
+    <field name="totalBruto"      class="java.lang.String"/>
+    <field name="totalBrutoDouble" class="java.math.BigDecimal"/>
+
+    <variable name="SOMA_TOTAL" class="java.math.BigDecimal" calculation="Sum">
+        <variableExpression><![CDATA[$F{totalBrutoDouble}]]></variableExpression>
+    </variable>
+
+    <title>
+        <band height="60" splitType="Stretch">
+            <rectangle>
+                <reportElement x="0" y="0" width="555" height="40" backcolor="#1a1a2e" forecolor="#1a1a2e"/>
+                <graphicElement><pen lineWidth="0"/></graphicElement>
+            </rectangle>
+            <staticText>
+                <reportElement x="10" y="8" width="350" height="22" forecolor="#ffffff"/>
+                <textElement><font size="13" isBold="true" fontName="SansSerif"/></textElement>
+                <text><![CDATA[FOLHA DE PAGAMENTO]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="360" y="8" width="193" height="14" forecolor="#a0aaff"/>
+                <textElement textAlignment="Right"><font size="8" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA["Mês: " + $P{MES_REFERENCIA}]]></textFieldExpression>
+            </textField>
+            <textField>
+                <reportElement x="360" y="24" width="193" height="12" forecolor="#aaaaaa"/>
+                <textElement textAlignment="Right"><font size="7" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA["Emissão: " + $P{DATA_EMISSAO}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="0" y="44" width="100" height="14" forecolor="#555555"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <text><![CDATA[Funcionários ativos:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="102" y="44" width="80" height="14" forecolor="#0d1f18"/>
+                <textElement><font size="8" isBold="true" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$P{TOTAL_FUNCIONARIOS}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="200" y="44" width="80" height="14" forecolor="#555555"/>
+                <textElement><font size="7" fontName="SansSerif"/></textElement>
+                <text><![CDATA[Total da folha:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="282" y="44" width="160" height="14" forecolor="#1a1a2e"/>
+                <textElement><font size="8" isBold="true" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$P{TOTAL_FOLHA}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <columnHeader>
+        <band height="18" splitType="Stretch">
+            <rectangle>
+                <reportElement x="0" y="0" width="555" height="18" backcolor="#eef0f4" forecolor="#eef0f4"/>
+                <graphicElement><pen lineWidth="0"/></graphicElement>
+            </rectangle>
+            <staticText><reportElement x="0"   y="3" width="150" height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[FUNCIONÁRIO]]></text></staticText>
+            <staticText><reportElement x="152" y="3" width="100" height="12"/><textElement><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[CARGO]]></text></staticText>
+            <staticText><reportElement x="254" y="3" width="50"  height="12"/><textElement textAlignment="Center"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[C.H.]]></text></staticText>
+            <staticText><reportElement x="306" y="3" width="80"  height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[SALÁRIO BASE]]></text></staticText>
+            <staticText><reportElement x="388" y="3" width="80"  height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[BENEFÍCIOS]]></text></staticText>
+            <staticText><reportElement x="470" y="3" width="85"  height="12"/><textElement textAlignment="Right"><font size="7" isBold="true" fontName="SansSerif"/></textElement><text><![CDATA[TOTAL BRUTO]]></text></staticText>
+        </band>
+    </columnHeader>
+
+    <detail>
+        <band height="18" splitType="Stretch">
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="0"   y="2" width="150" height="14"/>
+                <textElement><font size="8" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{funcionarioNome}]]></textFieldExpression>
+            </textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true">
+                <reportElement x="152" y="2" width="100" height="14"/>
+                <textElement><font size="8" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{cargo}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="254" y="2" width="50" height="14" forecolor="#555555"/>
+                <textElement textAlignment="Center"><font size="8" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{cargaHoraria}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="306" y="2" width="80" height="14"/>
+                <textElement textAlignment="Right"><font size="8" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{salarioBase}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="388" y="2" width="80" height="14" forecolor="#555555"/>
+                <textElement textAlignment="Right"><font size="8" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{beneficios}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement x="470" y="2" width="85" height="14" forecolor="#1a1a2e"/>
+                <textElement textAlignment="Right"><font size="8" isBold="true" fontName="SansSerif"/></textElement>
+                <textFieldExpression><![CDATA[$F{totalBruto}]]></textFieldExpression>
+            </textField>
+            <line>
+                <reportElement x="0" y="17" width="555" height="1" forecolor="#eeeeee"/>
+            </line>
+        </band>
+    </detail>
+
+    <noData>
+        <band height="30">
+            <staticText>
+                <reportElement x="0" y="8" width="555" height="20" forecolor="#888888"/>
+                <textElement textAlignment="Center"><font size="9" fontName="SansSerif"/></textElement>
+                <text><![CDATA[Nenhum funcionário ativo encontrado.]]></text>
+            </staticText>
+        </band>
+    </noData>
+</jasperReport>
