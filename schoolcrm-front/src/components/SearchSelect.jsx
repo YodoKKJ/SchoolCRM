@@ -4,6 +4,23 @@ import { ChevronDown, Search } from "lucide-react";
 const BG_LIGHT = "#f5f8f5";
 const BG_DARK  = "rgba(255,255,255,.06)";
 
+/* Dark‑mode palette for the dropdown popup */
+const DARK_DROP = {
+    bg: "#1a2822",
+    border: "#2a3d32",
+    searchBg: "#14201a",
+    searchColor: "#e0ebe3",
+    searchPlaceholder: "#4a6a55",
+    itemColor: "#c5d8ca",
+    itemActiveColor: "#7ec8a0",
+    itemActiveBg: "rgba(93,184,138,.12)",
+    itemHoverBg: "rgba(255,255,255,.04)",
+    footerBorder: "#243d30",
+    footerColor: "#4a6a55",
+    shadow: "0 8px 32px rgba(0,0,0,0.4)",
+    dotActive: "#7ec8a0",
+};
+
 /**
  * SearchSelect — dropdown com busca integrada.
  * Props:
@@ -29,7 +46,16 @@ export default function SearchSelect({
     const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
     const divRef = useRef(null);
 
-    const isDark = variant === "dark";
+    /* Auto‑detect dark mode from data-theme or explicit variant */
+    const [autoTheme, setAutoTheme] = useState(variant === "dark");
+    useEffect(() => {
+        if (variant === "dark") { setAutoTheme(true); return; }
+        if (!divRef.current) return;
+        const themed = divRef.current.closest('[data-theme]');
+        setAutoTheme(themed?.getAttribute('data-theme') === 'dark');
+    });
+    const isDark = autoTheme;
+    const dk = isDark ? DARK_DROP : null;
 
     // Considera "sem seleção" apenas quando value é null/undefined/""
     // Para que opções com value="" (ex: "Todos") não sejam marcadas como placeholder
@@ -64,14 +90,25 @@ export default function SearchSelect({
     };
 
     /* ── estilos por variante ── */
+    const isSidebarDark = variant === "dark"; // sidebar variant keeps original rgba style
     const btnBorder  = isDark
-        ? `1px solid ${open ? "rgba(255,255,255,.35)" : "rgba(255,255,255,.12)"}`
+        ? (isSidebarDark
+            ? `1px solid ${open ? "rgba(255,255,255,.35)" : "rgba(255,255,255,.12)"}`
+            : `1px solid ${open ? "#3a5a45" : "#2a3d32"}`)
         : `1px solid ${open ? "#0d1f18" : "#eaeef2"}`;
-    const btnBg      = isDark ? (disabled ? "rgba(0,0,0,.15)" : "rgba(255,255,255,.06)") : (disabled ? "#f5f8f5" : "white");
+    const btnBg      = isDark
+        ? (isSidebarDark
+            ? (disabled ? "rgba(0,0,0,.15)" : "rgba(255,255,255,.06)")
+            : (disabled ? "#14201a" : "#1a2822"))
+        : (disabled ? "#f5f8f5" : "white");
     const btnColor   = isDark
-        ? (selected ? "rgba(255,255,255,.85)" : "rgba(255,255,255,.35)")
+        ? (isSidebarDark
+            ? (selected ? "rgba(255,255,255,.85)" : "rgba(255,255,255,.35)")
+            : (selected ? "#e0ebe3" : "#4a6a55"))
         : (selected ? "#0d1f18" : "#9aaa9f");
-    const chevColor  = isDark ? "rgba(255,255,255,.35)" : "#9aaa9f";
+    const chevColor  = isDark
+        ? (isSidebarDark ? "rgba(255,255,255,.35)" : "#4a6a55")
+        : "#9aaa9f";
 
     return (
         <div ref={divRef} style={{ flex: 1, position: "relative", width: "100%" }}>
@@ -107,16 +144,16 @@ export default function SearchSelect({
                     left: coords.left,
                     width: coords.width,
                     zIndex: 9999,
-                    background: "white",
-                    border: "1px solid #eaeef2",
+                    background: dk ? dk.bg : "white",
+                    border: `1px solid ${dk ? dk.border : "#eaeef2"}`,
                     borderRadius: "8px",
-                    boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+                    boxShadow: dk ? dk.shadow : "0 8px 32px rgba(0,0,0,0.12)",
                     overflow: "hidden",
                 }}>
                     {/* busca */}
-                    <div style={{ padding: "8px", borderBottom: "1px solid #eaeef2" }}>
-                        <div className="flex items-center gap-2" style={{ background: BG_LIGHT, padding: "6px 10px", borderRadius: "6px" }}>
-                            <Search size={13} color="#9aaa9f" />
+                    <div style={{ padding: "8px", borderBottom: `1px solid ${dk ? dk.border : "#eaeef2"}` }}>
+                        <div className="flex items-center gap-2" style={{ background: dk ? dk.searchBg : BG_LIGHT, padding: "6px 10px", borderRadius: "6px" }}>
+                            <Search size={13} color={dk ? dk.searchPlaceholder : "#9aaa9f"} />
                             <input
                                 autoFocus
                                 placeholder="Buscar..."
@@ -124,7 +161,7 @@ export default function SearchSelect({
                                 onChange={e => setSearch(e.target.value)}
                                 style={{
                                     flex: 1, fontSize: "12px", outline: "none",
-                                    background: "transparent", color: "#0d1f18",
+                                    background: "transparent", color: dk ? dk.searchColor : "#0d1f18",
                                     fontFamily: "'DM Sans', sans-serif", border: "none",
                                 }}
                                 onClick={e => e.stopPropagation()} />
@@ -134,12 +171,11 @@ export default function SearchSelect({
                     {/* lista */}
                     <div style={{ maxHeight: "220px", overflowY: "auto" }}>
                         {filtered.length === 0 && (
-                            <p style={{ padding: "12px 16px", fontSize: "12px", color: "#9aaa9f", textAlign: "center" }}>
+                            <p style={{ padding: "12px 16px", fontSize: "12px", color: dk ? dk.searchPlaceholder : "#9aaa9f", textAlign: "center" }}>
                                 Nenhum resultado
                             </p>
                         )}
                         {filtered.map(o => {
-                            // Ativo apenas quando o value do usuário não é vazio E coincide com a opção
                             const active = hasValue && String(o.value) === String(value);
                             return (
                                 <button key={String(o.value)} type="button"
@@ -151,18 +187,17 @@ export default function SearchSelect({
                                         fontSize: "13px",
                                         fontFamily: "'DM Sans', sans-serif",
                                         border: "none", cursor: "pointer",
-                                        color: active ? "#1a4d3a" : "#0d1f18",
-                                        background: active ? "#f0f5f2" : "transparent",
+                                        color: active ? (dk ? dk.itemActiveColor : "#1a4d3a") : (dk ? dk.itemColor : "#0d1f18"),
+                                        background: active ? (dk ? dk.itemActiveBg : "#f0f5f2") : "transparent",
                                         fontWeight: active ? 600 : 400,
                                         transition: "background .12s",
                                     }}
-                                    onMouseEnter={e => { if (!active) e.currentTarget.style.background = "#fafcfa"; }}
+                                    onMouseEnter={e => { if (!active) e.currentTarget.style.background = dk ? dk.itemHoverBg : "#fafcfa"; }}
                                     onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}>
                                     <span style={{
                                         width: "7px", height: "7px", borderRadius: "50%", flexShrink: 0,
-                                        background: active ? "#1a4d3a" : "transparent",
+                                        background: active ? (dk ? dk.dotActive : "#1a4d3a") : "transparent",
                                     }} />
-                                    {/* Não trunca: palavra completa, quebra linha se necessário */}
                                     <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                                         {o.label}
                                     </span>
@@ -172,8 +207,8 @@ export default function SearchSelect({
                     </div>
 
                     {/* rodapé */}
-                    <div style={{ borderTop: "1px solid #f2f5f2", padding: "4px 12px 5px", textAlign: "right" }}>
-                        <span style={{ fontSize: "10px", color: "#b8c4be", letterSpacing: ".04em" }}>
+                    <div style={{ borderTop: `1px solid ${dk ? dk.footerBorder : "#f2f5f2"}`, padding: "4px 12px 5px", textAlign: "right" }}>
+                        <span style={{ fontSize: "10px", color: dk ? dk.footerColor : "#b8c4be", letterSpacing: ".04em" }}>
                             {filtered.length} registro{filtered.length !== 1 ? "s" : ""}
                         </span>
                     </div>
