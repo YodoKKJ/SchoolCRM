@@ -106,7 +106,7 @@ function ConfirmDialog() {
     return (
         <div style={{ position:"fixed", inset:0, background:"rgba(13,31,24,.55)", zIndex:9998, display:"flex", alignItems:"center", justifyContent:"center", padding:24, animation:"ddOverlayIn .2s ease", backdropFilter:"blur(2px)" }}
              onClick={() => resolve(false)}>
-            <div style={{ background:"#fff", padding:32, maxWidth:400, width:"100%", boxShadow:"0 20px 60px rgba(0,0,0,.2)", borderRadius:3, animation:"ddModalIn .25s ease" }}
+            <div style={{ background:_bgCard, padding:32, maxWidth:400, width:"100%", boxShadow:"0 20px 60px rgba(0,0,0,.2)", borderRadius:3, animation:"ddModalIn .25s ease" }}
                  onClick={e => e.stopPropagation()}>
                 <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20 }}>
                     <div style={{ width:36, height:36, borderRadius:"50%", background:"#fdf0f0", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
@@ -474,20 +474,23 @@ const GLOBAL_STYLE = `
 [data-theme="dark"] .recharts-tooltip-wrapper .recharts-default-tooltip { background:#1a2822 !important; border:1px solid #2a3d32 !important; }
 [data-theme="dark"] .recharts-legend-item-text { color:#8aaa95 !important; }
 
-/* Native select & date inputs dark */
+/* ALL inputs/selects/textareas dark — catch-all */
+[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
 [data-theme="dark"] select,
-[data-theme="dark"] input[type="date"],
-[data-theme="dark"] input[type="month"] {
+[data-theme="dark"] textarea {
     background:#1a2822 !important; color:#e0ebe3 !important; border-color:#2a3d32 !important;
     color-scheme: dark;
 }
+[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):focus,
 [data-theme="dark"] select:focus,
-[data-theme="dark"] input[type="date"]:focus,
-[data-theme="dark"] input[type="month"]:focus { border-color:#3a5a45 !important; }
+[data-theme="dark"] textarea:focus { border-color:#5db88a !important; }
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder { color:#4a6a55 !important; }
 [data-theme="dark"] option { background:#1a2822 !important; color:#c5d8ca !important; }
 
-/* Checkbox dark */
-[data-theme="dark"] input[type="checkbox"] { accent-color:#5db88a; }
+/* Checkbox & radio dark */
+[data-theme="dark"] input[type="checkbox"],
+[data-theme="dark"] input[type="radio"] { accent-color:#5db88a; }
 
 /* Fin-rel dark (relatórios financeiros) */
 [data-theme="dark"] .fin-rel-table th { background:#121e18 !important; color:#7aaa88 !important; border-bottom-color:#243d30 !important; }
@@ -504,10 +507,6 @@ const GLOBAL_STYLE = `
 [data-theme="dark"] .fin-rel-btn-cancel { border-color:#2a3d32 !important; color:#8aaa95 !important; }
 [data-theme="dark"] .fin-rel-btn-cancel:hover { background:#1a2822 !important; }
 [data-theme="dark"] .fin-rel-modal-overlay { background:rgba(0,0,0,.7) !important; }
-
-/* Textarea dark */
-[data-theme="dark"] textarea { background:#1a2822 !important; color:#e0ebe3 !important; border-color:#2a3d32 !important; }
-[data-theme="dark"] textarea:focus { border-color:#5db88a !important; }
 
 /* Scrollbar dark */
 [data-theme="dark"] ::-webkit-scrollbar { width:6px; height:6px; }
@@ -800,6 +799,15 @@ export default function DirecaoDashboard() {
     const [colapsados, setColapsados] = useState({});
     const [dark, setDark] = useState(() => localStorage.getItem("theme") === "dark");
     const toggleDark = () => setDark(prev => { const next = !prev; localStorage.setItem("theme", next ? "dark" : "light"); return next; });
+    /* Dark-mode inline style helpers */
+    const _bg = dark ? "#151f1a" : "#fff";
+    const _bgCard = dark ? "#1a2822" : "#fff";
+    const _border = dark ? "#2a3d32" : "#eaeef2";
+    const _text = dark ? "#e0ebe3" : "#0d1f18";
+    const _textMuted = dark ? "#6a8a72" : "#9aaa9f";
+    const _warn = dark ? { background:"#3a2800", border:"1px solid #5a4020", color:"#f0c060" } : { background:"#fff8e8", border:"1px solid #f0c070", color:"#b45309" };
+    const _warnAlt = dark ? { background:"#3a2800", border:"1px solid #5a4020", color:"#f0c060" } : { background:"#fff8e1", border:"1px solid #ffe082", color:"#7a4800" };
+    const _errBg = dark ? { background:"#2a1010", border:"1px solid #5a2020", color:"#f0a0a0" } : { background:"#fff5f5", border:"1px solid #f5c0c0", color:"#b94040" };
     const nome = localStorage.getItem("nome") || (isCoord ? "Coordenação" : "Direção");
     const logout = () => { localStorage.clear(); window.location.href = "/"; };
     const toggleColapso = (id) => setColapsados(prev => ({ ...prev, [id]: !prev[id] }));
@@ -2851,7 +2859,7 @@ function Lancamentos({ anoLetivo }) {
             {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
 
             {semSelecao && (
-                <div style={{ padding:"48px", textAlign:"center", color:"#9aaa9f", fontSize:13, background:"#fff", border:"1px solid #eaeef2" }}>
+                <div style={{ padding:"48px", textAlign:"center", color:_textMuted, fontSize:13, background:_bgCard, border:"1px solid "+_border }}>
                     Selecione uma turma e matéria para começar.
                 </div>
             )}
@@ -2931,7 +2939,7 @@ function Lancamentos({ anoLetivo }) {
                                                         <button
                                                             onClick={e => { e.stopPropagation(); abrirModalParticipantes(av); }}
                                                             style={{ fontSize:11, padding:"4px 10px", border:"1px solid #f0c070",
-                                                                background:"#fff8e8", color:"#b45309", borderRadius:4, cursor:"pointer" }}>
+                                                                background:_warn.background, color:_warn.color, borderRadius:4, cursor:"pointer" }}>
                                                             Participantes ({(av.recuperacaoParticipantes || []).length})
                                                         </button>
                                                     )}
@@ -3307,7 +3315,7 @@ function Lancamentos({ anoLetivo }) {
                                 </div>
                             )}
                             {formAv.tipo === "RECUPERACAO" && (
-                                <div style={{ background:"#fff8e8", border:"1px solid #f0c070", borderRadius:6, padding:"12px 14px", fontSize:12, color:"#7a4800" }}>
+                                <div style={{ ..._warn, borderRadius:6, padding:"12px 14px", fontSize:12 }}>
                                     ↩ Recuperação — substitui a média do bimestre se a nota for maior. Após criar, você escolherá quais alunos participam.
                                 </div>
                             )}
@@ -3553,7 +3561,7 @@ function Atrasos() {
                         {/* Dropdown sugestões */}
                         {alunosFiltrados.length > 0 && !alunoSel && (
                             <div style={{ position:"absolute", top:"100%", left:0, right:0, zIndex:99,
-                                background:"white", border:"1px solid #eaeef2",
+                                background:_bgCard, border:"1px solid "+_border,
                                 boxShadow:"0 8px 24px rgba(13,31,24,.1)", maxHeight:220, overflowY:"auto" }}>
                                 {alunosFiltrados.map(a => (
                                     <button key={a.id} onClick={() => selecionarAluno(a)}
@@ -4444,7 +4452,7 @@ function FinDashboard() {
             <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                 <label className="dd-label" style={{ margin:0 }}>Mês de referência</label>
                 <input type="month" value={mes} onChange={e => setMes(e.target.value)}
-                    style={{ border:"1px solid #eaeef2", padding:"6px 10px", fontFamily:"'DM Sans',sans-serif", fontSize:13, outline:"none", background:"#fff", color:"#0d1f18" }} />
+                    style={{ border:"1px solid "+_border, padding:"6px 10px", fontFamily:"'DM Sans',sans-serif", fontSize:13, outline:"none", background:_bgCard, color:_text }} />
                 {carregando && <span style={{ fontSize:11, color:"#9aaa9f" }}>Carregando...</span>}
             </div>
 
@@ -5250,7 +5258,7 @@ function FinContratos({ anoLetivo }) {
             {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
 
             {/* Cabeçalho: seletor de aluno + botões + stats */}
-            <div style={{ background:"#fff", border:"1px solid #eaeef2", borderRadius:8, padding:16 }}>
+            <div style={{ background:_bgCard, border:"1px solid "+_border, borderRadius:8, padding:16 }}>
                 <div style={{ display:"flex", gap:12, alignItems:"flex-end", flexWrap:"wrap" }}>
                     <div style={{ flex:1, minWidth:200 }}>
                         <label className="dd-label">Aluno</label>
@@ -5401,7 +5409,7 @@ function FinContratos({ anoLetivo }) {
                         placeholder="Buscar por descrição, pessoa ou valor..."
                         value={filtroAvulsa.busca}
                         onChange={e => setFiltroAvulsa(f => ({ ...f, busca: e.target.value }))}
-                        style={{ flex:1, minWidth:180, border:"1px solid #eaeef2", padding:"5px 10px", fontSize:12, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff", borderRadius:4 }}
+                        style={{ flex:1, minWidth:180, border:"1px solid "+_border, padding:"5px 10px", fontSize:12, fontFamily:"'DM Sans',sans-serif", outline:"none", background:_bgCard, borderRadius:4, color:_text }}
                     />
                     <SearchSelect
                         value={filtroAvulsa.status}
@@ -5415,7 +5423,7 @@ function FinContratos({ anoLetivo }) {
                     />
                     {(filtroAvulsa.busca || filtroAvulsa.status || filtroAvulsa.pessoaId) && (
                         <button onClick={() => setFiltroAvulsa({ busca:"", status:"", pessoaId:"" })}
-                            style={{ border:"1px solid #eaeef2", padding:"5px 10px", fontSize:12, fontFamily:"'DM Sans',sans-serif", cursor:"pointer", background:"#fff", borderRadius:4, color:"#9aaa9f" }}>
+                            style={{ border:"1px solid "+_border, padding:"5px 10px", fontSize:12, fontFamily:"'DM Sans',sans-serif", cursor:"pointer", background:_bgCard, borderRadius:4, color:_textMuted }}>
                             Limpar
                         </button>
                     )}
@@ -5946,7 +5954,7 @@ function FinContasPagar() {
                         ? "nenhuma conta recorrente foi gerada"
                         : `${pendentes.length} de ${modelosAtivos.length} modelos ainda não gerados (${pendentes.map(m => m.descricao).join(", ")})`;
                     return (
-                    <div style={{ display:"flex", alignItems:"center", gap:10, background:"#fff8e1", border:"1px solid #ffe082", borderRadius:6, padding:"10px 14px" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10, ..._warnAlt, borderRadius:6, padding:"10px 14px" }}>
                         <AlertCircle size={16} color="#c47a00" style={{ flexShrink:0 }} />
                         <span style={{ fontSize:12, color:"#c47a00", flex:1 }}>
                             <strong>{nomeMes}:</strong> {detalhe}.
@@ -5969,7 +5977,7 @@ function FinContasPagar() {
                             />
                         ))}
                         <input type="month" value={filtros.mesReferencia} onChange={e => ff("mesReferencia", e.target.value)}
-                            style={{ fontSize:12, padding:"7px 10px", border:"1px solid #eaeef2", fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff", borderRadius:4 }} />
+                            style={{ fontSize:12, padding:"7px 10px", border:"1px solid "+_border, fontFamily:"'DM Sans',sans-serif", outline:"none", background:_bgCard, borderRadius:4, color:_text }} />
                     </div>
                     <div style={{ display:"flex", gap:8 }}>
                         <button className="dd-btn-ghost" style={{ fontSize:12 }} onClick={() => setModalGerarFolha(true)}>Gerar Folha</button>
@@ -6165,7 +6173,7 @@ function FinContasPagar() {
                         <div style={{ marginBottom:16 }}>
                             <label className="dd-label">Mês de Referência</label>
                             <input type="month" value={mesFolha} onChange={e => setMesFolha(e.target.value)}
-                                style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }} />
+                                style={{ width:"100%", border:"1px solid "+_border, padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:_bgCard, color:_text }} />
                         </div>
                         <div style={{ display:"flex", gap:8 }}>
                             <button className="dd-btn-ghost" onClick={() => setModalGerarFolha(false)}>Cancelar</button>
@@ -6186,7 +6194,7 @@ function FinContasPagar() {
                         <div style={{ marginBottom:16 }}>
                             <label className="dd-label">Mês de Referência</label>
                             <input type="month" value={mesRec} onChange={e => setMesRec(e.target.value)}
-                                style={{ width:"100%", border:"1px solid #eaeef2", padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }} />
+                                style={{ width:"100%", border:"1px solid "+_border, padding:"8px 10px", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", background:_bgCard, color:_text }} />
                         </div>
                         <div style={{ display:"flex", gap:8 }}>
                             <button className="dd-btn-ghost" onClick={() => setModalGerarRec(false)}>Cancelar</button>
@@ -6349,7 +6357,7 @@ function FinMovimentacoes() {
                 <div>
                     <label className="dd-label" style={{ margin:0, marginRight:8 }}>Mês</label>
                     <input type="month" value={mes} onChange={e => setMes(e.target.value)}
-                        style={{ border:"1px solid #eaeef2", padding:"6px 10px", fontFamily:"'DM Sans',sans-serif", fontSize:13, outline:"none", background:"#fff" }} />
+                        style={{ border:"1px solid "+_border, padding:"6px 10px", fontFamily:"'DM Sans',sans-serif", fontSize:13, outline:"none", background:_bgCard, color:_text }} />
                 </div>
                 <button className="dd-btn-primary" onClick={abrirModal}>+ Nova Movimentação</button>
             </div>
@@ -6719,7 +6727,7 @@ function FinRelatorios() {
                         )}
 
                         {erro && (
-                            <div style={{ background:"#fff5f5", border:"1px solid #f5c0c0", borderRadius:4, padding:"10px 14px", color:"#b94040", fontSize:12, marginBottom:14 }}>
+                            <div style={{ ..._errBg, borderRadius:4, padding:"10px 14px", fontSize:12, marginBottom:14 }}>
                                 {erro}
                             </div>
                         )}
@@ -6891,7 +6899,7 @@ function FinConfiguracoes({ anoLetivo }) {
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                         <label className="dd-label" style={{ margin:0 }}>Ano Letivo</label>
                         <input type="number" value={anoSeries} onChange={e => setAnoSeries(e.target.value)}
-                            style={{ width:80, border:"1px solid #eaeef2", padding:"4px 8px", fontSize:12, fontFamily:"'DM Sans',sans-serif", outline:"none", background:"#fff" }} />
+                            style={{ width:80, border:"1px solid "+_border, padding:"4px 8px", fontSize:12, fontFamily:"'DM Sans',sans-serif", outline:"none", background:_bgCard, color:_text }} />
                     </div>
                 </div>
                 <div style={{ padding:"16px 20px" }}>
