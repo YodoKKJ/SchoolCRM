@@ -8,9 +8,9 @@ import {
     FileText, DollarSign, Lock, ClipboardList, ChevronRight, Clock, CalendarDays,
     TrendingUp, TrendingDown, ArrowLeftRight, Settings, BarChart2, Briefcase,
     Receipt, Building2, CheckCircle2, AlertCircle, Ban, Wallet, CreditCard,
-    Bell, Megaphone, Shield, Send, ChevronUp, RefreshCw, Eye
+    Bell, Megaphone, Shield, Send, ChevronUp, RefreshCw, Eye, Moon, Sun
 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from "recharts";
 
 const api = axios.create({ baseURL: "" });
 
@@ -342,6 +342,54 @@ const GLOBAL_STYLE = `
   .dd-cards-grid { grid-template-columns: 1fr !important; }
   .dd-page-title { font-size: 18px !important; }
 }
+
+/* ── Dark Mode ─────────────────────────────────────────────── */
+@keyframes ddThemeToggle { from { transform: rotate(-90deg) scale(.7); opacity:0; } to { transform: rotate(0) scale(1); opacity:1; } }
+.dd-theme-btn { background:none; border:1px solid #eaeef2; width:34px; height:34px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background .2s, border-color .2s; }
+.dd-theme-btn:hover { background:#f0f5f2; }
+.dd-theme-btn svg { animation: ddThemeToggle .3s ease; }
+[data-theme="dark"] .dd-theme-btn { border-color:#2a3d32; }
+[data-theme="dark"] .dd-theme-btn:hover { background:#1f3329; }
+
+[data-theme="dark"] { background:#0f1a14 !important; }
+[data-theme="dark"] .dd-sidebar { background:#091210; }
+[data-theme="dark"] .dd-sidebar-logo-wrap { border-bottom-color: rgba(255,255,255,.05); }
+[data-theme="dark"] .dd-user-wrap { border-bottom-color: rgba(255,255,255,.05); }
+[data-theme="dark"] .dd-header { background:#131f1a !important; border-bottom-color:#1e3028 !important; }
+[data-theme="dark"] .dd-page-title { color:#e0ebe3 !important; }
+[data-theme="dark"] .dd-page-sub { color:#5a7a65 !important; }
+[data-theme="dark"] .dd-card { background:#1a2e23 !important; border-color:#243d30 !important; }
+[data-theme="dark"] .dd-card-num { color:#e0ebe3 !important; }
+[data-theme="dark"] .dd-card-label { color:#6a9a78 !important; }
+[data-theme="dark"] .dd-section { background:#1a2e23 !important; border-color:#243d30 !important; }
+[data-theme="dark"] .dd-section-header { border-bottom-color:#243d30 !important; }
+[data-theme="dark"] .dd-section-title { color:#e0ebe3 !important; }
+[data-theme="dark"] .dd-section-count { color:#5a7a65 !important; }
+[data-theme="dark"] .dd-table th { background:#14251c !important; border-bottom-color:#243d30 !important; color:#6a9a78 !important; }
+[data-theme="dark"] .dd-table td { border-bottom-color:#1e3028 !important; color:#b5ccba !important; }
+[data-theme="dark"] .dd-table tr:hover td { background:#1f3329 !important; }
+[data-theme="dark"] .dd-modal-overlay { background:rgba(0,0,0,.7) !important; }
+[data-theme="dark"] .dd-modal { background:#1a2e23 !important; }
+[data-theme="dark"] .dd-modal-title { color:#e0ebe3 !important; }
+[data-theme="dark"] .dd-modal-sub { color:#5a7a65 !important; }
+[data-theme="dark"] .dd-input { color:#e0ebe3 !important; border-bottom-color:#3a5a48 !important; }
+[data-theme="dark"] .dd-input:focus { border-bottom-color:#7ec8a0 !important; }
+[data-theme="dark"] .dd-input::placeholder { color:#4a6a55 !important; }
+[data-theme="dark"] .dd-label { color:#5a7a65 !important; }
+[data-theme="dark"] .dd-btn-primary { background:#7ec8a0 !important; color:#0a1a12 !important; }
+[data-theme="dark"] .dd-btn-primary:hover { background:#5db88a !important; }
+[data-theme="dark"] .dd-btn-ghost { background:#14251c !important; color:#7a9a85 !important; }
+[data-theme="dark"] .dd-btn-ghost:hover { background:#1a3025 !important; }
+[data-theme="dark"] .dd-btn-danger { background:rgba(185,64,64,.15) !important; }
+[data-theme="dark"] .dd-btn-edit { background:rgba(126,200,160,.1) !important; }
+[data-theme="dark"] .dd-btn-toggle-on { background:rgba(185,64,64,.15) !important; }
+[data-theme="dark"] .dd-btn-toggle-off { background:rgba(126,200,160,.1) !important; }
+[data-theme="dark"] .dd-err { background:rgba(185,64,64,.12) !important; border-left-color:#b94040 !important; }
+[data-theme="dark"] .dd-ok { background:rgba(126,200,160,.12) !important; border-left-color:#7ec8a0 !important; }
+[data-theme="dark"] .dd-search-input { background:#14251c !important; border-color:#2a3d32 !important; color:#e0ebe3 !important; }
+[data-theme="dark"] .dd-search-select { background:#14251c !important; border-color:#2a3d32 !important; color:#b5ccba !important; }
+[data-theme="dark"] .dd-nav-section-label { color:rgba(255,255,255,.25) !important; }
+[data-theme="dark"] .dd-badge { background:rgba(126,200,160,.1) !important; }
 `;
 
 // ---- RELATÓRIOS ----
@@ -626,6 +674,8 @@ export default function DirecaoDashboard() {
     const [aba, setAba] = useState("inicio");
     const [sidebarAberta, setSidebarAberta] = useState(false);
     const [colapsados, setColapsados] = useState({});
+    const [dark, setDark] = useState(() => localStorage.getItem("theme") === "dark");
+    const toggleDark = () => setDark(prev => { const next = !prev; localStorage.setItem("theme", next ? "dark" : "light"); return next; });
     const nome = localStorage.getItem("nome") || (isCoord ? "Coordenação" : "Direção");
     const logout = () => { localStorage.clear(); window.location.href = "/"; };
     const toggleColapso = (id) => setColapsados(prev => ({ ...prev, [id]: !prev[id] }));
@@ -659,7 +709,7 @@ export default function DirecaoDashboard() {
             <style>{GLOBAL_STYLE}</style>
             <ToastContainer />
             <ConfirmDialog />
-            <div style={{ display:"flex", minHeight:"100vh", background:"#f5f8f5" }}>
+            <div data-theme={dark ? "dark" : "light"} style={{ display:"flex", minHeight:"100vh", background: dark ? "#0f1a14" : "#f5f8f5" }}>
                 {/* overlay mobile */}
                 {sidebarAberta && (
                     <div style={{ position:"fixed", inset:0, background:"rgba(13,31,24,.4)", zIndex:20 }}
@@ -751,15 +801,20 @@ export default function DirecaoDashboard() {
                     <header className="dd-header" style={{ padding:"18px 32px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                         <div style={{ display:"flex", alignItems:"center", gap:16 }}>
                             <button className="dd-hamburger" onClick={() => setSidebarAberta(true)}>
-                                <Menu size={20} color="#0d1f18" />
+                                <Menu size={20} color={dark ? "#e0ebe3" : "#0d1f18"} />
                             </button>
                             <div>
                                 <h1 className="dd-page-title">{allMenuItems.find(m => m.id === aba)?.label}</h1>
                                 <p className="dd-page-sub">DomGestão — Sistema Escolar</p>
                             </div>
                         </div>
-                        <div style={{ width:32, height:32, background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:600, color:"#7ec8a0", letterSpacing:".04em" }}>
-                            {nome.charAt(0).toUpperCase()}
+                        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                            <button className="dd-theme-btn" onClick={toggleDark} title={dark ? "Modo claro" : "Modo escuro"}>
+                                {dark ? <Sun size={15} color="#f0c040" /> : <Moon size={15} color="#5a7060" />}
+                            </button>
+                            <div style={{ width:32, height:32, background: dark ? "#243d30" : "#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:600, color:"#7ec8a0", letterSpacing:".04em" }}>
+                                {nome.charAt(0).toUpperCase()}
+                            </div>
                         </div>
                     </header>
 
@@ -793,8 +848,11 @@ export default function DirecaoDashboard() {
 function Inicio({ anoLetivo }) {
     const [stats, setStats] = useState({ alunos: 0, professores: 0, turmas: 0, materias: 0 });
     const [turmasDoAno, setTurmasDoAno] = useState([]);
-    const [alertas, setAlertas] = useState([]);      // alunos em risco consolidados
+    const [alertas, setAlertas] = useState([]);
     const [alertasCarregando, setAlertasCarregando] = useState(false);
+    const [chartData, setChartData] = useState([]);
+    const [mediaGeral, setMediaGeral] = useState(null);
+    const [freqGeral, setFreqGeral] = useState(null);
 
     useEffect(() => {
         Promise.all([
@@ -812,59 +870,203 @@ function Inicio({ anoLetivo }) {
                 turmas: tDoAno.length,
                 materias: (m.data || []).length,
             });
-            // Carrega resumos de todas as turmas do ano em paralelo
             if (tDoAno.length > 0) {
                 setAlertasCarregando(true);
                 Promise.all(tDoAno.map(turma =>
                     api.get(`/notas/turma/${turma.id}/resumo`).then(r => r.data).catch(() => null)
                 )).then(resumos => {
                     const emRisco = [];
+                    const turmaChart = [];
+                    let somaMedia = 0, cntMedia = 0, somaFreq = 0, cntFreq = 0;
+
                     resumos.filter(Boolean).forEach(res => {
-                        (res.alunos || []).filter(a => a.emRisco).forEach(a => {
-                            emRisco.push({ ...a, turmaNome: res.turmaNome, turmaId: res.turmaId });
+                        const alunos = res.alunos || [];
+                        let sm = 0, cm = 0, sf = 0, cf = 0, risco = 0;
+                        alunos.forEach(a => {
+                            if (a.emRisco) {
+                                emRisco.push({ ...a, turmaNome: res.turmaNome, turmaId: res.turmaId });
+                                risco++;
+                            }
+                            if (a.mediaGeral != null) { sm += a.mediaGeral; cm++; somaMedia += a.mediaGeral; cntMedia++; }
+                            if (a.frequenciaGeral != null) { sf += a.frequenciaGeral; cf++; somaFreq += a.frequenciaGeral; cntFreq++; }
+                        });
+                        turmaChart.push({
+                            turma: res.turmaNome?.length > 14 ? res.turmaNome.substring(0, 14) + "…" : res.turmaNome,
+                            media: cm > 0 ? Number((sm / cm).toFixed(1)) : 0,
+                            frequencia: cf > 0 ? Number((sf / cf).toFixed(1)) : 0,
+                            total: alunos.length,
+                            emRisco: risco,
                         });
                     });
+
                     emRisco.sort((a, b) => a.alunoNome.localeCompare(b.alunoNome));
                     setAlertas(emRisco);
+                    setChartData(turmaChart);
+                    setMediaGeral(cntMedia > 0 ? Number((somaMedia / cntMedia).toFixed(1)) : null);
+                    setFreqGeral(cntFreq > 0 ? Number((somaFreq / cntFreq).toFixed(1)) : null);
                 }).finally(() => setAlertasCarregando(false));
             }
         }).catch(() => {});
     }, [anoLetivo]);
 
+    const emRiscoCount = alertasCarregando ? 0 : alertas.length;
+    const regularCount = Math.max(0, stats.alunos - emRiscoCount);
+    const DONUT_COLORS = ["#2d6a4f", "#e63946"];
+    const donutData = [
+        { name: "Regular", value: regularCount },
+        { name: "Em Risco", value: emRiscoCount },
+    ].filter(d => d.value > 0);
+
     const cards = [
-        { label: "Alunos",      sublabel: `em ${anoLetivo}`, value: stats.alunos,      accent: "#0d1f18" },
-        { label: "Professores", sublabel: "total",            value: stats.professores, accent: "#2d6a4f" },
-        { label: "Turmas",      sublabel: `em ${anoLetivo}`, value: stats.turmas,      accent: "#7ec8a0" },
-        { label: "Em Risco",    sublabel: "de reprovação",
+        { label: "Alunos",      sub: `em ${anoLetivo}`,     value: stats.alunos,      accent: "#0d1f18", icon: GraduationCap },
+        { label: "Professores", sub: "ativos",               value: stats.professores, accent: "#2d6a4f", icon: Users },
+        { label: "Turmas",      sub: `em ${anoLetivo}`,     value: stats.turmas,      accent: "#7ec8a0", icon: School },
+        { label: "Matérias",    sub: "cadastradas",          value: stats.materias,    accent: "#1a4d3a", icon: BookOpen },
+        { label: "Média Geral", sub: "todas as turmas",
+          value: mediaGeral ?? (alertasCarregando ? "..." : "—"),
+          accent: mediaGeral != null && mediaGeral < 6 ? "#e63946" : "#4a90d9", icon: TrendingUp,
+          valueColor: mediaGeral != null && mediaGeral < 6 ? "#e63946" : undefined },
+        { label: "Em Risco",    sub: "de reprovação",
           value: alertasCarregando ? "..." : alertas.length,
-          accent: alertas.length > 0 ? "#e63946" : "#b7dfc8",
+          accent: alertas.length > 0 ? "#e63946" : "#b7dfc8", icon: AlertCircle,
           valueColor: alertas.length > 0 ? "#e63946" : undefined },
     ];
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:24 }}>
-            {/* Cards */}
-            <div className="dd-cards-grid" style={{ gap:16 }}>
-                {cards.map(card => (
-                    <div key={card.label} className="dd-card" style={{ "--accent": card.accent, padding:"20px 20px 18px" }}>
-                        <p className="dd-card-num" style={{ color: card.valueColor || undefined }}>{card.value}</p>
-                        <p className="dd-card-label">{card.label}</p>
-                        <p style={{ fontSize:10, color:"rgba(255,255,255,.35)", marginTop:2, letterSpacing:".04em" }}>{card.sublabel}</p>
-                    </div>
-                ))}
+            {/* KPI Cards — 6 cards */}
+            <div style={{ display:"grid", gap:16, gridTemplateColumns:"repeat(6,1fr)" }} className="dd-cards-grid-6">
+                {cards.map(card => {
+                    const Icon = card.icon;
+                    return (
+                        <div key={card.label} className="dd-card" style={{ "--accent": card.accent, padding:"20px 18px 16px" }}>
+                            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                                <div style={{ width:36, height:36, background: card.accent + "12", display:"flex", alignItems:"center", justifyContent:"center", borderRadius:8 }}>
+                                    <Icon size={18} color={card.accent} />
+                                </div>
+                            </div>
+                            <p className="dd-card-num" style={{ color: card.valueColor || undefined, fontSize:28 }}>{card.value}</p>
+                            <p className="dd-card-label">{card.label}</p>
+                            <p style={{ fontSize:10, color:"#9aaa9f", marginTop:2, letterSpacing:".04em" }}>{card.sub}</p>
+                        </div>
+                    );
+                })}
             </div>
+            <style>{`
+                .dd-cards-grid-6 { grid-template-columns: repeat(6, 1fr) !important; }
+                @media (max-width: 1200px) { .dd-cards-grid-6 { grid-template-columns: repeat(3, 1fr) !important; } }
+                @media (max-width: 700px)  { .dd-cards-grid-6 { grid-template-columns: repeat(2, 1fr) !important; } }
+                @media (max-width: 479px)  { .dd-cards-grid-6 { grid-template-columns: 1fr !important; } }
+            `}</style>
+
+            {/* Gráficos — Desempenho por Turma + Distribuição */}
+            {chartData.length > 0 && (
+                <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:16 }} className="dd-charts-row">
+                    <style>{`
+                        @media (max-width: 900px) { .dd-charts-row { grid-template-columns: 1fr !important; } }
+                    `}</style>
+
+                    {/* Bar Chart — média por turma */}
+                    <div className="dd-section">
+                        <div className="dd-section-header">
+                            <span className="dd-section-title">Desempenho por Turma</span>
+                            <span className="dd-section-count">média e frequência</span>
+                        </div>
+                        <div style={{ padding:"16px 12px 8px" }}>
+                            <ResponsiveContainer width="100%" height={260}>
+                                <BarChart data={chartData} barGap={4}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#eaeef2" vertical={false} />
+                                    <XAxis dataKey="turma" tick={{ fontSize:11, fill:"#9aaa9f" }} axisLine={false} tickLine={false} />
+                                    <YAxis domain={[0, 10]} tick={{ fontSize:11, fill:"#9aaa9f" }} axisLine={false} tickLine={false} />
+                                    <Tooltip
+                                        contentStyle={{ fontFamily:"'DM Sans',sans-serif", fontSize:12, border:"1px solid #eaeef2", boxShadow:"0 4px 12px rgba(0,0,0,.08)" }}
+                                        formatter={(val, name) => [val, name === "media" ? "Média" : "Freq %"]}
+                                    />
+                                    <Legend formatter={v => v === "media" ? "Média" : "Frequência %"} wrapperStyle={{ fontSize:11 }} />
+                                    <Bar dataKey="media" fill="#2d6a4f" radius={[4,4,0,0]} maxBarSize={32} />
+                                    <Bar dataKey="frequencia" fill="#7ec8a0" radius={[4,4,0,0]} maxBarSize={32} yAxisId={0} hide />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    {/* Donut — distribuição de alunos */}
+                    <div className="dd-section">
+                        <div className="dd-section-header">
+                            <span className="dd-section-title">Situação dos Alunos</span>
+                            <span className="dd-section-count">{stats.alunos} total</span>
+                        </div>
+                        <div style={{ padding:"20px 12px", display:"flex", flexDirection:"column", alignItems:"center" }}>
+                            {stats.alunos > 0 ? (
+                                <>
+                                    <ResponsiveContainer width="100%" height={180}>
+                                        <PieChart>
+                                            <Pie data={donutData} cx="50%" cy="50%" innerRadius={50} outerRadius={75}
+                                                 paddingAngle={3} dataKey="value" strokeWidth={0}>
+                                                {donutData.map((entry, i) => (
+                                                    <Cell key={entry.name} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip contentStyle={{ fontFamily:"'DM Sans',sans-serif", fontSize:12 }} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                    <div style={{ display:"flex", gap:20, marginTop:8 }}>
+                                        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                                            <div style={{ width:10, height:10, background:"#2d6a4f", borderRadius:2 }} />
+                                            <span style={{ fontSize:11, color:"#5a7060" }}>Regular ({regularCount})</span>
+                                        </div>
+                                        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                                            <div style={{ width:10, height:10, background:"#e63946", borderRadius:2 }} />
+                                            <span style={{ fontSize:11, color:"#5a7060" }}>Em Risco ({emRiscoCount})</span>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <p style={{ color:"#9aaa9f", fontSize:13, padding:40, textAlign:"center" }}>
+                                    Nenhum aluno matriculado em {anoLetivo}.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Frequência Geral */}
+            {freqGeral != null && (
+                <div className="dd-section">
+                    <div className="dd-section-header">
+                        <span className="dd-section-title">Frequência Geral</span>
+                        <span style={{ fontFamily:"'Playfair Display',serif", fontSize:20, fontWeight:700,
+                            color: freqGeral < 75 ? "#b94040" : "#2d6a4f" }}>{freqGeral}%</span>
+                    </div>
+                    <div style={{ padding:"0 20px 16px" }}>
+                        <div style={{ background:"#eaeef2", height:8, borderRadius:4, overflow:"hidden", marginTop:8 }}>
+                            <div style={{ width:`${Math.min(freqGeral, 100)}%`, height:"100%", borderRadius:4,
+                                background: freqGeral < 75 ? "#e63946" : freqGeral < 85 ? "#c47a00" : "#2d6a4f",
+                                transition:"width .6s ease" }} />
+                        </div>
+                        <div style={{ display:"flex", justifyContent:"space-between", marginTop:6 }}>
+                            <span style={{ fontSize:10, color:"#9aaa9f" }}>0%</span>
+                            <span style={{ fontSize:10, color: freqGeral < 75 ? "#b94040" : "#9aaa9f", fontWeight: freqGeral < 75 ? 600 : 400 }}>Mínimo: 75%</span>
+                            <span style={{ fontSize:10, color:"#9aaa9f" }}>100%</span>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Painel de Alertas */}
             <div className="dd-section" style={{ borderTop:"2px solid #e63946" }}>
                 <div className="dd-section-header">
-                    <span className="dd-section-title" style={{ color:"#b94040" }}>⚠ Alertas de Risco de Reprovação</span>
+                    <span className="dd-section-title" style={{ color:"#b94040", display:"flex", alignItems:"center", gap:8 }}>
+                        <AlertCircle size={16} /> Alertas de Risco de Reprovação
+                    </span>
                     <span className="dd-section-count">{alertasCarregando ? "carregando..." : `${alertas.length} aluno${alertas.length !== 1 ? "s" : ""}`}</span>
                 </div>
                 {alertasCarregando ? (
                     <p style={{ padding:"20px", color:"#9aaa9f", fontSize:13, textAlign:"center" }}>Calculando situação dos alunos...</p>
                 ) : alertas.length === 0 ? (
                     <p style={{ padding:"20px", color:"#3a7a5a", fontSize:13, textAlign:"center" }}>
-                        ✓ Nenhum aluno em risco de reprovação no momento.
+                        Nenhum aluno em risco de reprovação no momento.
                     </p>
                 ) : (
                     <div style={{ overflowX:"auto" }}>
@@ -911,8 +1113,39 @@ function Inicio({ anoLetivo }) {
                 )}
             </div>
 
-            {/* Turmas do ano */}
-            {turmasDoAno.length > 0 && (
+            {/* Ranking de Turmas */}
+            {chartData.length > 0 && (
+                <div className="dd-section">
+                    <div className="dd-section-header">
+                        <span className="dd-section-title">Ranking de Turmas — {anoLetivo}</span>
+                        <span className="dd-section-count">{chartData.length} turmas</span>
+                    </div>
+                    <div style={{ overflowX:"auto" }}>
+                        <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
+                            <thead><tr><th>#</th><th>Turma</th><th>Alunos</th><th>Média</th><th>Em Risco</th></tr></thead>
+                            <tbody>
+                                {[...chartData].sort((a, b) => b.media - a.media).map((t, i) => (
+                                    <tr key={t.turma}>
+                                        <td style={{ fontWeight:700, color: i === 0 ? "#2d6a4f" : "#9aaa9f", fontSize:15 }}>{i + 1}°</td>
+                                        <td style={{ fontWeight:500 }}>{t.turma}</td>
+                                        <td>{t.total}</td>
+                                        <td style={{ fontWeight:700, color: t.media < 6 ? "#b94040" : "#2d6a4f" }}>{t.media}</td>
+                                        <td>
+                                            {t.emRisco > 0
+                                                ? <span style={{ fontSize:11, background:"#fdf0f0", color:"#b94040", padding:"2px 8px", borderRadius:3 }}>{t.emRisco}</span>
+                                                : <span style={{ fontSize:11, color:"#2d6a4f" }}>0</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Turmas do ano (lista simples) */}
+            {turmasDoAno.length > 0 && chartData.length === 0 && (
                 <div className="dd-section">
                     <div className="dd-section-header">
                         <span className="dd-section-title">Turmas em {anoLetivo}</span>
