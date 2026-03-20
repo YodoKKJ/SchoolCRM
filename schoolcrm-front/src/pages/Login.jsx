@@ -38,12 +38,17 @@ export default function Login() {
 
                 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+                @keyframes loginFadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+                @keyframes loginSpinner { to { transform:rotate(360deg); } }
+
                 .login-root {
                     min-height: 100vh;
                     display: flex;
                     background: #f5f2ed;
                     font-family: 'DM Sans', sans-serif;
                 }
+
+                .form-box { animation: loginFadeIn .5s ease both; }
 
                 /* ── lado esquerdo ── */
                 .left-panel {
@@ -93,7 +98,9 @@ export default function Login() {
                 .left-logo-mark {
                     width: 36px;
                     height: 36px;
-                    border: 1.5px solid rgba(255,255,255,0.2);
+                    border-radius: 8px;
+                    background: linear-gradient(135deg, #7ec8a0 0%, #3a8d5c 100%);
+                    box-shadow: 0 2px 8px rgba(126,200,160,.3);
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -105,12 +112,11 @@ export default function Login() {
                 }
 
                 .left-logo-name {
-                    font-family: 'DM Sans', sans-serif;
-                    font-size: 13px;
-                    font-weight: 500;
-                    letter-spacing: 0.12em;
-                    text-transform: uppercase;
-                    color: rgba(255,255,255,0.6);
+                    font-family: 'Playfair Display', serif;
+                    font-size: 16px;
+                    font-weight: 700;
+                    letter-spacing: -0.01em;
+                    color: rgba(255,255,255,0.85);
                 }
 
                 .left-headline {
@@ -205,19 +211,20 @@ export default function Login() {
                 .mobile-logo-mark {
                     width: 30px;
                     height: 30px;
-                    background: #0d1f18;
+                    border-radius: 7px;
+                    background: linear-gradient(135deg, #7ec8a0 0%, #3a8d5c 100%);
+                    box-shadow: 0 2px 6px rgba(126,200,160,.25);
                     display: flex;
                     align-items: center;
                     justify-content: center;
                 }
 
                 .mobile-logo-name {
-                    font-size: 12px;
-                    font-weight: 500;
-                    letter-spacing: 0.12em;
-                    text-transform: uppercase;
+                    font-family: 'Playfair Display', serif;
+                    font-size: 15px;
+                    font-weight: 700;
+                    letter-spacing: -0.01em;
                     color: #0d1f18;
-                    opacity: 0.5;
                 }
 
                 /* campos */
@@ -302,16 +309,35 @@ export default function Login() {
                     margin-top: 8px;
                     position: relative;
                     overflow: hidden;
-                    transition: background 0.2s;
+                    transition: all 0.2s ease;
+                    border-radius: 2px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
                 }
 
                 .btn-submit:hover:not(:disabled) {
                     background: #1a4d3a;
+                    box-shadow: 0 4px 12px rgba(13,31,24,.25);
+                }
+
+                .btn-submit:active:not(:disabled) {
+                    transform: scale(0.98);
                 }
 
                 .btn-submit:disabled {
-                    opacity: 0.5;
+                    opacity: 0.6;
                     cursor: default;
+                }
+
+                .btn-spinner {
+                    width: 16px;
+                    height: 16px;
+                    border: 2px solid rgba(255,255,255,.3);
+                    border-top-color: #fff;
+                    border-radius: 50%;
+                    animation: loginSpinner .6s linear infinite;
                 }
 
                 .btn-submit .btn-arrow {
@@ -376,8 +402,8 @@ export default function Login() {
                         <div className="left-logo">
                             <div className="left-logo-mark">
                                 <svg viewBox="0 0 16 16" fill="none">
-                                    <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="rgba(255,255,255,0.6)" strokeWidth="1.2" />
-                                    <circle cx="8" cy="8" r="2" fill="#7ec8a0" />
+                                    <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="rgba(255,255,255,0.9)" strokeWidth="1.2" />
+                                    <circle cx="8" cy="8" r="2" fill="#fff" />
                                 </svg>
                             </div>
                             <span className="left-logo-name">DomGestão</span>
@@ -403,8 +429,8 @@ export default function Login() {
                         <div className="mobile-logo">
                             <div className="mobile-logo-mark">
                                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                                    <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="rgba(255,255,255,0.7)" strokeWidth="1.4" />
-                                    <circle cx="8" cy="8" r="2" fill="#7ec8a0" />
+                                    <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="rgba(255,255,255,0.9)" strokeWidth="1.4" />
+                                    <circle cx="8" cy="8" r="2" fill="#fff" />
                                 </svg>
                             </div>
                             <span className="mobile-logo-name">DomGestão</span>
@@ -463,7 +489,7 @@ export default function Login() {
                             {erro && <div className="erro-msg">{erro}</div>}
 
                             <button type="submit" className="btn-submit" disabled={loading}>
-                                {loading ? "Verificando..." : <>Entrar <span className="btn-arrow">→</span></>}
+                                {loading ? <><div className="btn-spinner" /> Verificando...</> : <>Entrar <span className="btn-arrow">→</span></>}
                             </button>
                         </form>
 
