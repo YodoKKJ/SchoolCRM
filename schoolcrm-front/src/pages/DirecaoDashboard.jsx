@@ -474,6 +474,41 @@ const GLOBAL_STYLE = `
 [data-theme="dark"] .recharts-tooltip-wrapper .recharts-default-tooltip { background:#1a2822 !important; border:1px solid #2a3d32 !important; }
 [data-theme="dark"] .recharts-legend-item-text { color:#8aaa95 !important; }
 
+/* Native select & date inputs dark */
+[data-theme="dark"] select,
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] input[type="month"] {
+    background:#1a2822 !important; color:#e0ebe3 !important; border-color:#2a3d32 !important;
+    color-scheme: dark;
+}
+[data-theme="dark"] select:focus,
+[data-theme="dark"] input[type="date"]:focus,
+[data-theme="dark"] input[type="month"]:focus { border-color:#3a5a45 !important; }
+[data-theme="dark"] option { background:#1a2822 !important; color:#c5d8ca !important; }
+
+/* Checkbox dark */
+[data-theme="dark"] input[type="checkbox"] { accent-color:#5db88a; }
+
+/* Fin-rel dark (relatórios financeiros) */
+[data-theme="dark"] .fin-rel-table th { background:#121e18 !important; color:#7aaa88 !important; border-bottom-color:#243d30 !important; }
+[data-theme="dark"] .fin-rel-table td { color:#c5d8ca !important; border-bottom-color:#1e2e25 !important; }
+[data-theme="dark"] .fin-rel-table tr:hover td { background:#1a2e24 !important; }
+[data-theme="dark"] .fin-rel-modal { background:#151f1a !important; box-shadow:0 8px 32px rgba(0,0,0,.5) !important; }
+[data-theme="dark"] .fin-rel-modal h3 { color:#e8f0ea !important; }
+[data-theme="dark"] .fin-rel-field label { color:#6a8a72 !important; }
+[data-theme="dark"] .fin-rel-field input,
+[data-theme="dark"] .fin-rel-field select { background:#1a2822 !important; border-color:#2a3d32 !important; color:#e0ebe3 !important; }
+[data-theme="dark"] .fin-rel-field input:focus,
+[data-theme="dark"] .fin-rel-field select:focus { border-color:#5db88a !important; }
+[data-theme="dark"] .fin-rel-btn-primary { background:linear-gradient(135deg,#2d6a4f,#40916c) !important; }
+[data-theme="dark"] .fin-rel-btn-cancel { border-color:#2a3d32 !important; color:#8aaa95 !important; }
+[data-theme="dark"] .fin-rel-btn-cancel:hover { background:#1a2822 !important; }
+[data-theme="dark"] .fin-rel-modal-overlay { background:rgba(0,0,0,.7) !important; }
+
+/* Textarea dark */
+[data-theme="dark"] textarea { background:#1a2822 !important; color:#e0ebe3 !important; border-color:#2a3d32 !important; }
+[data-theme="dark"] textarea:focus { border-color:#5db88a !important; }
+
 /* Scrollbar dark */
 [data-theme="dark"] ::-webkit-scrollbar { width:6px; height:6px; }
 [data-theme="dark"] ::-webkit-scrollbar-track { background:#111816; }
