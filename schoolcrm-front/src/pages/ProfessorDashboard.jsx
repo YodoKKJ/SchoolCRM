@@ -34,31 +34,48 @@ api.interceptors.response.use(
 
 // ── Design tokens — idênticos ao DirecaoDashboard ──────────────
 const STYLE = `
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap');
 * { box-sizing: border-box; }
 :root { font-family: 'DM Sans', sans-serif; }
-.pd-sidebar { background: #0d1f18; }
-.pd-nav-btn { display:flex; align-items:center; gap:10px; padding:9px 12px; font-size:13px; font-weight:400; color:rgba(255,255,255,.45); border:none; background:transparent; width:100%; text-align:left; cursor:pointer; border-left:2px solid transparent; transition:color .15s, background .15s, border-color .15s; }
-.pd-nav-btn:hover { color:rgba(255,255,255,.8); background:rgba(255,255,255,.04); }
-.pd-nav-btn.active { color:#7ec8a0; border-left-color:#7ec8a0; background:rgba(126,200,160,.07); font-weight:500; }
-.pd-nav-label { font-size:10px; font-weight:500; letter-spacing:.14em; text-transform:uppercase; color:rgba(255,255,255,.3); padding:0 12px; margin-bottom:4px; }
-.pd-section { background:#fff; border:1px solid #eaeef2; }
+
+@keyframes pdModalIn { from { opacity:0; transform:scale(.96) translateY(8px); } to { opacity:1; transform:scale(1) translateY(0); } }
+@keyframes pdOverlayIn { from { opacity:0; } to { opacity:1; } }
+
+/* ── Sidebar ───────────────────────────────────────────────── */
+.pd-sidebar { background: linear-gradient(180deg, #0d1f18 0%, #0a1a14 100%); }
+.pd-nav-btn { display:flex; align-items:center; gap:10px; padding:8px 14px; font-size:13px; font-weight:400; color:rgba(255,255,255,.45); border:none; background:transparent; width:100%; text-align:left; cursor:pointer; border-left:2px solid transparent; transition:all .18s ease; border-radius:0 4px 4px 0; }
+.pd-nav-btn:hover { color:rgba(255,255,255,.85); background:rgba(255,255,255,.05); }
+.pd-nav-btn.active { color:#7ec8a0; border-left-color:#7ec8a0; background:rgba(126,200,160,.08); font-weight:500; }
+.pd-nav-label { font-size:9px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:rgba(255,255,255,.28); padding:0 14px; margin-bottom:6px; }
+
+/* ── Sections ──────────────────────────────────────────────── */
+.pd-section { background:#fff; border:1px solid #eaeef2; border-radius:2px; transition:box-shadow .2s ease; }
+.pd-section:hover { box-shadow:0 2px 8px rgba(0,0,0,.04); }
 .pd-section-header { border-bottom:1px solid #eaeef2; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; }
 .pd-section-title { font-size:13px; font-weight:500; color:#0d1f18; letter-spacing:.01em; }
 .pd-section-count { font-size:11px; color:#9aaa9f; letter-spacing:.04em; }
 .pd-page-title { font-family:'Playfair Display', serif; font-size:22px; font-weight:700; color:#0d1f18; letter-spacing:-.02em; line-height:1; }
 .pd-page-sub { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#9aaa9f; margin-top:3px; }
+.pd-breadcrumb { font-size:10px; letter-spacing:.06em; color:#b8c4be; margin-top:2px; }
+.pd-breadcrumb span { color:#7ec8a0; }
+
+/* ── Tables ────────────────────────────────────────────────── */
 .pd-table { width:100%; border-collapse:collapse; }
-.pd-table th { font-size:10px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:#9aaa9f; padding:10px 20px; text-align:left; background:#f8faf8; border-bottom:1px solid #eaeef2; }
-.pd-table td { padding:12px 20px; border-bottom:1px solid #f2f5f2; font-size:13px; color:#2a3a2e; }
+.pd-table th { font-size:10px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#7a8a80; padding:10px 20px; text-align:left; background:#f6f8f6; border-bottom:2px solid #eaeef2; }
+.pd-table td { padding:12px 20px; border-bottom:1px solid #f2f5f2; font-size:13px; color:#2a3a2e; transition:background .12s ease; }
 .pd-table tr:last-child td { border-bottom:none; }
-.pd-table tr:hover td { background:#fafcfa; }
-.pd-badge { font-size:11px; font-weight:500; padding:3px 10px; letter-spacing:.02em; }
-.pd-btn-primary { background:#0d1f18; color:#fff; border:none; padding:11px 20px; font-family:'DM Sans',sans-serif; font-size:12px; font-weight:500; letter-spacing:.08em; text-transform:uppercase; cursor:pointer; transition:background .2s; }
-.pd-btn-primary:hover { background:#1a4d3a; }
-.pd-btn-primary:disabled { opacity:.4; cursor:default; }
-.pd-btn-ghost { background:#f4f7f4; color:#5a7060; border:none; padding:7px 14px; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; }
-.pd-btn-ghost:hover { background:#ebf0eb; }
+.pd-table tr:hover td { background:#f4f8f5; }
+.pd-badge { font-size:11px; font-weight:500; padding:3px 10px; letter-spacing:.02em; border-radius:2px; }
+
+/* ── Buttons ───────────────────────────────────────────────── */
+.pd-btn-primary { background:#0d1f18; color:#fff; border:none; padding:11px 20px; font-family:'DM Sans',sans-serif; font-size:12px; font-weight:500; letter-spacing:.08em; text-transform:uppercase; cursor:pointer; transition:all .2s ease; border-radius:2px; }
+.pd-btn-primary:hover { background:#1a4d3a; box-shadow:0 2px 8px rgba(13,31,24,.2); }
+.pd-btn-primary:active { transform:scale(.98); }
+.pd-btn-primary:disabled { opacity:.4; cursor:default; box-shadow:none; }
+.pd-btn-ghost { background:#f4f7f4; color:#5a7060; border:none; padding:7px 14px; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500; letter-spacing:.06em; text-transform:uppercase; cursor:pointer; transition:all .2s ease; border-radius:2px; }
+.pd-btn-ghost:hover { background:#ebf0eb; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+
+/* ── Inputs ────────────────────────────────────────────────── */
 .pd-input { border:none; border-bottom:1.5px solid #d4ddd8; background:transparent; padding:9px 0; font-size:14px; font-family:'DM Sans',sans-serif; color:#0d1f18; outline:none; width:100%; transition:border-color .2s; }
 .pd-input:focus { border-bottom-color:#0d1f18; }
 .pd-input::placeholder { color:#b8c4be; }
@@ -66,13 +83,19 @@ const STYLE = `
 .pd-input-line { position:absolute; bottom:-1.5px; left:0; height:1.5px; background:#0d1f18; width:0; transition:width .25s ease; }
 .pd-input-wrap:focus-within .pd-input-line { width:100%; }
 .pd-label { font-size:10px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:#9aaa9f; display:block; margin-bottom:6px; }
-.pd-ok { font-size:12px; color:#3a6649; padding:10px 14px; background:#f0f5f2; border-left:3px solid #7ec8a0; }
-.pd-err { font-size:12px; color:#b94040; padding:10px 14px; background:#fdf0f0; border-left:3px solid #b94040; }
-.pd-modal-overlay { position:fixed; inset:0; background:rgba(13,31,24,.55); z-index:50; display:flex; align-items:center; justify-content:center; padding:24px; }
-.pd-modal { background:#fff; width:100%; max-width:420px; padding:32px; }
+
+/* ── Feedback ──────────────────────────────────────────────── */
+.pd-ok { font-size:12px; color:#3a6649; padding:10px 14px; background:#f0f5f2; border-left:3px solid #7ec8a0; border-radius:0 2px 2px 0; }
+.pd-err { font-size:12px; color:#b94040; padding:10px 14px; background:#fdf0f0; border-left:3px solid #b94040; border-radius:0 2px 2px 0; }
+
+/* ── Modais ─────────────────────────────────────────────────── */
+.pd-modal-overlay { position:fixed; inset:0; background:rgba(13,31,24,.55); z-index:50; display:flex; align-items:center; justify-content:center; padding:24px; animation:pdOverlayIn .2s ease; backdrop-filter:blur(2px); }
+.pd-modal { background:#fff; width:100%; max-width:420px; padding:32px; border-radius:3px; animation:pdModalIn .25s ease; box-shadow:0 20px 60px rgba(0,0,0,.2); }
 .pd-modal-title { font-family:'Playfair Display',serif; font-size:20px; font-weight:700; color:#0d1f18; }
 .pd-modal-sub { font-size:12px; color:#9aaa9f; margin-top:2px; letter-spacing:.04em; }
-.pd-search-input { width:100%; padding:8px 32px 8px 32px; font-size:12px; border:1px solid #eaeef2; background:white; color:#0d1f18; outline:none; font-family:'DM Sans',sans-serif; transition:border-color .15s; }
+
+/* ── Search ────────────────────────────────────────────────── */
+.pd-search-input { width:100%; padding:8px 32px 8px 32px; font-size:12px; border:1px solid #eaeef2; background:white; color:#0d1f18; outline:none; font-family:'DM Sans',sans-serif; transition:border-color .15s; border-radius:2px; }
 .pd-search-input:focus { border-color:#0d1f18; }
 .pd-search-icon { position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#9aaa9f; pointer-events:none; }
 .pd-search-clear { position:absolute; right:8px; top:50%; transform:translateY(-50%); background:none; border:none; color:#9aaa9f; cursor:pointer; padding:0; }
@@ -163,56 +186,57 @@ export default function ProfessorDashboard() {
                 )}
 
                 {/* ── Sidebar ── */}
-                <aside className={`pd-sidebar${sidebarAberta ? " open" : ""}`} style={{ width:210, flexShrink:0, display:"flex", flexDirection:"column",
+                <aside className={`pd-sidebar${sidebarAberta ? " open" : ""}`} style={{ width:230, flexShrink:0, display:"flex", flexDirection:"column",
                     position:"sticky", top:0, height:"100vh", overflowY:"auto" }}>
 
                     {/* logo */}
-                    <div style={{ padding:"24px 20px 20px", display:"flex", alignItems:"center", gap:12,
-                        borderBottom:"1px solid rgba(255,255,255,.07)" }}>
-                        <div style={{ width:28, height:28, border:"1.5px solid rgba(255,255,255,.2)", display:"flex",
-                            alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-                                <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="rgba(255,255,255,.5)" strokeWidth="1.2"/>
-                                <circle cx="8" cy="8" r="2" fill="#7ec8a0"/>
+                    <div style={{ padding:"24px 22px 20px", display:"flex", alignItems:"center", gap:12,
+                        borderBottom:"1px solid rgba(255,255,255,.08)" }}>
+                        <div style={{ width:32, height:32, borderRadius:"8px", background:"linear-gradient(135deg, #7ec8a0 0%, #3a8d5c 100%)", display:"flex",
+                            alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 2px 8px rgba(126,200,160,.3)" }}>
+                            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="rgba(255,255,255,.9)" strokeWidth="1.2"/>
+                                <circle cx="8" cy="8" r="2" fill="#fff"/>
                             </svg>
                         </div>
                         <div>
-                            <p style={{ fontWeight:500, fontSize:13, letterSpacing:".08em", color:"rgba(255,255,255,.75)", lineHeight:1 }}>DomGestão</p>
-                            <p style={{ fontSize:10, letterSpacing:".1em", textTransform:"uppercase", color:"rgba(255,255,255,.3)", marginTop:3 }}>Professor</p>
+                            <p style={{ fontFamily:"'Playfair Display',serif", fontWeight:700, fontSize:15, color:"rgba(255,255,255,.9)", lineHeight:1, letterSpacing:"-.01em" }}>DomGestão</p>
+                            <p style={{ fontSize:9, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,.35)", marginTop:4, fontWeight:500 }}>Professor</p>
                         </div>
                     </div>
 
                     {/* user */}
-                    <div style={{ padding:"14px 20px", display:"flex", alignItems:"center", gap:10,
-                        borderBottom:"1px solid rgba(255,255,255,.07)" }}>
-                        <div style={{ width:28, height:28, background:"rgba(126,200,160,.15)",
-                            border:"1px solid rgba(126,200,160,.3)", display:"flex", alignItems:"center",
+                    <div style={{ padding:"16px 22px", display:"flex", alignItems:"center", gap:10,
+                        borderBottom:"1px solid rgba(255,255,255,.08)" }}>
+                        <div style={{ width:32, height:32, borderRadius:"50%", background:"linear-gradient(135deg, rgba(126,200,160,.2) 0%, rgba(126,200,160,.1) 100%)",
+                            border:"1.5px solid rgba(126,200,160,.3)", display:"flex", alignItems:"center",
                             justifyContent:"center", flexShrink:0, fontSize:12, fontWeight:600, color:"#7ec8a0" }}>
                             {nome.charAt(0).toUpperCase()}
                         </div>
-                        <div style={{ minWidth:0 }}>
-                            <p style={{ fontSize:12, fontWeight:500, color:"rgba(255,255,255,.65)",
+                        <div style={{ minWidth:0, flex:1 }}>
+                            <p style={{ fontSize:13, fontWeight:500, color:"rgba(255,255,255,.75)",
                                 overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{nome}</p>
-                            <p style={{ fontSize:10, color:"rgba(255,255,255,.25)", letterSpacing:".04em" }}>Professor</p>
+                            <p style={{ fontSize:10, color:"rgba(255,255,255,.3)", letterSpacing:".04em" }}>Professor</p>
                         </div>
                     </div>
 
                     {/* nav */}
-                    <nav style={{ flex:1, padding:"16px 8px", display:"flex", flexDirection:"column", gap:2 }}>
+                    <nav style={{ flex:1, padding:"16px 10px", display:"flex", flexDirection:"column", gap:2 }}>
                         <p className="pd-nav-label" style={{ marginBottom:8 }}>Menu</p>
                         {menu.map(item => {
                             const Icon = item.icon;
+                            const active = aba === item.id;
                             return (
-                                <button key={item.id} className={`pd-nav-btn${aba===item.id?" active":""}`}
+                                <button key={item.id} className={`pd-nav-btn${active?" active":""}`}
                                         onClick={() => { setAba(item.id); setSidebarAberta(false); }}>
-                                    <Icon size={14} style={{ flexShrink:0 }} />
+                                    <Icon size={15} style={{ flexShrink:0, opacity: active ? 1 : .7 }} />
                                     <span>{item.label}</span>
                                 </button>
                             );
                         })}
                     </nav>
 
-                    <div style={{ padding:"12px 8px", borderTop:"1px solid rgba(255,255,255,.06)" }}>
+                    <div style={{ padding:"14px 10px", borderTop:"1px solid rgba(255,255,255,.06)" }}>
                         <button className="pd-nav-btn" onClick={logout} style={{ color:"rgba(255,100,100,.5)" }}>
                             <LogOut size={14} />
                             <span>Sair</span>
@@ -222,7 +246,7 @@ export default function ProfessorDashboard() {
 
                 {/* ── Main ── */}
                 <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0 }}>
-                    <header className="pd-header" style={{ background:"#fff", borderBottom:"1px solid #eaeef2", padding:"18px 32px",
+                    <header style={{ background:"#fff", boxShadow:"0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)", padding:"18px 32px",
                         display:"flex", alignItems:"center", justifyContent:"space-between",
                         position:"sticky", top:0, zIndex:10 }}>
                         <div style={{ display:"flex", alignItems:"center", gap:16 }}>
@@ -231,12 +255,18 @@ export default function ProfessorDashboard() {
                             </button>
                             <div>
                                 <h1 className="pd-page-title">{menu.find(m => m.id===aba)?.label}</h1>
-                                <p className="pd-page-sub">DomGestão — Sistema Escolar</p>
+                                <p className="pd-breadcrumb"><span>Professor</span> / {menu.find(m => m.id===aba)?.label}</p>
                             </div>
                         </div>
-                        <div style={{ width:32, height:32, background:"#0d1f18", display:"flex", alignItems:"center",
-                            justifyContent:"center", fontSize:12, fontWeight:600, color:"#7ec8a0" }}>
-                            {nome.charAt(0).toUpperCase()}
+                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                            <div style={{ textAlign:"right", marginRight:4 }}>
+                                <p style={{ fontSize:12, fontWeight:500, color:"#2a3a2e", lineHeight:1 }}>{nome}</p>
+                                <p style={{ fontSize:10, color:"#9aaa9f", marginTop:2 }}>Professor</p>
+                            </div>
+                            <div style={{ width:34, height:34, borderRadius:"50%", background:"#0d1f18", display:"flex", alignItems:"center",
+                                justifyContent:"center", fontSize:13, fontWeight:600, color:"#7ec8a0" }}>
+                                {nome.charAt(0).toUpperCase()}
+                            </div>
                         </div>
                     </header>
 
