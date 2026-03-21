@@ -7165,12 +7165,38 @@ function FinConfiguracoes({ anoLetivo }) {
 
     const fc = (k, v) => setFormConfig(f => ({ ...f, [k]: v }));
 
+    const [configTab, setConfigTab] = useState("geral");
+
     return (
-        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
-            {msg.texto && <div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div>}
+        <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
+            {msg.texto && <div style={{ padding:"0 20px" }}><div className={msg.tipo==="ok"?"dd-ok":"dd-err"}>{msg.texto}</div></div>}
+
+            {/* ── Abas de Configurações ── */}
+            <div style={{ display:"flex", borderBottom:"2px solid "+_border, gap:0, padding:"0 4px", background: dark ? "#151f1a" : "#fafcfa", borderRadius:"8px 8px 0 0" }}>
+                {[
+                    { id:"geral",      label:"Geral" },
+                    { id:"pagamentos", label:"Pagamentos" },
+                    { id:"whatsapp",   label:"WhatsApp" },
+                    { id:"sicoob",     label:"Sicoob / Boletos" },
+                ].map(t => (
+                    <button key={t.id} onClick={() => setConfigTab(t.id)}
+                        style={{
+                            background:"none", border:"none", cursor:"pointer", padding:"12px 20px",
+                            fontSize:13, fontWeight:600,
+                            color: configTab === t.id ? "#2d6a4f" : _textMuted,
+                            borderBottom: configTab === t.id ? "2px solid #2d6a4f" : "2px solid transparent",
+                            marginBottom:-2, fontFamily:"'DM Sans',sans-serif", transition:"color 0.15s"
+                        }}>
+                        {t.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* ═══════ ABA GERAL ═══════ */}
+            {configTab === "geral" && <>
 
             {/* Config Global */}
-            <div className="dd-section">
+            <div className="dd-section" style={{ borderRadius:0, borderTop:"none" }}>
                 <div className="dd-section-header"><span className="dd-section-title">Configuração Global</span></div>
                 <div style={{ padding:24 }}>
                     <form onSubmit={salvarConfig} style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
@@ -7197,8 +7223,13 @@ function FinConfiguracoes({ anoLetivo }) {
                 </div>
             </div>
 
-            {/* Formas de Pagamento */}
-            <div className="dd-section">
+            </>}
+
+            {/* ═══════ ABA PAGAMENTOS ═══════ */}
+            {configTab === "pagamentos" && <>
+
+            {/* Formas de Pagamento — movido da aba geral */}
+            <div className="dd-section" style={{ borderRadius:0, borderTop:"none" }}>
                 <div className="dd-section-header">
                     <span className="dd-section-title">Formas de Pagamento</span>
                     <span className="dd-section-count">{formas.length}</span>
@@ -7233,8 +7264,8 @@ function FinConfiguracoes({ anoLetivo }) {
                 </div>
             </div>
 
-            {/* Valores por Série */}
-            <div className="dd-section">
+            {/* Valores por Série — movido da aba geral */}
+            <div className="dd-section" style={{ borderRadius:0, borderTop:"none" }}>
                 <div className="dd-section-header">
                     <span className="dd-section-title">Valores de Mensalidade por Série</span>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -7275,8 +7306,13 @@ function FinConfiguracoes({ anoLetivo }) {
                 </div>
             </div>
 
-            {/* ===================== WhatsApp ===================== */}
-            <WhatsappConfigSection />
+            </>}
+
+            {/* ═══════ ABA WHATSAPP ═══════ */}
+            {configTab === "whatsapp" && <WhatsappConfigSection />}
+
+            {/* ═══════ ABA SICOOB ═══════ */}
+            {configTab === "sicoob" && <>
 
             {/* ─── Integração Sicoob / Boletos ─── */}
             <div className="dd-section">
@@ -7539,6 +7575,8 @@ function FinConfiguracoes({ anoLetivo }) {
                     )}
                 </div>
             </div>
+
+            </>}
         </div>
     );
 }
