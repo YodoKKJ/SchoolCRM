@@ -12,14 +12,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.*;
-import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -41,10 +40,14 @@ public class WhatsappService {
     @Autowired
     private WhatsappNotificacaoRepository notificacaoRepository;
 
-    private final RestTemplate restTemplate = new RestTemplateBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .readTimeout(Duration.ofSeconds(30))
-            .build();
+    private final RestTemplate restTemplate;
+
+    {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(10_000);
+        factory.setReadTimeout(30_000);
+        restTemplate = new RestTemplate(factory);
+    }
 
     // ======================== CONFIG (singleton) ========================
 
