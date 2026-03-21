@@ -1,7 +1,9 @@
 package com.dom.schoolcrm.config;
 
+import com.dom.schoolcrm.entity.FinFormaPagamento;
 import com.dom.schoolcrm.entity.Serie;
 import com.dom.schoolcrm.entity.Usuario;
+import com.dom.schoolcrm.repository.FinFormaPagamentoRepository;
 import com.dom.schoolcrm.repository.SerieRepository;
 import com.dom.schoolcrm.repository.UsuarioRepository;
 import org.springframework.boot.CommandLineRunner;
@@ -45,6 +47,19 @@ public class DataInitializer {
                     repo.save(s);
                 }
                 System.out.println(">>> 12 séries criadas (EF 1-9 + EM 1-3)");
+            }
+        };
+    }
+
+    @Bean
+    CommandLineRunner initFormaPagamentoBoleto(FinFormaPagamentoRepository repo) {
+        return args -> {
+            if (!repo.existsByNomeIgnoreCase("BOLETO_SICOOB")) {
+                FinFormaPagamento fp = new FinFormaPagamento();
+                fp.setNome("BOLETO_SICOOB");
+                fp.setAtivo(true);
+                repo.save(fp);
+                System.out.println(">>> Forma de pagamento BOLETO_SICOOB criada");
             }
         };
     }
