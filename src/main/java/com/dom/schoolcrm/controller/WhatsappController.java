@@ -127,6 +127,27 @@ public class WhatsappController {
         }
     }
 
+    // ======================== BOLETINS ========================
+
+    /**
+     * Envia boletim PDF via WhatsApp para todos os alunos de uma turma.
+     * O PDF é gerado e enviado como documento para o responsável de cada aluno.
+     */
+    @PostMapping("/boletim/turma/{turmaId}")
+    public ResponseEntity<?> enviarBoletinsTurma(
+            @PathVariable Long turmaId,
+            @RequestParam(defaultValue = "0") Integer bimestre) {
+        try {
+            Map<String, Object> result = whatsappService.enviarBoletinsTurma(turmaId, bimestre);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "status", "erro",
+                    "detalhe", e.getMessage() != null ? e.getMessage() : "Erro ao enviar boletins"
+            ));
+        }
+    }
+
     // ======================== HISTÓRICO ========================
 
     /**
@@ -146,6 +167,7 @@ public class WhatsappController {
             m.put("erroDetalhe", n.getErroDetalhe());
             m.put("enviadoEm", n.getEnviadoEm());
             m.put("pessoaNome", n.getPessoa() != null ? n.getPessoa().getNome() : null);
+            m.put("alunoNome", n.getAluno() != null ? n.getAluno().getNome() : null);
             m.put("crDescricao", n.getContaReceber() != null ? n.getContaReceber().getDescricao() : null);
             m.put("crValor", n.getContaReceber() != null ? n.getContaReceber().getValor() : null);
             m.put("crVencimento", n.getContaReceber() != null ? n.getContaReceber().getDataVencimento() : null);

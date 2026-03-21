@@ -20,15 +20,20 @@ public class WhatsappNotificacao {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Conta a receber que gerou a notificação
+    // Conta a receber que gerou a notificação (null para boletins)
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "conta_receber_id", nullable = false)
+    @JoinColumn(name = "conta_receber_id")
     private FinContaReceber contaReceber;
 
-    // Pessoa que recebeu a mensagem (responsável)
+    // Pessoa que recebeu a mensagem (responsável, null para boletins)
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "pessoa_id", nullable = false)
+    @JoinColumn(name = "pessoa_id")
     private FinPessoa pessoa;
+
+    // Aluno relacionado (para boletins via WhatsApp)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "aluno_id")
+    private Usuario aluno;
 
     // Telefone usado no envio (snapshot — telefone pode mudar depois)
     @Column(nullable = false, length = 30)
@@ -85,4 +90,7 @@ public class WhatsappNotificacao {
 
     public LocalDateTime getEnviadoEm() { return enviadoEm; }
     public void setEnviadoEm(LocalDateTime enviadoEm) { this.enviadoEm = enviadoEm; }
+
+    public Usuario getAluno() { return aluno; }
+    public void setAluno(Usuario aluno) { this.aluno = aluno; }
 }

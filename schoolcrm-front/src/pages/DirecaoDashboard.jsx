@@ -3715,6 +3715,13 @@ function Boletins({ anoLetivo }) {
     const [gerando, setGerando] = useState(false);
     const [modoLote, setModoLote] = useState(false);
 
+    // WhatsApp Boletim modal
+    const [showWhatsModal, setShowWhatsModal] = useState(false);
+    const [wTurmaId, setWTurmaId] = useState("");
+    const [wBimestre, setWBimestre] = useState("0");
+    const [wEnviando, setWEnviando] = useState(false);
+    const [wResultado, setWResultado] = useState(null);
+
     useEffect(() => {
         api.get("/usuarios").then(r => setAlunos((r.data || []).filter(u => u.role === "ALUNO" && u.ativo)));
         api.get("/turmas").then(r => setTurmas(r.data || []));
@@ -3786,12 +3793,38 @@ function Boletins({ anoLetivo }) {
     };
 
     const turmasFiltradas = turmas.filter(t => t.anoLetivo === anoLetivo);
+    const dk = typeof useDarkVars === "function" ? useDarkVars() : {};
+
+    const enviarBoletinsWhatsApp = async () => {
+        if (!wTurmaId) return;
+        setWEnviando(true);
+        setWResultado(null);
+        try {
+            const resp = await api.post(`/whatsapp/boletim/turma/${wTurmaId}?bimestre=${wBimestre}`);
+            setWResultado(resp.data);
+        } catch (e) {
+            const msg = e.response?.data?.detalhe || e.message;
+            showToast("Erro ao enviar boletins: " + msg, "err");
+        } finally {
+            setWEnviando(false);
+        }
+    };
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
             <div className="dd-section" style={{ padding:24 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
                     <p className="dd-section-title" style={{ margin:0 }}>Gerar Boletim</p>
+                    <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+                        <button
+                            onClick={() => { setShowWhatsModal(true); setWTurmaId(""); setWBimestre("0"); setWResultado(null); }}
+                            className="dd-btn-ghost"
+                            style={{ display:"flex", alignItems:"center", gap:6, fontSize:13, color:"#25d366", border:"1px solid #25d366", padding:"6px 14px", borderRadius:6 }}>
+                            <MessageSquare size={15} /> Enviar via WhatsApp
+                        </button>
+                    </div>
+                </div>
+                <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:16 }}>
                     <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", fontSize:13, color:"#3d5a47", userSelect:"none" }}>
                         <input
                             type="checkbox"
@@ -3863,6 +3896,134 @@ function Boletins({ anoLetivo }) {
                         : "O PDF será gerado pelo servidor e baixado automaticamente."}
                 </p>
             </div>
+
+            {/* ── Modal WhatsApp Boletim ── */}
+            {showWhatsModal && (
+                <div className="dd-modal-overlay" onClick={() => !wEnviando && setShowWhatsModal(false)}>
+                    <div className="dd-modal" onClick={e => e.stopPropagation()} style={{ maxWidth:600, width:"95%" }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+                            <h3 style={{ margin:0, fontSize:18, display:"flex", alignItems:"center", gap:8 }}>
+                                <MessageSquare size={20} color="#25d366" /> Enviar Boletins via WhatsApp
+                            </h3>
+                            <button onClick={() => !wEnviando && setShowWhatsModal(false)} style={{ background:"none", border:"none", cursor:"pointer", fontSize:18 }}>
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {!wResultado ? (
+                            <>
+                                <p style={{ fontSize:13, color:"#6b7c6e", marginBottom:20 }}>
+                                    O boletim em PDF será gerado e enviado para o WhatsApp do responsável de cada aluno da turma selecionada.
+                                </p>
+
+                                <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                                    <div>
+                                        <label className="dd-label">Turma *</label>
+                                        <SearchSelect
+                                            options={turmasFiltradas.map(t => ({ value: t.id, label: fmtTurma(t) }))}
+                                            value={wTurmaId} onChange={setWTurmaId}
+                                            placeholder="Selecione a turma..." />
+                                    </div>
+
+                                    <div>
+                                        <label className="dd-label">Bimestre (mensagem)</label>
+                                        <select value={wBimestre} onChange={e => setWBimestre(e.target.value)}
+                                            className="dd-input" style={{ width:"100%" }}>
+                                            <option value="0">Geral (todos os bimestres)</option>
+                                            <option value="1">1º Bimestre</option>
+                                            <option value="2">2º Bimestre</option>
+                                            <option value="3">3º Bimestre</option>
+                                            <option value="4">4º Bimestre</option>
+                                        </select>
+                                        <p style={{ fontSize:11, color:"#9aaa9f", marginTop:4 }}>
+                                            Define o período mencionado na mensagem. O PDF sempre contém todos os dados disponíveis.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div style={{ display:"flex", gap:12, marginTop:24, justifyContent:"flex-end" }}>
+                                    <button onClick={() => setShowWhatsModal(false)} disabled={wEnviando}
+                                        className="dd-btn-ghost" style={{ padding:"8px 20px" }}>
+                                        Cancelar
+                                    </button>
+                                    <button onClick={enviarBoletinsWhatsApp} disabled={!wTurmaId || wEnviando}
+                                        className="dd-btn-primary"
+                                        style={{ padding:"8px 20px", background: wEnviando ? "#9aaa9f" : "#25d366",
+                                                 display:"flex", alignItems:"center", gap:6 }}>
+                                        {wEnviando ? (
+                                            <><RefreshCw size={14} style={{ animation:"spin 1s linear infinite" }} /> Enviando...</>
+                                        ) : (
+                                            <><Send size={14} /> Enviar Boletins</>
+                                        )}
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            /* ── Resultado do envio ── */
+                            <>
+                                <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:12, marginBottom:20 }}>
+                                    <div style={{ textAlign:"center", padding:12, background:"#f4f7f5", borderRadius:8 }}>
+                                        <div style={{ fontSize:24, fontWeight:700 }}>{wResultado.total}</div>
+                                        <div style={{ fontSize:11, color:"#6b7c6e" }}>Total</div>
+                                    </div>
+                                    <div style={{ textAlign:"center", padding:12, background:"#e8f5e9", borderRadius:8 }}>
+                                        <div style={{ fontSize:24, fontWeight:700, color:"#2e7d32" }}>{wResultado.enviados}</div>
+                                        <div style={{ fontSize:11, color:"#2e7d32" }}>Enviados</div>
+                                    </div>
+                                    <div style={{ textAlign:"center", padding:12, background:"#fff8e1", borderRadius:8 }}>
+                                        <div style={{ fontSize:24, fontWeight:700, color:"#f57f17" }}>{wResultado.semTelefone}</div>
+                                        <div style={{ fontSize:11, color:"#f57f17" }}>Sem telefone</div>
+                                    </div>
+                                    <div style={{ textAlign:"center", padding:12, background:"#fce4ec", borderRadius:8 }}>
+                                        <div style={{ fontSize:24, fontWeight:700, color:"#c62828" }}>{wResultado.erros}</div>
+                                        <div style={{ fontSize:11, color:"#c62828" }}>Erros</div>
+                                    </div>
+                                </div>
+
+                                <p style={{ fontSize:12, color:"#6b7c6e", marginBottom:8 }}>
+                                    <strong>{wResultado.turma}</strong> — {wResultado.bimestre}
+                                </p>
+
+                                <div style={{ maxHeight:300, overflowY:"auto", border:"1px solid #e0e7e2", borderRadius:6 }}>
+                                    <table style={{ width:"100%", fontSize:12, borderCollapse:"collapse" }}>
+                                        <thead>
+                                            <tr style={{ background:"#f4f7f5", position:"sticky", top:0 }}>
+                                                <th style={{ padding:"8px 12px", textAlign:"left" }}>Aluno</th>
+                                                <th style={{ padding:"8px 12px", textAlign:"left" }}>Telefone</th>
+                                                <th style={{ padding:"8px 12px", textAlign:"center" }}>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {(wResultado.itens || []).map((it, i) => (
+                                                <tr key={i} style={{ borderTop:"1px solid #e0e7e2" }}>
+                                                    <td style={{ padding:"8px 12px" }}>{it.alunoNome}</td>
+                                                    <td style={{ padding:"8px 12px", fontFamily:"monospace", fontSize:11 }}>{it.telefone || "—"}</td>
+                                                    <td style={{ padding:"8px 12px", textAlign:"center" }}>
+                                                        <span style={{
+                                                            padding:"2px 8px", borderRadius:10, fontSize:10, fontWeight:600,
+                                                            background: it.status === "ENVIADO" ? "#e8f5e9" : it.status === "SEM_TELEFONE" ? "#fff8e1" : "#fce4ec",
+                                                            color: it.status === "ENVIADO" ? "#2e7d32" : it.status === "SEM_TELEFONE" ? "#f57f17" : "#c62828"
+                                                        }}>
+                                                            {it.status === "ENVIADO" ? "✓ Enviado" : it.status === "SEM_TELEFONE" ? "Sem tel." : "Erro"}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div style={{ display:"flex", justifyContent:"flex-end", marginTop:20 }}>
+                                    <button onClick={() => setShowWhatsModal(false)}
+                                        className="dd-btn-primary" style={{ padding:"8px 24px" }}>
+                                        Fechar
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
