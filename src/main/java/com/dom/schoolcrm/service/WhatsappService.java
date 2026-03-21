@@ -1,11 +1,7 @@
 package com.dom.schoolcrm.service;
 
-import com.dom.schoolcrm.entity.WhatsappConfig;
-import com.dom.schoolcrm.entity.WhatsappNotificacao;
-import com.dom.schoolcrm.entity.FinContaReceber;
-import com.dom.schoolcrm.entity.FinPessoa;
-import com.dom.schoolcrm.repository.WhatsappConfigRepository;
-import com.dom.schoolcrm.repository.WhatsappNotificacaoRepository;
+import com.dom.schoolcrm.entity.*;
+import com.dom.schoolcrm.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,8 +18,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.*;
 import java.util.Base64;
-import java.util.Map;
 
 /**
  * Serviço de integração com a Evolution API para envio de mensagens WhatsApp.
@@ -40,6 +36,7 @@ public class WhatsappService {
 
     @Autowired
     private WhatsappNotificacaoRepository notificacaoRepository;
+
 
     private final RestTemplate restTemplate;
 

@@ -259,6 +259,7 @@ public class WhatsappController {
             m.put("erroDetalhe", n.getErroDetalhe());
             m.put("enviadoEm", n.getEnviadoEm());
             m.put("pessoaNome", n.getPessoa() != null ? n.getPessoa().getNome() : null);
+            m.put("alunoNome", n.getAluno() != null ? n.getAluno().getNome() : null);
             m.put("crDescricao", n.getContaReceber() != null ? n.getContaReceber().getDescricao() : null);
             m.put("crValor", n.getContaReceber() != null ? n.getContaReceber().getValor() : null);
             m.put("crVencimento", n.getContaReceber() != null ? n.getContaReceber().getDataVencimento() : null);

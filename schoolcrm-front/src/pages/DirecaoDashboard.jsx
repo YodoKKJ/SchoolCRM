@@ -3740,6 +3740,7 @@ function Boletins({ anoLetivo }) {
     const [wppEnviando, setWppEnviando] = useState(false);
     const [wppResultado, setWppResultado] = useState(null);
 
+
     useEffect(() => {
         api.get("/usuarios").then(r => setAlunos((r.data || []).filter(u => u.role === "ALUNO" && u.ativo)));
         api.get("/turmas").then(r => setTurmas(r.data || []));
@@ -3830,12 +3831,18 @@ function Boletins({ anoLetivo }) {
     };
 
     const turmasFiltradas = turmas.filter(t => t.anoLetivo === anoLetivo);
+    const dk = typeof useDarkVars === "function" ? useDarkVars() : {};
+
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
             <div className="dd-section" style={{ padding:24 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
                     <p className="dd-section-title" style={{ margin:0 }}>Gerar Boletim</p>
+                    <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+                    </div>
+                </div>
+                <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:16 }}>
                     <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", fontSize:13, color:"#3d5a47", userSelect:"none" }}>
                         <input
                             type="checkbox"
