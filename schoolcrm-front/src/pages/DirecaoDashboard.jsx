@@ -6993,7 +6993,8 @@ function FinRelatorios() {
 
 // ---- FIN CONFIGURACOES ----
 function FinConfiguracoes({ anoLetivo }) {
-    const { _bgCard, _border, _text, _textMuted } = useDarkVars();
+    const { _bg, _bgCard, _border, _text, _textMuted } = useDarkVars();
+    const dark = localStorage.getItem("theme") === "dark";
     const [config, setConfig] = useState(null);
     const [formas, setFormas] = useState([]);
     const [series, setSeries] = useState([]);
@@ -7002,9 +7003,105 @@ function FinConfiguracoes({ anoLetivo }) {
     const [formForma, setFormForma] = useState({ nome:"" });
     const [anoSeries, setAnoSeries] = useState(String(anoLetivo));
     const [msg, setMsg] = useState({ texto:"", tipo:"" });
+
+    // Sicoob config state
+    const [sicoobConfig, setSicoobConfig] = useState(null);
+    const [sicoobForm, setSicoobForm] = useState({});
+    const [sicoobTestResult, setSicoobTestResult] = useState(null);
+    const [salvandoSicoob, setSalvandoSicoob] = useState(false);
+    const [uploadingCert, setUploadingCert] = useState(false);
+    const [certSenha, setCertSenha] = useState("");
+    const [certTipo, setCertTipo] = useState("PFX");
+    const [showSecrets, setShowSecrets] = useState({});
     const [salvando, setSalvando] = useState(false);
 
     const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
+
+    // Sicoob functions
+    const carregarSicoob = () => {
+        api.get("/fin/sicoob-config").then(r => {
+            setSicoobConfig(r.data);
+            setSicoobForm({
+                ambiente: r.data.ambiente || "SANDBOX",
+                clientId: r.data.clientId || "",
+                clientSecret: r.data.clientSecret || "",
+                numeroBeneficiario: r.data.numeroBeneficiario || "",
+                cooperativa: r.data.cooperativa || "",
+                contaCorrente: r.data.contaCorrente || "",
+                webhookSecret: r.data.webhookSecret || "",
+                baseUrl: r.data.baseUrl || "",
+                tokenUrl: r.data.tokenUrl || "",
+                modalidade: r.data.modalidade ?? 1,
+                especieDocumento: r.data.especieDocumento || "DM",
+                aceite: r.data.aceite ?? false,
+            });
+        }).catch(() => {
+            // Se o backend ainda não tem o endpoint, mostra form vazio
+            setSicoobConfig({ ativo: false, ambiente: "SANDBOX", temCertificado: false });
+            setSicoobForm({
+                ambiente: "SANDBOX", clientId: "", clientSecret: "",
+                numeroBeneficiario: "", cooperativa: "", contaCorrente: "",
+                webhookSecret: "", baseUrl: "https://sandbox.sicoob.com.br",
+                tokenUrl: "https://sandbox.sicoob.com.br/auth/realms/cooperado/protocol/openid-connect/token",
+                modalidade: 1, especieDocumento: "DM", aceite: false,
+            });
+        });
+    };
+
+    const salvarSicoob = async e => {
+        e.preventDefault();
+        setSalvandoSicoob(true);
+        try {
+            const res = await api.put("/fin/sicoob-config", sicoobForm);
+            setSicoobConfig(res.data);
+            flash("Configuração Sicoob salva!");
+        } catch(err) { flash(err.response?.data?.erro || "Erro ao salvar.", "err"); }
+        finally { setSalvandoSicoob(false); }
+    };
+
+    const toggleSicoob = async () => {
+        try {
+            const res = await api.put("/fin/sicoob-config", { ativo: !sicoobConfig?.ativo });
+            setSicoobConfig(res.data);
+            flash(res.data.ativo ? "Integração ativada!" : "Integração desativada.");
+        } catch(err) { flash(err.response?.data?.erro || "Erro.", "err"); }
+    };
+
+    const uploadCertificado = async e => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploadingCert(true);
+        try {
+            const fd = new FormData();
+            fd.append("arquivo", file);
+            fd.append("tipo", certTipo);
+            if (certSenha) fd.append("senha", certSenha);
+            const res = await api.post("/fin/sicoob-config/certificado", fd, {
+                headers: { "Content-Type": "multipart/form-data" }
+            });
+            setSicoobConfig(res.data);
+            setCertSenha("");
+            flash("Certificado enviado!");
+        } catch(err) { flash(err.response?.data?.erro || "Erro no upload.", "err"); }
+        finally { setUploadingCert(false); e.target.value = ""; }
+    };
+
+    const removerCertificado = async () => {
+        try {
+            const res = await api.delete("/fin/sicoob-config/certificado");
+            setSicoobConfig(res.data);
+            flash("Certificado removido.");
+        } catch(err) { flash(err.response?.data?.erro || "Erro.", "err"); }
+    };
+
+    const testarConexaoSicoob = async () => {
+        try {
+            const res = await api.get("/fin/sicoob-config/testar");
+            setSicoobTestResult(res.data);
+        } catch(err) { flash("Erro ao testar.", "err"); }
+    };
+
+    const sfc = (k, v) => setSicoobForm(f => ({ ...f, [k]: v }));
 
     const carregarConfig = () => {
         api.get("/fin/configuracoes").then(r => { setConfig(r.data); setFormConfig({ numParcelasPadrao: r.data.numParcelasPadrao||12, jurosAtrasoPct: r.data.jurosAtrasoPct||0, multaAtrasoPct: r.data.multaAtrasoPct||0, diaVencimentoPadrao: r.data.diaVencimentoPadrao||10, mediaMinima: r.data.mediaMinima??6, freqMinima: r.data.freqMinima??75 }); }).catch(() => {});
@@ -7023,7 +7120,7 @@ function FinConfiguracoes({ anoLetivo }) {
         }).catch(() => {});
     };
 
-    useEffect(() => { carregarConfig(); carregarFormas(); carregarSeriesValores(anoSeries); }, []);
+    useEffect(() => { carregarConfig(); carregarFormas(); carregarSeriesValores(anoSeries); carregarSicoob(); }, []);
     useEffect(() => { carregarSeriesValores(anoSeries); }, [anoSeries]);
 
     const salvarConfig = async e => {
@@ -7178,363 +7275,266 @@ function FinConfiguracoes({ anoLetivo }) {
                 </div>
             </div>
 
-            {/* ===================== WhatsApp ===================== */}
-            <WhatsappConfigSection />
-        </div>
-    );
-}
-
-// ---- WHATSAPP CONFIG SECTION ----
-function WhatsappConfigSection() {
-    const { _bg, _bgCard, _border, _text, _textMuted, _errBg } = useDarkVars();
-    const dark = localStorage.getItem("theme") === "dark";
-
-    const [config, setConfig] = useState(null);
-    const [form, setForm] = useState({});
-    const [notificacoes, setNotificacoes] = useState([]);
-    const [dashboard, setDashboard] = useState({});
-    const [msg, setMsg] = useState({ texto: "", tipo: "" });
-    const [salvando, setSalvando] = useState(false);
-    const [testando, setTestando] = useState(false);
-    const [abaWpp, setAbaWpp] = useState("config");
-    const [formTeste, setFormTeste] = useState({ telefone: "", mensagem: "" });
-
-    const flash = (texto, tipo = "ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto: "", tipo: "" }), 4000); };
-
-    const carregar = () => {
-        api.get("/whatsapp/config").then(r => {
-            setConfig(r.data);
-            setForm({
-                ativo: r.data.ativo || false,
-                apiUrl: r.data.apiUrl || "",
-                instanceName: r.data.instanceName || "",
-                apiKey: r.data.apiKey || "",
-                diasAntesPrimeiro: r.data.diasAntesPrimeiro ?? 3,
-                diasAntesSegundo: r.data.diasAntesSegundo ?? 1,
-                horaEnvio: r.data.horaEnvio ?? 8,
-                templateMensagem: r.data.templateMensagem || "",
-                templateVencido: r.data.templateVencido || "",
-                notificarVencidos: r.data.notificarVencidos || false,
-            });
-        }).catch(() => {});
-        api.get("/whatsapp/dashboard").then(r => setDashboard(r.data || {})).catch(() => {});
-    };
-
-    const carregarNotificacoes = () => {
-        api.get("/whatsapp/notificacoes").then(r => setNotificacoes(Array.isArray(r.data) ? r.data : [])).catch(() => {});
-    };
-
-    useEffect(() => { carregar(); }, []);
-    useEffect(() => { if (abaWpp === "historico") carregarNotificacoes(); }, [abaWpp]);
-
-    const salvar = async e => {
-        e.preventDefault();
-        setSalvando(true);
-        try {
-            await api.put("/whatsapp/config", {
-                ...form,
-                diasAntesPrimeiro: Number(form.diasAntesPrimeiro),
-                diasAntesSegundo: Number(form.diasAntesSegundo),
-                horaEnvio: Number(form.horaEnvio),
-            });
-            flash("Configuração WhatsApp salva!");
-            carregar();
-        } catch (err) { flash(err.response?.data || "Erro ao salvar.", "err"); }
-        finally { setSalvando(false); }
-    };
-
-    const testarConexao = async () => {
-        setTestando(true);
-        try {
-            const r = await api.post("/whatsapp/testar-conexao");
-            if (r.data.status === "ok") flash("Conexão OK! " + (r.data.detalhe || ""));
-            else flash("Falha: " + (r.data.detalhe || ""), "err");
-        } catch (err) {
-            const d = err.response?.data;
-            flash("Erro: " + (typeof d === "object" ? d.detalhe || JSON.stringify(d) : d || "Falha na conexão"), "err");
-        }
-        finally { setTestando(false); }
-    };
-
-    const enviarTeste = async e => {
-        e.preventDefault();
-        if (!formTeste.telefone.trim()) return flash("Informe o telefone.", "err");
-        try {
-            await api.post("/whatsapp/enviar-teste", formTeste);
-            flash("Mensagem de teste enviada!");
-        } catch (err) {
-            const d = err.response?.data;
-            flash("Erro: " + (typeof d === "object" ? d.detalhe || JSON.stringify(d) : d || "Falha"), "err");
-        }
-    };
-
-    const dispararAgora = async () => {
-        if (!await showConfirm("Disparar verificação de lembretes agora?")) return;
-        try {
-            await api.post("/whatsapp/disparar-agora");
-            flash("Job executado! Verifique o histórico.");
-            carregarNotificacoes();
-        } catch (err) { flash("Erro ao disparar job.", "err"); }
-    };
-
-    const fc = (k, v) => setForm(f => ({ ...f, [k]: v }));
-
-    const fmtDataHora = dt => {
-        if (!dt) return "—";
-        try { return new Date(dt).toLocaleString("pt-BR"); } catch { return dt; }
-    };
-
-    return (
-        <div className="dd-section">
-            <div className="dd-section-header" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <span className="dd-section-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <MessageSquare size={16} />
-                    WhatsApp — Lembretes Automáticos
-                </span>
-                <span style={{
-                    fontSize: 10, padding: "2px 10px", borderRadius: 3, fontWeight: 600,
-                    background: form.ativo ? "#f0f5f2" : "#fdf0f0",
-                    color: form.ativo ? "#2d6a4f" : "#b94040"
-                }}>
-                    {form.ativo ? "ATIVO" : "INATIVO"}
-                </span>
-                {dashboard.enviadasHoje > 0 && (
-                    <span style={{ fontSize: 10, color: _textMuted, marginLeft: "auto" }}>
-                        Hoje: {dashboard.enviadasHoje} | Mês: {dashboard.enviadasMes}
+            {/* ─── Integração Sicoob / Boletos ─── */}
+            <div className="dd-section">
+                <div className="dd-section-header" style={{ justifyContent:"space-between" }}>
+                    <span className="dd-section-title" style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={sicoobConfig?.ativo ? "#2d6a4f" : _textMuted} strokeWidth="2"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 14h.01M10 14h4"/></svg>
+                        Integração Sicoob — Boletos Híbridos
                     </span>
-                )}
-            </div>
+                    <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                        <span style={{ fontSize:10, color: sicoobConfig?.ativo ? "#2d6a4f" : "#b94040", background: sicoobConfig?.ativo ? (dark?"#1a3328":"#f0f5f2") : (dark?"#3a2020":"#fdf0f0"), padding:"2px 10px", borderRadius:3, fontWeight:600 }}>
+                            {sicoobConfig?.ativo ? "ATIVA" : "INATIVA"}
+                        </span>
+                        {sicoobConfig?.ambiente && (
+                            <span style={{ fontSize:10, color: sicoobConfig.ambiente==="PRODUCAO" ? "#b94040" : "#2563eb", background: sicoobConfig.ambiente==="PRODUCAO" ? (dark?"#3a2020":"#fdf0f0") : (dark?"#1a2540":"#eff6ff"), padding:"2px 10px", borderRadius:3, fontWeight:600 }}>
+                                {sicoobConfig.ambiente}
+                            </span>
+                        )}
+                    </div>
+                </div>
+                <div style={{ padding:24 }}>
+                    {!sicoobConfig ? (
+                        <div style={{ textAlign:"center", color:_textMuted, padding:20 }}>Carregando...</div>
+                    ) : (
+                        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
 
-            {msg.texto && <div style={{ padding: "0 20px" }}><div className={msg.tipo === "ok" ? "dd-ok" : "dd-err"}>{msg.texto}</div></div>}
+                            {/* Status cards */}
+                            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:12 }}>
+                                {[
+                                    { label:"Certificado", ok: sicoobConfig.temCertificado, detail: sicoobConfig.certNomeArquivo || "Não enviado" },
+                                    { label:"Client ID", ok: !!sicoobConfig.clientId },
+                                    { label:"Beneficiário", ok: !!sicoobConfig.numeroBeneficiario },
+                                    { label:"Cooperativa", ok: !!sicoobConfig.cooperativa },
+                                ].map((c, i) => (
+                                    <div key={i} style={{ padding:"12px 16px", border:"1px solid "+_border, borderRadius:6, background: dark ? "#1e3028" : "#f8faf8" }}>
+                                        <div style={{ fontSize:10, color:_textMuted, marginBottom:4 }}>{c.label}</div>
+                                        <div style={{ fontSize:13, fontWeight:600, color: c.ok ? "#2d6a4f" : "#b94040", display:"flex", alignItems:"center", gap:4 }}>
+                                            <span style={{ width:6, height:6, borderRadius:"50%", background: c.ok ? "#2d6a4f" : "#b94040", display:"inline-block" }} />
+                                            {c.ok ? (c.detail || "Configurado") : (c.detail || "Pendente")}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
 
-            {/* Abas */}
-            <div style={{ display: "flex", borderBottom: "2px solid " + _border, gap: 0, padding: "0 20px" }}>
-                {[
-                    { id: "config", label: "Configuração" },
-                    { id: "templates", label: "Templates" },
-                    { id: "teste", label: "Teste" },
-                    { id: "historico", label: "Histórico" },
-                ].map(t => (
-                    <button key={t.id} onClick={() => setAbaWpp(t.id)}
-                        style={{
-                            background: "none", border: "none", cursor: "pointer", padding: "10px 16px",
-                            fontSize: 12, fontWeight: 600,
-                            color: abaWpp === t.id ? "#2d6a4f" : _textMuted,
-                            borderBottom: abaWpp === t.id ? "2px solid #2d6a4f" : "2px solid transparent",
-                            marginBottom: -2, fontFamily: "'DM Sans',sans-serif"
-                        }}>
-                        {t.label}
-                    </button>
-                ))}
-            </div>
-
-            <div style={{ padding: "20px 24px" }}>
-                {/* ===== ABA CONFIG ===== */}
-                {abaWpp === "config" && (
-                    <form onSubmit={salvar} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        {/* Toggle ativo */}
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            <label style={{ fontSize: 13, fontWeight: 600, color: _text }}>Ativar envio automático</label>
-                            <button type="button" onClick={() => fc("ativo", !form.ativo)}
-                                style={{
-                                    width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
-                                    background: form.ativo ? "#2d6a4f" : "#ccc", position: "relative", transition: "background 0.2s"
-                                }}>
-                                <div style={{
-                                    width: 18, height: 18, borderRadius: "50%", background: "#fff",
-                                    position: "absolute", top: 3, left: form.ativo ? 22 : 4, transition: "left 0.2s"
-                                }} />
-                            </button>
-                        </div>
-
-                        <div style={{ fontSize: 11, color: _textMuted, background: dark ? "#1a2030" : "#f0f4ff", padding: "10px 14px", borderRadius: 6 }}>
-                            Integração via <strong>Evolution API</strong> (gratuita, self-hosted). Configure a URL, instância e API Key da sua Evolution API.
-                        </div>
-
-                        {/* Campos de conexão */}
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                            {[
-                                { k: "apiUrl", label: "URL da Evolution API", placeholder: "https://evo.meusite.com" },
-                                { k: "instanceName", label: "Nome da Instância", placeholder: "schoolcrm" },
-                            ].map(f => (
-                                <div key={f.k}>
-                                    <label className="dd-label">{f.label}</label>
-                                    <div className="dd-input-wrap">
-                                        <input className="dd-input" value={form[f.k] || ""} onChange={e => fc(f.k, e.target.value)} placeholder={f.placeholder} />
-                                        <div className="dd-input-line" />
+                            {/* Credenciais OAuth2 */}
+                            <form onSubmit={salvarSicoob}>
+                                <div style={{ marginBottom:12, fontWeight:600, fontSize:13, color:_text }}>Credenciais OAuth2</div>
+                                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+                                    <div>
+                                        <label className="dd-label">Ambiente</label>
+                                        <div className="dd-input-wrap">
+                                            <select className="dd-input" value={sicoobForm.ambiente||""} onChange={e => sfc("ambiente", e.target.value)} style={{ background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
+                                                <option value="SANDBOX">Sandbox (Homologação)</option>
+                                                <option value="PRODUCAO">Produção</option>
+                                            </select>
+                                            <div className="dd-input-line" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="dd-label">Client ID</label>
+                                        <div className="dd-input-wrap">
+                                            <input className="dd-input" value={sicoobForm.clientId||""} onChange={e => sfc("clientId", e.target.value)} placeholder="Fornecido pelo Sicoob" />
+                                            <div className="dd-input-line" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="dd-label">Client Secret</label>
+                                        <div style={{ display:"flex", gap:4, alignItems:"flex-end" }}>
+                                            <div className="dd-input-wrap" style={{ flex:1 }}>
+                                                <input className="dd-input" type={showSecrets.clientSecret ? "text" : "password"} value={sicoobForm.clientSecret||""} onChange={e => sfc("clientSecret", e.target.value)} placeholder="••••••••" />
+                                                <div className="dd-input-line" />
+                                            </div>
+                                            <button type="button" onClick={() => setShowSecrets(s => ({...s, clientSecret:!s.clientSecret}))} style={{ background:"none", border:"none", cursor:"pointer", color:_textMuted, fontSize:11, padding:"4px 6px" }}>
+                                                {showSecrets.clientSecret ? "Ocultar" : "Mostrar"}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="dd-label">Webhook Secret</label>
+                                        <div style={{ display:"flex", gap:4, alignItems:"flex-end" }}>
+                                            <div className="dd-input-wrap" style={{ flex:1 }}>
+                                                <input className="dd-input" type={showSecrets.webhook ? "text" : "password"} value={sicoobForm.webhookSecret||""} onChange={e => sfc("webhookSecret", e.target.value)} placeholder="••••••••" />
+                                                <div className="dd-input-line" />
+                                            </div>
+                                            <button type="button" onClick={() => setShowSecrets(s => ({...s, webhook:!s.webhook}))} style={{ background:"none", border:"none", cursor:"pointer", color:_textMuted, fontSize:11, padding:"4px 6px" }}>
+                                                {showSecrets.webhook ? "Ocultar" : "Mostrar"}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                            ))}
-                        </div>
 
-                        <div>
-                            <label className="dd-label">API Key</label>
-                            <div className="dd-input-wrap">
-                                <input className="dd-input" type="password" value={form.apiKey || ""} onChange={e => fc("apiKey", e.target.value)} placeholder="Chave da instância" />
-                                <div className="dd-input-line" />
-                            </div>
-                        </div>
-
-                        {/* Parâmetros de agendamento */}
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
-                            <div>
-                                <label className="dd-label">1º Lembrete (dias antes)</label>
-                                <div className="dd-input-wrap">
-                                    <input className="dd-input" type="number" min="1" max="30" value={form.diasAntesPrimeiro ?? ""} onChange={e => fc("diasAntesPrimeiro", e.target.value)} />
-                                    <div className="dd-input-line" />
+                                <div style={{ marginTop:20, marginBottom:12, fontWeight:600, fontSize:13, color:_text }}>Dados do Beneficiário</div>
+                                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16 }}>
+                                    <div>
+                                        <label className="dd-label">Nº Beneficiário</label>
+                                        <div className="dd-input-wrap">
+                                            <input className="dd-input" value={sicoobForm.numeroBeneficiario||""} onChange={e => sfc("numeroBeneficiario", e.target.value)} placeholder="Ex: 123456" />
+                                            <div className="dd-input-line" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="dd-label">Cooperativa</label>
+                                        <div className="dd-input-wrap">
+                                            <input className="dd-input" value={sicoobForm.cooperativa||""} onChange={e => sfc("cooperativa", e.target.value)} placeholder="Ex: 0001" />
+                                            <div className="dd-input-line" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="dd-label">Conta Corrente</label>
+                                        <div className="dd-input-wrap">
+                                            <input className="dd-input" value={sicoobForm.contaCorrente||""} onChange={e => sfc("contaCorrente", e.target.value)} placeholder="Ex: 12345-6" />
+                                            <div className="dd-input-line" />
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                            <div>
-                                <label className="dd-label">2º Lembrete (dias antes)</label>
-                                <div className="dd-input-wrap">
-                                    <input className="dd-input" type="number" min="1" max="30" value={form.diasAntesSegundo ?? ""} onChange={e => fc("diasAntesSegundo", e.target.value)} />
-                                    <div className="dd-input-line" />
+
+                                <div style={{ marginTop:20, marginBottom:12, fontWeight:600, fontSize:13, color:_text }}>Configurações do Boleto</div>
+                                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16 }}>
+                                    <div>
+                                        <label className="dd-label">Modalidade</label>
+                                        <div className="dd-input-wrap">
+                                            <select className="dd-input" value={sicoobForm.modalidade??1} onChange={e => sfc("modalidade", Number(e.target.value))} style={{ background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
+                                                <option value={1}>1 — Simples com Registro</option>
+                                                <option value={2}>2 — Vinculada</option>
+                                                <option value={3}>3 — Caucionada</option>
+                                            </select>
+                                            <div className="dd-input-line" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="dd-label">Espécie Documento</label>
+                                        <div className="dd-input-wrap">
+                                            <select className="dd-input" value={sicoobForm.especieDocumento||"DM"} onChange={e => sfc("especieDocumento", e.target.value)} style={{ background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
+                                                <option value="DM">DM — Duplicata Mercantil</option>
+                                                <option value="DS">DS — Duplicata de Serviço</option>
+                                                <option value="RC">RC — Recibo</option>
+                                                <option value="NP">NP — Nota Promissória</option>
+                                                <option value="OU">OU — Outros</option>
+                                            </select>
+                                            <div className="dd-input-line" />
+                                        </div>
+                                    </div>
+                                    <div style={{ display:"flex", alignItems:"flex-end", paddingBottom:4 }}>
+                                        <label style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:_text, cursor:"pointer" }}>
+                                            <input type="checkbox" checked={sicoobForm.aceite??false} onChange={e => sfc("aceite", e.target.checked)} />
+                                            Aceite automático
+                                        </label>
+                                    </div>
                                 </div>
-                            </div>
-                            <div>
-                                <label className="dd-label">Horário de envio</label>
-                                <div className="dd-input-wrap">
-                                    <input className="dd-input" type="number" min="0" max="23" value={form.horaEnvio ?? ""} onChange={e => fc("horaEnvio", e.target.value)} />
-                                    <div className="dd-input-line" />
+
+                                <div style={{ marginTop:20, marginBottom:12, fontWeight:600, fontSize:13, color:_text }}>URLs da API <span style={{ fontWeight:400, fontSize:11, color:_textMuted }}>(preenchidas automaticamente pelo ambiente)</span></div>
+                                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+                                    <div>
+                                        <label className="dd-label">Base URL</label>
+                                        <div className="dd-input-wrap">
+                                            <input className="dd-input" value={sicoobForm.baseUrl||""} onChange={e => sfc("baseUrl", e.target.value)} style={{ fontSize:11 }} />
+                                            <div className="dd-input-line" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="dd-label">Token URL</label>
+                                        <div className="dd-input-wrap">
+                                            <input className="dd-input" value={sicoobForm.tokenUrl||""} onChange={e => sfc("tokenUrl", e.target.value)} style={{ fontSize:11 }} />
+                                            <div className="dd-input-line" />
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
 
-                        {/* Notificar vencidos */}
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                            <label style={{ fontSize: 12, color: _text }}>Notificar boletos vencidos</label>
-                            <button type="button" onClick={() => fc("notificarVencidos", !form.notificarVencidos)}
-                                style={{
-                                    width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
-                                    background: form.notificarVencidos ? "#2d6a4f" : "#ccc", position: "relative", transition: "background 0.2s"
-                                }}>
-                                <div style={{
-                                    width: 18, height: 18, borderRadius: "50%", background: "#fff",
-                                    position: "absolute", top: 3, left: form.notificarVencidos ? 22 : 4, transition: "left 0.2s"
-                                }} />
-                            </button>
-                        </div>
-
-                        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                            <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando ? "Salvando..." : "Salvar Configuração"}</button>
-                            <button type="button" className="dd-btn-ghost" onClick={testarConexao} disabled={testando}>
-                                {testando ? "Testando..." : "Testar Conexão"}
-                            </button>
-                        </div>
-                    </form>
-                )}
-
-                {/* ===== ABA TEMPLATES ===== */}
-                {abaWpp === "templates" && (
-                    <form onSubmit={salvar} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        <div style={{ fontSize: 11, color: _textMuted, background: dark ? "#1a2030" : "#f0f4ff", padding: "10px 14px", borderRadius: 6 }}>
-                            Variáveis disponíveis: <code>{"{nome}"}</code> <code>{"{valor}"}</code> <code>{"{vencimento}"}</code> <code>{"{descricao}"}</code> <code>{"{diasAtraso}"}</code> — Use <code>*texto*</code> para <strong>negrito</strong> no WhatsApp.
-                        </div>
-
-                        <div>
-                            <label className="dd-label">Template — Lembrete (antes do vencimento)</label>
-                            <textarea className="dd-input" rows={4} value={form.templateMensagem || ""} onChange={e => fc("templateMensagem", e.target.value)}
-                                style={{ resize: "vertical", lineHeight: 1.6 }} />
-                        </div>
-
-                        <div>
-                            <label className="dd-label">Template — Boleto Vencido</label>
-                            <textarea className="dd-input" rows={4} value={form.templateVencido || ""} onChange={e => fc("templateVencido", e.target.value)}
-                                style={{ resize: "vertical", lineHeight: 1.6 }} />
-                        </div>
-
-                        {/* Preview */}
-                        <div>
-                            <label className="dd-label" style={{ marginBottom: 6 }}>Preview (exemplo)</label>
-                            <div style={{
-                                background: dark ? "#1a2a1e" : "#dcf8c6", padding: "12px 16px", borderRadius: "8px 8px 0 8px",
-                                fontSize: 13, lineHeight: 1.6, color: dark ? "#d0e8d0" : "#111", maxWidth: 400, whiteSpace: "pre-wrap"
-                            }}>
-                                {(form.templateMensagem || "")
-                                    .replace("{nome}", "Maria da Silva")
-                                    .replace("{valor}", "450,00")
-                                    .replace("{vencimento}", "25/03/2026")
-                                    .replace("{descricao}", "Mensalidade Mar/2026")
-                                    .replace("{diasAtraso}", "0")}
-                            </div>
-                        </div>
-
-                        <div>
-                            <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando ? "Salvando..." : "Salvar Templates"}</button>
-                        </div>
-                    </form>
-                )}
-
-                {/* ===== ABA TESTE ===== */}
-                {abaWpp === "teste" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        <form onSubmit={enviarTeste} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                            <div style={{ fontSize: 11, color: _textMuted, background: dark ? "#1a2030" : "#f0f4ff", padding: "10px 14px", borderRadius: 6 }}>
-                                Envie uma mensagem de teste para verificar se o WhatsApp está funcionando corretamente.
-                            </div>
-                            <div>
-                                <label className="dd-label">Telefone (com DDD)</label>
-                                <div className="dd-input-wrap">
-                                    <input className="dd-input" value={formTeste.telefone} onChange={e => setFormTeste(f => ({ ...f, telefone: e.target.value }))}
-                                        placeholder="(62) 99999-9999" required />
-                                    <div className="dd-input-line" />
+                                <div style={{ marginTop:16, display:"flex", gap:8 }}>
+                                    <button type="submit" className="dd-btn-primary" disabled={salvandoSicoob}>{salvandoSicoob ? "Salvando..." : "Salvar Configuração Sicoob"}</button>
+                                    <button type="button" className="dd-btn-edit" onClick={testarConexaoSicoob} style={{ fontSize:11 }}>Testar Configuração</button>
+                                    <button type="button" onClick={toggleSicoob} style={{
+                                        fontSize:11, padding:"6px 16px", borderRadius:4, border:"none", cursor:"pointer", fontWeight:600,
+                                        background: sicoobConfig?.ativo ? (dark?"#3a2020":"#fdf0f0") : (dark?"#1a3328":"#f0f5f2"),
+                                        color: sicoobConfig?.ativo ? "#b94040" : "#2d6a4f"
+                                    }}>
+                                        {sicoobConfig?.ativo ? "Desativar Integração" : "Ativar Integração"}
+                                    </button>
                                 </div>
-                            </div>
-                            <div>
-                                <label className="dd-label">Mensagem (opcional)</label>
-                                <textarea className="dd-input" rows={3} value={formTeste.mensagem} onChange={e => setFormTeste(f => ({ ...f, mensagem: e.target.value }))}
-                                    placeholder="Deixe vazio para usar mensagem padrão de teste"
-                                    style={{ resize: "vertical", lineHeight: 1.6 }} />
-                            </div>
-                            <div style={{ display: "flex", gap: 8 }}>
-                                <button type="submit" className="dd-btn-primary" style={{ fontSize: 12 }}>Enviar Teste</button>
-                                <button type="button" className="dd-btn-ghost" style={{ fontSize: 12 }} onClick={dispararAgora}>
-                                    Disparar Lembretes Agora
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                )}
+                            </form>
 
-                {/* ===== ABA HISTÓRICO ===== */}
-                {abaWpp === "historico" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span style={{ fontSize: 12, color: _textMuted }}>Últimas 100 notificações</span>
-                            <button className="dd-btn-ghost" style={{ fontSize: 11 }} onClick={carregarNotificacoes}>Atualizar</button>
+                            {/* Resultado do teste */}
+                            {sicoobTestResult && (
+                                <div style={{ padding:16, border:"1px solid "+_border, borderRadius:6, background: dark ? "#1e3028" : "#f8faf8" }}>
+                                    <div style={{ fontWeight:600, fontSize:13, color:_text, marginBottom:12, display:"flex", alignItems:"center", gap:8 }}>
+                                        <span style={{ width:8, height:8, borderRadius:"50%", background: sicoobTestResult.prontoParaHomologacao ? "#2d6a4f" : "#b94040" }} />
+                                        {sicoobTestResult.prontoParaHomologacao ? "Pronto para homologação!" : "Configuração incompleta"}
+                                    </div>
+                                    <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(150px, 1fr))", gap:8 }}>
+                                        {Object.entries(sicoobTestResult).filter(([k]) => !["prontoParaHomologacao","ambiente","ativo"].includes(k)).map(([k, v]) => (
+                                            <div key={k} style={{ fontSize:11, display:"flex", justifyContent:"space-between", padding:"4px 8px", background: dark ? "#151f1a" : "#fff", borderRadius:3, border:"1px solid "+_border }}>
+                                                <span style={{ color:_textMuted }}>{k}</span>
+                                                <span style={{ fontWeight:600, color: v === "OK" ? "#2d6a4f" : "#b94040" }}>{v}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Certificado Digital */}
+                            <div style={{ borderTop:"1px solid "+_border, paddingTop:20 }}>
+                                <div style={{ fontWeight:600, fontSize:13, color:_text, marginBottom:12, display:"flex", alignItems:"center", gap:6 }}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={_text} strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                                    Certificado Digital (mTLS)
+                                </div>
+
+                                {sicoobConfig.temCertificado ? (
+                                    <div style={{ padding:16, border:"1px solid "+_border, borderRadius:6, background: dark ? "#1e3028" : "#f8faf8", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                                        <div>
+                                            <div style={{ fontSize:13, fontWeight:500, color:_text }}>{sicoobConfig.certNomeArquivo}</div>
+                                            <div style={{ fontSize:11, color:_textMuted, marginTop:4 }}>
+                                                Tipo: {sicoobConfig.certTipo}
+                                                {sicoobConfig.certValidade && (
+                                                    <span> · Validade: {new Date(sicoobConfig.certValidade).toLocaleDateString("pt-BR")}</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div style={{ display:"flex", gap:8 }}>
+                                            <label className="dd-btn-edit" style={{ fontSize:10, cursor:"pointer" }}>
+                                                Substituir
+                                                <input type="file" accept=".pfx,.p12,.pem,.crt,.cer" onChange={uploadCertificado} hidden />
+                                            </label>
+                                            <button className="dd-btn-danger" style={{ fontSize:10 }} onClick={removerCertificado}>Remover</button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div style={{ padding:20, border:"2px dashed "+_border, borderRadius:8, textAlign:"center" }}>
+                                        <div style={{ fontSize:12, color:_textMuted, marginBottom:12 }}>
+                                            Envie o certificado digital fornecido pelo Sicoob (.pfx, .p12 ou .pem)
+                                        </div>
+                                        <div style={{ display:"flex", gap:12, justifyContent:"center", alignItems:"flex-end", flexWrap:"wrap" }}>
+                                            <div>
+                                                <label className="dd-label" style={{ fontSize:10 }}>Tipo</label>
+                                                <select value={certTipo} onChange={e => setCertTipo(e.target.value)}
+                                                    style={{ display:"block", border:"1px solid "+_border, padding:"6px 10px", fontSize:12, borderRadius:4, background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
+                                                    <option value="PFX">PFX / P12</option>
+                                                    <option value="PEM">PEM / CRT</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="dd-label" style={{ fontSize:10 }}>Senha do Certificado</label>
+                                                <input type="password" value={certSenha} onChange={e => setCertSenha(e.target.value)} placeholder="Senha..."
+                                                    style={{ display:"block", border:"1px solid "+_border, padding:"6px 10px", fontSize:12, borderRadius:4, background:_bgCard, color:_text, width:160 }} />
+                                            </div>
+                                            <label className="dd-btn-primary" style={{ cursor:"pointer", fontSize:11 }}>
+                                                {uploadingCert ? "Enviando..." : "Enviar Certificado"}
+                                                <input type="file" accept=".pfx,.p12,.pem,.crt,.cer" onChange={uploadCertificado} hidden disabled={uploadingCert} />
+                                            </label>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Info de atualização */}
+                            {sicoobConfig.atualizadoEm && (
+                                <div style={{ fontSize:10, color:_textMuted, textAlign:"right" }}>
+                                    Última atualização: {new Date(sicoobConfig.atualizadoEm).toLocaleString("pt-BR")}
+                                </div>
+                            )}
                         </div>
-                        <div className="dd-table-wrap">
-                            <table className="dd-table" style={{ width: "100%" }}>
-                                <thead><tr>
-                                    <th>Data/Hora</th><th>Pessoa</th><th>Telefone</th><th>Boleto</th><th>Tipo</th><th>Status</th><th>Erro</th>
-                                </tr></thead>
-                                <tbody>
-                                    {notificacoes.length === 0 && <tr><td colSpan={7} style={{ textAlign: "center", color: _textMuted, padding: 24 }}>Nenhuma notificação enviada ainda</td></tr>}
-                                    {notificacoes.map(n => (
-                                        <tr key={n.id}>
-                                            <td style={{ fontSize: 11, color: _textMuted, whiteSpace: "nowrap" }}>{fmtDataHora(n.enviadoEm)}</td>
-                                            <td style={{ fontWeight: 500, color: _text }}>{n.pessoaNome || "—"}</td>
-                                            <td style={{ fontSize: 11, color: _textMuted }}>{n.telefone}</td>
-                                            <td style={{ fontSize: 11, color: _text }}>{n.crDescricao || "—"}</td>
-                                            <td><span style={{
-                                                fontSize: 9, padding: "2px 8px", borderRadius: 3, fontWeight: 600,
-                                                background: n.tipo === "VENCIDO" ? "#fdf0f0" : "#f0f4ff",
-                                                color: n.tipo === "VENCIDO" ? "#b94040" : "#2563eb"
-                                            }}>{n.tipo}</span></td>
-                                            <td><span style={{
-                                                fontSize: 9, padding: "2px 8px", borderRadius: 3, fontWeight: 600,
-                                                background: n.status === "ENVIADO" ? "#f0f5f2" : "#fdf0f0",
-                                                color: n.status === "ENVIADO" ? "#2d6a4f" : "#b94040"
-                                            }}>{n.status}</span></td>
-                                            <td style={{ fontSize: 10, color: "#b94040", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                                                title={n.erroDetalhe || ""}>{n.erroDetalhe || ""}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
         </div>
     );
