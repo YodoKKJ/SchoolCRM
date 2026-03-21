@@ -76,6 +76,18 @@ public interface FinContaReceberRepository extends JpaRepository<FinContaReceber
         """)
     List<FinContaReceber> findVencidas(@Param("hoje") LocalDate hoje);
 
+    // WhatsApp Job: vencidas com JOIN FETCH no responsável do contrato
+    @Query("""
+        SELECT cr FROM FinContaReceber cr
+        LEFT JOIN FETCH cr.contrato c
+        LEFT JOIN FETCH c.responsavelPrincipal
+        LEFT JOIN FETCH cr.pessoa
+        WHERE cr.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
+          AND cr.dataVencimento < :hoje
+        ORDER BY cr.dataVencimento ASC
+        """)
+    List<FinContaReceber> findVencidasParaNotificacao(@Param("hoje") LocalDate hoje);
+
     // Verifica se já existe alguma parcela PAGA de um contrato (para impedir cancelamento)
     boolean existsByContratoIdAndStatus(Long contratoId, String status);
 
@@ -127,6 +139,22 @@ public interface FinContaReceberRepository extends JpaRepository<FinContaReceber
         ORDER BY cr.dataVencimento ASC
         """)
     List<FinContaReceber> findProximasPorVencimento(
+            @Param("de") LocalDate de,
+            @Param("ate") LocalDate ate
+    );
+
+    // WhatsApp Job: mesma query mas com JOIN FETCH no responsável do contrato
+    // para evitar N+1 ao montar a mensagem
+    @Query("""
+        SELECT cr FROM FinContaReceber cr
+        LEFT JOIN FETCH cr.contrato c
+        LEFT JOIN FETCH c.responsavelPrincipal
+        LEFT JOIN FETCH cr.pessoa
+        WHERE cr.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
+          AND cr.dataVencimento BETWEEN :de AND :ate
+        ORDER BY cr.dataVencimento ASC
+        """)
+    List<FinContaReceber> findParaNotificacao(
             @Param("de") LocalDate de,
             @Param("ate") LocalDate ate
     );

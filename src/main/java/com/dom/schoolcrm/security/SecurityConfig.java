@@ -60,6 +60,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/fin/configuracoes").hasAnyRole("DIRECAO", "COORDENACAO")
                         .requestMatchers("/fin/**").hasRole("DIRECAO")
 
+                        // 🔒 WhatsApp — restrito a DIRECAO (config + envio)
+                        .requestMatchers("/whatsapp/**").hasRole("DIRECAO")
+
                         // 🔒 Regras específicas
                         .requestMatchers(HttpMethod.DELETE, "/turmas/**").hasAnyRole("DIRECAO", "COORDENACAO")
                         .requestMatchers(HttpMethod.DELETE, "/materias/**").hasAnyRole("DIRECAO", "COORDENACAO")

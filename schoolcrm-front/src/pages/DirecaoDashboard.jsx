@@ -8,7 +8,8 @@ import {
     FileText, DollarSign, Lock, ClipboardList, ChevronRight, Clock, CalendarDays,
     TrendingUp, TrendingDown, ArrowLeftRight, Settings, BarChart2, Briefcase,
     Receipt, Building2, CheckCircle2, AlertCircle, Ban, Wallet, CreditCard,
-    Bell, Megaphone, Shield, Send, ChevronUp, RefreshCw, Eye, Moon, Sun
+    Bell, Megaphone, Shield, Send, ChevronUp, RefreshCw, Eye, Moon, Sun,
+    MessageSquare
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from "recharts";
 
@@ -7175,6 +7176,365 @@ function FinConfiguracoes({ anoLetivo }) {
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            {/* ===================== WhatsApp ===================== */}
+            <WhatsappConfigSection />
+        </div>
+    );
+}
+
+// ---- WHATSAPP CONFIG SECTION ----
+function WhatsappConfigSection() {
+    const { _bg, _bgCard, _border, _text, _textMuted, _errBg } = useDarkVars();
+    const dark = localStorage.getItem("theme") === "dark";
+
+    const [config, setConfig] = useState(null);
+    const [form, setForm] = useState({});
+    const [notificacoes, setNotificacoes] = useState([]);
+    const [dashboard, setDashboard] = useState({});
+    const [msg, setMsg] = useState({ texto: "", tipo: "" });
+    const [salvando, setSalvando] = useState(false);
+    const [testando, setTestando] = useState(false);
+    const [abaWpp, setAbaWpp] = useState("config");
+    const [formTeste, setFormTeste] = useState({ telefone: "", mensagem: "" });
+
+    const flash = (texto, tipo = "ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto: "", tipo: "" }), 4000); };
+
+    const carregar = () => {
+        api.get("/whatsapp/config").then(r => {
+            setConfig(r.data);
+            setForm({
+                ativo: r.data.ativo || false,
+                apiUrl: r.data.apiUrl || "",
+                instanceName: r.data.instanceName || "",
+                apiKey: r.data.apiKey || "",
+                diasAntesPrimeiro: r.data.diasAntesPrimeiro ?? 3,
+                diasAntesSegundo: r.data.diasAntesSegundo ?? 1,
+                horaEnvio: r.data.horaEnvio ?? 8,
+                templateMensagem: r.data.templateMensagem || "",
+                templateVencido: r.data.templateVencido || "",
+                notificarVencidos: r.data.notificarVencidos || false,
+            });
+        }).catch(() => {});
+        api.get("/whatsapp/dashboard").then(r => setDashboard(r.data || {})).catch(() => {});
+    };
+
+    const carregarNotificacoes = () => {
+        api.get("/whatsapp/notificacoes").then(r => setNotificacoes(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    };
+
+    useEffect(() => { carregar(); }, []);
+    useEffect(() => { if (abaWpp === "historico") carregarNotificacoes(); }, [abaWpp]);
+
+    const salvar = async e => {
+        e.preventDefault();
+        setSalvando(true);
+        try {
+            await api.put("/whatsapp/config", {
+                ...form,
+                diasAntesPrimeiro: Number(form.diasAntesPrimeiro),
+                diasAntesSegundo: Number(form.diasAntesSegundo),
+                horaEnvio: Number(form.horaEnvio),
+            });
+            flash("Configuração WhatsApp salva!");
+            carregar();
+        } catch (err) { flash(err.response?.data || "Erro ao salvar.", "err"); }
+        finally { setSalvando(false); }
+    };
+
+    const testarConexao = async () => {
+        setTestando(true);
+        try {
+            const r = await api.post("/whatsapp/testar-conexao");
+            if (r.data.status === "ok") flash("Conexão OK! " + (r.data.detalhe || ""));
+            else flash("Falha: " + (r.data.detalhe || ""), "err");
+        } catch (err) {
+            const d = err.response?.data;
+            flash("Erro: " + (typeof d === "object" ? d.detalhe || JSON.stringify(d) : d || "Falha na conexão"), "err");
+        }
+        finally { setTestando(false); }
+    };
+
+    const enviarTeste = async e => {
+        e.preventDefault();
+        if (!formTeste.telefone.trim()) return flash("Informe o telefone.", "err");
+        try {
+            await api.post("/whatsapp/enviar-teste", formTeste);
+            flash("Mensagem de teste enviada!");
+        } catch (err) {
+            const d = err.response?.data;
+            flash("Erro: " + (typeof d === "object" ? d.detalhe || JSON.stringify(d) : d || "Falha"), "err");
+        }
+    };
+
+    const dispararAgora = async () => {
+        if (!await showConfirm("Disparar verificação de lembretes agora?")) return;
+        try {
+            await api.post("/whatsapp/disparar-agora");
+            flash("Job executado! Verifique o histórico.");
+            carregarNotificacoes();
+        } catch (err) { flash("Erro ao disparar job.", "err"); }
+    };
+
+    const fc = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+    const fmtDataHora = dt => {
+        if (!dt) return "—";
+        try { return new Date(dt).toLocaleString("pt-BR"); } catch { return dt; }
+    };
+
+    return (
+        <div className="dd-section">
+            <div className="dd-section-header" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span className="dd-section-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <MessageSquare size={16} />
+                    WhatsApp — Lembretes Automáticos
+                </span>
+                <span style={{
+                    fontSize: 10, padding: "2px 10px", borderRadius: 3, fontWeight: 600,
+                    background: form.ativo ? "#f0f5f2" : "#fdf0f0",
+                    color: form.ativo ? "#2d6a4f" : "#b94040"
+                }}>
+                    {form.ativo ? "ATIVO" : "INATIVO"}
+                </span>
+                {dashboard.enviadasHoje > 0 && (
+                    <span style={{ fontSize: 10, color: _textMuted, marginLeft: "auto" }}>
+                        Hoje: {dashboard.enviadasHoje} | Mês: {dashboard.enviadasMes}
+                    </span>
+                )}
+            </div>
+
+            {msg.texto && <div style={{ padding: "0 20px" }}><div className={msg.tipo === "ok" ? "dd-ok" : "dd-err"}>{msg.texto}</div></div>}
+
+            {/* Abas */}
+            <div style={{ display: "flex", borderBottom: "2px solid " + _border, gap: 0, padding: "0 20px" }}>
+                {[
+                    { id: "config", label: "Configuração" },
+                    { id: "templates", label: "Templates" },
+                    { id: "teste", label: "Teste" },
+                    { id: "historico", label: "Histórico" },
+                ].map(t => (
+                    <button key={t.id} onClick={() => setAbaWpp(t.id)}
+                        style={{
+                            background: "none", border: "none", cursor: "pointer", padding: "10px 16px",
+                            fontSize: 12, fontWeight: 600,
+                            color: abaWpp === t.id ? "#2d6a4f" : _textMuted,
+                            borderBottom: abaWpp === t.id ? "2px solid #2d6a4f" : "2px solid transparent",
+                            marginBottom: -2, fontFamily: "'DM Sans',sans-serif"
+                        }}>
+                        {t.label}
+                    </button>
+                ))}
+            </div>
+
+            <div style={{ padding: "20px 24px" }}>
+                {/* ===== ABA CONFIG ===== */}
+                {abaWpp === "config" && (
+                    <form onSubmit={salvar} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        {/* Toggle ativo */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <label style={{ fontSize: 13, fontWeight: 600, color: _text }}>Ativar envio automático</label>
+                            <button type="button" onClick={() => fc("ativo", !form.ativo)}
+                                style={{
+                                    width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
+                                    background: form.ativo ? "#2d6a4f" : "#ccc", position: "relative", transition: "background 0.2s"
+                                }}>
+                                <div style={{
+                                    width: 18, height: 18, borderRadius: "50%", background: "#fff",
+                                    position: "absolute", top: 3, left: form.ativo ? 22 : 4, transition: "left 0.2s"
+                                }} />
+                            </button>
+                        </div>
+
+                        <div style={{ fontSize: 11, color: _textMuted, background: dark ? "#1a2030" : "#f0f4ff", padding: "10px 14px", borderRadius: 6 }}>
+                            Integração via <strong>Evolution API</strong> (gratuita, self-hosted). Configure a URL, instância e API Key da sua Evolution API.
+                        </div>
+
+                        {/* Campos de conexão */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                            {[
+                                { k: "apiUrl", label: "URL da Evolution API", placeholder: "https://evo.meusite.com" },
+                                { k: "instanceName", label: "Nome da Instância", placeholder: "schoolcrm" },
+                            ].map(f => (
+                                <div key={f.k}>
+                                    <label className="dd-label">{f.label}</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" value={form[f.k] || ""} onChange={e => fc(f.k, e.target.value)} placeholder={f.placeholder} />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div>
+                            <label className="dd-label">API Key</label>
+                            <div className="dd-input-wrap">
+                                <input className="dd-input" type="password" value={form.apiKey || ""} onChange={e => fc("apiKey", e.target.value)} placeholder="Chave da instância" />
+                                <div className="dd-input-line" />
+                            </div>
+                        </div>
+
+                        {/* Parâmetros de agendamento */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+                            <div>
+                                <label className="dd-label">1º Lembrete (dias antes)</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" type="number" min="1" max="30" value={form.diasAntesPrimeiro ?? ""} onChange={e => fc("diasAntesPrimeiro", e.target.value)} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">2º Lembrete (dias antes)</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" type="number" min="1" max="30" value={form.diasAntesSegundo ?? ""} onChange={e => fc("diasAntesSegundo", e.target.value)} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Horário de envio</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" type="number" min="0" max="23" value={form.horaEnvio ?? ""} onChange={e => fc("horaEnvio", e.target.value)} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Notificar vencidos */}
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <label style={{ fontSize: 12, color: _text }}>Notificar boletos vencidos</label>
+                            <button type="button" onClick={() => fc("notificarVencidos", !form.notificarVencidos)}
+                                style={{
+                                    width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
+                                    background: form.notificarVencidos ? "#2d6a4f" : "#ccc", position: "relative", transition: "background 0.2s"
+                                }}>
+                                <div style={{
+                                    width: 18, height: 18, borderRadius: "50%", background: "#fff",
+                                    position: "absolute", top: 3, left: form.notificarVencidos ? 22 : 4, transition: "left 0.2s"
+                                }} />
+                            </button>
+                        </div>
+
+                        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                            <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando ? "Salvando..." : "Salvar Configuração"}</button>
+                            <button type="button" className="dd-btn-ghost" onClick={testarConexao} disabled={testando}>
+                                {testando ? "Testando..." : "Testar Conexão"}
+                            </button>
+                        </div>
+                    </form>
+                )}
+
+                {/* ===== ABA TEMPLATES ===== */}
+                {abaWpp === "templates" && (
+                    <form onSubmit={salvar} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        <div style={{ fontSize: 11, color: _textMuted, background: dark ? "#1a2030" : "#f0f4ff", padding: "10px 14px", borderRadius: 6 }}>
+                            Variáveis disponíveis: <code>{"{nome}"}</code> <code>{"{valor}"}</code> <code>{"{vencimento}"}</code> <code>{"{descricao}"}</code> <code>{"{diasAtraso}"}</code> — Use <code>*texto*</code> para <strong>negrito</strong> no WhatsApp.
+                        </div>
+
+                        <div>
+                            <label className="dd-label">Template — Lembrete (antes do vencimento)</label>
+                            <textarea className="dd-input" rows={4} value={form.templateMensagem || ""} onChange={e => fc("templateMensagem", e.target.value)}
+                                style={{ resize: "vertical", lineHeight: 1.6 }} />
+                        </div>
+
+                        <div>
+                            <label className="dd-label">Template — Boleto Vencido</label>
+                            <textarea className="dd-input" rows={4} value={form.templateVencido || ""} onChange={e => fc("templateVencido", e.target.value)}
+                                style={{ resize: "vertical", lineHeight: 1.6 }} />
+                        </div>
+
+                        {/* Preview */}
+                        <div>
+                            <label className="dd-label" style={{ marginBottom: 6 }}>Preview (exemplo)</label>
+                            <div style={{
+                                background: dark ? "#1a2a1e" : "#dcf8c6", padding: "12px 16px", borderRadius: "8px 8px 0 8px",
+                                fontSize: 13, lineHeight: 1.6, color: dark ? "#d0e8d0" : "#111", maxWidth: 400, whiteSpace: "pre-wrap"
+                            }}>
+                                {(form.templateMensagem || "")
+                                    .replace("{nome}", "Maria da Silva")
+                                    .replace("{valor}", "450,00")
+                                    .replace("{vencimento}", "25/03/2026")
+                                    .replace("{descricao}", "Mensalidade Mar/2026")
+                                    .replace("{diasAtraso}", "0")}
+                            </div>
+                        </div>
+
+                        <div>
+                            <button type="submit" className="dd-btn-primary" disabled={salvando}>{salvando ? "Salvando..." : "Salvar Templates"}</button>
+                        </div>
+                    </form>
+                )}
+
+                {/* ===== ABA TESTE ===== */}
+                {abaWpp === "teste" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        <form onSubmit={enviarTeste} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                            <div style={{ fontSize: 11, color: _textMuted, background: dark ? "#1a2030" : "#f0f4ff", padding: "10px 14px", borderRadius: 6 }}>
+                                Envie uma mensagem de teste para verificar se o WhatsApp está funcionando corretamente.
+                            </div>
+                            <div>
+                                <label className="dd-label">Telefone (com DDD)</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" value={formTeste.telefone} onChange={e => setFormTeste(f => ({ ...f, telefone: e.target.value }))}
+                                        placeholder="(62) 99999-9999" required />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Mensagem (opcional)</label>
+                                <textarea className="dd-input" rows={3} value={formTeste.mensagem} onChange={e => setFormTeste(f => ({ ...f, mensagem: e.target.value }))}
+                                    placeholder="Deixe vazio para usar mensagem padrão de teste"
+                                    style={{ resize: "vertical", lineHeight: 1.6 }} />
+                            </div>
+                            <div style={{ display: "flex", gap: 8 }}>
+                                <button type="submit" className="dd-btn-primary" style={{ fontSize: 12 }}>Enviar Teste</button>
+                                <button type="button" className="dd-btn-ghost" style={{ fontSize: 12 }} onClick={dispararAgora}>
+                                    Disparar Lembretes Agora
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                )}
+
+                {/* ===== ABA HISTÓRICO ===== */}
+                {abaWpp === "historico" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: 12, color: _textMuted }}>Últimas 100 notificações</span>
+                            <button className="dd-btn-ghost" style={{ fontSize: 11 }} onClick={carregarNotificacoes}>Atualizar</button>
+                        </div>
+                        <div className="dd-table-wrap">
+                            <table className="dd-table" style={{ width: "100%" }}>
+                                <thead><tr>
+                                    <th>Data/Hora</th><th>Pessoa</th><th>Telefone</th><th>Boleto</th><th>Tipo</th><th>Status</th><th>Erro</th>
+                                </tr></thead>
+                                <tbody>
+                                    {notificacoes.length === 0 && <tr><td colSpan={7} style={{ textAlign: "center", color: _textMuted, padding: 24 }}>Nenhuma notificação enviada ainda</td></tr>}
+                                    {notificacoes.map(n => (
+                                        <tr key={n.id}>
+                                            <td style={{ fontSize: 11, color: _textMuted, whiteSpace: "nowrap" }}>{fmtDataHora(n.enviadoEm)}</td>
+                                            <td style={{ fontWeight: 500, color: _text }}>{n.pessoaNome || "—"}</td>
+                                            <td style={{ fontSize: 11, color: _textMuted }}>{n.telefone}</td>
+                                            <td style={{ fontSize: 11, color: _text }}>{n.crDescricao || "—"}</td>
+                                            <td><span style={{
+                                                fontSize: 9, padding: "2px 8px", borderRadius: 3, fontWeight: 600,
+                                                background: n.tipo === "VENCIDO" ? "#fdf0f0" : "#f0f4ff",
+                                                color: n.tipo === "VENCIDO" ? "#b94040" : "#2563eb"
+                                            }}>{n.tipo}</span></td>
+                                            <td><span style={{
+                                                fontSize: 9, padding: "2px 8px", borderRadius: 3, fontWeight: 600,
+                                                background: n.status === "ENVIADO" ? "#f0f5f2" : "#fdf0f0",
+                                                color: n.status === "ENVIADO" ? "#2d6a4f" : "#b94040"
+                                            }}>{n.status}</span></td>
+                                            <td style={{ fontSize: 10, color: "#b94040", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                                                title={n.erroDetalhe || ""}>{n.erroDetalhe || ""}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
