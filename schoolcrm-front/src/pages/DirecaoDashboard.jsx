@@ -106,7 +106,7 @@ function ConfirmDialog() {
     return (
         <div style={{ position:"fixed", inset:0, background:"rgba(13,31,24,.55)", zIndex:9998, display:"flex", alignItems:"center", justifyContent:"center", padding:24, animation:"ddOverlayIn .2s ease", backdropFilter:"blur(2px)" }}
              onClick={() => resolve(false)}>
-            <div style={{ background:_bgCard, padding:32, maxWidth:400, width:"100%", boxShadow:"0 20px 60px rgba(0,0,0,.2)", borderRadius:3, animation:"ddModalIn .25s ease" }}
+            <div style={{ background: (localStorage.getItem("theme")==="dark" ? "#1a2822" : "#fff"), padding:32, maxWidth:400, width:"100%", boxShadow:"0 20px 60px rgba(0,0,0,.2)", borderRadius:3, animation:"ddModalIn .25s ease" }}
                  onClick={e => e.stopPropagation()}>
                 <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20 }}>
                     <div style={{ width:36, height:36, borderRadius:"50%", background:"#fdf0f0", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
@@ -4410,6 +4410,18 @@ function Horarios({ anoLetivo }) {
 const fmt = v => Number(v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const fmtData = d => d ? new Date(d + "T12:00").toLocaleDateString("pt-BR") : "—";
 const mesAtual = () => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`; };
+
+/** Dark-mode theme helper — pode ser chamado em qualquer sub-componente */
+function useDarkVars() {
+    const dark = localStorage.getItem("theme") === "dark";
+    return {
+        _bg:        dark ? "#151f1a" : "#fff",
+        _bgCard:    dark ? "#1a2822" : "#fff",
+        _border:    dark ? "#2a3d32" : "#eaeef2",
+        _text:      dark ? "#e0ebe3" : "#0d1f18",
+        _textMuted: dark ? "#6a8a72" : "#9aaa9f",
+    };
+}
 const statusColors = {
     PENDENTE:           { bg:"#fff8e1", color:"#c47a00" },
     PAGO:               { bg:"#f0f5f2", color:"#2d6a4f" },
@@ -4421,6 +4433,7 @@ const statusBadge = s => statusColors[s] ?? { bg:"#f5f5f5", color:"#9aaa9f" };
 
 // ---- FIN DASHBOARD ----
 function FinDashboard() {
+    const { _bgCard, _border, _text, _textMuted } = useDarkVars();
     const [mes, setMes] = useState(mesAtual());
     const [dados, setDados] = useState(null);
     const [carregando, setCarregando] = useState(false);
@@ -5076,6 +5089,7 @@ function FinFuncionarios() {
 
 // ---- FIN CONTRATOS / CR ----
 function FinContratos({ anoLetivo }) {
+    const { _bgCard, _border, _text, _textMuted } = useDarkVars();
     const [alunos, setAlunos] = useState([]);
     const [alunoSel, setAlunoSel] = useState("");
     const [contratos, setContratos] = useState([]);
@@ -5977,6 +5991,7 @@ function FinContratos({ anoLetivo }) {
 
 // ---- FIN CONTAS A PAGAR ----
 function FinContasPagar() {
+    const { _bgCard, _border, _text, _textMuted } = useDarkVars();
     const [contas, setContas] = useState([]);
     const [modelos, setModelos] = useState([]);
     const [formasPagamento, setFormasPagamento] = useState([]);
@@ -6516,6 +6531,7 @@ function FinContasPagar() {
 
 // ---- FIN MOVIMENTACOES ----
 function FinMovimentacoes() {
+    const { _bgCard, _border, _text, _textMuted } = useDarkVars();
     const [movimentacoes, setMovimentacoes] = useState([]);
     const [resumo, setResumo] = useState({ entradas:0, saidas:0, saldo:0 });
     const [mes, setMes] = useState(mesAtual());
@@ -6732,6 +6748,7 @@ const FIN_RELATORIOS_LIST = [
 ];
 
 function FinRelatorios() {
+    const { _bgCard, _border, _text, _textMuted } = useDarkVars();
     const [modalRel, setModalRel]   = useState(null); // relatório selecionado
     const [filtros, setFiltros]     = useState({});
     const [carregando, setCarregando] = useState(false);
@@ -6970,6 +6987,7 @@ function FinRelatorios() {
 
 // ---- FIN CONFIGURACOES ----
 function FinConfiguracoes({ anoLetivo }) {
+    const { _bgCard, _border, _text, _textMuted } = useDarkVars();
     const [config, setConfig] = useState(null);
     const [formas, setFormas] = useState([]);
     const [series, setSeries] = useState([]);
