@@ -5092,7 +5092,8 @@ function FinFuncionarios() {
 
 // ---- FIN CONTRATOS / CR ----
 function FinContratos({ anoLetivo }) {
-    const { _bgCard, _border, _text, _textMuted } = useDarkVars();
+    const { _bg, _bgCard, _border, _text, _textMuted } = useDarkVars();
+    const dark = localStorage.getItem("theme") === "dark";
     const [alunos, setAlunos] = useState([]);
     const [alunoSel, setAlunoSel] = useState("");
     const [contratos, setContratos] = useState([]);
@@ -5421,10 +5422,10 @@ function FinContratos({ anoLetivo }) {
                     const totalValor = contratos.reduce((s, c) => s + Number(c.valorTotal||0), 0);
                     const nomeAluno = alunos.find(a=>String(a.id)===String(alunoSel))?.nome || "";
                     return (
-                        <div style={{ marginTop:14, paddingTop:14, borderTop:"1px solid #eaeef2", display:"flex", gap:16, flexWrap:"wrap" }}>
-                            <div><span style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.5px" }}>Aluno</span><br /><span style={{ fontWeight:600, fontSize:13 }}>{nomeAluno}</span></div>
-                            <div><span style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.5px" }}>Contratos</span><br /><span style={{ fontWeight:600, fontSize:13 }}>{contratos.length}</span></div>
-                            <div><span style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.5px" }}>Valor Total Contratado</span><br /><span style={{ fontWeight:600, fontSize:13, color:"#2d6a4f" }}>{fmt(totalValor)}</span></div>
+                        <div style={{ marginTop:14, paddingTop:14, borderTop:"1px solid "+_border, display:"flex", gap:16, flexWrap:"wrap" }}>
+                            <div><span style={{ fontSize:10, color:_textMuted, textTransform:"uppercase", letterSpacing:"0.5px" }}>Aluno</span><br /><span style={{ fontWeight:600, fontSize:13, color:_text }}>{nomeAluno}</span></div>
+                            <div><span style={{ fontSize:10, color:_textMuted, textTransform:"uppercase", letterSpacing:"0.5px" }}>Contratos</span><br /><span style={{ fontWeight:600, fontSize:13, color:_text }}>{contratos.length}</span></div>
+                            <div><span style={{ fontSize:10, color:_textMuted, textTransform:"uppercase", letterSpacing:"0.5px" }}>Valor Total Contratado</span><br /><span style={{ fontWeight:600, fontSize:13, color:"#2d6a4f" }}>{fmt(totalValor)}</span></div>
                         </div>
                     );
                 })()}
@@ -5439,30 +5440,30 @@ function FinContratos({ anoLetivo }) {
                     </div>
                     {contratos.length === 0
                         ? <div style={{ padding:"32px 20px", textAlign:"center" }}>
-                            <p style={{ fontSize:13, color:"#9aaa9f", margin:0 }}>Nenhum contrato para este aluno.</p>
-                            <p style={{ fontSize:11, color:"#c0c8c4", marginTop:4 }}>Clique em "+ Novo Contrato" para criar.</p>
+                            <p style={{ fontSize:13, color:_textMuted, margin:0 }}>Nenhum contrato para este aluno.</p>
+                            <p style={{ fontSize:11, color:_textMuted, marginTop:4, opacity:0.7 }}>Clique em "+ Novo Contrato" para criar.</p>
                           </div>
                         : contratos.map(c => {
                             const plist = parcelas[c.id] || [];
                             const pagas = plist.filter(p => p.status === "PAGO").length;
                             const vencidas = plist.filter(p => computarStatus(p) === "VENCIDO").length;
                             return (
-                            <div key={c.id} style={{ borderBottom:"1px solid #eaeef2" }}>
-                                <div style={{ padding:"14px 20px", display:"flex", alignItems:"center", gap:12, cursor:"pointer", background: expandido===c.id?"#f8faf8":"white" }}
+                            <div key={c.id} style={{ borderBottom:"1px solid "+_border }}>
+                                <div style={{ padding:"14px 20px", display:"flex", alignItems:"center", gap:12, cursor:"pointer", background: expandido===c.id?(dark?"#1e3028":_bgCard):_bgCard }}
                                     onClick={() => toggleExpand(c.id)}>
-                                    <ChevronRight size={14} style={{ transform: expandido===c.id?"rotate(90deg)":"none", transition:".2s", color:"#9aaa9f", flexShrink:0 }} />
+                                    <ChevronRight size={14} style={{ transform: expandido===c.id?"rotate(90deg)":"none", transition:".2s", color:_textMuted, flexShrink:0 }} />
                                     <div style={{ flex:1 }}>
-                                        <div style={{ fontWeight:600, fontSize:13, color:"#0d1f18" }}>{c.anoLetivo} — {c.serieNome || `Série ${c.serieId}`}</div>
-                                        <div style={{ fontSize:11, color:"#9aaa9f", marginTop:2 }}>
+                                        <div style={{ fontWeight:600, fontSize:13, color:_text }}>{c.anoLetivo} — {c.serieNome || `Série ${c.serieId}`}</div>
+                                        <div style={{ fontSize:11, color:_textMuted, marginTop:2 }}>
                                             {c.numParcelas} parcelas · Resp.: {c.responsavelPrincipalNome || "—"}
                                             {plist.length > 0 && <span style={{ marginLeft:8 }}>{pagas}/{c.numParcelas} pagas{vencidas > 0 && <span style={{ color:"#b94040", marginLeft:4 }}>· {vencidas} vencida{vencidas>1?"s":""}</span>}</span>}
                                         </div>
                                     </div>
                                     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                                         <div style={{ textAlign:"right" }}>
-                                            <div style={{ fontWeight:700, fontSize:14, color:"#0d1f18" }}>{fmt(c.valorMensal ?? c.valorTotal)}</div>
+                                            <div style={{ fontWeight:700, fontSize:14, color:_text }}>{fmt(c.valorMensal ?? c.valorTotal)}</div>
                                             {(Number(c.desconto||0) > 0 || Number(c.acrescimo||0) > 0) && (
-                                                <div style={{ fontSize:10, color:"#9aaa9f" }}>base {fmt(c.valorBase)}</div>
+                                                <div style={{ fontSize:10, color:_textMuted }}>base {fmt(c.valorBase)}</div>
                                             )}
                                         </div>
                                         <button className="dd-btn-primary" style={{ fontSize:10, padding:"3px 10px", flexShrink:0 }}
@@ -5478,20 +5479,20 @@ function FinContratos({ anoLetivo }) {
                                 </div>
 
                                 {expandido === c.id && (
-                                    <div style={{ padding:"0 20px 20px", background:"#f8faf8" }}>
-                                        <div style={{ display:"flex", gap:16, flexWrap:"wrap", padding:"12px 0 16px", borderBottom:"1px solid #eaeef2", marginBottom:12 }}>
-                                            {[["Valor Base", fmt(c.valorBase), "#0d1f18"], ["Desconto", fmt(c.desconto), "#b94040"], ["Acréscimo", fmt(c.acrescimo), "#2d6a4f"], ["Total Mensal", fmt(c.valorMensal ?? c.valorTotal), "#2563eb"]].map(([l,v,col]) => (
+                                    <div style={{ padding:"0 20px 20px", background: dark?"#1e3028":"#f8faf8" }}>
+                                        <div style={{ display:"flex", gap:16, flexWrap:"wrap", padding:"12px 0 16px", borderBottom:"1px solid "+_border, marginBottom:12 }}>
+                                            {[["Valor Base", fmt(c.valorBase), _text], ["Desconto", fmt(c.desconto), "#b94040"], ["Acréscimo", fmt(c.acrescimo), "#2d6a4f"], ["Total Mensal", fmt(c.valorMensal ?? c.valorTotal), "#2563eb"]].map(([l,v,col]) => (
                                                 <div key={l} style={{ minWidth:80 }}>
-                                                    <div style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.4px" }}>{l}</div>
+                                                    <div style={{ fontSize:10, color:_textMuted, textTransform:"uppercase", letterSpacing:"0.4px" }}>{l}</div>
                                                     <div style={{ fontSize:15, fontWeight:700, color:col, marginTop:2 }}>{v}</div>
                                                 </div>
                                             ))}
                                         </div>
                                         <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
                                             <thead>
-                                                <tr style={{ background:"#f0f4f0" }}>
+                                                <tr style={{ background: dark?"#1a2822":"#f0f4f0" }}>
                                                     {["#","Vencimento","Valor","Status","Pago em","Vlr. Pago","Ações"].map(h => (
-                                                        <th key={h} style={{ padding:"7px 10px", textAlign:"left", color:"#6b8f7a", fontSize:10, textTransform:"uppercase", letterSpacing:"0.4px", fontWeight:600 }}>{h}</th>
+                                                        <th key={h} style={{ padding:"7px 10px", textAlign:"left", color:_textMuted, fontSize:10, textTransform:"uppercase", letterSpacing:"0.4px", fontWeight:600 }}>{h}</th>
                                                     ))}
                                                 </tr>
                                             </thead>
@@ -5500,13 +5501,13 @@ function FinContratos({ anoLetivo }) {
                                                     const st = computarStatus(cr);
                                                     const sc = statusBadge(st);
                                                     return (
-                                                        <tr key={cr.id} style={{ borderBottom:"1px solid #eaeef2", background: st==="VENCIDO"?"#fff8f8": st==="PAGO"?"#f8fffe":"white" }}>
-                                                            <td style={{ padding:"8px 10px", color:"#9aaa9f", fontWeight:500 }}>{idx+1}</td>
-                                                            <td style={{ padding:"8px 10px", color: st==="VENCIDO"?"#b94040":"#0d1f18" }}>{fmtData(cr.dataVencimento)}</td>
-                                                            <td style={{ padding:"8px 10px", fontWeight:600 }}>{fmt(cr.valor)}</td>
+                                                        <tr key={cr.id} style={{ borderBottom:"1px solid "+_border, background: st==="VENCIDO"?(dark?"#2a1515":"#fff8f8"): st==="PAGO"?(dark?"#152a1e":"#f8fffe"):_bgCard }}>
+                                                            <td style={{ padding:"8px 10px", color:_textMuted, fontWeight:500 }}>{idx+1}</td>
+                                                            <td style={{ padding:"8px 10px", color: st==="VENCIDO"?"#b94040":_text }}>{fmtData(cr.dataVencimento)}</td>
+                                                            <td style={{ padding:"8px 10px", fontWeight:600, color:_text }}>{fmt(cr.valor)}</td>
                                                             <td style={{ padding:"8px 10px" }}><span className="dd-badge" style={{ ...sc, borderRadius:4, fontSize:10, padding:"2px 7px" }}>{st}</span></td>
-                                                            <td style={{ padding:"8px 10px", color:"#9aaa9f" }}>{cr.dataPagamento ? fmtData(cr.dataPagamento) : "—"}</td>
-                                                            <td style={{ padding:"8px 10px", color: cr.valorPago ? "#2d6a4f" : "#9aaa9f", fontWeight: cr.valorPago ? 600 : 400 }}>{cr.valorPago ? fmt(cr.valorPago) : "—"}</td>
+                                                            <td style={{ padding:"8px 10px", color:_textMuted }}>{cr.dataPagamento ? fmtData(cr.dataPagamento) : "—"}</td>
+                                                            <td style={{ padding:"8px 10px", color: cr.valorPago ? "#2d6a4f" : _textMuted, fontWeight: cr.valorPago ? 600 : 400 }}>{cr.valorPago ? fmt(cr.valorPago) : "—"}</td>
                                                             <td style={{ padding:"8px 10px" }}>
                                                                 <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
                                                                 {(st === "PENDENTE" || st === "VENCIDO" || st === "PARCIALMENTE_PAGO") && (<>
@@ -5553,12 +5554,12 @@ function FinContratos({ anoLetivo }) {
                 <div className="dd-section-header">
                     <span className="dd-section-title">
                         Recebimentos Avulsos
-                        {alunoSel && pessoaIdsContrato.size > 0 && <span style={{ fontSize:10, color:"#9aaa9f", fontWeight:400, marginLeft:6 }}>(responsáveis do aluno)</span>}
+                        {alunoSel && pessoaIdsContrato.size > 0 && <span style={{ fontSize:10, color:_textMuted, fontWeight:400, marginLeft:6 }}>(responsáveis do aluno)</span>}
                     </span>
                     <span className="dd-section-count">{avulsasFiltradas.filter(cr => cr.status !== "CANCELADO").length}</span>
                 </div>
                 {/* Barra de filtros */}
-                <div style={{ padding:"8px 20px", display:"flex", gap:8, flexWrap:"wrap", borderBottom:"1px solid #eaeef2", background:"#fafcfa" }}>
+                <div style={{ padding:"8px 20px", display:"flex", gap:8, flexWrap:"wrap", borderBottom:"1px solid "+_border, background: dark?"#1a2822":"#fafcfa" }}>
                     <input
                         type="text"
                         placeholder="Buscar por descrição, pessoa ou valor..."
@@ -5584,12 +5585,12 @@ function FinContratos({ anoLetivo }) {
                     )}
                 </div>
                 {avulsasFiltradas.length === 0
-                    ? <p style={{ padding:20, fontSize:12, color:"#9aaa9f", textAlign:"center" }}>Nenhum recebimento avulso {alunoSel && pessoaIdsContrato.size > 0 ? "para os responsáveis deste aluno" : "cadastrado"}.</p>
+                    ? <p style={{ padding:20, fontSize:12, color:_textMuted, textAlign:"center" }}>Nenhum recebimento avulso {alunoSel && pessoaIdsContrato.size > 0 ? "para os responsáveis deste aluno" : "cadastrado"}.</p>
                     : <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
                         <thead>
-                            <tr style={{ borderBottom:"1px solid #eaeef2" }}>
+                            <tr style={{ borderBottom:"1px solid "+_border }}>
                                 {["Descrição","Tipo","Vencimento","Valor","Pago","Saldo","Status","Pessoa",""].map(h => (
-                                    <th key={h} style={{ padding:"8px 20px", textAlign:"left", color:"#9aaa9f", fontSize:10, textTransform:"uppercase" }}>{h}</th>
+                                    <th key={h} style={{ padding:"8px 20px", textAlign:"left", color:_textMuted, fontSize:10, textTransform:"uppercase" }}>{h}</th>
                                 ))}
                             </tr>
                         </thead>
@@ -5598,15 +5599,15 @@ function FinContratos({ anoLetivo }) {
                                 const st = computarStatus(cr);
                                 const sc = statusBadge(st);
                                 return (
-                                    <tr key={cr.id} style={{ borderBottom:"1px solid #f2f5f2" }}>
-                                        <td style={{ padding:"8px 20px" }}>{cr.descricao}</td>
-                                        <td style={{ padding:"8px 20px", color:"#9aaa9f", fontSize:11 }}>{cr.tipo}</td>
-                                        <td style={{ padding:"8px 20px" }}>{fmtData(cr.dataVencimento)}</td>
-                                        <td style={{ padding:"8px 20px", fontWeight:500 }}>{fmt(cr.valor)}</td>
-                                        <td style={{ padding:"8px 20px", color: cr.valorPago ? "#2d6a4f" : "#9aaa9f", fontWeight: cr.valorPago ? 600 : 400 }}>{cr.valorPago ? fmt(cr.valorPago) : "—"}</td>
-                                        <td style={{ padding:"8px 20px", color: Number(cr.saldoDevedor||0) > 0 ? "#c47a00" : "#9aaa9f" }}>{Number(cr.saldoDevedor||0) > 0 ? fmt(cr.saldoDevedor) : "—"}</td>
+                                    <tr key={cr.id} style={{ borderBottom:"1px solid "+_border }}>
+                                        <td style={{ padding:"8px 20px", color:_text }}>{cr.descricao}</td>
+                                        <td style={{ padding:"8px 20px", color:_textMuted, fontSize:11 }}>{cr.tipo}</td>
+                                        <td style={{ padding:"8px 20px", color:_text }}>{fmtData(cr.dataVencimento)}</td>
+                                        <td style={{ padding:"8px 20px", fontWeight:500, color:_text }}>{fmt(cr.valor)}</td>
+                                        <td style={{ padding:"8px 20px", color: cr.valorPago ? "#2d6a4f" : _textMuted, fontWeight: cr.valorPago ? 600 : 400 }}>{cr.valorPago ? fmt(cr.valorPago) : "—"}</td>
+                                        <td style={{ padding:"8px 20px", color: Number(cr.saldoDevedor||0) > 0 ? "#c47a00" : _textMuted }}>{Number(cr.saldoDevedor||0) > 0 ? fmt(cr.saldoDevedor) : "—"}</td>
                                         <td style={{ padding:"8px 20px" }}><span className="dd-badge" style={{ ...sc, borderRadius:3, fontSize:10 }}>{st}</span></td>
-                                        <td style={{ padding:"8px 20px", color:"#9aaa9f", fontSize:11 }}>{cr.pessoaNome || "—"}</td>
+                                        <td style={{ padding:"8px 20px", color:_textMuted, fontSize:11 }}>{cr.pessoaNome || "—"}</td>
                                         <td style={{ padding:"8px 20px" }}>
                                             <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
                                                 {(st === "PENDENTE" || st === "VENCIDO" || st === "PARCIALMENTE_PAGO") && (<>
@@ -5687,19 +5688,19 @@ function FinContratos({ anoLetivo }) {
                                 const vt = vb != null ? vb - Number(formContrato.desconto||0) + Number(formContrato.acrescimo||0) : null;
                                 if (vb == null) return null;
                                 return (
-                                    <div style={{ background:"#f0f5f2", border:"1px solid #d4e8d8", borderRadius:6, padding:"10px 14px", fontSize:12 }}>
+                                    <div style={{ background: dark?"#1a2e22":"#f0f5f2", border:"1px solid "+(dark?"#2a4a35":"#d4e8d8"), borderRadius:6, padding:"10px 14px", fontSize:12 }}>
                                         <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
-                                            <span style={{ color:"#6b8f7a" }}>Valor base da série</span>
+                                            <span style={{ color:_textMuted }}>Valor base da série</span>
                                             <span style={{ fontWeight:600 }}>{fmt(vb)}</span>
                                         </div>
                                         {(Number(formContrato.desconto||0) > 0 || Number(formContrato.acrescimo||0) > 0) && (
-                                            <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:"#6b8f7a", marginBottom:4 }}>
+                                            <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, color:_textMuted, marginBottom:4 }}>
                                                 <span>Desconto / Acréscimo</span>
                                                 <span>- {fmt(Number(formContrato.desconto||0))} / + {fmt(Number(formContrato.acrescimo||0))}</span>
                                             </div>
                                         )}
-                                        <div style={{ display:"flex", justifyContent:"space-between", borderTop:"1px solid #c8e0cc", paddingTop:6, marginTop:4 }}>
-                                            <span style={{ fontWeight:600, color:"#0d1f18" }}>Total previsto por mês</span>
+                                        <div style={{ display:"flex", justifyContent:"space-between", borderTop:"1px solid "+(dark?"#2a4a35":"#c8e0cc"), paddingTop:6, marginTop:4 }}>
+                                            <span style={{ fontWeight:600, color:_text }}>Total previsto por mês</span>
                                             <span style={{ fontWeight:700, fontSize:14, color: vt > 0 ? "#2d6a4f" : "#b94040" }}>{fmt(vt)}</span>
                                         </div>
                                     </div>
@@ -5728,8 +5729,8 @@ function FinContratos({ anoLetivo }) {
                                 </p>
                                 {Number(modalBaixar.jaFoiPago||0) > 0 && (
                                     <div style={{ display:"flex", gap:16, marginTop:4, fontSize:11 }}>
-                                        <span style={{ color:"#9aaa9f" }}>Já pago: <strong style={{ color:"#2d6a4f" }}>{fmt(modalBaixar.jaFoiPago)}</strong></span>
-                                        <span style={{ color:"#9aaa9f" }}>Saldo: <strong style={{ color:"#2563eb" }}>{fmt(modalBaixar.saldoDevedor)}</strong></span>
+                                        <span style={{ color:_textMuted }}>Já pago: <strong style={{ color:"#2d6a4f" }}>{fmt(modalBaixar.jaFoiPago)}</strong></span>
+                                        <span style={{ color:_textMuted }}>Saldo: <strong style={{ color:"#2563eb" }}>{fmt(modalBaixar.saldoDevedor)}</strong></span>
                                     </div>
                                 )}
                             </div>
@@ -5773,19 +5774,19 @@ function FinContratos({ anoLetivo }) {
                                 const vp = Number(formBaixar.valorPago||0);
                                 const acima = vp > saldoDevedor + 0.001;
                                 return (
-                                    <div style={{ background: acima?"#fff5f5":"#f0f5f2", border:`1px solid ${acima?"#f8c8c8":"#d4e8d8"}`, borderRadius:6, padding:"8px 14px", fontSize:12 }}>
+                                    <div style={{ background: acima?(dark?"#2a1515":"#fff5f5"):(dark?"#1a2e22":"#f0f5f2"), border:`1px solid ${acima?(dark?"#5a2020":"#f8c8c8"):(dark?"#2a4a35":"#d4e8d8")}`, borderRadius:6, padding:"8px 14px", fontSize:12, color:_text }}>
                                         <div style={{ display:"flex", justifyContent:"space-between" }}>
-                                            <span style={{ color:"#6b8f7a" }}>Valor do título</span>
+                                            <span style={{ color:_textMuted }}>Valor do título</span>
                                             <span style={{ fontWeight:600 }}>{fmt(modalBaixar.valor)}</span>
                                         </div>
                                         {!isParcial && (juros > 0 || multa > 0) && <>
                                             {juros > 0 && <div style={{ display:"flex", justifyContent:"space-between", color:"#b94040", fontSize:11 }}><span>+ Juros</span><span>{fmt(juros)}</span></div>}
                                             {multa > 0 && <div style={{ display:"flex", justifyContent:"space-between", color:"#b94040", fontSize:11 }}><span>+ Multa</span><span>{fmt(multa)}</span></div>}
-                                            <div style={{ display:"flex", justifyContent:"space-between", borderTop:"1px solid #d4e8d8", marginTop:4, paddingTop:4, fontWeight:600 }}><span>Total esperado</span><span>{fmt(saldoDevedor)}</span></div>
+                                            <div style={{ display:"flex", justifyContent:"space-between", borderTop:"1px solid "+(dark?"#2a4a35":"#d4e8d8"), marginTop:4, paddingTop:4, fontWeight:600 }}><span>Total esperado</span><span>{fmt(saldoDevedor)}</span></div>
                                         </>}
                                         {isParcial && <>
-                                            <div style={{ display:"flex", justifyContent:"space-between", color:"#6b8f7a", fontSize:11, marginTop:3 }}><span>Já pago</span><span style={{ color:"#2d6a4f" }}>- {fmt(jaFoiPago)}</span></div>
-                                            <div style={{ display:"flex", justifyContent:"space-between", borderTop:"1px solid #d4e8d8", marginTop:4, paddingTop:4, fontWeight:600, color:"#2563eb" }}><span>Saldo devedor</span><span>{fmt(saldoDevedor)}</span></div>
+                                            <div style={{ display:"flex", justifyContent:"space-between", color:_textMuted, fontSize:11, marginTop:3 }}><span>Já pago</span><span style={{ color:"#2d6a4f" }}>- {fmt(jaFoiPago)}</span></div>
+                                            <div style={{ display:"flex", justifyContent:"space-between", borderTop:"1px solid "+(dark?"#2a4a35":"#d4e8d8"), marginTop:4, paddingTop:4, fontWeight:600, color:"#2563eb" }}><span>Saldo devedor</span><span>{fmt(saldoDevedor)}</span></div>
                                         </>}
                                         {acima && <p style={{ color:"#b94040", margin:"4px 0 0", fontSize:11 }}>Valor pago acima do saldo devedor.</p>}
                                     </div>
@@ -5832,19 +5833,19 @@ function FinContratos({ anoLetivo }) {
                         {/* Status */}
                         <div style={{ display:"flex", gap:12, marginBottom:16 }}>
                             <span className="dd-badge" style={{ ...statusBadge(modalBoleto.status), borderRadius:4, fontSize:11, padding:"3px 10px" }}>{modalBoleto.status}</span>
-                            {modalBoleto.pagadorNome && <span style={{ fontSize:12, color:"#9aaa9f" }}>Pagador: {modalBoleto.pagadorNome}</span>}
+                            {modalBoleto.pagadorNome && <span style={{ fontSize:12, color:_textMuted }}>Pagador: {modalBoleto.pagadorNome}</span>}
                         </div>
 
                         {/* Valores e datas */}
-                        <div style={{ display:"flex", gap:16, flexWrap:"wrap", padding:"12px 0", borderTop:"1px solid #eaeef2", borderBottom:"1px solid #eaeef2", marginBottom:16 }}>
+                        <div style={{ display:"flex", gap:16, flexWrap:"wrap", padding:"12px 0", borderTop:"1px solid "+_border, borderBottom:"1px solid "+_border, marginBottom:16 }}>
                             {[
-                                ["Valor", fmt(modalBoleto.valor), "#0d1f18"],
-                                ["Vencimento", fmtData(modalBoleto.dataVencimento), "#0d1f18"],
-                                ["Emissão", fmtData(modalBoleto.dataEmissao), "#9aaa9f"],
+                                ["Valor", fmt(modalBoleto.valor), _text],
+                                ["Vencimento", fmtData(modalBoleto.dataVencimento), _text],
+                                ["Emissão", fmtData(modalBoleto.dataEmissao), _textMuted],
                                 ...(modalBoleto.valorPago ? [["Valor Pago", fmt(modalBoleto.valorPago), "#2d6a4f"]] : []),
                             ].map(([l,v,col]) => (
                                 <div key={l} style={{ minWidth:80 }}>
-                                    <div style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.4px" }}>{l}</div>
+                                    <div style={{ fontSize:10, color:_textMuted, textTransform:"uppercase", letterSpacing:"0.4px" }}>{l}</div>
                                     <div style={{ fontSize:14, fontWeight:600, color:col, marginTop:2 }}>{v}</div>
                                 </div>
                             ))}
@@ -5853,9 +5854,9 @@ function FinContratos({ anoLetivo }) {
                         {/* PIX Copia e Cola */}
                         {modalBoleto.pixCopiaCola && (
                             <div style={{ marginBottom:16 }}>
-                                <div style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.4px", marginBottom:6 }}>PIX Copia e Cola</div>
+                                <div style={{ fontSize:10, color:_textMuted, textTransform:"uppercase", letterSpacing:"0.4px", marginBottom:6 }}>PIX Copia e Cola</div>
                                 <div style={{ display:"flex", gap:8, alignItems:"stretch" }}>
-                                    <div style={{ flex:1, background:"#f8faf8", border:"1px solid #eaeef2", borderRadius:4, padding:"8px 10px", fontSize:11, fontFamily:"monospace", wordBreak:"break-all", color:"#0d1f18", maxHeight:60, overflow:"auto" }}>
+                                    <div style={{ flex:1, background: dark?"#14201a":"#f8faf8", border:"1px solid "+_border, borderRadius:4, padding:"8px 10px", fontSize:11, fontFamily:"monospace", wordBreak:"break-all", color:_text, maxHeight:60, overflow:"auto" }}>
                                         {modalBoleto.pixCopiaCola}
                                     </div>
                                     <button onClick={() => copiarPix(modalBoleto.pixCopiaCola)}
@@ -5869,8 +5870,8 @@ function FinContratos({ anoLetivo }) {
                         {/* Linha Digitável */}
                         {modalBoleto.linhaDigitavel && (
                             <div style={{ marginBottom:16 }}>
-                                <div style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.4px", marginBottom:6 }}>Linha Digitável</div>
-                                <div style={{ background:"#f8faf8", border:"1px solid #eaeef2", borderRadius:4, padding:"8px 10px", fontSize:12, fontFamily:"monospace", letterSpacing:"0.5px", color:"#0d1f18", wordBreak:"break-all" }}>
+                                <div style={{ fontSize:10, color:_textMuted, textTransform:"uppercase", letterSpacing:"0.4px", marginBottom:6 }}>Linha Digitável</div>
+                                <div style={{ background: dark?"#14201a":"#f8faf8", border:"1px solid "+_border, borderRadius:4, padding:"8px 10px", fontSize:12, fontFamily:"monospace", letterSpacing:"0.5px", color:_text, wordBreak:"break-all" }}>
                                     {modalBoleto.linhaDigitavel}
                                 </div>
                             </div>
@@ -5878,8 +5879,8 @@ function FinContratos({ anoLetivo }) {
 
                         {/* Nosso Número */}
                         {modalBoleto.nossoNumero && (
-                            <div style={{ fontSize:11, color:"#9aaa9f", marginBottom:16 }}>
-                                Nosso Número: <strong style={{ color:"#0d1f18" }}>{modalBoleto.nossoNumero}</strong>
+                            <div style={{ fontSize:11, color:_textMuted, marginBottom:16 }}>
+                                Nosso Número: <strong style={{ color:_text }}>{modalBoleto.nossoNumero}</strong>
                             </div>
                         )}
 
@@ -5910,25 +5911,25 @@ function FinContratos({ anoLetivo }) {
                             <button onClick={() => setModalHistoricoCR(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f", padding:4 }}><X size={16} /></button>
                         </div>
                         {histCRList.length === 0 ? (
-                            <p style={{ color:"#9aaa9f", fontSize:13, textAlign:"center", padding:"24px 0" }}>Nenhum registro de pagamento encontrado.</p>
+                            <p style={{ color:_textMuted, fontSize:13, textAlign:"center", padding:"24px 0" }}>Nenhum registro de pagamento encontrado.</p>
                         ) : (
                             <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
                                 <thead>
-                                    <tr style={{ borderBottom:"1px solid #eaeef2" }}>
+                                    <tr style={{ borderBottom:"1px solid "+_border }}>
                                         {["Data Pgto","Valor Pago","Forma","Juros","Multa","Obs"].map(h => (
-                                            <th key={h} style={{ padding:"6px 8px", textAlign:"left", color:"#9aaa9f", fontSize:10, textTransform:"uppercase" }}>{h}</th>
+                                            <th key={h} style={{ padding:"6px 8px", textAlign:"left", color:_textMuted, fontSize:10, textTransform:"uppercase" }}>{h}</th>
                                         ))}
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {histCRList.map(h => (
-                                        <tr key={h.id} style={{ borderBottom:"1px solid #f2f5f2" }}>
-                                            <td style={{ padding:"8px 8px" }}>{fmtData(h.dataPagamento)}</td>
+                                        <tr key={h.id} style={{ borderBottom:"1px solid "+_border }}>
+                                            <td style={{ padding:"8px 8px", color:_text }}>{fmtData(h.dataPagamento)}</td>
                                             <td style={{ padding:"8px 8px", fontWeight:600, color:"#2d6a4f" }}>{fmt(h.valorPago)}</td>
-                                            <td style={{ padding:"8px 8px", color:"#9aaa9f" }}>{h.formaPagamentoNome || "—"}</td>
-                                            <td style={{ padding:"8px 8px", color:"#9aaa9f" }}>{h.jurosAplicado ? fmt(h.jurosAplicado) : "—"}</td>
-                                            <td style={{ padding:"8px 8px", color:"#9aaa9f" }}>{h.multaAplicada ? fmt(h.multaAplicada) : "—"}</td>
-                                            <td style={{ padding:"8px 8px", color:"#9aaa9f", fontSize:11 }}>{h.observacoes || "—"}</td>
+                                            <td style={{ padding:"8px 8px", color:_textMuted }}>{h.formaPagamentoNome || "—"}</td>
+                                            <td style={{ padding:"8px 8px", color:_textMuted }}>{h.jurosAplicado ? fmt(h.jurosAplicado) : "—"}</td>
+                                            <td style={{ padding:"8px 8px", color:_textMuted }}>{h.multaAplicada ? fmt(h.multaAplicada) : "—"}</td>
+                                            <td style={{ padding:"8px 8px", color:_textMuted, fontSize:11 }}>{h.observacoes || "—"}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -5994,7 +5995,8 @@ function FinContratos({ anoLetivo }) {
 
 // ---- FIN CONTAS A PAGAR ----
 function FinContasPagar() {
-    const { _bgCard, _border, _text, _textMuted, _warnAlt } = useDarkVars();
+    const { _bg, _bgCard, _border, _text, _textMuted, _warnAlt } = useDarkVars();
+    const dark = localStorage.getItem("theme") === "dark";
     const [contas, setContas] = useState([]);
     const [modelos, setModelos] = useState([]);
     const [formasPagamento, setFormasPagamento] = useState([]);
@@ -6144,11 +6146,11 @@ function FinContasPagar() {
             {/* Cards de resumo */}
             <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12 }}>
                 {[
-                    { label:"A Pagar (Pendente)", valor: resumoCP.pendente, cor:"#c47a00", bg:"#fff8e1", icon: <Clock size={18} color="#c47a00" /> },
-                    { label:`Vencidas (${resumoCP.nVencido})`,  valor: resumoCP.vencido,  cor:"#b94040", bg:"#fdf0f0", icon: <AlertCircle size={18} color="#b94040" /> },
-                    { label:"Pagas (período)",    valor: resumoCP.pago,    cor:"#2d6a4f", bg:"#f0f5f2", icon: <CheckCircle2 size={18} color="#2d6a4f" /> },
+                    { label:"A Pagar (Pendente)", valor: resumoCP.pendente, cor: dark?"#f0c060":"#c47a00", bg: dark?"#2a2000":"#fff8e1", icon: <Clock size={18} color={dark?"#f0c060":"#c47a00"} /> },
+                    { label:`Vencidas (${resumoCP.nVencido})`,  valor: resumoCP.vencido,  cor: dark?"#f0a0a0":"#b94040", bg: dark?"#2a1010":"#fdf0f0", icon: <AlertCircle size={18} color={dark?"#f0a0a0":"#b94040"} /> },
+                    { label:"Pagas (período)",    valor: resumoCP.pago,    cor:"#2d6a4f", bg: dark?"#152a1e":"#f0f5f2", icon: <CheckCircle2 size={18} color="#2d6a4f" /> },
                 ].map(c => (
-                    <div key={c.label} style={{ background:c.bg, borderRadius:8, padding:"14px 18px", display:"flex", alignItems:"center", gap:12 }}>
+                    <div key={c.label} style={{ background:c.bg, borderRadius:8, padding:"14px 18px", display:"flex", alignItems:"center", gap:12, border:"1px solid "+_border }}>
                         <div style={{ flexShrink:0 }}>{c.icon}</div>
                         <div>
                             <div style={{ fontSize:10, color:c.cor, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.5px" }}>{c.label}</div>
@@ -6159,14 +6161,14 @@ function FinContasPagar() {
             </div>
 
             {/* Abas: Contas | Modelos */}
-            <div style={{ display:"flex", borderBottom:"2px solid #eaeef2", gap:0 }}>
+            <div style={{ display:"flex", borderBottom:"2px solid "+_border, gap:0 }}>
                 {[
                     { id:"contas",  label:`Contas (${contas.length})` },
                     { id:"modelos", label:`Modelos (${modelos.length})` },
                 ].map(t => (
                     <button key={t.id} onClick={() => setAbaCP(t.id)}
                         style={{ background:"none", border:"none", cursor:"pointer", padding:"10px 20px", fontSize:13, fontWeight:600,
-                            color: abaCP===t.id ? "#2d6a4f" : "#9aaa9f",
+                            color: abaCP===t.id ? "#2d6a4f" : _textMuted,
                             borderBottom: abaCP===t.id ? "2px solid #2d6a4f" : "2px solid transparent",
                             marginBottom:-2, fontFamily:"'DM Sans',sans-serif" }}>
                         {t.label}
@@ -6231,22 +6233,22 @@ function FinContasPagar() {
                                 <th>Descrição</th><th>Tipo</th><th>Valor</th><th>Valor Pago</th><th>Pago em</th><th>Forma Pgto</th><th>Vencimento</th><th>Mês Ref.</th><th>Status</th><th>Pessoa/Func.</th><th></th>
                             </tr></thead>
                             <tbody>
-                                {contas.length === 0 && <tr><td colSpan={11} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Nenhuma conta encontrada</td></tr>}
+                                {contas.length === 0 && <tr><td colSpan={11} style={{ textAlign:"center", color:_textMuted, padding:24 }}>Nenhuma conta encontrada</td></tr>}
                                 {contas.map(cp => {
                                     const st = computarStatus(cp);
                                     const sc = statusBadge(st);
                                     return (
                                         <tr key={cp.id}>
-                                            <td style={{ fontWeight:500 }}>{cp.descricao}</td>
-                                            <td style={{ fontSize:11 }}>{cp.tipo}</td>
-                                            <td style={{ fontWeight:500 }}>{fmt(cp.valor)}</td>
-                                            <td style={{ fontSize:11, color: cp.valorPago ? "#2d6a4f" : "#9aaa9f", fontWeight: cp.valorPago ? 600 : 400 }}>{cp.valorPago ? fmt(cp.valorPago) : "—"}</td>
-                                            <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.dataPagamento ? fmtData(cp.dataPagamento) : "—"}</td>
-                                            <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.formaPagamentoNome || "—"}</td>
-                                            <td>{fmtData(cp.dataVencimento)}</td>
-                                            <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.mesReferencia||"—"}</td>
+                                            <td style={{ fontWeight:500, color:_text }}>{cp.descricao}</td>
+                                            <td style={{ fontSize:11, color:_textMuted }}>{cp.tipo}</td>
+                                            <td style={{ fontWeight:500, color:_text }}>{fmt(cp.valor)}</td>
+                                            <td style={{ fontSize:11, color: cp.valorPago ? "#2d6a4f" : _textMuted, fontWeight: cp.valorPago ? 600 : 400 }}>{cp.valorPago ? fmt(cp.valorPago) : "—"}</td>
+                                            <td style={{ fontSize:11, color:_textMuted }}>{cp.dataPagamento ? fmtData(cp.dataPagamento) : "—"}</td>
+                                            <td style={{ fontSize:11, color:_textMuted }}>{cp.formaPagamentoNome || "—"}</td>
+                                            <td style={{ color:_text }}>{fmtData(cp.dataVencimento)}</td>
+                                            <td style={{ fontSize:11, color:_textMuted }}>{cp.mesReferencia||"—"}</td>
                                             <td><span className="dd-badge" style={{ ...sc, borderRadius:3 }}>{st}</span></td>
-                                            <td style={{ fontSize:11, color:"#9aaa9f" }}>{cp.pessoaNome||cp.funcionarioNome||"—"}</td>
+                                            <td style={{ fontSize:11, color:_textMuted }}>{cp.pessoaNome||cp.funcionarioNome||"—"}</td>
                                             <td>
                                                 {(st==="PENDENTE"||st==="VENCIDO"||st==="PARCIALMENTE_PAGO") && (
                                                     <div style={{ display:"flex", gap:6 }}>
@@ -6279,14 +6281,14 @@ function FinContasPagar() {
                         <table className="dd-table" style={{ width:"100%" }}>
                             <thead><tr><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Dia Venc.</th><th>Fornecedor</th><th>Ativo</th><th></th></tr></thead>
                             <tbody>
-                                {modelos.length === 0 && <tr><td colSpan={7} style={{ textAlign:"center", color:"#9aaa9f", padding:24 }}>Nenhum modelo cadastrado</td></tr>}
+                                {modelos.length === 0 && <tr><td colSpan={7} style={{ textAlign:"center", color:_textMuted, padding:24 }}>Nenhum modelo cadastrado</td></tr>}
                                 {modelos.map(m => (
                                     <tr key={m.id}>
-                                        <td style={{ fontWeight:500 }}>{m.descricao}</td>
-                                        <td style={{ fontSize:11 }}>{m.categoria.replace("_"," ")}</td>
-                                        <td>{fmt(m.valor)}</td>
-                                        <td style={{ fontSize:12 }}>Dia {m.diaVencimento||"—"}</td>
-                                        <td style={{ fontSize:11, color:"#9aaa9f" }}>{m.pessoaNome||"—"}</td>
+                                        <td style={{ fontWeight:500, color:_text }}>{m.descricao}</td>
+                                        <td style={{ fontSize:11, color:_textMuted }}>{m.categoria.replace("_"," ")}</td>
+                                        <td style={{ color:_text }}>{fmt(m.valor)}</td>
+                                        <td style={{ fontSize:12, color:_text }}>Dia {m.diaVencimento||"—"}</td>
+                                        <td style={{ fontSize:11, color:_textMuted }}>{m.pessoaNome||"—"}</td>
                                         <td>
                                             <button onClick={() => toggleAtivo(m.id)}
                                                 style={{ fontSize:10, padding:"2px 10px", border:"none", cursor:"pointer", borderRadius:3,
@@ -6473,7 +6475,7 @@ function FinContasPagar() {
                                 </div>
                             ))}
                             <div>
-                                <label className="dd-label">Fornecedor / Pessoa <span style={{ color:"#9aaa9f", fontWeight:400 }}>(opcional)</span></label>
+                                <label className="dd-label">Fornecedor / Pessoa <span style={{ color:_textMuted, fontWeight:400 }}>(opcional)</span></label>
                                 <SearchSelect
                                     value={formModelo.pessoaId||""}
                                     onChange={v => setFormModelo(m => ({ ...m, pessoaId: v }))}
@@ -6502,7 +6504,7 @@ function FinContasPagar() {
                             <button onClick={() => setModalHistoricoCP(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f" }}><X size={18} /></button>
                         </div>
                         {modalHistoricoCP.registros.length === 0 ? (
-                            <p style={{ color:"#9aaa9f", fontSize:13, textAlign:"center", padding:"16px 0" }}>Nenhum registro de pagamento encontrado.</p>
+                            <p style={{ color:_textMuted, fontSize:13, textAlign:"center", padding:"16px 0" }}>Nenhum registro de pagamento encontrado.</p>
                         ) : (
                             <table className="dd-table" style={{ width:"100%" }}>
                                 <thead><tr>
@@ -6511,12 +6513,12 @@ function FinContasPagar() {
                                 <tbody>
                                     {modalHistoricoCP.registros.map(h => (
                                         <tr key={h.id}>
-                                            <td>{fmtData(h.dataPagamento)}</td>
+                                            <td style={{ color:_text }}>{fmtData(h.dataPagamento)}</td>
                                             <td style={{ fontWeight:600, color:"#2d6a4f" }}>{fmt(h.valorPago)}</td>
-                                            <td style={{ fontSize:11, color:"#9aaa9f" }}>{h.formaPagamentoNome||"—"}</td>
-                                            <td style={{ fontSize:11 }}>{h.jurosAplicado ? fmt(h.jurosAplicado) : "—"}</td>
-                                            <td style={{ fontSize:11 }}>{h.multaAplicada ? fmt(h.multaAplicada) : "—"}</td>
-                                            <td style={{ fontSize:11, color:"#9aaa9f" }}>{h.dataRegistro ? new Date(h.dataRegistro).toLocaleString("pt-BR") : "—"}</td>
+                                            <td style={{ fontSize:11, color:_textMuted }}>{h.formaPagamentoNome||"—"}</td>
+                                            <td style={{ fontSize:11, color:_text }}>{h.jurosAplicado ? fmt(h.jurosAplicado) : "—"}</td>
+                                            <td style={{ fontSize:11, color:_text }}>{h.multaAplicada ? fmt(h.multaAplicada) : "—"}</td>
+                                            <td style={{ fontSize:11, color:_textMuted }}>{h.dataRegistro ? new Date(h.dataRegistro).toLocaleString("pt-BR") : "—"}</td>
                                         </tr>
                                     ))}
                                 </tbody>
