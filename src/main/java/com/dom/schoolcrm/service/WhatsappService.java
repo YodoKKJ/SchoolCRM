@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.Base64;
 import java.util.Map;
 
 /**
@@ -120,7 +121,49 @@ public class WhatsappService {
         return true;
     }
 
+    /**
+     * Envia um PDF via WhatsApp (Evolution API sendMedia com base64).
+     * @param telefone  número do destinatário
+     * @param pdfBytes  conteúdo do PDF
+     * @param fileName  nome do arquivo (ex: "boletim_joao.pdf")
+     * @param caption   legenda da mensagem (opcional)
+     */
+    public void enviarPdf(String telefone, byte[] pdfBytes, String fileName, String caption) {
+        WhatsappConfig config = getConfig();
+        String telNorm = normalizarTelefone(telefone);
+        if (telNorm == null) throw new IllegalArgumentException("Telefone inválido: " + telefone);
+
+        String base64 = Base64.getEncoder().encodeToString(pdfBytes);
+        enviarMediaBase64(config, telNorm, base64, fileName, "application/pdf", caption);
+    }
+
     // ======================== EVOLUTION API ========================
+
+    private void enviarMediaBase64(WhatsappConfig config, String telefone,
+                                    String base64, String fileName, String mediatype, String caption) {
+        String instanceEncoded = URLEncoder.encode(config.getInstanceName(), StandardCharsets.UTF_8);
+        String url = config.getApiUrl().replaceAll("/$", "")
+                + "/message/sendMedia/" + instanceEncoded;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("apikey", config.getApiKey());
+
+        Map<String, Object> body = Map.of(
+                "number", telefone,
+                "mediatype", "document",
+                "media", "data:" + mediatype + ";base64," + base64,
+                "fileName", fileName,
+                "caption", caption != null ? caption : ""
+        );
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+
+        if (!response.getStatusCode().is2xxSuccessful()) {
+            throw new RuntimeException("Evolution API retornou " + response.getStatusCode() + ": " + response.getBody());
+        }
+    }
 
     private void enviarViaEvolutionApi(WhatsappConfig config, String telefone, String mensagem) {
         String instanceEncoded = URLEncoder.encode(config.getInstanceName(), StandardCharsets.UTF_8);

@@ -29,6 +29,8 @@ public class Usuario {
     @Column(name = "nome_mae")
     private String nomeMae;
 
+    private String telefone;
+
     // Getters e Setters
     public Long getId() { return id; }
     public String getNome() { return nome; }
@@ -39,6 +41,7 @@ public class Usuario {
     public LocalDate getDataNascimento() { return dataNascimento; }
     public String getNomePai() { return nomePai; }
     public String getNomeMae() { return nomeMae; }
+    public String getTelefone() { return telefone; }
 
     public void setId(Long id) { this.id = id; }
     public void setNome(String nome) { this.nome = nome; }
@@ -49,4 +52,5 @@ public class Usuario {
     public void setDataNascimento(LocalDate dataNascimento) { this.dataNascimento = dataNascimento; }
     public void setNomePai(String nomePai) { this.nomePai = nomePai; }
     public void setNomeMae(String nomeMae) { this.nomeMae = nomeMae; }
+    public void setTelefone(String telefone) { this.telefone = telefone; }
 }
