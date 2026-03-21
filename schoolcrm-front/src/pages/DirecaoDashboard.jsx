@@ -4420,6 +4420,9 @@ function useDarkVars() {
         _border:    dark ? "#2a3d32" : "#eaeef2",
         _text:      dark ? "#e0ebe3" : "#0d1f18",
         _textMuted: dark ? "#6a8a72" : "#9aaa9f",
+        _warn:      dark ? { background:"#3a2800", border:"1px solid #5a4020", color:"#f0c060" } : { background:"#fff8e8", border:"1px solid #f0c070", color:"#b45309" },
+        _warnAlt:   dark ? { background:"#3a2800", border:"1px solid #5a4020", color:"#f0c060" } : { background:"#fff8e1", border:"1px solid #ffe082", color:"#7a4800" },
+        _errBg:     dark ? { background:"#2a1010", border:"1px solid #5a2020", color:"#f0a0a0" } : { background:"#fff5f5", border:"1px solid #f5c0c0", color:"#b94040" },
     };
 }
 const statusColors = {
@@ -5991,7 +5994,7 @@ function FinContratos({ anoLetivo }) {
 
 // ---- FIN CONTAS A PAGAR ----
 function FinContasPagar() {
-    const { _bgCard, _border, _text, _textMuted } = useDarkVars();
+    const { _bgCard, _border, _text, _textMuted, _warnAlt } = useDarkVars();
     const [contas, setContas] = useState([]);
     const [modelos, setModelos] = useState([]);
     const [formasPagamento, setFormasPagamento] = useState([]);
@@ -6748,7 +6751,7 @@ const FIN_RELATORIOS_LIST = [
 ];
 
 function FinRelatorios() {
-    const { _bgCard, _border, _text, _textMuted } = useDarkVars();
+    const { _bgCard, _border, _text, _textMuted, _errBg } = useDarkVars();
     const [modalRel, setModalRel]   = useState(null); // relatório selecionado
     const [filtros, setFiltros]     = useState({});
     const [carregando, setCarregando] = useState(false);
