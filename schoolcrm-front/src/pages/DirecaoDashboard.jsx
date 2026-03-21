@@ -7323,7 +7323,7 @@ function FinConfiguracoes({ anoLetivo }) {
                                     <div>
                                         <label className="dd-label">Ambiente</label>
                                         <div className="dd-input-wrap">
-                                            <select className="dd-input" value={sicoobForm.ambiente||""} onChange={e => sfc("ambiente", e.target.value)} style={{ background:_bgCard, color:_text }}>
+                                            <select className="dd-input" value={sicoobForm.ambiente||""} onChange={e => sfc("ambiente", e.target.value)} style={{ background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
                                                 <option value="SANDBOX">Sandbox (Homologação)</option>
                                                 <option value="PRODUCAO">Produção</option>
                                             </select>
@@ -7393,7 +7393,7 @@ function FinConfiguracoes({ anoLetivo }) {
                                     <div>
                                         <label className="dd-label">Modalidade</label>
                                         <div className="dd-input-wrap">
-                                            <select className="dd-input" value={sicoobForm.modalidade??1} onChange={e => sfc("modalidade", Number(e.target.value))} style={{ background:_bgCard, color:_text }}>
+                                            <select className="dd-input" value={sicoobForm.modalidade??1} onChange={e => sfc("modalidade", Number(e.target.value))} style={{ background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
                                                 <option value={1}>1 — Simples com Registro</option>
                                                 <option value={2}>2 — Vinculada</option>
                                                 <option value={3}>3 — Caucionada</option>
@@ -7404,7 +7404,7 @@ function FinConfiguracoes({ anoLetivo }) {
                                     <div>
                                         <label className="dd-label">Espécie Documento</label>
                                         <div className="dd-input-wrap">
-                                            <select className="dd-input" value={sicoobForm.especieDocumento||"DM"} onChange={e => sfc("especieDocumento", e.target.value)} style={{ background:_bgCard, color:_text }}>
+                                            <select className="dd-input" value={sicoobForm.especieDocumento||"DM"} onChange={e => sfc("especieDocumento", e.target.value)} style={{ background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
                                                 <option value="DM">DM — Duplicata Mercantil</option>
                                                 <option value="DS">DS — Duplicata de Serviço</option>
                                                 <option value="RC">RC — Recibo</option>
@@ -7506,7 +7506,7 @@ function FinConfiguracoes({ anoLetivo }) {
                                             <div>
                                                 <label className="dd-label" style={{ fontSize:10 }}>Tipo</label>
                                                 <select value={certTipo} onChange={e => setCertTipo(e.target.value)}
-                                                    style={{ display:"block", border:"1px solid "+_border, padding:"6px 10px", fontSize:12, borderRadius:4, background:_bgCard, color:_text }}>
+                                                    style={{ display:"block", border:"1px solid "+_border, padding:"6px 10px", fontSize:12, borderRadius:4, background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
                                                     <option value="PFX">PFX / P12</option>
                                                     <option value="PEM">PEM / CRT</option>
                                                 </select>

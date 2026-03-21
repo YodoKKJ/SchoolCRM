@@ -3,7 +3,9 @@ package com.dom.schoolcrm.service;
 import com.dom.schoolcrm.entity.FinSicoobConfig;
 import com.dom.schoolcrm.repository.FinSicoobConfigRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -33,18 +35,28 @@ public class FinSicoobConfigService {
 
     /**
      * Retorna a config singleton. Cria com defaults se não existir.
+     * Thread-safe: se dois requests tentam criar ao mesmo tempo,
+     * o segundo pega o registro já criado pelo primeiro.
      */
+    @Transactional
     public FinSicoobConfig getConfig() {
         return repository.findAll().stream().findFirst()
                 .orElseGet(() -> {
-                    FinSicoobConfig c = new FinSicoobConfig();
-                    return repository.save(c);
+                    try {
+                        FinSicoobConfig c = new FinSicoobConfig();
+                        return repository.save(c);
+                    } catch (DataIntegrityViolationException e) {
+                        // Race condition: outro thread já criou — buscar novamente
+                        return repository.findAll().stream().findFirst()
+                                .orElseThrow(() -> new RuntimeException("Não foi possível criar configuração Sicoob"));
+                    }
                 });
     }
 
     /**
      * Salva as configurações (exceto certificado, que tem endpoint próprio).
      */
+    @Transactional
     public FinSicoobConfig save(FinSicoobConfig config) {
         return repository.save(config);
     }
@@ -53,6 +65,7 @@ public class FinSicoobConfigService {
      * Faz upload e salva o certificado digital (.pfx ou .pem).
      * Para PFX: lê a validade do certificado automaticamente.
      */
+    @Transactional
     public FinSicoobConfig uploadCertificado(MultipartFile arquivo, String senha, String tipo) throws IOException {
         FinSicoobConfig config = getConfig();
 
@@ -108,6 +121,7 @@ public class FinSicoobConfigService {
     /**
      * Upload da chave privada (.key) para certificados PEM.
      */
+    @Transactional
     public FinSicoobConfig uploadChavePrivada(MultipartFile arquivo) throws IOException {
         FinSicoobConfig config = getConfig();
 
@@ -129,6 +143,7 @@ public class FinSicoobConfigService {
     /**
      * Remove o certificado digital.
      */
+    @Transactional
     public FinSicoobConfig removerCertificado() {
         FinSicoobConfig config = getConfig();
 
@@ -160,7 +175,16 @@ public class FinSicoobConfigService {
         boolean temClientId = config.getClientId() != null && !config.getClientId().isBlank();
         boolean temClientSecret = config.getClientSecret() != null && !config.getClientSecret().isBlank();
         boolean temCert = config.getCertCaminho() != null;
-        boolean certExiste = temCert && Files.exists(Paths.get(config.getCertCaminho()));
+
+        boolean certExiste = false;
+        if (temCert) {
+            try {
+                certExiste = Files.exists(Paths.get(config.getCertCaminho()));
+            } catch (Exception e) {
+                certExiste = false; // Caminho inválido = não encontrado
+            }
+        }
+
         boolean temBeneficiario = config.getNumeroBeneficiario() != null && !config.getNumeroBeneficiario().isBlank();
         boolean temCooperativa = config.getCooperativa() != null && !config.getCooperativa().isBlank();
         boolean temConta = config.getContaCorrente() != null && !config.getContaCorrente().isBlank();
