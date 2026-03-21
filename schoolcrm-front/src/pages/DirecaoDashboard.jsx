@@ -7034,7 +7034,17 @@ function FinConfiguracoes({ anoLetivo }) {
                 especieDocumento: r.data.especieDocumento || "DM",
                 aceite: r.data.aceite ?? false,
             });
-        }).catch(() => {});
+        }).catch(() => {
+            // Se o backend ainda não tem o endpoint, mostra form vazio
+            setSicoobConfig({ ativo: false, ambiente: "SANDBOX", temCertificado: false });
+            setSicoobForm({
+                ambiente: "SANDBOX", clientId: "", clientSecret: "",
+                numeroBeneficiario: "", cooperativa: "", contaCorrente: "",
+                webhookSecret: "", baseUrl: "https://sandbox.sicoob.com.br",
+                tokenUrl: "https://sandbox.sicoob.com.br/auth/realms/cooperado/protocol/openid-connect/token",
+                modalidade: 1, especieDocumento: "DM", aceite: false,
+            });
+        });
     };
 
     const salvarSicoob = async e => {
