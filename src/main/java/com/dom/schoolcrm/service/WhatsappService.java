@@ -12,10 +12,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.*;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -37,7 +41,10 @@ public class WhatsappService {
     @Autowired
     private WhatsappNotificacaoRepository notificacaoRepository;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = new RestTemplateBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .readTimeout(Duration.ofSeconds(30))
+            .build();
 
     // ======================== CONFIG (singleton) ========================
 
@@ -105,6 +112,7 @@ public class WhatsappService {
         String telNorm = normalizarTelefone(telefone);
         if (telNorm == null) throw new IllegalArgumentException("Telefone inválido: " + telefone);
 
+        log.info("Enviando mensagem manual para {} (normalizado: {})", telefone, telNorm);
         enviarViaEvolutionApi(config, telNorm, mensagem);
         return true;
     }
@@ -112,8 +120,9 @@ public class WhatsappService {
     // ======================== EVOLUTION API ========================
 
     private void enviarViaEvolutionApi(WhatsappConfig config, String telefone, String mensagem) {
+        String instanceEncoded = URLEncoder.encode(config.getInstanceName(), StandardCharsets.UTF_8);
         String url = config.getApiUrl().replaceAll("/$", "")
-                + "/message/sendText/" + config.getInstanceName();
+                + "/message/sendText/" + instanceEncoded;
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -144,8 +153,9 @@ public class WhatsappService {
             throw new IllegalStateException("Configuração incompleta. Preencha URL, instância e API Key.");
         }
 
+        String instanceEncoded = URLEncoder.encode(config.getInstanceName(), StandardCharsets.UTF_8);
         String url = config.getApiUrl().replaceAll("/$", "")
-                + "/instance/connectionState/" + config.getInstanceName();
+                + "/instance/connectionState/" + instanceEncoded;
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("apikey", config.getApiKey());
@@ -189,6 +199,11 @@ public class WhatsappService {
         if (telefone == null || telefone.isBlank()) return null;
 
         String limpo = telefone.replaceAll("[^0-9]", "");
+
+        // Remove zero à esquerda (ex: 04999786910 → 4999786910)
+        while (limpo.startsWith("0")) {
+            limpo = limpo.substring(1);
+        }
 
         // Muito curto — inválido
         if (limpo.length() < 10) return null;
