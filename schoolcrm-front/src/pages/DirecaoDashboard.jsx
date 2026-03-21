@@ -9,7 +9,7 @@ import {
     TrendingUp, TrendingDown, ArrowLeftRight, Settings, BarChart2, Briefcase,
     Receipt, Building2, CheckCircle2, AlertCircle, Ban, Wallet, CreditCard,
     Bell, Megaphone, Shield, Send, ChevronUp, RefreshCw, Eye, Moon, Sun,
-    MessageSquare
+    MessageSquare, MessageCircle
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from "recharts";
 
@@ -1323,10 +1323,10 @@ function Inicio({ anoLetivo }) {
 function Usuarios() {
     const [usuarios, setUsuarios] = useState([]);
     const [idsComVinculos, setIdsComVinculos] = useState(new Set());
-    const [form, setForm] = useState({ nome: "", login: "", senha: "", role: "ALUNO", dataNascimento: "", nomePai: "", nomeMae: "" });
+    const [form, setForm] = useState({ nome: "", login: "", senha: "", role: "ALUNO", dataNascimento: "", nomePai: "", nomeMae: "", telefone: "" });
     const [msg, setMsg] = useState({ texto: "", tipo: "" });
     const [editando, setEditando] = useState(null);
-    const [formEdit, setFormEdit] = useState({ nome: "", login: "", senha: "", dataNascimento: "", nomePai: "", nomeMae: "" });
+    const [formEdit, setFormEdit] = useState({ nome: "", login: "", senha: "", dataNascimento: "", nomePai: "", nomeMae: "", telefone: "" });
     const [msgEdit, setMsgEdit] = useState({ texto: "", tipo: "" });
     const [campoBusca, setCampoBusca] = useState("nome");
     const [termoBusca, setTermoBusca] = useState("");
@@ -1380,7 +1380,7 @@ function Usuarios() {
         try {
             await api.post("/usuarios", form);
             setMsg({ texto: "Usuário cadastrado com sucesso!", tipo: "ok" });
-            setForm({ nome: "", login: "", senha: "", role: "ALUNO", dataNascimento: "", nomePai: "", nomeMae: "" });
+            setForm({ nome: "", login: "", senha: "", role: "ALUNO", dataNascimento: "", nomePai: "", nomeMae: "", telefone: "" });
             carregar();
         } catch { setMsg({ texto: "Erro ao cadastrar. Login já existe?", tipo: "erro" }); }
         finally { setSalvando(false); }
@@ -1393,6 +1393,7 @@ function Usuarios() {
             dataNascimento: u.dataNascimento || "",
             nomePai: u.nomePai || "",
             nomeMae: u.nomeMae || "",
+            telefone: u.telefone || "",
         });
         setMsgEdit({ texto: "", tipo: "" });
     };
@@ -1534,6 +1535,15 @@ function Usuarios() {
                                                 <input className="dd-input" type="text" placeholder="Nome da mãe"
                                                        value={formEdit.nomeMae}
                                                        onChange={e => setFormEdit({ ...formEdit, nomeMae: e.target.value })} />
+                                                <div className="dd-input-line" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="dd-label">Telefone <span style={{ fontWeight:300, color:"#b8c4be" }}>— WhatsApp</span></label>
+                                            <div className="dd-input-wrap">
+                                                <input className="dd-input" type="tel" placeholder="(49) 99978-6910"
+                                                       value={formEdit.telefone}
+                                                       onChange={e => setFormEdit({ ...formEdit, telefone: e.target.value })} />
                                                 <div className="dd-input-line" />
                                             </div>
                                         </div>
@@ -1843,6 +1853,14 @@ function Usuarios() {
                             <div className="dd-input-wrap">
                                 <input className="dd-input" type="text" placeholder="Nome da mãe"
                                        value={form.nomeMae} onChange={e => setForm({ ...form, nomeMae: e.target.value })} />
+                                <div className="dd-input-line" />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="dd-label">Telefone <span style={{ fontWeight:300, color:"#b8c4be" }}>— WhatsApp</span></label>
+                            <div className="dd-input-wrap">
+                                <input className="dd-input" type="tel" placeholder="(49) 99978-6910"
+                                       value={form.telefone} onChange={e => setForm({ ...form, telefone: e.target.value })} />
                                 <div className="dd-input-line" />
                             </div>
                         </div>
@@ -3714,13 +3732,14 @@ function Boletins({ anoLetivo }) {
     const [turmaId, setTurmaId] = useState("");
     const [gerando, setGerando] = useState(false);
     const [modoLote, setModoLote] = useState(false);
+    // WhatsApp
+    const [wppModal, setWppModal] = useState(false);
+    const [wppTurma, setWppTurma] = useState("");
+    const [wppBimestre, setWppBimestre] = useState("0");
+    const [wppMensagem, setWppMensagem] = useState("Boletim escolar de *{nome}* — {bimestre}");
+    const [wppEnviando, setWppEnviando] = useState(false);
+    const [wppResultado, setWppResultado] = useState(null);
 
-    // WhatsApp Boletim modal
-    const [showWhatsModal, setShowWhatsModal] = useState(false);
-    const [wTurmaId, setWTurmaId] = useState("");
-    const [wBimestre, setWBimestre] = useState("0");
-    const [wEnviando, setWEnviando] = useState(false);
-    const [wResultado, setWResultado] = useState(null);
 
     useEffect(() => {
         api.get("/usuarios").then(r => setAlunos((r.data || []).filter(u => u.role === "ALUNO" && u.ativo)));
@@ -3792,23 +3811,28 @@ function Boletins({ anoLetivo }) {
         }
     };
 
-    const turmasFiltradas = turmas.filter(t => t.anoLetivo === anoLetivo);
-    const dk = typeof useDarkVars === "function" ? useDarkVars() : {};
-
-    const enviarBoletinsWhatsApp = async () => {
-        if (!wTurmaId) return;
-        setWEnviando(true);
-        setWResultado(null);
+    const enviarBoletinsWhatsapp = async () => {
+        if (!wppTurma) return;
+        setWppEnviando(true);
+        setWppResultado(null);
         try {
-            const resp = await api.post(`/whatsapp/boletim/turma/${wTurmaId}?bimestre=${wBimestre}`);
-            setWResultado(resp.data);
+            const r = await api.post("/whatsapp/enviar-boletins", {
+                turmaId: Number(wppTurma),
+                bimestre: Number(wppBimestre),
+                mensagem: wppMensagem
+            });
+            setWppResultado(r.data);
         } catch (e) {
             const msg = e.response?.data?.detalhe || e.message;
             showToast("Erro ao enviar boletins: " + msg, "err");
         } finally {
-            setWEnviando(false);
+            setWppEnviando(false);
         }
     };
+
+    const turmasFiltradas = turmas.filter(t => t.anoLetivo === anoLetivo);
+    const dk = typeof useDarkVars === "function" ? useDarkVars() : {};
+
 
     return (
         <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
@@ -3816,12 +3840,6 @@ function Boletins({ anoLetivo }) {
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
                     <p className="dd-section-title" style={{ margin:0 }}>Gerar Boletim</p>
                     <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-                        <button
-                            onClick={() => { setShowWhatsModal(true); setWTurmaId(""); setWBimestre("0"); setWResultado(null); }}
-                            className="dd-btn-ghost"
-                            style={{ display:"flex", alignItems:"center", gap:6, fontSize:13, color:"#25d366", border:"1px solid #25d366", padding:"6px 14px", borderRadius:6 }}>
-                            <MessageSquare size={15} /> Enviar via WhatsApp
-                        </button>
                     </div>
                 </div>
                 <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:16 }}>
@@ -3897,129 +3915,128 @@ function Boletins({ anoLetivo }) {
                 </p>
             </div>
 
-            {/* ── Modal WhatsApp Boletim ── */}
-            {showWhatsModal && (
-                <div className="dd-modal-overlay" onClick={() => !wEnviando && setShowWhatsModal(false)}>
-                    <div className="dd-modal" onClick={e => e.stopPropagation()} style={{ maxWidth:600, width:"95%" }}>
-                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
-                            <h3 style={{ margin:0, fontSize:18, display:"flex", alignItems:"center", gap:8 }}>
-                                <MessageSquare size={20} color="#25d366" /> Enviar Boletins via WhatsApp
-                            </h3>
-                            <button onClick={() => !wEnviando && setShowWhatsModal(false)} style={{ background:"none", border:"none", cursor:"pointer", fontSize:18 }}>
-                                <X size={18} />
+            {/* Enviar via WhatsApp */}
+            <div className="dd-section" style={{ padding:24 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                    <div>
+                        <p className="dd-section-title" style={{ margin:0 }}>Enviar Boletins via WhatsApp</p>
+                        <p style={{ fontSize:12, color:"#9aaa9f", margin:"4px 0 0" }}>
+                            Envia o PDF do boletim para o aluno e seus responsáveis via WhatsApp.
+                        </p>
+                    </div>
+                    <button onClick={() => { setWppModal(true); setWppResultado(null); }}
+                            className="dd-btn-primary" style={{ whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:6 }}>
+                        <MessageCircle size={14} /> Enviar via WhatsApp
+                    </button>
+                </div>
+            </div>
+
+            {/* Modal WhatsApp */}
+            {wppModal && (
+                <div className="dd-modal-overlay" onMouseDown={e => e.target === e.currentTarget && !wppEnviando && setWppModal(false)}>
+                    <div className="dd-modal" style={{ maxWidth:560 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div>
+                                <p className="dd-modal-title">Enviar Boletins via WhatsApp</p>
+                                <p className="dd-modal-sub">Selecione a turma e o bimestre para enviar os boletins</p>
+                            </div>
+                            <button onClick={() => !wppEnviando && setWppModal(false)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f", padding:4 }}>
+                                <X size={16} />
                             </button>
                         </div>
 
-                        {!wResultado ? (
-                            <>
-                                <p style={{ fontSize:13, color:"#6b7c6e", marginBottom:20 }}>
-                                    O boletim em PDF será gerado e enviado para o WhatsApp do responsável de cada aluno da turma selecionada.
-                                </p>
-
-                                <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-                                    <div>
-                                        <label className="dd-label">Turma *</label>
-                                        <SearchSelect
-                                            options={turmasFiltradas.map(t => ({ value: t.id, label: fmtTurma(t) }))}
-                                            value={wTurmaId} onChange={setWTurmaId}
-                                            placeholder="Selecione a turma..." />
-                                    </div>
-
-                                    <div>
-                                        <label className="dd-label">Bimestre (mensagem)</label>
-                                        <select value={wBimestre} onChange={e => setWBimestre(e.target.value)}
-                                            className="dd-input" style={{ width:"100%" }}>
-                                            <option value="0">Geral (todos os bimestres)</option>
-                                            <option value="1">1º Bimestre</option>
-                                            <option value="2">2º Bimestre</option>
-                                            <option value="3">3º Bimestre</option>
-                                            <option value="4">4º Bimestre</option>
-                                        </select>
-                                        <p style={{ fontSize:11, color:"#9aaa9f", marginTop:4 }}>
-                                            Define o período mencionado na mensagem. O PDF sempre contém todos os dados disponíveis.
-                                        </p>
-                                    </div>
+                        {!wppResultado ? (
+                            <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                                <div>
+                                    <label className="dd-label">Turma</label>
+                                    <SearchSelect
+                                        options={turmasFiltradas.map(t => ({ value: t.id, label: fmtTurma(t) }))}
+                                        value={wppTurma} onChange={setWppTurma}
+                                        placeholder="Selecione a turma..." />
                                 </div>
-
-                                <div style={{ display:"flex", gap:12, marginTop:24, justifyContent:"flex-end" }}>
-                                    <button onClick={() => setShowWhatsModal(false)} disabled={wEnviando}
-                                        className="dd-btn-ghost" style={{ padding:"8px 20px" }}>
+                                <div>
+                                    <label className="dd-label">Bimestre <span style={{ fontWeight:300, color:"#b8c4be" }}>— usado na legenda da mensagem</span></label>
+                                    <SearchSelect
+                                        options={[
+                                            { value: "0", label: "Anual (completo)" },
+                                            { value: "1", label: "1º Bimestre" },
+                                            { value: "2", label: "2º Bimestre" },
+                                            { value: "3", label: "3º Bimestre" },
+                                            { value: "4", label: "4º Bimestre" },
+                                        ]}
+                                        value={wppBimestre} onChange={setWppBimestre}
+                                        placeholder="Selecione..." />
+                                </div>
+                                <div>
+                                    <label className="dd-label">Mensagem (legenda do PDF)</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" type="text"
+                                               value={wppMensagem}
+                                               onChange={e => setWppMensagem(e.target.value)}
+                                               placeholder="Boletim escolar de *{nome}* — {bimestre}" />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                    <p style={{ fontSize:10, color:"#9aaa9f", marginTop:4 }}>
+                                        Variáveis: <code>{"{nome}"}</code> <code>{"{bimestre}"}</code> — Use <code>*texto*</code> para <b>negrito</b>
+                                    </p>
+                                </div>
+                                <div style={{ display:"flex", gap:8, marginTop:4 }}>
+                                    <button onClick={() => setWppModal(false)} className="dd-btn-ghost" style={{ flex:1 }} disabled={wppEnviando}>
                                         Cancelar
                                     </button>
-                                    <button onClick={enviarBoletinsWhatsApp} disabled={!wTurmaId || wEnviando}
-                                        className="dd-btn-primary"
-                                        style={{ padding:"8px 20px", background: wEnviando ? "#9aaa9f" : "#25d366",
-                                                 display:"flex", alignItems:"center", gap:6 }}>
-                                        {wEnviando ? (
-                                            <><RefreshCw size={14} style={{ animation:"spin 1s linear infinite" }} /> Enviando...</>
-                                        ) : (
-                                            <><Send size={14} /> Enviar Boletins</>
-                                        )}
+                                    <button onClick={enviarBoletinsWhatsapp} className="dd-btn-primary" style={{ flex:1 }}
+                                            disabled={!wppTurma || wppEnviando}>
+                                        {wppEnviando ? "Enviando..." : "Enviar Boletins →"}
                                     </button>
                                 </div>
-                            </>
+                            </div>
                         ) : (
-                            /* ── Resultado do envio ── */
-                            <>
-                                <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:12, marginBottom:20 }}>
-                                    <div style={{ textAlign:"center", padding:12, background:"#f4f7f5", borderRadius:8 }}>
-                                        <div style={{ fontSize:24, fontWeight:700 }}>{wResultado.total}</div>
-                                        <div style={{ fontSize:11, color:"#6b7c6e" }}>Total</div>
-                                    </div>
-                                    <div style={{ textAlign:"center", padding:12, background:"#e8f5e9", borderRadius:8 }}>
-                                        <div style={{ fontSize:24, fontWeight:700, color:"#2e7d32" }}>{wResultado.enviados}</div>
-                                        <div style={{ fontSize:11, color:"#2e7d32" }}>Enviados</div>
-                                    </div>
-                                    <div style={{ textAlign:"center", padding:12, background:"#fff8e1", borderRadius:8 }}>
-                                        <div style={{ fontSize:24, fontWeight:700, color:"#f57f17" }}>{wResultado.semTelefone}</div>
-                                        <div style={{ fontSize:11, color:"#f57f17" }}>Sem telefone</div>
-                                    </div>
-                                    <div style={{ textAlign:"center", padding:12, background:"#fce4ec", borderRadius:8 }}>
-                                        <div style={{ fontSize:24, fontWeight:700, color:"#c62828" }}>{wResultado.erros}</div>
-                                        <div style={{ fontSize:11, color:"#c62828" }}>Erros</div>
-                                    </div>
+                            /* Resultado do envio */
+                            <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                                <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12 }}>
+                                    {[
+                                        ["Total", wppResultado.total, "#0d1f18", "#f0f5f2"],
+                                        ["Enviados", wppResultado.enviados, "#2d6a4f", "#e8f3ec"],
+                                        ["Sem Tel.", wppResultado.semTelefone, "#b58a1b", "#fef9e7"],
+                                        ["Erros", wppResultado.erros, "#b94040", "#fdf0f0"],
+                                    ].map(([label, val, color, bg]) => (
+                                        <div key={label} style={{ padding:"12px 10px", background:bg, borderRadius:8, textAlign:"center" }}>
+                                            <div style={{ fontSize:22, fontWeight:700, color }}>{val}</div>
+                                            <div style={{ fontSize:10, color, opacity:0.7, textTransform:"uppercase", letterSpacing:"0.5px", marginTop:2 }}>{label}</div>
+                                        </div>
+                                    ))}
                                 </div>
 
-                                <p style={{ fontSize:12, color:"#6b7c6e", marginBottom:8 }}>
-                                    <strong>{wResultado.turma}</strong> — {wResultado.bimestre}
-                                </p>
-
-                                <div style={{ maxHeight:300, overflowY:"auto", border:"1px solid #e0e7e2", borderRadius:6 }}>
-                                    <table style={{ width:"100%", fontSize:12, borderCollapse:"collapse" }}>
+                                <div style={{ maxHeight:300, overflow:"auto", border:"1px solid #eef0ec", borderRadius:8 }}>
+                                    <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
                                         <thead>
-                                            <tr style={{ background:"#f4f7f5", position:"sticky", top:0 }}>
-                                                <th style={{ padding:"8px 12px", textAlign:"left" }}>Aluno</th>
-                                                <th style={{ padding:"8px 12px", textAlign:"left" }}>Telefone</th>
-                                                <th style={{ padding:"8px 12px", textAlign:"center" }}>Status</th>
+                                            <tr>
+                                                <th style={{ position:"sticky", top:0, background:"#f8faf8" }}>Aluno</th>
+                                                <th style={{ position:"sticky", top:0, background:"#f8faf8" }}>Status</th>
+                                                <th style={{ position:"sticky", top:0, background:"#f8faf8" }}>Detalhe</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {(wResultado.itens || []).map((it, i) => (
-                                                <tr key={i} style={{ borderTop:"1px solid #e0e7e2" }}>
-                                                    <td style={{ padding:"8px 12px" }}>{it.alunoNome}</td>
-                                                    <td style={{ padding:"8px 12px", fontFamily:"monospace", fontSize:11 }}>{it.telefone || "—"}</td>
-                                                    <td style={{ padding:"8px 12px", textAlign:"center" }}>
-                                                        <span style={{
-                                                            padding:"2px 8px", borderRadius:10, fontSize:10, fontWeight:600,
-                                                            background: it.status === "ENVIADO" ? "#e8f5e9" : it.status === "SEM_TELEFONE" ? "#fff8e1" : "#fce4ec",
-                                                            color: it.status === "ENVIADO" ? "#2e7d32" : it.status === "SEM_TELEFONE" ? "#f57f17" : "#c62828"
-                                                        }}>
-                                                            {it.status === "ENVIADO" ? "✓ Enviado" : it.status === "SEM_TELEFONE" ? "Sem tel." : "Erro"}
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                            {(wppResultado.resultados || []).map((r, i) => {
+                                                const sc = { ENVIADO:{ bg:"#e8f3ec", color:"#2d6a4f" }, SEM_TELEFONE:{ bg:"#fef9e7", color:"#b58a1b" }, ERRO:{ bg:"#fdf0f0", color:"#b94040" } };
+                                                const s = sc[r.status] || sc.ERRO;
+                                                return (
+                                                    <tr key={i}>
+                                                        <td style={{ fontWeight:500 }}>{r.aluno}</td>
+                                                        <td><span className="dd-badge" style={{ ...s, fontSize:10 }}>{r.status}</span></td>
+                                                        <td style={{ fontSize:11, color:"#6b7a8d", maxWidth:200, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}
+                                                            title={r.detalhe}>{r.detalhe}</td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
 
-                                <div style={{ display:"flex", justifyContent:"flex-end", marginTop:20 }}>
-                                    <button onClick={() => setShowWhatsModal(false)}
-                                        className="dd-btn-primary" style={{ padding:"8px 24px" }}>
-                                        Fechar
-                                    </button>
-                                </div>
-                            </>
+                                <button onClick={() => { setWppModal(false); setWppResultado(null); }} className="dd-btn-primary" style={{ width:"100%" }}>
+                                    Fechar
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>

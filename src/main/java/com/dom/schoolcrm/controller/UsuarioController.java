@@ -80,6 +80,7 @@ public class UsuarioController {
         if (dataNascStr != null && !dataNascStr.isBlank()) usuario.setDataNascimento(LocalDate.parse(dataNascStr));
         usuario.setNomePai(body.get("nomePai"));
         usuario.setNomeMae(body.get("nomeMae"));
+        usuario.setTelefone(body.get("telefone"));
 
         usuarioRepository.save(usuario);
         auditService.log(auth, "CRIAR", "USUARIO", String.valueOf(usuario.getId()),
@@ -139,6 +140,7 @@ public class UsuarioController {
         }
         if (body.containsKey("nomePai")) usuario.setNomePai(body.get("nomePai"));
         if (body.containsKey("nomeMae")) usuario.setNomeMae(body.get("nomeMae"));
+        if (body.containsKey("telefone")) usuario.setTelefone(body.get("telefone"));
 
         usuarioRepository.save(usuario);
 

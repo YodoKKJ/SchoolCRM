@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.Base64;
 
 /**
  * Serviço de integração com a Evolution API para envio de mensagens WhatsApp.
@@ -36,20 +37,6 @@ public class WhatsappService {
     @Autowired
     private WhatsappNotificacaoRepository notificacaoRepository;
 
-    @Autowired
-    private AlunoTurmaRepository alunoTurmaRepository;
-
-    @Autowired
-    private FinResponsavelAlunoRepository responsavelAlunoRepository;
-
-    @Autowired
-    private RelatorioService relatorioService;
-
-    @Autowired
-    private TurmaRepository turmaRepository;
-
-    @Autowired
-    private UsuarioRepository usuarioRepository;
 
     private final RestTemplate restTemplate;
 
@@ -131,7 +118,49 @@ public class WhatsappService {
         return true;
     }
 
+    /**
+     * Envia um PDF via WhatsApp (Evolution API sendMedia com base64).
+     * @param telefone  número do destinatário
+     * @param pdfBytes  conteúdo do PDF
+     * @param fileName  nome do arquivo (ex: "boletim_joao.pdf")
+     * @param caption   legenda da mensagem (opcional)
+     */
+    public void enviarPdf(String telefone, byte[] pdfBytes, String fileName, String caption) {
+        WhatsappConfig config = getConfig();
+        String telNorm = normalizarTelefone(telefone);
+        if (telNorm == null) throw new IllegalArgumentException("Telefone inválido: " + telefone);
+
+        String base64 = Base64.getEncoder().encodeToString(pdfBytes);
+        enviarMediaBase64(config, telNorm, base64, fileName, "application/pdf", caption);
+    }
+
     // ======================== EVOLUTION API ========================
+
+    private void enviarMediaBase64(WhatsappConfig config, String telefone,
+                                    String base64, String fileName, String mediatype, String caption) {
+        String instanceEncoded = URLEncoder.encode(config.getInstanceName(), StandardCharsets.UTF_8);
+        String url = config.getApiUrl().replaceAll("/$", "")
+                + "/message/sendMedia/" + instanceEncoded;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("apikey", config.getApiKey());
+
+        Map<String, Object> body = Map.of(
+                "number", telefone,
+                "mediatype", "document",
+                "media", "data:" + mediatype + ";base64," + base64,
+                "fileName", fileName,
+                "caption", caption != null ? caption : ""
+        );
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+
+        if (!response.getStatusCode().is2xxSuccessful()) {
+            throw new RuntimeException("Evolution API retornou " + response.getStatusCode() + ": " + response.getBody());
+        }
+    }
 
     private void enviarViaEvolutionApi(WhatsappConfig config, String telefone, String mensagem) {
         String instanceEncoded = URLEncoder.encode(config.getInstanceName(), StandardCharsets.UTF_8);
@@ -178,170 +207,6 @@ public class WhatsappService {
         ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
 
         return response.getBody();
-    }
-
-    // ======================== BOLETIM VIA WHATSAPP ========================
-
-    /**
-     * Envia boletim PDF de cada aluno de uma turma via WhatsApp.
-     * O PDF é enviado como documento para o responsável principal.
-     *
-     * @param turmaId  ID da turma
-     * @param bimestre bimestre para a mensagem (0 = geral)
-     * @return mapa com resultado do envio em lote
-     */
-    public Map<String, Object> enviarBoletinsTurma(Long turmaId, int bimestre) {
-        WhatsappConfig config = getConfig();
-
-        Turma turma = turmaRepository.findById(turmaId)
-                .orElseThrow(() -> new IllegalArgumentException("Turma não encontrada"));
-
-        List<AlunoTurma> vinculos = alunoTurmaRepository.findByTurmaId(turmaId);
-        if (vinculos.isEmpty()) {
-            throw new IllegalArgumentException("Nenhum aluno nesta turma");
-        }
-
-        String bimestreLabel = bimestre > 0 ? bimestre + "º Bimestre" : "Geral";
-        String nomeTurma = turma.getSerie() != null && turma.getSerie().getNome() != null
-                ? turma.getSerie().getNome() + " — " + turma.getNome()
-                : turma.getNome();
-
-        int total = vinculos.size();
-        int enviados = 0;
-        int erros = 0;
-        int semTelefone = 0;
-        List<Map<String, Object>> itens = new ArrayList<>();
-
-        for (AlunoTurma vt : vinculos) {
-            Long alunoId = vt.getAluno().getId();
-            String alunoNome = vt.getAluno().getNome();
-            Map<String, Object> item = new LinkedHashMap<>();
-            item.put("alunoId", alunoId);
-            item.put("alunoNome", alunoNome);
-
-            try {
-                // Buscar responsável principal → telefone
-                FinResponsavelAluno resp = responsavelAlunoRepository.findByAlunoIdAndTipo(alunoId, "PRINCIPAL")
-                        .orElse(null);
-                if (resp == null) {
-                    List<FinResponsavelAluno> todos = responsavelAlunoRepository.findByAlunoId(alunoId);
-                    resp = todos.isEmpty() ? null : todos.get(0);
-                }
-
-                if (resp == null || resp.getPessoa() == null || resp.getPessoa().getTelefone() == null
-                        || resp.getPessoa().getTelefone().isBlank()) {
-                    semTelefone++;
-                    item.put("status", "SEM_TELEFONE");
-                    item.put("telefone", null);
-                    salvarNotificacaoBoletim(vt.getAluno(), null, "BOLETIM",
-                            null, "SEM_TELEFONE", "Responsável sem telefone cadastrado");
-                    itens.add(item);
-                    continue;
-                }
-
-                String telefone = normalizarTelefone(resp.getPessoa().getTelefone());
-                item.put("telefone", telefone);
-
-                if (telefone == null) {
-                    semTelefone++;
-                    item.put("status", "SEM_TELEFONE");
-                    salvarNotificacaoBoletim(vt.getAluno(), resp.getPessoa().getTelefone(), "BOLETIM",
-                            null, "ERRO", "Telefone inválido: " + resp.getPessoa().getTelefone());
-                    itens.add(item);
-                    continue;
-                }
-
-                // Gerar PDF do boletim
-                byte[] pdf = relatorioService.gerarBoletimPDF(alunoId, turmaId);
-
-                // Montar caption
-                String caption = String.format("📋 *Boletim Escolar*\n\nAluno: %s\nTurma: %s\nPeríodo: %s",
-                        alunoNome, nomeTurma, bimestreLabel);
-
-                // Enviar PDF via Evolution API
-                String fileName = "Boletim_" + alunoNome.replaceAll("[^a-zA-ZÀ-ú0-9]", "_") + ".pdf";
-                enviarDocumentoViaEvolutionApi(config, telefone, pdf, fileName, caption);
-
-                enviados++;
-                item.put("status", "ENVIADO");
-                salvarNotificacaoBoletim(vt.getAluno(), telefone, "BOLETIM", caption, "ENVIADO", null);
-                log.info("Boletim enviado: aluno {} → {}", alunoNome, telefone);
-
-            } catch (Exception e) {
-                erros++;
-                item.put("status", "ERRO");
-                item.put("erro", e.getMessage());
-                salvarNotificacaoBoletim(vt.getAluno(),
-                        item.get("telefone") != null ? item.get("telefone").toString() : null,
-                        "BOLETIM", null, "ERRO", e.getMessage());
-                log.error("Erro ao enviar boletim do aluno {}: {}", alunoNome, e.getMessage());
-            }
-
-            itens.add(item);
-
-            // Delay entre envios para evitar rate-limit
-            try { Thread.sleep(500); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
-        }
-
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("total", total);
-        result.put("enviados", enviados);
-        result.put("erros", erros);
-        result.put("semTelefone", semTelefone);
-        result.put("turma", nomeTurma);
-        result.put("bimestre", bimestreLabel);
-        result.put("itens", itens);
-        return result;
-    }
-
-    /**
-     * Envia documento PDF via Evolution API (sendMedia com mediatype=document).
-     */
-    private void enviarDocumentoViaEvolutionApi(WhatsappConfig config, String telefone,
-                                                  byte[] pdfBytes, String fileName, String caption) {
-        String instanceEncoded = URLEncoder.encode(config.getInstanceName(), StandardCharsets.UTF_8);
-        String url = config.getApiUrl().replaceAll("/$", "")
-                + "/message/sendMedia/" + instanceEncoded;
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("apikey", config.getApiKey());
-
-        String base64 = Base64.getEncoder().encodeToString(pdfBytes);
-
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("number", telefone);
-        body.put("mediatype", "document");
-        body.put("mimetype", "application/pdf");
-        body.put("caption", caption);
-        body.put("media", "data:application/pdf;base64," + base64);
-        body.put("fileName", fileName);
-
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-
-        // Timeout maior para envio de documento (PDF pode ser grande)
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(10_000);
-        factory.setReadTimeout(60_000);
-        RestTemplate mediaRt = new RestTemplate(factory);
-
-        ResponseEntity<String> response = mediaRt.exchange(url, HttpMethod.POST, request, String.class);
-
-        if (!response.getStatusCode().is2xxSuccessful()) {
-            throw new RuntimeException("Evolution API retornou " + response.getStatusCode() + ": " + response.getBody());
-        }
-    }
-
-    private void salvarNotificacaoBoletim(Usuario aluno, String telefone, String tipo,
-                                            String mensagem, String status, String erro) {
-        WhatsappNotificacao notif = new WhatsappNotificacao();
-        notif.setAluno(aluno);
-        notif.setTelefone(telefone != null ? telefone : "");
-        notif.setTipo(tipo);
-        notif.setMensagem(mensagem);
-        notif.setStatus(status);
-        notif.setErroDetalhe(erro);
-        notificacaoRepository.save(notif);
     }
 
     // ======================== HELPERS ========================
