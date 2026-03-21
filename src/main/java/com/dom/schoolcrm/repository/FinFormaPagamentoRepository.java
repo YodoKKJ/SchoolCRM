@@ -12,4 +12,6 @@ public interface FinFormaPagamentoRepository extends JpaRepository<FinFormaPagam
     List<FinFormaPagamento> findByAtivoTrueOrderByNomeAsc();
 
     boolean existsByNomeIgnoreCase(String nome);
+
+    java.util.Optional<FinFormaPagamento> findByNome(String nome);
 }

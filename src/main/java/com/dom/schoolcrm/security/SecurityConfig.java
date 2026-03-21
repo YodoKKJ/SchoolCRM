@@ -48,6 +48,9 @@ public class SecurityConfig {
                         // API de autenticação e preflight CORS
                         .requestMatchers("/auth/**").permitAll()
 
+                        // 🔓 Webhook Sicoob — endpoint público para notificações de pagamento
+                        .requestMatchers("/webhooks/sicoob/**").permitAll()
+
                         // 🔓 Preflight CORS
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 

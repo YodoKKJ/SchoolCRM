@@ -4424,6 +4424,9 @@ function FinDashboard() {
     const [mes, setMes] = useState(mesAtual());
     const [dados, setDados] = useState(null);
     const [carregando, setCarregando] = useState(false);
+    const [boletos, setBoletos] = useState([]);
+    const [boletoStatus, setBoletoStatus] = useState(null);
+    const [filtroBoleto, setFiltroBoleto] = useState("EMITIDO");
 
     useEffect(() => {
         setCarregando(true);
@@ -4432,6 +4435,13 @@ function FinDashboard() {
             .catch(() => setDados(null))
             .finally(() => setCarregando(false));
     }, [mes]);
+
+    useEffect(() => {
+        api.get("/fin/boletos/status").then(r => setBoletoStatus(r.data)).catch(() => {});
+        api.get("/fin/boletos", { params: { status: filtroBoleto || undefined } })
+            .then(r => setBoletos(Array.isArray(r.data) ? r.data : []))
+            .catch(() => setBoletos([]));
+    }, [filtroBoleto]);
 
     const kpis = dados?.kpis ?? {};
     const grafico = dados?.grafico ?? [];
@@ -4542,6 +4552,52 @@ function FinDashboard() {
                           </div>
                     }
                 </div>
+            </div>
+
+            {/* Boletos Sicoob */}
+            <div className="dd-section">
+                <div className="dd-section-header">
+                    <span className="dd-section-title">
+                        Boletos Sicoob
+                        {boletoStatus && <span style={{ fontSize:10, color: boletoStatus.provedor==="MOCK"?"#c47a00":"#2d6a4f", marginLeft:8, fontWeight:400 }}>({boletoStatus.provedor})</span>}
+                    </span>
+                    <div style={{ display:"flex", gap:6 }}>
+                        {["EMITIDO","PAGO","CANCELADO",""].map(s => (
+                            <button key={s||"todos"} onClick={() => setFiltroBoleto(s)}
+                                style={{ padding:"3px 10px", fontSize:10, fontFamily:"'DM Sans',sans-serif", border:"1px solid #eaeef2", borderRadius:3, cursor:"pointer",
+                                    background: filtroBoleto===s ? "#0d1f18" : "#fff", color: filtroBoleto===s ? "#fff" : "#9aaa9f", fontWeight: filtroBoleto===s ? 600 : 400 }}>
+                                {s || "Todos"}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                {boletos.length === 0
+                    ? <p style={{ padding:"20px", fontSize:12, color:"#9aaa9f", textAlign:"center" }}>Nenhum boleto {filtroBoleto ? `com status ${filtroBoleto}` : "encontrado"}</p>
+                    : <div className="dd-table-wrap">
+                        <table className="dd-table" style={{ width:"100%" }}>
+                            <thead><tr>
+                                <th>Aluno</th><th>Parcela</th><th>Valor</th><th>Vencimento</th><th>Status</th><th>Pagador</th><th>Nosso Nº</th>
+                            </tr></thead>
+                            <tbody>
+                                {boletos.slice(0, 50).map(b => {
+                                    const sc = statusBadge(b.status);
+                                    return (
+                                        <tr key={b.id}>
+                                            <td style={{ fontWeight:500 }}>{b.alunoNome || "—"}</td>
+                                            <td style={{ fontSize:11 }}>{b.numParcela ? `${b.numParcela}/${b.totalParcelas}` : "—"}</td>
+                                            <td style={{ fontWeight:500 }}>{fmt(b.valor)}</td>
+                                            <td>{fmtData(b.dataVencimento)}</td>
+                                            <td><span className="dd-badge" style={{ ...sc, borderRadius:3, fontSize:10 }}>{b.status}</span></td>
+                                            <td style={{ fontSize:11, color:"#9aaa9f" }}>{b.pagadorNome || "—"}</td>
+                                            <td style={{ fontSize:11, fontFamily:"monospace" }}>{b.nossoNumero || "—"}</td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                        {boletos.length > 50 && <p style={{ padding:"8px 20px", fontSize:11, color:"#9aaa9f" }}>Mostrando 50 de {boletos.length} boletos</p>}
+                      </div>
+                }
             </div>
         </div>
     );
@@ -5042,6 +5098,10 @@ function FinContratos({ anoLetivo }) {
     const [serieValores, setSerieValores] = useState({}); // { [serieId]: valorPadrao }
     const [avulsas, setAvulsas] = useState([]);
     const [filtroAvulsa, setFiltroAvulsa] = useState({ busca:"", status:"", pessoaId:"" });
+    const [modalBoleto, setModalBoleto] = useState(null); // { boleto data }
+    const [gerandoBoleto, setGerandoBoleto] = useState(null); // crId being generated
+    const [boletosGerados, setBoletosGerados] = useState({}); // { [crId]: boleto data }
+    const [pixCopiado, setPixCopiado] = useState(false);
 
     const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
 
@@ -5178,6 +5238,74 @@ function FinContratos({ anoLetivo }) {
             flash("Parcela cancelada.");
             carregarParcelas(contratoId);
         } catch(err) { flash(err.response?.data || "Erro.", "err"); }
+    };
+
+    // ── Boleto Sicoob ──────────────────────────────────────────
+    const gerarBoleto = async (crId) => {
+        setGerandoBoleto(crId);
+        try {
+            const r = await api.post(`/fin/boletos/gerar/${crId}`);
+            const boleto = r.data;
+            setBoletosGerados(prev => ({ ...prev, [crId]: boleto }));
+            setModalBoleto(boleto);
+            flash("Boleto gerado!");
+        } catch(err) {
+            flash(err.response?.data?.erro || "Erro ao gerar boleto.", "err");
+        } finally { setGerandoBoleto(null); }
+    };
+
+    const verBoleto = async (crId) => {
+        if (boletosGerados[crId]) { setModalBoleto(boletosGerados[crId]); return; }
+        try {
+            const r = await api.get(`/fin/boletos/por-conta-receber/${crId}`);
+            const lista = Array.isArray(r.data) ? r.data : [];
+            const emitido = lista.find(b => b.status === "EMITIDO") || lista[0];
+            if (emitido) {
+                setBoletosGerados(prev => ({ ...prev, [crId]: emitido }));
+                setModalBoleto(emitido);
+            } else {
+                gerarBoleto(crId);
+            }
+        } catch { gerarBoleto(crId); }
+    };
+
+    const gerarBoletosLote = async (contratoId) => {
+        setGerandoBoleto("lote-" + contratoId);
+        try {
+            const r = await api.post(`/fin/boletos/gerar-lote/${contratoId}`);
+            const resultados = r.data?.resultados || [];
+            const novos = {};
+            resultados.forEach(res => {
+                if (res.sucesso && res.dados) novos[res.contaReceberId] = res.dados;
+            });
+            setBoletosGerados(prev => ({ ...prev, ...novos }));
+            const ok = resultados.filter(r => r.sucesso).length;
+            flash(`${ok} boleto(s) gerado(s) com sucesso!`);
+        } catch(err) {
+            flash(err.response?.data?.erro || "Erro ao gerar boletos em lote.", "err");
+        } finally { setGerandoBoleto(null); }
+    };
+
+    const cancelarBoleto = async (boletoId) => {
+        if (!await showConfirm("Cancelar este boleto?")) return;
+        try {
+            await api.delete(`/fin/boletos/${boletoId}`);
+            // Remove do cache local
+            setBoletosGerados(prev => {
+                const novo = { ...prev };
+                for (const k in novo) { if (novo[k]?.id === boletoId) delete novo[k]; }
+                return novo;
+            });
+            setModalBoleto(null);
+            flash("Boleto cancelado.");
+        } catch(err) { flash(err.response?.data?.erro || "Erro ao cancelar boleto.", "err"); }
+    };
+
+    const copiarPix = (texto) => {
+        navigator.clipboard.writeText(texto).then(() => {
+            setPixCopiado(true);
+            setTimeout(() => setPixCopiado(false), 2000);
+        });
     };
 
     const cancelarAvulsa = async id => {
@@ -5320,6 +5448,11 @@ function FinContratos({ anoLetivo }) {
                                                 <div style={{ fontSize:10, color:"#9aaa9f" }}>base {fmt(c.valorBase)}</div>
                                             )}
                                         </div>
+                                        <button className="dd-btn-primary" style={{ fontSize:10, padding:"3px 10px", flexShrink:0 }}
+                                            onClick={e => { e.stopPropagation(); gerarBoletosLote(c.id); }}
+                                            disabled={gerandoBoleto === "lote-" + c.id}>
+                                            {gerandoBoleto === "lote-" + c.id ? "Gerando..." : "Gerar Boletos"}
+                                        </button>
                                         <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 10px", flexShrink:0 }}
                                             onClick={e => cancelarContrato(c.id, e)}>
                                             Cancelar
@@ -5358,26 +5491,31 @@ function FinContratos({ anoLetivo }) {
                                                             <td style={{ padding:"8px 10px", color:"#9aaa9f" }}>{cr.dataPagamento ? fmtData(cr.dataPagamento) : "—"}</td>
                                                             <td style={{ padding:"8px 10px", color: cr.valorPago ? "#2d6a4f" : "#9aaa9f", fontWeight: cr.valorPago ? 600 : 400 }}>{cr.valorPago ? fmt(cr.valorPago) : "—"}</td>
                                                             <td style={{ padding:"8px 10px" }}>
-                                                                {(st === "PENDENTE" || st === "VENCIDO" || st === "PARCIALMENTE_PAGO") && (
-                                                                    <div style={{ display:"flex", gap:4 }}>
-                                                                        <button className="dd-btn-edit" style={{ fontSize:10, padding:"3px 8px" }}
-                                                                            onClick={() => {
-                                                                                const saldo = cr.saldoDevedor ?? cr.valor;
-                                                                                const jaFoiPago = Number(cr.valorPago||0);
-                                                                                const isVencido = st === "VENCIDO";
-                                                                                const enc = (isVencido && !jaFoiPago) ? calcEncargos(cr.valor) : { juros:"", multa:"" };
-                                                                                const totalPreencher = (isVencido && !jaFoiPago)
-                                                                                    ? String((Number(cr.valor) + Number(enc.juros||0) + Number(enc.multa||0)).toFixed(2))
-                                                                                    : String(saldo);
-                                                                                setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: totalPreencher, formaPagamentoId:"", jurosAplicado: enc.juros, multaAplicada: enc.multa, observacoes:"" });
-                                                                                setModalBaixar({ crId: cr.id, contratoId: c.id, valor: cr.valor, isVencido, jaFoiPago, saldoDevedor: saldo });
-                                                                            }}>Baixar</button>
-                                                                        <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => cancelarParcela(cr.id, c.id)}>Cancelar</button>
-                                                                    </div>
-                                                                )}
+                                                                <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
+                                                                {(st === "PENDENTE" || st === "VENCIDO" || st === "PARCIALMENTE_PAGO") && (<>
+                                                                    <button className="dd-btn-edit" style={{ fontSize:10, padding:"3px 8px" }}
+                                                                        onClick={() => {
+                                                                            const saldo = cr.saldoDevedor ?? cr.valor;
+                                                                            const jaFoiPago = Number(cr.valorPago||0);
+                                                                            const isVencido = st === "VENCIDO";
+                                                                            const enc = (isVencido && !jaFoiPago) ? calcEncargos(cr.valor) : { juros:"", multa:"" };
+                                                                            const totalPreencher = (isVencido && !jaFoiPago)
+                                                                                ? String((Number(cr.valor) + Number(enc.juros||0) + Number(enc.multa||0)).toFixed(2))
+                                                                                : String(saldo);
+                                                                            setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: totalPreencher, formaPagamentoId:"", jurosAplicado: enc.juros, multaAplicada: enc.multa, observacoes:"" });
+                                                                            setModalBaixar({ crId: cr.id, contratoId: c.id, valor: cr.valor, isVencido, jaFoiPago, saldoDevedor: saldo });
+                                                                        }}>Baixar</button>
+                                                                    <button style={{ fontSize:10, padding:"3px 8px", background:"#e8f0ff", color:"#2563eb", border:"1px solid #c7d8f5", borderRadius:4, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", fontWeight:500 }}
+                                                                        onClick={() => verBoleto(cr.id)}
+                                                                        disabled={gerandoBoleto === cr.id}>
+                                                                        {gerandoBoleto === cr.id ? "..." : (boletosGerados[cr.id] ? "Ver Boleto" : "Boleto")}
+                                                                    </button>
+                                                                    <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => cancelarParcela(cr.id, c.id)}>Cancelar</button>
+                                                                </>)}
                                                                 {(st === "PAGO" || st === "PARCIALMENTE_PAGO") && (
                                                                     <button className="dd-btn-ghost" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => verHistoricoCR(cr.id, cr.descricao || `Parcela ${idx+1}`)}>Ver</button>
                                                                 )}
+                                                                </div>
                                                             </td>
                                                         </tr>
                                                     );
@@ -5662,6 +5800,88 @@ function FinContratos({ anoLetivo }) {
             )}
 
             {/* Modal Histórico de Pagamento CR */}
+            {/* Modal Boleto */}
+            {modalBoleto && (
+                <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalBoleto(null)}>
+                    <div className="dd-modal" style={{ maxWidth:520 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+                            <div>
+                                <p className="dd-modal-title">Boleto Bancário</p>
+                                <p className="dd-modal-sub">{modalBoleto.parcelaDescricao || "Boleto"}{modalBoleto.alunoNome ? ` — ${modalBoleto.alunoNome}` : ""}</p>
+                            </div>
+                            <button onClick={() => { setModalBoleto(null); setPixCopiado(false); }} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f", padding:4 }}><X size={16} /></button>
+                        </div>
+
+                        {/* Status */}
+                        <div style={{ display:"flex", gap:12, marginBottom:16 }}>
+                            <span className="dd-badge" style={{ ...statusBadge(modalBoleto.status), borderRadius:4, fontSize:11, padding:"3px 10px" }}>{modalBoleto.status}</span>
+                            {modalBoleto.pagadorNome && <span style={{ fontSize:12, color:"#9aaa9f" }}>Pagador: {modalBoleto.pagadorNome}</span>}
+                        </div>
+
+                        {/* Valores e datas */}
+                        <div style={{ display:"flex", gap:16, flexWrap:"wrap", padding:"12px 0", borderTop:"1px solid #eaeef2", borderBottom:"1px solid #eaeef2", marginBottom:16 }}>
+                            {[
+                                ["Valor", fmt(modalBoleto.valor), "#0d1f18"],
+                                ["Vencimento", fmtData(modalBoleto.dataVencimento), "#0d1f18"],
+                                ["Emissão", fmtData(modalBoleto.dataEmissao), "#9aaa9f"],
+                                ...(modalBoleto.valorPago ? [["Valor Pago", fmt(modalBoleto.valorPago), "#2d6a4f"]] : []),
+                            ].map(([l,v,col]) => (
+                                <div key={l} style={{ minWidth:80 }}>
+                                    <div style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.4px" }}>{l}</div>
+                                    <div style={{ fontSize:14, fontWeight:600, color:col, marginTop:2 }}>{v}</div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* PIX Copia e Cola */}
+                        {modalBoleto.pixCopiaCola && (
+                            <div style={{ marginBottom:16 }}>
+                                <div style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.4px", marginBottom:6 }}>PIX Copia e Cola</div>
+                                <div style={{ display:"flex", gap:8, alignItems:"stretch" }}>
+                                    <div style={{ flex:1, background:"#f8faf8", border:"1px solid #eaeef2", borderRadius:4, padding:"8px 10px", fontSize:11, fontFamily:"monospace", wordBreak:"break-all", color:"#0d1f18", maxHeight:60, overflow:"auto" }}>
+                                        {modalBoleto.pixCopiaCola}
+                                    </div>
+                                    <button onClick={() => copiarPix(modalBoleto.pixCopiaCola)}
+                                        style={{ padding:"8px 14px", background: pixCopiado ? "#2d6a4f" : "#e8f0ff", color: pixCopiado ? "#fff" : "#2563eb", border:"1px solid " + (pixCopiado ? "#2d6a4f" : "#c7d8f5"), borderRadius:4, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", fontSize:11, fontWeight:600, whiteSpace:"nowrap", transition:".2s" }}>
+                                        {pixCopiado ? "Copiado!" : "Copiar PIX"}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Linha Digitável */}
+                        {modalBoleto.linhaDigitavel && (
+                            <div style={{ marginBottom:16 }}>
+                                <div style={{ fontSize:10, color:"#9aaa9f", textTransform:"uppercase", letterSpacing:"0.4px", marginBottom:6 }}>Linha Digitável</div>
+                                <div style={{ background:"#f8faf8", border:"1px solid #eaeef2", borderRadius:4, padding:"8px 10px", fontSize:12, fontFamily:"monospace", letterSpacing:"0.5px", color:"#0d1f18", wordBreak:"break-all" }}>
+                                    {modalBoleto.linhaDigitavel}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Nosso Número */}
+                        {modalBoleto.nossoNumero && (
+                            <div style={{ fontSize:11, color:"#9aaa9f", marginBottom:16 }}>
+                                Nosso Número: <strong style={{ color:"#0d1f18" }}>{modalBoleto.nossoNumero}</strong>
+                            </div>
+                        )}
+
+                        {/* Erro */}
+                        {modalBoleto.erroMensagem && (
+                            <div className="dd-err" style={{ marginBottom:16 }}>{modalBoleto.erroMensagem}</div>
+                        )}
+
+                        {/* Ações */}
+                        <div style={{ display:"flex", gap:8, justifyContent:"flex-end", marginTop:8 }}>
+                            {modalBoleto.status === "EMITIDO" && (
+                                <button className="dd-btn-danger" style={{ fontSize:11 }} onClick={() => cancelarBoleto(modalBoleto.id)}>Cancelar Boleto</button>
+                            )}
+                            <button className="dd-btn-ghost" onClick={() => { setModalBoleto(null); setPixCopiado(false); }}>Fechar</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {modalHistoricoCR && (
                 <div className="dd-modal-overlay" onClick={e => e.target===e.currentTarget && setModalHistoricoCR(null)}>
                     <div className="dd-modal" style={{ maxWidth:480 }}>
