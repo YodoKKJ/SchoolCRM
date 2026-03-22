@@ -146,19 +146,23 @@ public class WhatsappService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("apikey", config.getApiKey());
 
-        Map<String, Object> body = Map.of(
-                "number", telefone,
-                "mediatype", "document",
-                "media", "data:" + mediatype + ";base64," + base64,
-                "fileName", fileName,
-                "caption", caption != null ? caption : ""
-        );
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("number", telefone);
+        body.put("mediatype", "document");
+        body.put("mimetype", mediatype);
+        body.put("media", "data:" + mediatype + ";base64," + base64);
+        body.put("fileName", fileName);
+        body.put("caption", caption != null ? caption : "");
 
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-        ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
-
-        if (!response.getStatusCode().is2xxSuccessful()) {
-            throw new RuntimeException("Evolution API retornou " + response.getStatusCode() + ": " + response.getBody());
+        try {
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                throw new RuntimeException("Evolution API retornou " + response.getStatusCode() + ": " + response.getBody());
+            }
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            log.error("Evolution API sendMedia erro {} para {}: {}", e.getStatusCode(), telefone, e.getResponseBodyAsString());
+            throw new RuntimeException("Evolution API " + e.getStatusCode() + ": " + e.getResponseBodyAsString());
         }
     }
 
