@@ -146,13 +146,16 @@ public class WhatsappService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("apikey", config.getApiKey());
 
+        Map<String, Object> mediaMessage = new LinkedHashMap<>();
+        mediaMessage.put("mediatype", "document");
+        mediaMessage.put("mimetype", mediatype);
+        mediaMessage.put("media", "data:" + mediatype + ";base64," + base64);
+        mediaMessage.put("fileName", fileName);
+        mediaMessage.put("caption", caption != null ? caption : "");
+
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("number", telefone);
-        body.put("mediatype", "document");
-        body.put("mimetype", mediatype);
-        body.put("media", base64);
-        body.put("fileName", fileName);
-        body.put("caption", caption != null ? caption : "");
+        body.put("mediaMessage", mediaMessage);
 
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
         try {
