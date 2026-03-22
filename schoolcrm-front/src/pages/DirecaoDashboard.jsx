@@ -32,6 +32,13 @@ let redirectingTo401 = false;
 const _toastListeners = [];
 function showToast(msg, tipo = "ok") { _toastListeners.forEach(fn => fn(msg, tipo)); }
 
+function formatarTelefone(v) {
+    const d = v.replace(/\D/g, "").slice(0, 11);
+    if (d.length <= 2) return d;
+    if (d.length <= 7) return `(${d.slice(0,2)}) ${d.slice(2)}`;
+    return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+}
+
 function ToastContainer() {
     const [toasts, setToasts] = useState([]);
     useEffect(() => {
@@ -1543,7 +1550,7 @@ function Usuarios() {
                                             <div className="dd-input-wrap">
                                                 <input className="dd-input" type="tel" placeholder="(49) 99978-6910"
                                                        value={formEdit.telefone}
-                                                       onChange={e => setFormEdit({ ...formEdit, telefone: e.target.value })} />
+                                                       onChange={e => setFormEdit({ ...formEdit, telefone: formatarTelefone(e.target.value) })} />
                                                 <div className="dd-input-line" />
                                             </div>
                                         </div>
@@ -1860,7 +1867,7 @@ function Usuarios() {
                             <label className="dd-label">Telefone <span style={{ fontWeight:300, color:"#b8c4be" }}>— WhatsApp</span></label>
                             <div className="dd-input-wrap">
                                 <input className="dd-input" type="tel" placeholder="(49) 99978-6910"
-                                       value={form.telefone} onChange={e => setForm({ ...form, telefone: e.target.value })} />
+                                       value={form.telefone} onChange={e => setForm({ ...form, telefone: formatarTelefone(e.target.value) })} />
                                 <div className="dd-input-line" />
                             </div>
                         </div>
@@ -8054,7 +8061,7 @@ function WhatsappConfigSection() {
                             <div>
                                 <label className="dd-label">Telefone (com DDD)</label>
                                 <div className="dd-input-wrap">
-                                    <input className="dd-input" value={formTeste.telefone} onChange={e => setFormTeste(f => ({ ...f, telefone: e.target.value }))}
+                                    <input className="dd-input" value={formTeste.telefone} onChange={e => setFormTeste(f => ({ ...f, telefone: formatarTelefone(e.target.value) }))}
                                         placeholder="(62) 99999-9999" required />
                                     <div className="dd-input-line" />
                                 </div>
