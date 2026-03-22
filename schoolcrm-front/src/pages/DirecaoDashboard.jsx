@@ -2344,7 +2344,10 @@ function EditarTurma({ turma, onVoltar }) {
             await api.delete("/vinculos/aluno-turma", { data: { alunoId: String(v.aluno.id), turmaId: String(turma.id) } });
             setMsg({ texto: "Aluno removido!", tipo: "ok" });
             carregar();
-        } catch { setMsg({ texto: "Erro ao remover.", tipo: "erro" }); }
+        } catch (e) {
+            const detalhe = e.response?.status === 409 ? e.response.data : "Erro ao remover.";
+            setMsg({ texto: detalhe, tipo: "erro" });
+        }
     };
 
     const removerProf = async v => {

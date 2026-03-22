@@ -23,6 +23,8 @@ public class VinculoController {
     @Autowired private TurmaRepository turmaRepository;
     @Autowired private MateriaRepository materiaRepository;
     @Autowired private ProfessorTurmaMateriaRepository professorTurmaMateriaRepository;
+    @Autowired private NotaRepository notaRepository;
+    @Autowired private PresencaRepository presencaRepository;
 
     // ─── Matrícula de aluno ───────────────────────────────────────────────────
 
@@ -145,6 +147,16 @@ public class VinculoController {
             turmaId = Long.parseLong(body.get("turmaId"));
         } catch (NumberFormatException | NullPointerException e) {
             return ResponseEntity.badRequest().body("alunoId e turmaId são obrigatórios e devem ser numéricos.");
+        }
+
+        boolean temNotas = !notaRepository.findByAlunoIdAndAvaliacaoTurmaId(alunoId, turmaId).isEmpty();
+        boolean temPresencas = !presencaRepository.findByAlunoIdAndTurmaId(alunoId, turmaId).isEmpty();
+
+        if (temNotas || temPresencas) {
+            String motivo = temNotas && temPresencas ? "notas e presenças"
+                    : temNotas ? "notas" : "presenças";
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Não é possível remover o aluno desta turma pois ele já possui " + motivo + " registradas.");
         }
 
         alunoTurmaRepository.deleteByIdAlunoIdAndIdTurmaId(alunoId, turmaId);
