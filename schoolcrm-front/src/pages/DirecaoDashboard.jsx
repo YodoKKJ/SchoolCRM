@@ -238,6 +238,7 @@ const modulos = [
         label: "Gestão",
         items: [
             { id: "usuarios",     label: "Usuários",      icon: Users },
+            { id: "responsaveis", label: "Responsáveis",  icon: UserCheck, direcaoOnly: true },
             { id: "comunicados",  label: "Comunicados",   icon: Megaphone },
             { id: "fin-config",   label: "Configurações", icon: Settings, direcaoOnly: true },
             { id: "auditoria",    label: "Auditoria",     icon: Shield, direcaoOnly: true },
@@ -826,7 +827,7 @@ export default function DirecaoDashboard() {
         : modulos;
 
     // Se por algum motivo a aba ativa for restrita e o usuário for COORDENACAO, redireciona para início
-    const COORD_BLOQUEADAS = ["fin-dashboard","fin-pessoas","fin-funcionarios","fin-contratos","fin-pagar","fin-movimentacoes","fin-config","auditoria"];
+    const COORD_BLOQUEADAS = ["fin-dashboard","fin-pessoas","fin-funcionarios","fin-contratos","fin-pagar","fin-movimentacoes","fin-config","auditoria","responsaveis"];
     const setAbaSegura = (id) => {
         if (isCoord && COORD_BLOQUEADAS.includes(id)) return;
         setAba(id);
@@ -992,6 +993,7 @@ export default function DirecaoDashboard() {
                         {aba === "fin-movimentacoes" && <ErrorBoundary key="fin-movimentacoes"><FinMovimentacoes /></ErrorBoundary>}
                         {aba === "fin-relatorios"    && <ErrorBoundary key="fin-relatorios"><FinRelatorios /></ErrorBoundary>}
                         {aba === "fin-config"       && !isCoord && <ErrorBoundary key="fin-config"><FinConfiguracoes anoLetivo={anoLetivo} /></ErrorBoundary>}
+                        {aba === "responsaveis"     && !isCoord && <ErrorBoundary key="responsaveis"><Responsaveis /></ErrorBoundary>}
                         {aba === "comunicados"      && <ErrorBoundary key="comunicados"><Comunicados /></ErrorBoundary>}
                         {aba === "auditoria"        && !isCoord && <ErrorBoundary key="auditoria"><AuditLog /></ErrorBoundary>}
                     </main>
@@ -8155,6 +8157,255 @@ function WhatsappConfigSection() {
                     </div>
                 )}
             </div>
+        </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RESPONSÁVEIS — Vincular FinPessoa a Aluno
+// ═══════════════════════════════════════════════════════════════
+function Responsaveis() {
+    const { _bgCard, _border, _text, _textMuted } = useDarkVars();
+    const dark = localStorage.getItem("theme") === "dark";
+
+    const [alunos, setAlunos] = useState([]);
+    const [alunoId, setAlunoId] = useState("");
+    const [responsaveis, setResponsaveis] = useState([]);
+    const [pessoas, setPessoas] = useState([]);
+    const [msg, setMsg] = useState({ texto:"", tipo:"" });
+    const [modal, setModal] = useState(false);
+    const [form, setForm] = useState({ pessoaId:"", tipo:"PRINCIPAL", parentesco:"PAI" });
+    const [salvando, setSalvando] = useState(false);
+    const [editando, setEditando] = useState(null);
+    const [termoBusca, setTermoBusca] = useState("");
+
+    const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
+
+    useEffect(() => {
+        api.get("/usuarios/buscar", { params: { role:"ALUNO" } })
+            .then(r => setAlunos((r.data || []).filter(u => u.ativo)))
+            .catch(() => {});
+        api.get("/fin/pessoas").then(r => setPessoas(r.data || [])).catch(() => {});
+    }, []);
+
+    const carregarResp = (id) => {
+        if (!id) { setResponsaveis([]); return; }
+        api.get(`/fin/responsaveis/aluno/${id}`).then(r => setResponsaveis(r.data || [])).catch(() => setResponsaveis([]));
+    };
+
+    useEffect(() => { carregarResp(alunoId); }, [alunoId]);
+
+    const vincular = async () => {
+        if (!form.pessoaId || !alunoId) return;
+        setSalvando(true);
+        try {
+            await api.post("/fin/responsaveis", { pessoaId: Number(form.pessoaId), alunoId: Number(alunoId), tipo: form.tipo, parentesco: form.parentesco });
+            flash("Responsável vinculado!");
+            setModal(false);
+            carregarResp(alunoId);
+        } catch (e) {
+            flash(e.response?.data || "Erro ao vincular.", "err");
+        } finally { setSalvando(false); }
+    };
+
+    const atualizar = async () => {
+        if (!editando) return;
+        setSalvando(true);
+        try {
+            await api.put(`/fin/responsaveis/${editando.id}`, { tipo: editando.tipo, parentesco: editando.parentesco });
+            flash("Atualizado!");
+            setEditando(null);
+            carregarResp(alunoId);
+        } catch (e) {
+            flash(e.response?.data || "Erro ao atualizar.", "err");
+        } finally { setSalvando(false); }
+    };
+
+    const remover = async (id) => {
+        try {
+            await api.delete(`/fin/responsaveis/${id}`);
+            flash("Vínculo removido.");
+            carregarResp(alunoId);
+        } catch (e) {
+            flash(e.response?.data || "Erro ao remover.", "err");
+        }
+    };
+
+    const tipoColors = { PRINCIPAL: { bg:"#e8f3ec", color:"#2d6a4f" }, SECUNDARIO: { bg:"#e8f0ff", color:"#2563eb" } };
+    const parentescoOpts = ["PAI", "MAE", "AVO", "TIO", "RESPONSAVEL", "OUTRO"];
+
+    const alunosFiltrados = alunos.filter(a =>
+        !termoBusca || a.nome.toLowerCase().includes(termoBusca.toLowerCase())
+    );
+
+    const alunoSel = alunos.find(a => String(a.id) === String(alunoId));
+
+    return (
+        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+            {/* Seleção de aluno */}
+            <div className="dd-section" style={{ padding:24 }}>
+                <p className="dd-section-title" style={{ marginBottom:16 }}>Responsáveis por Aluno</p>
+                <p style={{ fontSize:12, color:_textMuted, marginBottom:16 }}>
+                    Selecione um aluno para gerenciar seus responsáveis financeiros (máx. 2 por aluno).
+                </p>
+                <div style={{ display:"flex", gap:12, alignItems:"flex-end" }}>
+                    <div style={{ flex:1 }}>
+                        <label className="dd-label">Aluno</label>
+                        <SearchSelect
+                            options={alunosFiltrados.map(a => ({ value: String(a.id), label: a.nome }))}
+                            value={alunoId}
+                            onChange={v => setAlunoId(v)}
+                            placeholder="Buscar aluno..."
+                        />
+                    </div>
+                </div>
+                {msg.texto && <div className={msg.tipo === "ok" ? "dd-ok" : "dd-err"} style={{ marginTop:12 }}>{msg.texto}</div>}
+            </div>
+
+            {/* Responsáveis do aluno selecionado */}
+            {alunoId && (
+                <div className="dd-section" style={{ padding:24 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                        <div>
+                            <p className="dd-section-title" style={{ margin:0 }}>
+                                {alunoSel ? alunoSel.nome : "Aluno"}
+                            </p>
+                            <p style={{ fontSize:12, color:_textMuted, margin:"4px 0 0" }}>
+                                {responsaveis.length === 0 ? "Nenhum responsável cadastrado" : `${responsaveis.length} responsável(is)`}
+                            </p>
+                        </div>
+                        {responsaveis.length < 2 && (
+                            <button onClick={() => { setForm({ pessoaId:"", tipo: responsaveis.length === 0 ? "PRINCIPAL" : "SECUNDARIO", parentesco:"PAI" }); setModal(true); }}
+                                    className="dd-btn-primary" style={{ display:"flex", alignItems:"center", gap:6, whiteSpace:"nowrap" }}>
+                                <UserPlus size={14} /> Vincular Responsável
+                            </button>
+                        )}
+                    </div>
+
+                    {responsaveis.length === 0 ? (
+                        <div style={{ padding:32, textAlign:"center", color:_textMuted, background:dark?"#1a2822":"#f8faf8", borderRadius:8, border:"1px solid "+_border }}>
+                            <UserCheck size={32} style={{ opacity:0.3, marginBottom:8 }} />
+                            <p style={{ margin:0, fontSize:13 }}>Nenhum responsável vinculado a este aluno.</p>
+                            <p style={{ margin:"4px 0 0", fontSize:11, opacity:0.7 }}>Clique em "Vincular Responsável" para adicionar.</p>
+                        </div>
+                    ) : (
+                        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                            {responsaveis.map(r => (
+                                <div key={r.id} style={{ display:"flex", alignItems:"center", gap:16, padding:"14px 18px", background:dark?"#1a2822":"#f8faf8", borderRadius:8, border:"1px solid "+_border }}>
+                                    <div style={{ flex:1 }}>
+                                        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+                                            <span style={{ fontWeight:600, fontSize:14, color:_text }}>{r.pessoaNome}</span>
+                                            <span className="dd-badge" style={{ ...tipoColors[r.tipo], fontSize:9, padding:"2px 8px" }}>{r.tipo}</span>
+                                        </div>
+                                        <div style={{ display:"flex", gap:16, fontSize:11, color:_textMuted }}>
+                                            <span>Parentesco: <strong>{r.parentesco || "—"}</strong></span>
+                                            <span>CPF: {r.pessoaCpf || "—"}</span>
+                                            <span>Tel: {r.pessoaTelefone || "—"}</span>
+                                        </div>
+                                    </div>
+                                    <div style={{ display:"flex", gap:6 }}>
+                                        <button onClick={() => setEditando({ id:r.id, tipo:r.tipo, parentesco:r.parentesco })}
+                                                className="dd-btn-ghost" style={{ padding:"5px 10px", fontSize:11 }}>
+                                            <Pencil size={12} /> Editar
+                                        </button>
+                                        <button onClick={() => remover(r.id)}
+                                                className="dd-btn-ghost" style={{ padding:"5px 10px", fontSize:11, color:"#b94040" }}>
+                                            <Trash2 size={12} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Modal vincular */}
+            {modal && (
+                <div className="dd-modal-overlay" onMouseDown={e => e.target === e.currentTarget && setModal(false)}>
+                    <div className="dd-modal" style={{ maxWidth:480 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+                            <p className="dd-section-title" style={{ margin:0 }}>Vincular Responsável</p>
+                            <button onClick={() => setModal(false)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f", padding:4 }}>
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                            <div>
+                                <label className="dd-label">Pessoa (Responsável)</label>
+                                <SearchSelect
+                                    options={pessoas.filter(p => p.ativo !== false).map(p => ({ value: String(p.id), label: `${p.nome}${p.cpf ? " — " + p.cpf : ""}${p.telefone ? " — " + p.telefone : ""}` }))}
+                                    value={form.pessoaId}
+                                    onChange={v => setForm({ ...form, pessoaId: v })}
+                                    placeholder="Buscar pessoa..."
+                                />
+                            </div>
+                            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                                <div>
+                                    <label className="dd-label">Tipo</label>
+                                    <select className="dd-input" value={form.tipo} onChange={e => setForm({ ...form, tipo: e.target.value })}
+                                            style={{ colorScheme: dark?"dark":"light" }}>
+                                        <option value="PRINCIPAL">Principal</option>
+                                        <option value="SECUNDARIO">Secundário</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="dd-label">Parentesco</label>
+                                    <select className="dd-input" value={form.parentesco} onChange={e => setForm({ ...form, parentesco: e.target.value })}
+                                            style={{ colorScheme: dark?"dark":"light" }}>
+                                        {parentescoOpts.map(p => <option key={p} value={p}>{p.charAt(0) + p.slice(1).toLowerCase()}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                            <div style={{ display:"flex", gap:10 }}>
+                                <button onClick={() => setModal(false)} className="dd-btn-ghost" style={{ flex:1 }}>Cancelar</button>
+                                <button onClick={vincular} className="dd-btn-primary" style={{ flex:1 }} disabled={!form.pessoaId || salvando}>
+                                    {salvando ? "Salvando..." : "Vincular →"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal editar */}
+            {editando && (
+                <div className="dd-modal-overlay" onMouseDown={e => e.target === e.currentTarget && setEditando(null)}>
+                    <div className="dd-modal" style={{ maxWidth:400 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+                            <p className="dd-section-title" style={{ margin:0 }}>Editar Vínculo</p>
+                            <button onClick={() => setEditando(null)} style={{ background:"none", border:"none", cursor:"pointer", color:"#9aaa9f", padding:4 }}>
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                                <div>
+                                    <label className="dd-label">Tipo</label>
+                                    <select className="dd-input" value={editando.tipo} onChange={e => setEditando({ ...editando, tipo: e.target.value })}
+                                            style={{ colorScheme: dark?"dark":"light" }}>
+                                        <option value="PRINCIPAL">Principal</option>
+                                        <option value="SECUNDARIO">Secundário</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="dd-label">Parentesco</label>
+                                    <select className="dd-input" value={editando.parentesco || ""} onChange={e => setEditando({ ...editando, parentesco: e.target.value })}
+                                            style={{ colorScheme: dark?"dark":"light" }}>
+                                        {parentescoOpts.map(p => <option key={p} value={p}>{p.charAt(0) + p.slice(1).toLowerCase()}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                            <div style={{ display:"flex", gap:10 }}>
+                                <button onClick={() => setEditando(null)} className="dd-btn-ghost" style={{ flex:1 }}>Cancelar</button>
+                                <button onClick={atualizar} className="dd-btn-primary" style={{ flex:1 }} disabled={salvando}>
+                                    {salvando ? "Salvando..." : "Salvar →"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
