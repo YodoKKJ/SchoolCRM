@@ -2581,6 +2581,7 @@ function Materias() {
 
 // ---- LANÇAMENTOS ----
 function Lancamentos({ anoLetivo }) {
+    const { _bgCard, _border, _text, _textMuted, _warn } = useDarkVars();
     // ── seleção
     const [turmas, setTurmas] = useState([]);
     const [turmaId, setTurmaId] = useState("");
