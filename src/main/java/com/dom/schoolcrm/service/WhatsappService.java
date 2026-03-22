@@ -150,7 +150,7 @@ public class WhatsappService {
         body.put("number", telefone);
         body.put("mediatype", "document");
         body.put("mimetype", mediatype);
-        body.put("media", "data:" + mediatype + ";base64," + base64);
+        body.put("media", base64);
         body.put("fileName", fileName);
         body.put("caption", caption != null ? caption : "");
 
