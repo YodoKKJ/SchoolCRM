@@ -8,6 +8,7 @@ import com.dom.schoolcrm.service.WhatsappService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -157,6 +158,27 @@ public class WhatsappController {
         }
 
         vinculos.sort(Comparator.comparing(at -> at.getAluno().getNome()));
+
+        // Verificar se TODOS os alunos têm pelo menos um telefone (aluno ou responsável)
+        List<String> alunosSemTelefone = new ArrayList<>();
+        for (AlunoTurma at : vinculos) {
+            Usuario aluno = at.getAluno();
+            boolean temTel = aluno.getTelefone() != null && !aluno.getTelefone().isBlank();
+            if (!temTel) {
+                List<FinResponsavelAluno> resps = responsavelAlunoRepository.findByAlunoId(aluno.getId());
+                temTel = resps.stream().anyMatch(r ->
+                        r.getPessoa() != null && r.getPessoa().getTelefone() != null && !r.getPessoa().getTelefone().isBlank());
+            }
+            if (!temTel) alunosSemTelefone.add(aluno.getNome());
+        }
+
+        if (!alunosSemTelefone.isEmpty()) {
+            Map<String, Object> erro = new LinkedHashMap<>();
+            erro.put("status", "bloqueado");
+            erro.put("mensagem", "Existem alunos sem telefone cadastrado. Cadastre o telefone antes de enviar.");
+            erro.put("alunosSemTelefone", alunosSemTelefone);
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(erro);
+        }
 
         List<Map<String, Object>> resultados = new ArrayList<>();
         int enviados = 0;

@@ -3834,8 +3834,16 @@ function Boletins({ anoLetivo }) {
             });
             setWppResultado(r.data);
         } catch (e) {
-            const msg = e.response?.data?.detalhe || e.message;
-            showToast("Erro ao enviar boletins: " + msg, "err");
+            if (e.response?.status === 409 && e.response.data?.alunosSemTelefone) {
+                setWppResultado({
+                    bloqueado: true,
+                    mensagem: e.response.data.mensagem,
+                    alunosSemTelefone: e.response.data.alunosSemTelefone
+                });
+            } else {
+                const msg = e.response?.data?.detalhe || e.response?.data?.mensagem || e.message;
+                showToast("Erro ao enviar boletins: " + msg, "err");
+            }
         } finally {
             setWppEnviando(false);
         }
@@ -4000,6 +4008,31 @@ function Boletins({ anoLetivo }) {
                                         {wppEnviando ? "Enviando..." : "Enviar Boletins →"}
                                     </button>
                                 </div>
+                            </div>
+                        ) : wppResultado.bloqueado ? (
+                            /* Bloqueio — alunos sem telefone */
+                            <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+                                <div style={{ background:"#fef9e7", border:"1px solid #f0c070", borderRadius:8, padding:"14px 18px", color:"#7a4800", fontSize:13 }}>
+                                    {wppResultado.mensagem}
+                                </div>
+                                <div style={{ maxHeight:250, overflow:"auto", border:"1px solid #eef0ec", borderRadius:8 }}>
+                                    <table className="dd-table" style={{ width:"100%", borderCollapse:"collapse" }}>
+                                        <thead>
+                                            <tr><th style={{ position:"sticky", top:0, background:"#f8faf8" }}>Aluno sem telefone</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            {wppResultado.alunosSemTelefone.map((nome, i) => (
+                                                <tr key={i}><td style={{ fontWeight:500 }}>{nome}</td></tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <p style={{ fontSize:11, color:"#9aaa9f", margin:0 }}>
+                                    Cadastre o telefone dos alunos acima (ou de seus responsáveis) antes de enviar os boletins.
+                                </p>
+                                <button onClick={() => { setWppResultado(null); }} className="dd-btn-primary" style={{ width:"100%" }}>
+                                    Voltar
+                                </button>
                             </div>
                         ) : (
                             /* Resultado do envio */
