@@ -56,13 +56,13 @@ public class FinSicoobConfigController {
                     return ResponseEntity.badRequest().body(Map.of("erro", "Ambiente deve ser SANDBOX ou PRODUCAO"));
                 }
                 config.setAmbiente(amb);
-                // Auto-ajustar URLs baseado no ambiente
+                // Auto-ajustar URLs baseado no ambiente (V3)
                 if ("PRODUCAO".equals(amb)) {
-                    config.setBaseUrl("https://api.sicoob.com.br");
+                    config.setBaseUrl("https://api.sicoob.com.br/cobranca-bancaria/v3");
                     config.setTokenUrl("https://auth.sicoob.com.br/auth/realms/cooperado/protocol/openid-connect/token");
                 } else {
-                    config.setBaseUrl("https://sandbox.sicoob.com.br");
-                    config.setTokenUrl("https://sandbox.sicoob.com.br/auth/realms/cooperado/protocol/openid-connect/token");
+                    config.setBaseUrl("https://sandbox.sicoob.com.br/sicoob/sandbox/cobranca-bancaria/v3");
+                    config.setTokenUrl("https://auth.sicoob.com.br/auth/realms/cooperado/protocol/openid-connect/token");
                 }
             }
             if (body.containsKey("baseUrl")) {
@@ -74,12 +74,21 @@ public class FinSicoobConfigController {
             if (body.containsKey("clientId")) {
                 config.setClientId(String.valueOf(body.get("clientId")));
             }
-            // Só atualiza secret se não for o valor ofuscado
+            // Só atualiza secrets se não for o valor ofuscado
             if (body.containsKey("clientSecret")) {
                 String val = String.valueOf(body.get("clientSecret"));
                 if (!val.contains("••••••")) {
                     config.setClientSecret(val);
                 }
+            }
+            if (body.containsKey("accessToken")) {
+                String val = String.valueOf(body.get("accessToken"));
+                if (!val.contains("••••••")) {
+                    config.setAccessToken(val);
+                }
+            }
+            if (body.containsKey("numeroContratoCobranca")) {
+                config.setNumeroContratoCobranca(String.valueOf(body.get("numeroContratoCobranca")));
             }
             if (body.containsKey("numeroBeneficiario")) {
                 config.setNumeroBeneficiario(String.valueOf(body.get("numeroBeneficiario")));
