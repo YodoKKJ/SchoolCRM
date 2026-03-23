@@ -7249,7 +7249,9 @@ function FinConfiguracoes({ anoLetivo }) {
                 ambiente: r.data.ambiente || "SANDBOX",
                 clientId: r.data.clientId || "",
                 clientSecret: r.data.clientSecret || "",
+                accessToken: r.data.accessToken || "",
                 numeroBeneficiario: r.data.numeroBeneficiario || "",
+                numeroContratoCobranca: r.data.numeroContratoCobranca || "",
                 cooperativa: r.data.cooperativa || "",
                 contaCorrente: r.data.contaCorrente || "",
                 webhookSecret: r.data.webhookSecret || "",
@@ -7263,10 +7265,10 @@ function FinConfiguracoes({ anoLetivo }) {
             // Se o backend ainda não tem o endpoint, mostra form vazio
             setSicoobConfig({ ativo: false, ambiente: "SANDBOX", temCertificado: false });
             setSicoobForm({
-                ambiente: "SANDBOX", clientId: "", clientSecret: "",
-                numeroBeneficiario: "", cooperativa: "", contaCorrente: "",
-                webhookSecret: "", baseUrl: "https://sandbox.sicoob.com.br",
-                tokenUrl: "https://sandbox.sicoob.com.br/auth/realms/cooperado/protocol/openid-connect/token",
+                ambiente: "SANDBOX", clientId: "", clientSecret: "", accessToken: "",
+                numeroBeneficiario: "", numeroContratoCobranca: "", cooperativa: "", contaCorrente: "",
+                webhookSecret: "", baseUrl: "https://sandbox.sicoob.com.br/sicoob/sandbox/cobranca-bancaria/v3",
+                tokenUrl: "https://auth.sicoob.com.br/auth/realms/cooperado/protocol/openid-connect/token",
                 modalidade: 1, especieDocumento: "DM", aceite: false,
             });
         });
@@ -7565,10 +7567,10 @@ function FinConfiguracoes({ anoLetivo }) {
                             {/* Status cards */}
                             <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:12 }}>
                                 {[
-                                    { label:"Certificado", ok: sicoobConfig.temCertificado, detail: sicoobConfig.certNomeArquivo || "Não enviado" },
                                     { label:"Client ID", ok: !!sicoobConfig.clientId },
+                                    { label:"Access Token", ok: !!sicoobConfig.accessToken },
                                     { label:"Beneficiário", ok: !!sicoobConfig.numeroBeneficiario },
-                                    { label:"Cooperativa", ok: !!sicoobConfig.cooperativa },
+                                    { label:"Contrato", ok: !!sicoobConfig.numeroContratoCobranca },
                                 ].map((c, i) => (
                                     <div key={i} style={{ padding:"12px 16px", border:"1px solid "+_border, borderRadius:6, background: dark ? "#1e3028" : "#f8faf8" }}>
                                         <div style={{ fontSize:10, color:_textMuted, marginBottom:4 }}>{c.label}</div>
@@ -7613,6 +7615,18 @@ function FinConfiguracoes({ anoLetivo }) {
                                             </button>
                                         </div>
                                     </div>
+                                    <div style={{ gridColumn:"1 / -1" }}>
+                                        <label className="dd-label">Access Token <span style={{ fontWeight:400, fontSize:10, color:_textMuted }}>(gerado no portal Sicoob Developers)</span></label>
+                                        <div style={{ display:"flex", gap:4, alignItems:"flex-end" }}>
+                                            <div className="dd-input-wrap" style={{ flex:1 }}>
+                                                <input className="dd-input" type={showSecrets.accessToken ? "text" : "password"} value={sicoobForm.accessToken||""} onChange={e => sfc("accessToken", e.target.value)} placeholder="••••••••" style={{ fontSize:11 }} />
+                                                <div className="dd-input-line" />
+                                            </div>
+                                            <button type="button" onClick={() => setShowSecrets(s => ({...s, accessToken:!s.accessToken}))} style={{ background:"none", border:"none", cursor:"pointer", color:_textMuted, fontSize:11, padding:"4px 6px" }}>
+                                                {showSecrets.accessToken ? "Ocultar" : "Mostrar"}
+                                            </button>
+                                        </div>
+                                    </div>
                                     <div>
                                         <label className="dd-label">Webhook Secret</label>
                                         <div style={{ display:"flex", gap:4, alignItems:"flex-end" }}>
@@ -7628,11 +7642,18 @@ function FinConfiguracoes({ anoLetivo }) {
                                 </div>
 
                                 <div style={{ marginTop:20, marginBottom:12, fontWeight:600, fontSize:13, color:_text }}>Dados do Beneficiário</div>
-                                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16 }}>
+                                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
                                     <div>
-                                        <label className="dd-label">Nº Beneficiário</label>
+                                        <label className="dd-label">Nº Beneficiário (numeroCliente)</label>
                                         <div className="dd-input-wrap">
                                             <input className="dd-input" value={sicoobForm.numeroBeneficiario||""} onChange={e => sfc("numeroBeneficiario", e.target.value)} placeholder="Ex: 123456" />
+                                            <div className="dd-input-line" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="dd-label">Nº Contrato Cobrança</label>
+                                        <div className="dd-input-wrap">
+                                            <input className="dd-input" value={sicoobForm.numeroContratoCobranca||""} onChange={e => sfc("numeroContratoCobranca", e.target.value)} placeholder="Ex: 1234567" />
                                             <div className="dd-input-line" />
                                         </div>
                                     </div>

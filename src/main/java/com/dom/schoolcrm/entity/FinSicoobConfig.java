@@ -26,13 +26,13 @@ public class FinSicoobConfig {
     @Column(name = "ambiente", length = 20)
     private String ambiente = "SANDBOX";
 
-    // URL base da API
+    // URL base da API (V3)
     @Column(name = "base_url", length = 255)
-    private String baseUrl = "https://sandbox.sicoob.com.br";
+    private String baseUrl = "https://sandbox.sicoob.com.br/sicoob/sandbox/cobranca-bancaria/v3";
 
-    // URL para obter token OAuth2
+    // URL para obter token OAuth2 (produção — sandbox usa token pré-gerado)
     @Column(name = "token_url", length = 500)
-    private String tokenUrl = "https://sandbox.sicoob.com.br/auth/realms/cooperado/protocol/openid-connect/token";
+    private String tokenUrl = "https://auth.sicoob.com.br/auth/realms/cooperado/protocol/openid-connect/token";
 
     // Credenciais OAuth2
     @Column(name = "client_id", length = 255)
@@ -40,6 +40,14 @@ public class FinSicoobConfig {
 
     @Column(name = "client_secret", length = 500)
     private String clientSecret;
+
+    // Access token pré-gerado (sandbox) ou obtido via OAuth2 (produção)
+    @Column(name = "access_token", columnDefinition = "TEXT")
+    private String accessToken;
+
+    // Número do contrato de cobrança no Sicoob
+    @Column(name = "numero_contrato_cobranca", length = 30)
+    private String numeroContratoCobranca;
 
     // Dados do beneficiário (escola)
     @Column(name = "numero_beneficiario", length = 30)
@@ -105,6 +113,8 @@ public class FinSicoobConfig {
     public String getTokenUrl() { return tokenUrl; }
     public String getClientId() { return clientId; }
     public String getClientSecret() { return clientSecret; }
+    public String getAccessToken() { return accessToken; }
+    public String getNumeroContratoCobranca() { return numeroContratoCobranca; }
     public String getNumeroBeneficiario() { return numeroBeneficiario; }
     public String getCooperativa() { return cooperativa; }
     public String getContaCorrente() { return contaCorrente; }
@@ -128,6 +138,8 @@ public class FinSicoobConfig {
     public void setTokenUrl(String tokenUrl) { this.tokenUrl = tokenUrl; }
     public void setClientId(String clientId) { this.clientId = clientId; }
     public void setClientSecret(String clientSecret) { this.clientSecret = clientSecret; }
+    public void setAccessToken(String accessToken) { this.accessToken = accessToken; }
+    public void setNumeroContratoCobranca(String numeroContratoCobranca) { this.numeroContratoCobranca = numeroContratoCobranca; }
     public void setNumeroBeneficiario(String numeroBeneficiario) { this.numeroBeneficiario = numeroBeneficiario; }
     public void setCooperativa(String cooperativa) { this.cooperativa = cooperativa; }
     public void setContaCorrente(String contaCorrente) { this.contaCorrente = contaCorrente; }

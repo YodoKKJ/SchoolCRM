@@ -173,33 +173,49 @@ public class FinSicoobConfigService {
         Map<String, Object> result = new LinkedHashMap<>();
 
         boolean temClientId = config.getClientId() != null && !config.getClientId().isBlank();
-        boolean temClientSecret = config.getClientSecret() != null && !config.getClientSecret().isBlank();
-        boolean temCert = config.getCertCaminho() != null;
-
-        boolean certExiste = false;
-        if (temCert) {
-            try {
-                certExiste = Files.exists(Paths.get(config.getCertCaminho()));
-            } catch (Exception e) {
-                certExiste = false; // Caminho inválido = não encontrado
-            }
-        }
-
+        boolean temAccessToken = config.getAccessToken() != null && !config.getAccessToken().isBlank();
         boolean temBeneficiario = config.getNumeroBeneficiario() != null && !config.getNumeroBeneficiario().isBlank();
-        boolean temCooperativa = config.getCooperativa() != null && !config.getCooperativa().isBlank();
-        boolean temConta = config.getContaCorrente() != null && !config.getContaCorrente().isBlank();
+        boolean temContrato = config.getNumeroContratoCobranca() != null && !config.getNumeroContratoCobranca().isBlank();
 
         result.put("clientId", temClientId ? "OK" : "AUSENTE");
-        result.put("clientSecret", temClientSecret ? "OK" : "AUSENTE");
-        result.put("certificado", !temCert ? "NÃO ENVIADO" : (certExiste ? "OK" : "ARQUIVO NÃO ENCONTRADO"));
+        result.put("accessToken", temAccessToken ? "OK" : "AUSENTE");
         result.put("numeroBeneficiario", temBeneficiario ? "OK" : "AUSENTE");
-        result.put("cooperativa", temCooperativa ? "OK" : "AUSENTE");
-        result.put("contaCorrente", temConta ? "OK" : "AUSENTE");
+        result.put("numeroContratoCobranca", temContrato ? "OK" : "AUSENTE");
 
-        boolean todosOk = temClientId && temClientSecret && certExiste && temBeneficiario && temCooperativa && temConta;
-        result.put("prontoParaHomologacao", todosOk);
+        boolean configOk = temClientId && temAccessToken && temBeneficiario;
+        result.put("prontoParaHomologacao", configOk);
         result.put("ambiente", config.getAmbiente());
+        result.put("baseUrl", config.getBaseUrl());
         result.put("ativo", config.isAtivo());
+
+        // Testa conexão real se tiver credenciais
+        if (configOk) {
+            try {
+                org.springframework.web.client.RestTemplate rt = new org.springframework.web.client.RestTemplate();
+                org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+                headers.set("Authorization", "Bearer " + config.getAccessToken());
+                headers.set("client_id", config.getClientId());
+                headers.set("Accept", "application/json");
+
+                String url = config.getBaseUrl() + "/boletos?nossoNumero=0&numeroCliente=" + config.getNumeroBeneficiario();
+                org.springframework.http.HttpEntity<Void> req = new org.springframework.http.HttpEntity<>(headers);
+                org.springframework.http.ResponseEntity<String> resp = rt.exchange(url, org.springframework.http.HttpMethod.GET, req, String.class);
+
+                result.put("conexaoApi", "OK (HTTP " + resp.getStatusCode().value() + ")");
+            } catch (org.springframework.web.client.HttpClientErrorException e) {
+                int code = e.getStatusCode().value();
+                if (code == 401 || code == 403) {
+                    result.put("conexaoApi", "FALHA_AUTENTICACAO (HTTP " + code + ") — verifique access token e client_id");
+                } else if (code == 400) {
+                    // 400 pode indicar que a API respondeu mas rejeitou os parâmetros — a conexão funciona
+                    result.put("conexaoApi", "OK (API acessível, parâmetros de teste rejeitados — esperado)");
+                } else {
+                    result.put("conexaoApi", "ERRO (HTTP " + code + "): " + e.getResponseBodyAsString());
+                }
+            } catch (Exception e) {
+                result.put("conexaoApi", "FALHA_CONEXAO: " + e.getMessage());
+            }
+        }
 
         return result;
     }
@@ -216,6 +232,8 @@ public class FinSicoobConfigService {
         m.put("tokenUrl", config.getTokenUrl());
         m.put("clientId", config.getClientId());
         m.put("clientSecret", ofuscar(config.getClientSecret()));
+        m.put("accessToken", ofuscar(config.getAccessToken()));
+        m.put("numeroContratoCobranca", config.getNumeroContratoCobranca());
         m.put("numeroBeneficiario", config.getNumeroBeneficiario());
         m.put("cooperativa", config.getCooperativa());
         m.put("contaCorrente", config.getContaCorrente());

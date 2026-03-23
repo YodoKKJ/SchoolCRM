@@ -16,16 +16,18 @@ public class SicoobConfig {
 
     private boolean enabled = false;
 
-    // URL base da API (sandbox ou produção)
-    private String baseUrl = "https://sandbox.sicoob.com.br";
+    // URL base da API V3 (sandbox ou produção)
+    private String baseUrl = "https://sandbox.sicoob.com.br/sicoob/sandbox/cobranca-bancaria/v3";
 
-    // Credenciais OAuth2 (client credentials flow)
+    // Credenciais
     private String clientId;
     private String clientSecret;
-    private String tokenUrl = "https://sandbox.sicoob.com.br/auth/realms/cooperado/protocol/openid-connect/token";
+    private String accessToken;
+    private String tokenUrl = "https://auth.sicoob.com.br/auth/realms/cooperado/protocol/openid-connect/token";
 
     // Dados do beneficiário (escola)
     private String numeroBeneficiario;
+    private String numeroContratoCobranca;
     private String cooperativa;
     private String contaCorrente;
 
@@ -36,8 +38,10 @@ public class SicoobConfig {
     public String getBaseUrl() { return baseUrl; }
     public String getClientId() { return clientId; }
     public String getClientSecret() { return clientSecret; }
+    public String getAccessToken() { return accessToken; }
     public String getTokenUrl() { return tokenUrl; }
     public String getNumeroBeneficiario() { return numeroBeneficiario; }
+    public String getNumeroContratoCobranca() { return numeroContratoCobranca; }
     public String getCooperativa() { return cooperativa; }
     public String getContaCorrente() { return contaCorrente; }
     public String getWebhookSecret() { return webhookSecret; }
@@ -46,8 +50,10 @@ public class SicoobConfig {
     public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
     public void setClientId(String clientId) { this.clientId = clientId; }
     public void setClientSecret(String clientSecret) { this.clientSecret = clientSecret; }
+    public void setAccessToken(String accessToken) { this.accessToken = accessToken; }
     public void setTokenUrl(String tokenUrl) { this.tokenUrl = tokenUrl; }
     public void setNumeroBeneficiario(String numeroBeneficiario) { this.numeroBeneficiario = numeroBeneficiario; }
+    public void setNumeroContratoCobranca(String numeroContratoCobranca) { this.numeroContratoCobranca = numeroContratoCobranca; }
     public void setCooperativa(String cooperativa) { this.cooperativa = cooperativa; }
     public void setContaCorrente(String contaCorrente) { this.contaCorrente = contaCorrente; }
     public void setWebhookSecret(String webhookSecret) { this.webhookSecret = webhookSecret; }
