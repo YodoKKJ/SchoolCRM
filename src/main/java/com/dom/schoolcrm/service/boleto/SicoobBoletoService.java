@@ -28,8 +28,10 @@ import java.io.FileInputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.KeyStore;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Implementação real do BoletoService usando a API REST Cobrança Bancária V3 do Sicoob.
@@ -46,6 +48,19 @@ public class SicoobBoletoService implements BoletoService {
 
     private static final Logger log = LoggerFactory.getLogger(SicoobBoletoService.class);
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    // Scopes para cobrança bancária (do portal Sicoob Developers)
+    private static final String COBRANCA_SCOPES =
+            "cobranca_boletos_incluir cobranca_boletos_consultar cobranca_boletos_pagador "
+            + "cobranca_boletos_segunda_via cobranca_boletos_descontos "
+            + "cobranca_boletos_abatimentos cobranca_boletos_valor_nominal "
+            + "cobranca_boletos_seu_numero cobranca_boletos_especie_documento "
+            + "cobranca_boletos_baixa cobranca_boletos_rateio_credito";
+
+    // Cache do token para evitar chamadas desnecessárias (token dura 300s / 5min)
+    private volatile String cachedAccessToken;
+    private volatile Instant tokenExpiresAt = Instant.EPOCH;
+    private final ReentrantLock tokenLock = new ReentrantLock();
 
     @Autowired
     private FinSicoobConfigService configService;
@@ -174,10 +189,9 @@ public class SicoobBoletoService implements BoletoService {
 
             log.info("Registrando boleto na API Sicoob V3: seuNumero=CR-{}, valor={}", cr.getId(), boleto.getValor());
 
-            HttpHeaders headers = buildHeaders(config);
-            HttpEntity<String> request = new HttpEntity<>(mapper.writeValueAsString(body), headers);
-
             RestTemplate rt = buildRestTemplate(config);
+            HttpHeaders headers = buildHeaders(config, rt);
+            HttpEntity<String> request = new HttpEntity<>(mapper.writeValueAsString(body), headers);
             ResponseEntity<String> response = rt.exchange(url, HttpMethod.POST, request, String.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
@@ -216,10 +230,9 @@ public class SicoobBoletoService implements BoletoService {
             String url = config.getBaseUrl() + "/boletos?nossoNumero=" + boleto.getNossoNumero()
                     + "&numeroCliente=" + config.getNumeroBeneficiario();
 
-            HttpHeaders headers = buildHeaders(config);
-            HttpEntity<Void> request = new HttpEntity<>(headers);
-
             RestTemplate rt = buildRestTemplate(config);
+            HttpHeaders headers = buildHeaders(config, rt);
+            HttpEntity<Void> request = new HttpEntity<>(headers);
             ResponseEntity<String> response = rt.exchange(url, HttpMethod.GET, request, String.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
@@ -271,10 +284,10 @@ public class SicoobBoletoService implements BoletoService {
             body.put("nossoNumero", Long.parseLong(boleto.getNossoNumero()));
             body.put("seuNumero", boleto.getSeuNumero());
 
-            HttpHeaders headers = buildHeaders(config);
+            RestTemplate rt = buildRestTemplate(config);
+            HttpHeaders headers = buildHeaders(config, rt);
             HttpEntity<String> request = new HttpEntity<>(mapper.writeValueAsString(body), headers);
 
-            RestTemplate rt = buildRestTemplate(config);
             ResponseEntity<String> response = rt.exchange(url, HttpMethod.POST, request, String.class);
 
             if (response.getStatusCode().is2xxSuccessful()) {
@@ -306,7 +319,6 @@ public class SicoobBoletoService implements BoletoService {
             FinSicoobConfig config = configService.getConfig();
             return config.isAtivo()
                     && config.getClientId() != null && !config.getClientId().isBlank()
-                    && config.getAccessToken() != null && !config.getAccessToken().isBlank()
                     && config.getNumeroBeneficiario() != null && !config.getNumeroBeneficiario().isBlank();
         } catch (Exception e) {
             return false;
@@ -320,11 +332,88 @@ public class SicoobBoletoService implements BoletoService {
 
     // ---- Helpers ----
 
-    private HttpHeaders buildHeaders(FinSicoobConfig config) {
+    /**
+     * Obtém um access token válido. Se o token em cache expirou, gera um novo
+     * automaticamente via OAuth2 client_credentials com mTLS (certificado digital).
+     * Se não tiver certificado (sandbox), usa o token estático da config.
+     */
+    private String obterAccessToken(FinSicoobConfig config, RestTemplate rt) {
+        // Se tem certificado, usa renovação automática via OAuth2
+        boolean temCert = (config.getCertConteudo() != null && config.getCertConteudo().length > 0)
+                || (config.getCertCaminho() != null && !config.getCertCaminho().isBlank()
+                    && Files.exists(Paths.get(config.getCertCaminho())));
+
+        if (!temCert) {
+            // Sandbox: usa token estático da config
+            return config.getAccessToken();
+        }
+
+        // Verifica se o token em cache ainda é válido (com margem de 30s)
+        if (cachedAccessToken != null && Instant.now().plusSeconds(30).isBefore(tokenExpiresAt)) {
+            return cachedAccessToken;
+        }
+
+        // Gera novo token via OAuth2
+        tokenLock.lock();
+        try {
+            // Double-check após adquirir o lock
+            if (cachedAccessToken != null && Instant.now().plusSeconds(30).isBefore(tokenExpiresAt)) {
+                return cachedAccessToken;
+            }
+
+            String tokenUrl = config.getTokenUrl();
+            if (tokenUrl == null || tokenUrl.isBlank()) {
+                tokenUrl = "https://auth.sicoob.com.br/auth/realms/cooperado/protocol/openid-connect/token";
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+            String body = "grant_type=client_credentials"
+                    + "&client_id=" + config.getClientId()
+                    + "&scope=" + COBRANCA_SCOPES.replace(" ", "%20");
+
+            HttpEntity<String> request = new HttpEntity<>(body, headers);
+
+            log.info("Renovando access token via OAuth2: {}", tokenUrl);
+            ResponseEntity<String> response = rt.exchange(tokenUrl, HttpMethod.POST, request, String.class);
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                JsonNode tokenResp = mapper.readTree(response.getBody());
+                cachedAccessToken = tokenResp.get("access_token").asText();
+                int expiresIn = tokenResp.has("expires_in") ? tokenResp.get("expires_in").asInt() : 300;
+                tokenExpiresAt = Instant.now().plusSeconds(expiresIn);
+
+                log.info("Access token renovado com sucesso (expira em {}s)", expiresIn);
+
+                // Atualiza o token no banco para referência
+                config.setAccessToken(cachedAccessToken);
+                configService.save(config);
+
+                return cachedAccessToken;
+            } else {
+                throw new BoletoRegistroException("Resposta inesperada ao gerar token: HTTP " + response.getStatusCode());
+            }
+
+        } catch (HttpClientErrorException e) {
+            log.error("Erro ao gerar token OAuth2: HTTP {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new BoletoRegistroException(
+                    "Falha ao gerar access token: " + e.getStatusCode() + " - " + e.getResponseBodyAsString());
+        } catch (BoletoRegistroException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Erro inesperado ao gerar token OAuth2", e);
+            throw new BoletoRegistroException("Erro ao renovar access token: " + e.getMessage());
+        } finally {
+            tokenLock.unlock();
+        }
+    }
+
+    private HttpHeaders buildHeaders(FinSicoobConfig config, RestTemplate rt) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("Accept", "application/json");
-        headers.set("Authorization", "Bearer " + config.getAccessToken());
+        headers.set("Authorization", "Bearer " + obterAccessToken(config, rt));
         headers.set("client_id", config.getClientId());
         return headers;
     }
@@ -332,9 +421,6 @@ public class SicoobBoletoService implements BoletoService {
     private void validarConfig(FinSicoobConfig config) {
         if (config.getClientId() == null || config.getClientId().isBlank()) {
             throw new BoletoRegistroException("Client ID do Sicoob não configurado.");
-        }
-        if (config.getAccessToken() == null || config.getAccessToken().isBlank()) {
-            throw new BoletoRegistroException("Access Token do Sicoob não configurado.");
         }
         if (config.getNumeroBeneficiario() == null || config.getNumeroBeneficiario().isBlank()) {
             throw new BoletoRegistroException("Número do beneficiário não configurado.");
