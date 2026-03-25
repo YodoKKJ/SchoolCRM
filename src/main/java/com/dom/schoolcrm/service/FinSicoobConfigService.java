@@ -222,8 +222,25 @@ public class FinSicoobConfigService {
 
             try {
                 org.springframework.web.client.RestTemplate rt = buildRestTemplateForTest(config);
+
+                // Em produção com certificado, tenta gerar token automaticamente via OAuth2
+                String tokenParaTeste = config.getAccessToken();
+                if (isProducao && temCertificado) {
+                    try {
+                        tokenParaTeste = gerarTokenOAuth2(config, rt);
+                        result.put("tokenOAuth2", "OK — token gerado automaticamente");
+                    } catch (Exception tokenErr) {
+                        result.put("tokenOAuth2", "FALHA: " + tokenErr.getMessage());
+                        // Tenta com o token manual se disponível
+                        if (tokenParaTeste == null || tokenParaTeste.isBlank()) {
+                            result.put("conexaoApi", "FALHA — não foi possível gerar token OAuth2: " + tokenErr.getMessage());
+                            return result;
+                        }
+                    }
+                }
+
                 org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-                headers.set("Authorization", "Bearer " + config.getAccessToken());
+                headers.set("Authorization", "Bearer " + tokenParaTeste);
                 headers.set("client_id", config.getClientId());
                 headers.set("Accept", "application/json");
 
@@ -290,6 +307,51 @@ public class FinSicoobConfigService {
         m.put("aceite", config.getAceite());
         m.put("atualizadoEm", config.getAtualizadoEm());
         return m;
+    }
+
+    private static final String COBRANCA_SCOPES =
+            "cobranca_boletos_incluir cobranca_boletos_consultar cobranca_boletos_pagador "
+            + "cobranca_boletos_segunda_via cobranca_boletos_descontos "
+            + "cobranca_boletos_abatimentos cobranca_boletos_valor_nominal "
+            + "cobranca_boletos_seu_numero cobranca_boletos_especie_documento "
+            + "cobranca_boletos_baixa cobranca_boletos_rateio_credito";
+
+    /**
+     * Gera access token via OAuth2 client_credentials com mTLS.
+     */
+    private String gerarTokenOAuth2(FinSicoobConfig config, org.springframework.web.client.RestTemplate rt) {
+        String tokenUrl = config.getTokenUrl();
+        if (tokenUrl == null || tokenUrl.isBlank()) {
+            tokenUrl = "https://auth.sicoob.com.br/auth/realms/cooperado/protocol/openid-connect/token";
+        }
+
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
+
+        String body = "grant_type=client_credentials"
+                + "&client_id=" + config.getClientId()
+                + "&scope=" + COBRANCA_SCOPES.replace(" ", "%20");
+
+        org.springframework.http.HttpEntity<String> request = new org.springframework.http.HttpEntity<>(body, headers);
+        org.springframework.http.ResponseEntity<String> response = rt.exchange(
+                tokenUrl, org.springframework.http.HttpMethod.POST, request, String.class);
+
+        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+            try {
+                com.fasterxml.jackson.databind.JsonNode tokenResp =
+                        new com.fasterxml.jackson.databind.ObjectMapper().readTree(response.getBody());
+                String accessToken = tokenResp.get("access_token").asText();
+
+                // Salva o token no banco para referência
+                config.setAccessToken(accessToken);
+                repository.save(config);
+
+                return accessToken;
+            } catch (Exception e) {
+                throw new RuntimeException("Erro ao parsear resposta do token: " + e.getMessage(), e);
+            }
+        }
+        throw new RuntimeException("Resposta inesperada do token endpoint: HTTP " + response.getStatusCode());
     }
 
     /**
