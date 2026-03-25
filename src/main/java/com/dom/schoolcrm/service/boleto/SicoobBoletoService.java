@@ -54,18 +54,33 @@ public class SicoobBoletoService implements BoletoService {
 
     /**
      * Cria um RestTemplate com suporte a mTLS usando o certificado .pfx configurado.
+     * Tenta carregar do filesystem primeiro; se não existir (Railway redeploy), carrega do banco.
      * Se não houver certificado, retorna RestTemplate padrão (funciona para sandbox).
      */
     private RestTemplate buildRestTemplate(FinSicoobConfig config) {
-        // Se tem certificado PFX configurado, usa mTLS
-        if (config.getCertCaminho() != null && !config.getCertCaminho().isBlank()
-                && Files.exists(Paths.get(config.getCertCaminho()))) {
+        // Verifica se tem certificado disponível (filesystem ou banco)
+        boolean temCertFs = config.getCertCaminho() != null && !config.getCertCaminho().isBlank()
+                && Files.exists(Paths.get(config.getCertCaminho()));
+        boolean temCertDb = config.getCertConteudo() != null && config.getCertConteudo().length > 0;
+
+        if (temCertFs || temCertDb) {
             try {
                 char[] senha = config.getCertSenha() != null ? config.getCertSenha().toCharArray() : new char[0];
 
                 KeyStore keyStore = KeyStore.getInstance("PKCS12");
-                try (FileInputStream fis = new FileInputStream(config.getCertCaminho())) {
-                    keyStore.load(fis, senha);
+
+                if (temCertFs) {
+                    // Carrega do filesystem
+                    try (FileInputStream fis = new FileInputStream(config.getCertCaminho())) {
+                        keyStore.load(fis, senha);
+                    }
+                    log.info("Certificado carregado do filesystem: {}", config.getCertCaminho());
+                } else {
+                    // Carrega do banco de dados (Railway — filesystem efêmero)
+                    try (java.io.ByteArrayInputStream bis = new java.io.ByteArrayInputStream(config.getCertConteudo())) {
+                        keyStore.load(bis, senha);
+                    }
+                    log.info("Certificado carregado do banco de dados: {}", config.getCertNomeArquivo());
                 }
 
                 SSLContext sslContext = SSLContexts.custom()
@@ -89,7 +104,7 @@ public class SicoobBoletoService implements BoletoService {
                 return new RestTemplate(factory);
 
             } catch (Exception e) {
-                log.error("Erro ao configurar mTLS com certificado {}: {}", config.getCertCaminho(), e.getMessage());
+                log.error("Erro ao configurar mTLS com certificado {}: {}", config.getCertNomeArquivo(), e.getMessage());
                 throw new BoletoRegistroException(
                         "Erro ao carregar certificado digital: " + e.getMessage()
                         + ". Verifique se o arquivo .pfx e a senha estão corretos.");
