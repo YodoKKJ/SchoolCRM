@@ -139,25 +139,23 @@ public class SicoobBoletoService implements BoletoService {
             body.put("numeroCliente", Integer.parseInt(config.getNumeroBeneficiario()));
             body.put("codigoModalidade", config.getModalidade() != null ? config.getModalidade() : 1);
             body.put("numeroContratoCobranca", config.getNumeroContratoCobranca());
+            body.put("codigoEspecieDocumento", mapEspecieDocumento(config.getEspecieDocumento()));
             body.put("seuNumero", "CR-" + cr.getId());
             body.put("dataEmissao", LocalDate.now().format(DATE_FMT));
             body.put("dataVencimento", boleto.getDataVencimento().format(DATE_FMT));
             body.put("valorNominal", boleto.getValor().doubleValue());
-            body.put("flagAceite", config.getAceite() != null && config.getAceite());
-
-            // Espécie do documento
-            ObjectNode especieDoc = mapper.createObjectNode();
-            especieDoc.put("codigo", mapEspecieDocumento(config.getEspecieDocumento()));
-            body.set("especieDocumento", especieDoc);
+            body.put("aceite", config.getAceite() != null && config.getAceite());
+            body.put("tipoMulta", 0); // 0=Sem multa, 1=Valor fixo, 2=Percentual
+            body.put("tipoJurosMora", 0); // 0=Sem juros, 1=Valor/dia, 2=Taxa mensal
 
             // Pagador
             ObjectNode pagador = mapper.createObjectNode();
             String cpfCnpj = boleto.getPagadorCpfCnpj().replaceAll("[^0-9]", "");
             pagador.put("numeroCpfCnpj", cpfCnpj);
             pagador.put("nome", boleto.getPagadorNome());
-            pagador.put("endereco", "Não informado");
+            pagador.put("endereco", "Nao informado");
             pagador.put("bairro", "Centro");
-            pagador.put("cidade", "Não informado");
+            pagador.put("cidade", "Nao informado");
             pagador.put("cep", "00000000");
             pagador.put("uf", "MG");
 
@@ -182,6 +180,8 @@ public class SicoobBoletoService implements BoletoService {
             }
 
             body.set("pagador", pagador);
+
+            log.info("Body do boleto: {}", mapper.writeValueAsString(body));
 
             log.info("Registrando boleto na API Sicoob V3: seuNumero=CR-{}, valor={}", cr.getId(), boleto.getValor());
 
