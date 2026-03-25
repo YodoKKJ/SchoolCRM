@@ -135,24 +135,48 @@ public class SicoobBoletoService implements BoletoService {
         try {
             String url = config.getBaseUrl() + "/boletos";
 
-            ObjectNode body = mapper.createObjectNode();
-            body.put("numeroCliente", Integer.parseInt(config.getNumeroBeneficiario()));
-            body.put("codigoModalidade", config.getModalidade() != null ? config.getModalidade() : 1);
-            body.put("numeroContratoCobranca", config.getNumeroContratoCobranca());
-            body.put("codigoEspecieDocumento", mapEspecieDocumento(config.getEspecieDocumento()));
-            body.put("seuNumero", "CR-" + cr.getId());
-            body.put("dataEmissao", LocalDate.now().format(DATE_FMT));
-            body.put("dataVencimento", boleto.getDataVencimento().format(DATE_FMT));
-            body.put("valorNominal", boleto.getValor().doubleValue());
-            body.put("aceite", config.getAceite() != null && config.getAceite());
-            body.put("tipoMulta", 0); // 0=Sem multa, 1=Valor fixo, 2=Percentual
-            body.put("tipoJurosMora", 0); // 0=Sem juros, 1=Valor/dia, 2=Taxa mensal
+            // API V3 espera um ARRAY com um objeto boleto
+            ObjectNode boletoObj = mapper.createObjectNode();
+            boletoObj.put("numeroContrato", config.getNumeroContratoCobranca());
+            boletoObj.put("modalidade", config.getModalidade() != null ? config.getModalidade() : 1);
+            boletoObj.put("numeroContaCorrente", config.getContaCorrente());
+            boletoObj.put("especieDocumento", config.getEspecieDocumento() != null ? config.getEspecieDocumento() : "DM");
+            boletoObj.put("dataEmissao", LocalDate.now().format(DATE_FMT));
+            boletoObj.putNull("nossoNumero"); // Sicoob gera automaticamente
+            boletoObj.put("seuNumero", String.valueOf(cr.getId()));
+            boletoObj.putNull("identificacaoBoletoEmpresa");
+            boletoObj.put("identificacaoEmissaoBoleto", 1); // 1=Cooperativa emite
+            boletoObj.put("identificacaoDistribuicaoBoleto", 1); // 1=Cooperativa distribui
+            boletoObj.put("valor", boleto.getValor().doubleValue());
+            boletoObj.put("dataVencimento", boleto.getDataVencimento().format(DATE_FMT));
+            boletoObj.putNull("dataLimitePagamento");
+            boletoObj.putNull("valorAbatimento");
+            boletoObj.put("tipoDesconto", 0); // 0=Sem desconto
+            boletoObj.putNull("dataPrimeiroDesconto");
+            boletoObj.putNull("valorPrimeiroDesconto");
+            boletoObj.putNull("dataSegundoDesconto");
+            boletoObj.putNull("valorSegundoDesconto");
+            boletoObj.putNull("dataTerceiroDesconto");
+            boletoObj.putNull("valorTerceiroDesconto");
+            boletoObj.put("tipoMulta", 0); // 0=Sem multa
+            boletoObj.putNull("dataMulta");
+            boletoObj.putNull("valorMulta");
+            boletoObj.put("tipoJurosMora", 3); // 3=Isento
+            boletoObj.putNull("dataJurosMora");
+            boletoObj.putNull("valorJurosMora");
+            boletoObj.put("numeroParcela", 1);
+            boletoObj.put("aceite", config.getAceite() != null && config.getAceite());
+            boletoObj.put("codigoNegativacao", 3); // 3=Não negativar
+            boletoObj.putNull("numeroDiasNegativacao");
+            boletoObj.put("codigoProtesto", 3); // 3=Não protestar
+            boletoObj.putNull("numeroDiasProtesto");
+            boletoObj.put("gerarPdf", true);
 
-            // Pagador
+            // Pagador (objeto nested)
             ObjectNode pagador = mapper.createObjectNode();
             String cpfCnpj = boleto.getPagadorCpfCnpj().replaceAll("[^0-9]", "");
             pagador.put("numeroCpfCnpj", cpfCnpj);
-            pagador.put("nome", boleto.getPagadorNome());
+            pagador.put("nome", truncar(boleto.getPagadorNome(), 50));
             pagador.put("endereco", "Nao informado");
             pagador.put("bairro", "Centro");
             pagador.put("cidade", "Nao informado");
@@ -163,10 +187,10 @@ public class SicoobBoletoService implements BoletoService {
             if (cr.getContrato() != null && cr.getContrato().getResponsavelPrincipal() != null) {
                 var pessoa = cr.getContrato().getResponsavelPrincipal();
                 if (pessoa.getEndereco() != null && !pessoa.getEndereco().isBlank()) {
-                    pagador.put("endereco", pessoa.getEndereco());
+                    pagador.put("endereco", truncar(pessoa.getEndereco(), 40));
                 }
                 if (pessoa.getCidade() != null && !pessoa.getCidade().isBlank()) {
-                    pagador.put("cidade", pessoa.getCidade());
+                    pagador.put("cidade", truncar(pessoa.getCidade(), 40));
                 }
                 if (pessoa.getCep() != null && !pessoa.getCep().isBlank()) {
                     pagador.put("cep", pessoa.getCep().replaceAll("[^0-9]", ""));
@@ -175,24 +199,47 @@ public class SicoobBoletoService implements BoletoService {
                     pagador.put("uf", pessoa.getEstado());
                 }
                 if (pessoa.getEmail() != null && !pessoa.getEmail().isBlank()) {
-                    pagador.put("email", pessoa.getEmail());
+                    // Email é array de strings na V3
+                    var emails = mapper.createArrayNode();
+                    emails.add(pessoa.getEmail());
+                    pagador.set("email", emails);
                 }
             }
 
-            body.set("pagador", pagador);
+            boletoObj.set("pagador", pagador);
 
-            log.info("Body do boleto: {}", mapper.writeValueAsString(body));
+            // Sacador/Avalista (pode ser null)
+            ObjectNode sacador = mapper.createObjectNode();
+            sacador.putNull("numeroCpfCnpjSacadorAvalista");
+            sacador.putNull("nomeSacadorAvalista");
+            boletoObj.set("sacadorAvalista", sacador);
+
+            // Mensagens de instrução
+            ObjectNode mensagens = mapper.createObjectNode();
+            var msgArray = mapper.createArrayNode();
+            msgArray.addNull(); msgArray.addNull(); msgArray.addNull(); msgArray.addNull(); msgArray.addNull();
+            mensagens.set("mensagens", msgArray);
+            boletoObj.set("mensagensInstrucao", mensagens);
+
+            // Body é um ARRAY
+            var bodyArray = mapper.createArrayNode();
+            bodyArray.add(boletoObj);
+
+            String bodyJson = mapper.writeValueAsString(bodyArray);
+            log.info("Body do boleto V3: {}", bodyJson);
 
             log.info("Registrando boleto na API Sicoob V3: seuNumero=CR-{}, valor={}", cr.getId(), boleto.getValor());
 
             RestTemplate rt = buildRestTemplate(config);
             HttpHeaders headers = buildHeaders(config, rt);
-            HttpEntity<String> request = new HttpEntity<>(mapper.writeValueAsString(body), headers);
+            HttpEntity<String> request = new HttpEntity<>(bodyJson, headers);
             ResponseEntity<String> response = rt.exchange(url, HttpMethod.POST, request, String.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 JsonNode respBody = mapper.readTree(response.getBody());
-                preencherDadosResposta(boleto, respBody);
+                // Resposta V3 pode ser array — pegar primeiro elemento
+                JsonNode boletoResp = respBody.isArray() && respBody.size() > 0 ? respBody.get(0) : respBody;
+                preencherDadosResposta(boleto, boletoResp);
                 boleto.setDataEmissao(LocalDate.now());
                 boleto.setSeuNumero("CR-" + cr.getId());
                 boleto.setStatus("EMITIDO");
@@ -467,35 +514,8 @@ public class SicoobBoletoService implements BoletoService {
         return errorBody != null && errorBody.length() > 200 ? errorBody.substring(0, 200) : errorBody;
     }
 
-    private int mapEspecieDocumento(String especie) {
-        if (especie == null) return 2; // DM
-        switch (especie.toUpperCase()) {
-            case "CH": return 1;
-            case "DM": return 2;
-            case "DMI": return 3;
-            case "DS": return 4;
-            case "DSI": return 5;
-            case "DR": return 6;
-            case "LC": return 7;
-            case "NCC": return 8;
-            case "NCE": return 9;
-            case "NCI": return 10;
-            case "NCR": return 11;
-            case "NP": return 12;
-            case "NPR": return 13;
-            case "TM": return 14;
-            case "TS": return 15;
-            case "NS": return 16;
-            case "RC": return 17;
-            case "FAT": return 18;
-            case "ND": return 19;
-            case "AP": return 20;
-            case "ME": return 21;
-            case "PC": return 22;
-            case "NF": return 23;
-            case "DD": return 24;
-            case "CPR": return 25;
-            default: return 2;
-        }
+    private String truncar(String s, int max) {
+        if (s == null) return "";
+        return s.length() <= max ? s : s.substring(0, max);
     }
 }
