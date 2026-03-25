@@ -189,9 +189,6 @@ public class SicoobBoletoService implements BoletoService {
                 if (pessoa.getEndereco() != null && !pessoa.getEndereco().isBlank()) {
                     pagador.put("endereco", truncar(pessoa.getEndereco(), 40));
                 }
-                if (pessoa.getBairro() != null && !pessoa.getBairro().isBlank()) {
-                    pagador.put("bairro", truncar(pessoa.getBairro(), 30));
-                }
                 if (pessoa.getCidade() != null && !pessoa.getCidade().isBlank()) {
                     pagador.put("cidade", truncar(pessoa.getCidade(), 40));
                 }
