@@ -75,6 +75,12 @@
             <artifactId>jasperreports-fonts</artifactId>
             <version>6.21.0</version>
         </dependency>
+
+        <!-- Apache HttpClient 5 para suporte a mTLS (certificado digital Sicoob) -->
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

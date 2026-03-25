@@ -8,6 +8,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.io.HttpClientConnectionManager;
+import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactoryBuilder;
+import org.apache.hc.core5.ssl.SSLContexts;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+
+import javax.net.ssl.SSLContext;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -188,12 +198,24 @@ public class FinSicoobConfigService {
         result.put("baseUrl", config.getBaseUrl());
         result.put("ativo", config.isAtivo());
 
+        // Verifica certificado digital para produção
+        boolean isProducao = "PRODUCAO".equalsIgnoreCase(config.getAmbiente());
+        boolean temCertificado = config.getCertCaminho() != null && !config.getCertCaminho().isBlank()
+                && Files.exists(Paths.get(config.getCertCaminho()));
+
+        if (isProducao && !temCertificado) {
+            result.put("certificado", "AUSENTE — produção requer certificado digital (.pfx)");
+            result.put("prontoParaHomologacao", false);
+        } else {
+            result.put("certificado", temCertificado ? "OK (" + config.getCertNomeArquivo() + ")" : "N/A (sandbox)");
+        }
+
         // Testa conexão com a API Sicoob
-        if (configOk) {
+        if (configOk && (!isProducao || temCertificado)) {
             boolean isSandbox = "SANDBOX".equalsIgnoreCase(config.getAmbiente());
 
             try {
-                org.springframework.web.client.RestTemplate rt = new org.springframework.web.client.RestTemplate();
+                org.springframework.web.client.RestTemplate rt = buildRestTemplateForTest(config);
                 org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
                 headers.set("Authorization", "Bearer " + config.getAccessToken());
                 headers.set("client_id", config.getClientId());
@@ -211,17 +233,23 @@ public class FinSicoobConfigService {
                     result.put("prontoParaHomologacao", false);
                 } else if (code == 400) {
                     if (isSandbox) {
-                        // Sandbox não valida credenciais — apenas confirma que a URL está acessível
                         result.put("conexaoApi", "OK — sandbox acessível (sandbox não valida credenciais, será validado em produção)");
                     } else {
-                        result.put("conexaoApi", "OK — credenciais válidas (HTTP 400, parâmetros de consulta rejeitados)");
+                        result.put("conexaoApi", "OK — credenciais válidas, API acessível com certificado digital");
                     }
                 } else {
                     result.put("conexaoApi", "ERRO (HTTP " + code + "): " + e.getResponseBodyAsString());
                 }
             } catch (Exception e) {
-                result.put("conexaoApi", "FALHA_CONEXAO: " + e.getMessage());
+                String msg = e.getMessage();
+                if (msg != null && (msg.contains("SSL") || msg.contains("certificate") || msg.contains("PKIX"))) {
+                    result.put("conexaoApi", "FALHA_CERTIFICADO: " + msg + " — verifique o arquivo .pfx e a senha");
+                } else {
+                    result.put("conexaoApi", "FALHA_CONEXAO: " + msg);
+                }
             }
+        } else if (isProducao && !temCertificado) {
+            result.put("conexaoApi", "NÃO TESTADO — envie o certificado digital (.pfx) primeiro");
         }
 
         return result;
@@ -255,6 +283,45 @@ public class FinSicoobConfigService {
         m.put("aceite", config.getAceite());
         m.put("atualizadoEm", config.getAtualizadoEm());
         return m;
+    }
+
+    /**
+     * Cria RestTemplate com mTLS se certificado .pfx estiver configurado.
+     */
+    private org.springframework.web.client.RestTemplate buildRestTemplateForTest(FinSicoobConfig config) {
+        if (config.getCertCaminho() != null && !config.getCertCaminho().isBlank()
+                && Files.exists(Paths.get(config.getCertCaminho()))) {
+            try {
+                char[] senha = config.getCertSenha() != null ? config.getCertSenha().toCharArray() : new char[0];
+
+                KeyStore keyStore = KeyStore.getInstance("PKCS12");
+                try (FileInputStream fis = new FileInputStream(config.getCertCaminho())) {
+                    keyStore.load(fis, senha);
+                }
+
+                SSLContext sslContext = SSLContexts.custom()
+                        .loadKeyMaterial(keyStore, senha)
+                        .build();
+
+                HttpClientConnectionManager connManager = PoolingHttpClientConnectionManagerBuilder.create()
+                        .setSSLSocketFactory(SSLConnectionSocketFactoryBuilder.create()
+                                .setSslContext(sslContext)
+                                .build())
+                        .build();
+
+                CloseableHttpClient httpClient = HttpClients.custom()
+                        .setConnectionManager(connManager)
+                        .build();
+
+                HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory(httpClient);
+                factory.setConnectTimeout(15000);
+                return new org.springframework.web.client.RestTemplate(factory);
+
+            } catch (Exception e) {
+                throw new RuntimeException("Erro ao carregar certificado: " + e.getMessage(), e);
+            }
+        }
+        return new org.springframework.web.client.RestTemplate();
     }
 
     private String ofuscar(String valor) {
