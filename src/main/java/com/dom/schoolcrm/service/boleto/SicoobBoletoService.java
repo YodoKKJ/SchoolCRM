@@ -7,15 +7,27 @@ import com.dom.schoolcrm.service.FinSicoobConfigService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.io.HttpClientConnectionManager;
+import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactoryBuilder;
+import org.apache.hc.core5.ssl.SSLContexts;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.*;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import javax.net.ssl.SSLContext;
+import java.io.FileInputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.KeyStore;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
@@ -38,8 +50,56 @@ public class SicoobBoletoService implements BoletoService {
     @Autowired
     private FinSicoobConfigService configService;
 
-    private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper mapper = new ObjectMapper();
+
+    /**
+     * Cria um RestTemplate com suporte a mTLS usando o certificado .pfx configurado.
+     * Se não houver certificado, retorna RestTemplate padrão (funciona para sandbox).
+     */
+    private RestTemplate buildRestTemplate(FinSicoobConfig config) {
+        // Se tem certificado PFX configurado, usa mTLS
+        if (config.getCertCaminho() != null && !config.getCertCaminho().isBlank()
+                && Files.exists(Paths.get(config.getCertCaminho()))) {
+            try {
+                char[] senha = config.getCertSenha() != null ? config.getCertSenha().toCharArray() : new char[0];
+
+                KeyStore keyStore = KeyStore.getInstance("PKCS12");
+                try (FileInputStream fis = new FileInputStream(config.getCertCaminho())) {
+                    keyStore.load(fis, senha);
+                }
+
+                SSLContext sslContext = SSLContexts.custom()
+                        .loadKeyMaterial(keyStore, senha)
+                        .build();
+
+                HttpClientConnectionManager connManager = PoolingHttpClientConnectionManagerBuilder.create()
+                        .setSSLSocketFactory(SSLConnectionSocketFactoryBuilder.create()
+                                .setSslContext(sslContext)
+                                .build())
+                        .build();
+
+                CloseableHttpClient httpClient = HttpClients.custom()
+                        .setConnectionManager(connManager)
+                        .build();
+
+                HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory(httpClient);
+                factory.setConnectTimeout(30000);
+
+                log.info("RestTemplate configurado com mTLS (certificado: {})", config.getCertNomeArquivo());
+                return new RestTemplate(factory);
+
+            } catch (Exception e) {
+                log.error("Erro ao configurar mTLS com certificado {}: {}", config.getCertCaminho(), e.getMessage());
+                throw new BoletoRegistroException(
+                        "Erro ao carregar certificado digital: " + e.getMessage()
+                        + ". Verifique se o arquivo .pfx e a senha estão corretos.");
+            }
+        }
+
+        // Sem certificado — usa RestTemplate padrão (OK para sandbox)
+        log.warn("Nenhum certificado digital configurado — usando conexão sem mTLS (apenas sandbox)");
+        return new RestTemplate();
+    }
 
     @Override
     public FinBoleto registrar(FinBoleto boleto, FinContaReceber cr) {
@@ -102,7 +162,8 @@ public class SicoobBoletoService implements BoletoService {
             HttpHeaders headers = buildHeaders(config);
             HttpEntity<String> request = new HttpEntity<>(mapper.writeValueAsString(body), headers);
 
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+            RestTemplate rt = buildRestTemplate(config);
+            ResponseEntity<String> response = rt.exchange(url, HttpMethod.POST, request, String.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 JsonNode respBody = mapper.readTree(response.getBody());
@@ -143,7 +204,8 @@ public class SicoobBoletoService implements BoletoService {
             HttpHeaders headers = buildHeaders(config);
             HttpEntity<Void> request = new HttpEntity<>(headers);
 
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
+            RestTemplate rt = buildRestTemplate(config);
+            ResponseEntity<String> response = rt.exchange(url, HttpMethod.GET, request, String.class);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 JsonNode respBody = mapper.readTree(response.getBody());
@@ -197,7 +259,8 @@ public class SicoobBoletoService implements BoletoService {
             HttpHeaders headers = buildHeaders(config);
             HttpEntity<String> request = new HttpEntity<>(mapper.writeValueAsString(body), headers);
 
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+            RestTemplate rt = buildRestTemplate(config);
+            ResponseEntity<String> response = rt.exchange(url, HttpMethod.POST, request, String.class);
 
             if (response.getStatusCode().is2xxSuccessful()) {
                 boleto.setStatus("CANCELADO");

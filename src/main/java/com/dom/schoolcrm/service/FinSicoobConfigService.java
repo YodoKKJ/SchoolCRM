@@ -8,6 +8,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.io.HttpClientConnectionManager;
+import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactoryBuilder;
+import org.apache.hc.core5.ssl.SSLContexts;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
+
+import javax.net.ssl.SSLContext;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -188,34 +198,24 @@ public class FinSicoobConfigService {
         result.put("baseUrl", config.getBaseUrl());
         result.put("ativo", config.isAtivo());
 
-        // Testa conexão real com duas chamadas:
-        // 1) Chamada COM credenciais — deve retornar 200 ou 400 (parâmetros inválidos, mas autenticado)
-        // 2) Chamada SEM credenciais — deve retornar 401/403 (prova que a API valida autenticação)
-        if (configOk) {
+        // Verifica certificado digital para produção
+        boolean isProducao = "PRODUCAO".equalsIgnoreCase(config.getAmbiente());
+        boolean temCertificado = config.getCertCaminho() != null && !config.getCertCaminho().isBlank()
+                && Files.exists(Paths.get(config.getCertCaminho()));
+
+        if (isProducao && !temCertificado) {
+            result.put("certificado", "AUSENTE — produção requer certificado digital (.pfx)");
+            result.put("prontoParaHomologacao", false);
+        } else {
+            result.put("certificado", temCertificado ? "OK (" + config.getCertNomeArquivo() + ")" : "N/A (sandbox)");
+        }
+
+        // Testa conexão com a API Sicoob
+        if (configOk && (!isProducao || temCertificado)) {
+            boolean isSandbox = "SANDBOX".equalsIgnoreCase(config.getAmbiente());
+
             try {
-                org.springframework.web.client.RestTemplate rt = new org.springframework.web.client.RestTemplate();
-
-                // Primeiro: chamada SEM credenciais para confirmar que a API exige autenticação
-                try {
-                    org.springframework.http.HttpHeaders headersNoAuth = new org.springframework.http.HttpHeaders();
-                    headersNoAuth.set("Accept", "application/json");
-                    String urlTest = config.getBaseUrl() + "/boletos?nossoNumero=0&numeroCliente=0";
-                    org.springframework.http.HttpEntity<Void> reqNoAuth = new org.springframework.http.HttpEntity<>(headersNoAuth);
-                    rt.exchange(urlTest, org.springframework.http.HttpMethod.GET, reqNoAuth, String.class);
-                    // Se passou sem auth, a API não está validando — resultado inconclusivo
-                    result.put("conexaoApi", "AVISO: API não exigiu autenticação — verifique a URL base");
-                    return result;
-                } catch (org.springframework.web.client.HttpClientErrorException noAuthEx) {
-                    int noAuthCode = noAuthEx.getStatusCode().value();
-                    if (noAuthCode != 401 && noAuthCode != 403) {
-                        // API retornou erro diferente de auth sem credenciais — URL pode estar errada
-                        result.put("conexaoApi", "AVISO: API retornou HTTP " + noAuthCode + " sem credenciais — verifique a URL base");
-                        return result;
-                    }
-                    // 401/403 sem auth = bom, API exige autenticação
-                }
-
-                // Segundo: chamada COM credenciais
+                org.springframework.web.client.RestTemplate rt = buildRestTemplateForTest(config);
                 org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
                 headers.set("Authorization", "Bearer " + config.getAccessToken());
                 headers.set("client_id", config.getClientId());
@@ -225,21 +225,31 @@ public class FinSicoobConfigService {
                 org.springframework.http.HttpEntity<Void> req = new org.springframework.http.HttpEntity<>(headers);
                 org.springframework.http.ResponseEntity<String> resp = rt.exchange(url, org.springframework.http.HttpMethod.GET, req, String.class);
 
-                result.put("conexaoApi", "OK — credenciais válidas (HTTP " + resp.getStatusCode().value() + ")");
+                result.put("conexaoApi", "OK — API acessível (HTTP " + resp.getStatusCode().value() + ")");
             } catch (org.springframework.web.client.HttpClientErrorException e) {
                 int code = e.getStatusCode().value();
                 if (code == 401 || code == 403) {
                     result.put("conexaoApi", "FALHA_AUTENTICACAO (HTTP " + code + ") — access token ou client_id inválidos");
                     result.put("prontoParaHomologacao", false);
                 } else if (code == 400) {
-                    // Autenticou mas rejeitou parâmetros — credenciais OK
-                    result.put("conexaoApi", "OK — credenciais válidas (parâmetros de consulta rejeitados, esperado)");
+                    if (isSandbox) {
+                        result.put("conexaoApi", "OK — sandbox acessível (sandbox não valida credenciais, será validado em produção)");
+                    } else {
+                        result.put("conexaoApi", "OK — credenciais válidas, API acessível com certificado digital");
+                    }
                 } else {
                     result.put("conexaoApi", "ERRO (HTTP " + code + "): " + e.getResponseBodyAsString());
                 }
             } catch (Exception e) {
-                result.put("conexaoApi", "FALHA_CONEXAO: " + e.getMessage());
+                String msg = e.getMessage();
+                if (msg != null && (msg.contains("SSL") || msg.contains("certificate") || msg.contains("PKIX"))) {
+                    result.put("conexaoApi", "FALHA_CERTIFICADO: " + msg + " — verifique o arquivo .pfx e a senha");
+                } else {
+                    result.put("conexaoApi", "FALHA_CONEXAO: " + msg);
+                }
             }
+        } else if (isProducao && !temCertificado) {
+            result.put("conexaoApi", "NÃO TESTADO — envie o certificado digital (.pfx) primeiro");
         }
 
         return result;
@@ -273,6 +283,45 @@ public class FinSicoobConfigService {
         m.put("aceite", config.getAceite());
         m.put("atualizadoEm", config.getAtualizadoEm());
         return m;
+    }
+
+    /**
+     * Cria RestTemplate com mTLS se certificado .pfx estiver configurado.
+     */
+    private org.springframework.web.client.RestTemplate buildRestTemplateForTest(FinSicoobConfig config) {
+        if (config.getCertCaminho() != null && !config.getCertCaminho().isBlank()
+                && Files.exists(Paths.get(config.getCertCaminho()))) {
+            try {
+                char[] senha = config.getCertSenha() != null ? config.getCertSenha().toCharArray() : new char[0];
+
+                KeyStore keyStore = KeyStore.getInstance("PKCS12");
+                try (FileInputStream fis = new FileInputStream(config.getCertCaminho())) {
+                    keyStore.load(fis, senha);
+                }
+
+                SSLContext sslContext = SSLContexts.custom()
+                        .loadKeyMaterial(keyStore, senha)
+                        .build();
+
+                HttpClientConnectionManager connManager = PoolingHttpClientConnectionManagerBuilder.create()
+                        .setSSLSocketFactory(SSLConnectionSocketFactoryBuilder.create()
+                                .setSslContext(sslContext)
+                                .build())
+                        .build();
+
+                CloseableHttpClient httpClient = HttpClients.custom()
+                        .setConnectionManager(connManager)
+                        .build();
+
+                HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory(httpClient);
+                factory.setConnectTimeout(15000);
+                return new org.springframework.web.client.RestTemplate(factory);
+
+            } catch (Exception e) {
+                throw new RuntimeException("Erro ao carregar certificado: " + e.getMessage(), e);
+            }
+        }
+        return new org.springframework.web.client.RestTemplate();
     }
 
     private String ofuscar(String valor) {
