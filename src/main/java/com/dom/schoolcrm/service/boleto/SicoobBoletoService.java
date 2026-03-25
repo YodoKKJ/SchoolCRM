@@ -175,11 +175,11 @@ public class SicoobBoletoService implements BoletoService {
             // Pagador (objeto nested)
             ObjectNode pagador = mapper.createObjectNode();
             String cpfCnpj = boleto.getPagadorCpfCnpj().replaceAll("[^0-9]", "");
-            pagador.put("numeroCpfCnpj", cpfCnpj);
+            pagador.put("numeroCpfCnpj", truncar(cpfCnpj, 14));
             pagador.put("nome", truncar(boleto.getPagadorNome(), 50));
-            pagador.put("endereco", "Nao informado");
-            pagador.put("bairro", "Centro");
-            pagador.put("cidade", "Nao informado");
+            pagador.put("endereco", truncar("Nao informado", 40));
+            pagador.put("bairro", truncar("Centro", 30));
+            pagador.put("cidade", truncar("Nao informado", 40));
             pagador.put("cep", "00000000");
             pagador.put("uf", "MG");
 
@@ -189,11 +189,15 @@ public class SicoobBoletoService implements BoletoService {
                 if (pessoa.getEndereco() != null && !pessoa.getEndereco().isBlank()) {
                     pagador.put("endereco", truncar(pessoa.getEndereco(), 40));
                 }
+                if (pessoa.getBairro() != null && !pessoa.getBairro().isBlank()) {
+                    pagador.put("bairro", truncar(pessoa.getBairro(), 30));
+                }
                 if (pessoa.getCidade() != null && !pessoa.getCidade().isBlank()) {
                     pagador.put("cidade", truncar(pessoa.getCidade(), 40));
                 }
                 if (pessoa.getCep() != null && !pessoa.getCep().isBlank()) {
-                    pagador.put("cep", pessoa.getCep().replaceAll("[^0-9]", ""));
+                    String cepLimpo = pessoa.getCep().replaceAll("[^0-9]", "");
+                    pagador.put("cep", truncar(cepLimpo, 8));
                 }
                 if (pessoa.getEstado() != null && !pessoa.getEstado().isBlank()) {
                     pagador.put("uf", pessoa.getEstado());
@@ -507,11 +511,16 @@ public class SicoobBoletoService implements BoletoService {
             if (node.has("mensagem")) return node.get("mensagem").asText();
             if (node.has("message")) return node.get("message").asText();
             if (node.has("detail")) return node.get("detail").asText();
+            // Formato V3: {"mensagens":[{"mensagem":"...", "codigo":"..."}]}
             if (node.has("mensagens") && node.get("mensagens").isArray() && node.get("mensagens").size() > 0) {
-                return node.get("mensagens").get(0).asText();
+                JsonNode primeiro = node.get("mensagens").get(0);
+                if (primeiro.isObject() && primeiro.has("mensagem")) {
+                    return primeiro.get("mensagem").asText();
+                }
+                return primeiro.asText();
             }
         } catch (Exception ignored) {}
-        return errorBody != null && errorBody.length() > 200 ? errorBody.substring(0, 200) : errorBody;
+        return errorBody != null && errorBody.length() > 500 ? errorBody.substring(0, 500) : errorBody;
     }
 
     private String truncar(String s, int max) {
