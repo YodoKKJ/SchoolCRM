@@ -103,6 +103,8 @@ public class FinSicoobConfigService {
         config.setCertNomeArquivo(nomeOriginal);
         config.setCertCaminho(destino.toString());
         config.setCertSenha(senha);
+        // Salva conteúdo no banco para sobreviver a redeploys (Railway filesystem efêmero)
+        config.setCertConteudo(arquivo.getBytes());
 
         // Tentar ler validade do certificado (PFX/P12)
         if ("PFX".equalsIgnoreCase(tipo) || "P12".equalsIgnoreCase(tipo)) {
@@ -147,6 +149,7 @@ public class FinSicoobConfigService {
         Files.copy(arquivo.getInputStream(), destino, StandardCopyOption.REPLACE_EXISTING);
 
         config.setCertKeyCaminho(destino.toString());
+        config.setCertKeyConteudo(arquivo.getBytes());
         return repository.save(config);
     }
 
@@ -170,6 +173,8 @@ public class FinSicoobConfigService {
         config.setCertSenha(null);
         config.setCertKeyCaminho(null);
         config.setCertValidade(null);
+        config.setCertConteudo(null);
+        config.setCertKeyConteudo(null);
 
         return repository.save(config);
     }
@@ -200,8 +205,9 @@ public class FinSicoobConfigService {
 
         // Verifica certificado digital para produção
         boolean isProducao = "PRODUCAO".equalsIgnoreCase(config.getAmbiente());
-        boolean temCertificado = config.getCertCaminho() != null && !config.getCertCaminho().isBlank()
-                && Files.exists(Paths.get(config.getCertCaminho()));
+        boolean temCertificado = (config.getCertCaminho() != null && !config.getCertCaminho().isBlank()
+                && Files.exists(Paths.get(config.getCertCaminho())))
+                || (config.getCertConteudo() != null && config.getCertConteudo().length > 0);
 
         if (isProducao && !temCertificado) {
             result.put("certificado", "AUSENTE — produção requer certificado digital (.pfx)");
@@ -276,7 +282,8 @@ public class FinSicoobConfigService {
         m.put("certTipo", config.getCertTipo());
         m.put("certNomeArquivo", config.getCertNomeArquivo());
         m.put("certValidade", config.getCertValidade());
-        m.put("temCertificado", config.getCertCaminho() != null);
+        m.put("temCertificado", config.getCertCaminho() != null
+                || (config.getCertConteudo() != null && config.getCertConteudo().length > 0));
         m.put("temChavePrivada", config.getCertKeyCaminho() != null);
         m.put("modalidade", config.getModalidade());
         m.put("especieDocumento", config.getEspecieDocumento());
@@ -287,16 +294,27 @@ public class FinSicoobConfigService {
 
     /**
      * Cria RestTemplate com mTLS se certificado .pfx estiver configurado.
+     * Tenta filesystem primeiro, depois banco de dados (Railway filesystem efêmero).
      */
     private org.springframework.web.client.RestTemplate buildRestTemplateForTest(FinSicoobConfig config) {
-        if (config.getCertCaminho() != null && !config.getCertCaminho().isBlank()
-                && Files.exists(Paths.get(config.getCertCaminho()))) {
+        boolean temCertFs = config.getCertCaminho() != null && !config.getCertCaminho().isBlank()
+                && Files.exists(Paths.get(config.getCertCaminho()));
+        boolean temCertDb = config.getCertConteudo() != null && config.getCertConteudo().length > 0;
+
+        if (temCertFs || temCertDb) {
             try {
                 char[] senha = config.getCertSenha() != null ? config.getCertSenha().toCharArray() : new char[0];
 
                 KeyStore keyStore = KeyStore.getInstance("PKCS12");
-                try (FileInputStream fis = new FileInputStream(config.getCertCaminho())) {
-                    keyStore.load(fis, senha);
+
+                if (temCertFs) {
+                    try (FileInputStream fis = new FileInputStream(config.getCertCaminho())) {
+                        keyStore.load(fis, senha);
+                    }
+                } else {
+                    try (java.io.ByteArrayInputStream bis = new java.io.ByteArrayInputStream(config.getCertConteudo())) {
+                        keyStore.load(bis, senha);
+                    }
                 }
 
                 SSLContext sslContext = SSLContexts.custom()

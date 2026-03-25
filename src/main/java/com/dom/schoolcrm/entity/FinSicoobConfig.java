@@ -82,6 +82,16 @@ public class FinSicoobConfig {
     @Column(name = "cert_validade")
     private LocalDateTime certValidade; // data de expiração do certificado
 
+    // Conteúdo do certificado salvo no banco (sobrevive a redeploys no Railway)
+    @Lob
+    @Column(name = "cert_conteudo")
+    private byte[] certConteudo;
+
+    // Conteúdo da chave privada salvo no banco (PEM)
+    @Lob
+    @Column(name = "cert_key_conteudo")
+    private byte[] certKeyConteudo;
+
     // Configurações adicionais do boleto
     @Column(name = "modalidade")
     private Integer modalidade = 1; // 1=Simples com Registro
@@ -125,6 +135,8 @@ public class FinSicoobConfig {
     public String getCertSenha() { return certSenha; }
     public String getCertKeyCaminho() { return certKeyCaminho; }
     public LocalDateTime getCertValidade() { return certValidade; }
+    public byte[] getCertConteudo() { return certConteudo; }
+    public byte[] getCertKeyConteudo() { return certKeyConteudo; }
     public Integer getModalidade() { return modalidade; }
     public String getEspecieDocumento() { return especieDocumento; }
     public Boolean getAceite() { return aceite; }
@@ -150,6 +162,8 @@ public class FinSicoobConfig {
     public void setCertSenha(String certSenha) { this.certSenha = certSenha; }
     public void setCertKeyCaminho(String certKeyCaminho) { this.certKeyCaminho = certKeyCaminho; }
     public void setCertValidade(LocalDateTime certValidade) { this.certValidade = certValidade; }
+    public void setCertConteudo(byte[] certConteudo) { this.certConteudo = certConteudo; }
+    public void setCertKeyConteudo(byte[] certKeyConteudo) { this.certKeyConteudo = certKeyConteudo; }
     public void setModalidade(Integer modalidade) { this.modalidade = modalidade; }
     public void setEspecieDocumento(String especieDocumento) { this.especieDocumento = especieDocumento; }
     public void setAceite(Boolean aceite) { this.aceite = aceite; }
