@@ -51,11 +51,7 @@ public class SicoobBoletoService implements BoletoService {
 
     // Scopes para cobrança bancária (do portal Sicoob Developers)
     private static final String COBRANCA_SCOPES =
-            "cobranca_boletos_incluir cobranca_boletos_consultar cobranca_boletos_pagador "
-            + "cobranca_boletos_segunda_via cobranca_boletos_descontos "
-            + "cobranca_boletos_abatimentos cobranca_boletos_valor_nominal "
-            + "cobranca_boletos_seu_numero cobranca_boletos_especie_documento "
-            + "cobranca_boletos_baixa cobranca_boletos_rateio_credito";
+            "boletos_inclusao boletos_consulta boletos_alteracao";
 
     // Cache do token para evitar chamadas desnecessárias (token dura 300s / 5min)
     private volatile String cachedAccessToken;
