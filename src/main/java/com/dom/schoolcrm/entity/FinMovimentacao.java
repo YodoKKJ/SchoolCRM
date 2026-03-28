@@ -23,6 +23,9 @@ public class FinMovimentacao {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "escola_id")
+    private Long escolaId;
+
     // ENTRADA | SAIDA
     @Column(nullable = false, length = 10)
     private String tipo;
@@ -65,6 +68,8 @@ public class FinMovimentacao {
     private void prePersist() { this.createdAt = LocalDateTime.now(); }
 
     public Long getId() { return id; }
+    public Long getEscolaId() { return escolaId; }
+    public void setEscolaId(Long escolaId) { this.escolaId = escolaId; }
     public String getTipo() { return tipo; }
     public String getDescricao() { return descricao; }
     public String getCategoria() { return categoria; }

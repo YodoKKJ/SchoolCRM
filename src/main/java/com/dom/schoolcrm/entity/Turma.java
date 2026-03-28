@@ -10,6 +10,9 @@ public class Turma {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "escola_id")
+    private Long escolaId;
+
     private String nome;
 
     @ManyToOne
@@ -20,6 +23,8 @@ public class Turma {
     private Integer anoLetivo;
 
     public Long getId() { return id; }
+    public Long getEscolaId() { return escolaId; }
+    public void setEscolaId(Long escolaId) { this.escolaId = escolaId; }
     public String getNome() { return nome; }
     public Serie getSerie() { return serie; }
     public Integer getAnoLetivo() { return anoLetivo; }

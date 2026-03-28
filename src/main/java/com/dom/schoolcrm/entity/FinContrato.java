@@ -18,6 +18,9 @@ public class FinContrato {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "escola_id")
+    private Long escolaId;
+
     @ManyToOne
     @JoinColumn(name = "aluno_id", nullable = false)
     private Usuario aluno;
@@ -64,6 +67,8 @@ public class FinContrato {
     private void prePersist() { this.createdAt = LocalDateTime.now(); }
 
     public Long getId() { return id; }
+    public Long getEscolaId() { return escolaId; }
+    public void setEscolaId(Long escolaId) { this.escolaId = escolaId; }
     public Usuario getAluno() { return aluno; }
     public FinPessoa getResponsavelPrincipal() { return responsavelPrincipal; }
     public FinPessoa getResponsavelSecundario() { return responsavelSecundario; }

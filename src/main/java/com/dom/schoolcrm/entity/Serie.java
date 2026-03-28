@@ -13,6 +13,9 @@ public class Serie {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "escola_id")
+    private Long escolaId;
+
     private String nome;
 
     @OneToMany(mappedBy = "serie")
@@ -20,6 +23,8 @@ public class Serie {
     private List<Turma> turmas = new ArrayList<>();
 
     public Long getId() { return id; }
+    public Long getEscolaId() { return escolaId; }
+    public void setEscolaId(Long escolaId) { this.escolaId = escolaId; }
     public String getNome() { return nome; }
     public List<Turma> getTurmas() { return turmas; }
     public void setId(Long id) { this.id = id; }

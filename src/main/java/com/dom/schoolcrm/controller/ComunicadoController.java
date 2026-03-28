@@ -5,6 +5,7 @@ import com.dom.schoolcrm.repository.AlunoTurmaRepository;
 import com.dom.schoolcrm.repository.ComunicadoRepository;
 import com.dom.schoolcrm.repository.ProfessorTurmaMateriaRepository;
 import com.dom.schoolcrm.repository.UsuarioRepository;
+import com.dom.schoolcrm.security.TenantContext;
 import com.dom.schoolcrm.service.AuditService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -90,6 +91,9 @@ public class ComunicadoController {
                     .map(a -> a.getAuthority().replace("ROLE_", "")).orElse("?"));
         }
 
+        Long escolaId = TenantContext.getEscolaId();
+        if (escolaId != null) comunicado.setEscolaId(escolaId);
+
         comunicadoRepository.save(comunicado);
         auditService.log(auth, "CRIAR", "COMUNICADO", String.valueOf(comunicado.getId()),
                 "Titulo=" + comunicado.getTitulo() + " Destinatarios=" + comunicado.getDestinatarios());
@@ -100,7 +104,10 @@ public class ComunicadoController {
     @GetMapping
     @PreAuthorize("hasAnyRole('PROFESSOR', 'DIRECAO', 'COORDENACAO', 'ALUNO')")
     public ResponseEntity<?> listar(Authentication auth) {
-        List<Comunicado> todos = comunicadoRepository.findByAtivoTrueOrderByDataPublicacaoDesc();
+        Long escolaId = TenantContext.getEscolaId();
+        List<Comunicado> todos = escolaId != null
+                ? comunicadoRepository.findByEscolaIdAndAtivoTrueOrderByDataPublicacaoDesc(escolaId)
+                : comunicadoRepository.findByAtivoTrueOrderByDataPublicacaoDesc();
 
         String role = auth.getAuthorities().stream().findFirst()
                 .map(a -> a.getAuthority().replace("ROLE_", "")).orElse("?");

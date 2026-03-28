@@ -210,11 +210,11 @@ public class SchemaMigration {
             jdbcTemplate.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS escola_id BIGINT;");
         } catch (Exception ignored) {}
 
-        // Vincula todos os usuários sem escola à escola padrão
+        // Vincula todos os usuários sem escola à escola padrão (exceto MASTER)
         try {
             jdbcTemplate.execute("""
                 UPDATE usuarios SET escola_id = (SELECT id FROM escolas WHERE slug = 'escola-padrao')
-                WHERE escola_id IS NULL;
+                WHERE escola_id IS NULL AND (role IS NULL OR role != 'MASTER');
                 """);
         } catch (Exception ignored) {}
 
@@ -240,5 +240,28 @@ public class SchemaMigration {
         try {
             jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_usuarios_login_escola ON usuarios(login, escola_id);");
         } catch (Exception ignored) {}
+
+        // Multi-tenant: adiciona escola_id em todas as tabelas principais
+        String[] tabelas = {
+            "series", "turmas", "materias", "comunicados", "audit_log",
+            "fin_configuracoes", "fin_pessoas", "fin_formas_pagamento",
+            "fin_funcionarios", "fin_contratos", "fin_contas_pagar",
+            "fin_contas_receber", "fin_contas_pagar_modelo",
+            "fin_serie_valor", "fin_movimentacoes"
+        };
+        for (String tabela : tabelas) {
+            try {
+                jdbcTemplate.execute("ALTER TABLE " + tabela + " ADD COLUMN IF NOT EXISTS escola_id BIGINT;");
+            } catch (Exception ignored) {}
+            try {
+                jdbcTemplate.execute(
+                    "UPDATE " + tabela + " SET escola_id = (SELECT id FROM escolas WHERE slug = 'escola-padrao') " +
+                    "WHERE escola_id IS NULL;"
+                );
+            } catch (Exception ignored) {}
+            try {
+                jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_" + tabela + "_escola_id ON " + tabela + "(escola_id);");
+            } catch (Exception ignored) {}
+        }
     }
 }

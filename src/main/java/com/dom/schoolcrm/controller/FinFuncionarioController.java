@@ -6,6 +6,7 @@ import com.dom.schoolcrm.entity.FinPessoa;
 import com.dom.schoolcrm.repository.FinBeneficioRepository;
 import com.dom.schoolcrm.repository.FinFuncionarioRepository;
 import com.dom.schoolcrm.repository.FinPessoaRepository;
+import com.dom.schoolcrm.security.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -51,9 +52,17 @@ public class FinFuncionarioController {
     @GetMapping("/fin/funcionarios")
     public ResponseEntity<List<Map<String, Object>>> listar(
             @RequestParam(defaultValue = "false") boolean apenasAtivos) {
-        List<FinFuncionario> lista = apenasAtivos
-                ? funcionarioRepository.findByAtivoTrueOrderByPessoaNomeAsc()
-                : funcionarioRepository.findAllByOrderByPessoaNomeAsc();
+        Long escolaId = TenantContext.getEscolaId();
+        List<FinFuncionario> lista;
+        if (escolaId != null) {
+            lista = apenasAtivos
+                    ? funcionarioRepository.findByEscolaIdAndAtivoTrueOrderByPessoaNomeAsc(escolaId)
+                    : funcionarioRepository.findByEscolaIdOrderByPessoaNomeAsc(escolaId);
+        } else {
+            lista = apenasAtivos
+                    ? funcionarioRepository.findByAtivoTrueOrderByPessoaNomeAsc()
+                    : funcionarioRepository.findAllByOrderByPessoaNomeAsc();
+        }
         return ResponseEntity.ok(lista.stream().map(f -> toMap(f, false)).collect(Collectors.toList()));
     }
 
@@ -86,6 +95,8 @@ public class FinFuncionarioController {
         FinFuncionario func = new FinFuncionario();
         func.setPessoa(pessoa);
         preencherCampos(func, body);
+        Long escolaIdCriar = TenantContext.getEscolaId();
+        if (escolaIdCriar != null) func.setEscolaId(escolaIdCriar);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(toMap(funcionarioRepository.save(func), false));
     }

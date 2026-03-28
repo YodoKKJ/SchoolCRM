@@ -5,6 +5,8 @@ import DirecaoDashboard from "./pages/DirecaoDashboard";
 import ProfessorDashboard from "./pages/ProfessorDashboard";
 import AlunoDashboard from "./pages/AlunoDashboard";
 import LandingEscola from "./pages/LandingEscola";
+import MasterLogin from "./pages/MasterLogin";
+import MasterDashboard from "./pages/MasterDashboard";
 
 class AppErrorBoundary extends Component {
     constructor(props) {
@@ -53,6 +55,13 @@ function PrivateRoute({ children, role }) {
 
     const allowed = Array.isArray(role) ? role : [role];
     if (role && !allowed.includes(userRole)) return <Navigate to={slug ? `/escola/${slug}/login` : "/"} />;
+    return children;
+}
+
+function MasterPrivateRoute({ children }) {
+    const token = localStorage.getItem("token");
+    const userRole = localStorage.getItem("role");
+    if (!token || userRole !== "MASTER") return <Navigate to="/master/login" />;
     return children;
 }
 
@@ -114,6 +123,14 @@ function App() {
                         <LegacyRedirect role="ALUNO">
                             <AlunoDashboard />
                         </LegacyRedirect>
+                    } />
+
+                    {/* Master routes */}
+                    <Route path="/master/login" element={<MasterLogin />} />
+                    <Route path="/master" element={
+                        <MasterPrivateRoute>
+                            <MasterDashboard />
+                        </MasterPrivateRoute>
                     } />
 
                     {/* Landing pública */}

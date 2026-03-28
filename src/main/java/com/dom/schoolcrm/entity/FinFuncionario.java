@@ -16,6 +16,9 @@ public class FinFuncionario {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "escola_id")
+    private Long escolaId;
+
     @ManyToOne
     @JoinColumn(name = "pessoa_id", nullable = false)
     private FinPessoa pessoa;
@@ -39,6 +42,8 @@ public class FinFuncionario {
     private Boolean ativo = true;
 
     public Long getId() { return id; }
+    public Long getEscolaId() { return escolaId; }
+    public void setEscolaId(Long escolaId) { this.escolaId = escolaId; }
     public FinPessoa getPessoa() { return pessoa; }
     public String getCargo() { return cargo; }
     public BigDecimal getCargaHoraria() { return cargaHoraria; }

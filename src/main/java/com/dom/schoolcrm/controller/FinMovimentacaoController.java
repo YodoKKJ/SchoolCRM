@@ -6,6 +6,7 @@ import com.dom.schoolcrm.repository.FinFormaPagamentoRepository;
 import com.dom.schoolcrm.repository.FinMovimentacaoRepository;
 import com.dom.schoolcrm.repository.FinPessoaRepository;
 import com.dom.schoolcrm.repository.UsuarioRepository;
+import com.dom.schoolcrm.security.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -56,7 +57,8 @@ public class FinMovimentacaoController {
         LocalDate deD  = de  != null ? LocalDate.parse(de)  : null;
         LocalDate ateD = ate != null ? LocalDate.parse(ate) : null;
 
-        List<FinMovimentacao> lista = movimentacaoRepository.buscar(tipoF, catF, deD, ateD);
+        Long escolaId = TenantContext.getEscolaId();
+        List<FinMovimentacao> lista = movimentacaoRepository.buscar(tipoF, catF, deD, ateD, escolaId);
         return ResponseEntity.ok(lista.stream().map(this::toMap).collect(Collectors.toList()));
     }
 
@@ -71,8 +73,9 @@ public class FinMovimentacaoController {
         LocalDate deD  = de  != null ? LocalDate.parse(de)  : LocalDate.now().withDayOfMonth(1);
         LocalDate ateD = ate != null ? LocalDate.parse(ate) : LocalDate.now();
 
-        BigDecimal entradas = movimentacaoRepository.somarEntradasNoPeriodo(deD, ateD);
-        BigDecimal saidas   = movimentacaoRepository.somarSaidasNoPeriodo(deD, ateD);
+        Long escolaId = TenantContext.getEscolaId();
+        BigDecimal entradas = escolaId != null ? movimentacaoRepository.somarEntradasNoPeriodoByEscola(deD, ateD, escolaId) : movimentacaoRepository.somarEntradasNoPeriodo(deD, ateD);
+        BigDecimal saidas   = escolaId != null ? movimentacaoRepository.somarSaidasNoPeriodoByEscola(deD, ateD, escolaId) : movimentacaoRepository.somarSaidasNoPeriodo(deD, ateD);
         BigDecimal saldo    = entradas.subtract(saidas);
 
         Map<String, Object> resumo = new LinkedHashMap<>();
@@ -106,6 +109,8 @@ public class FinMovimentacaoController {
         }
 
         FinMovimentacao mov = new FinMovimentacao();
+        Long escolaId = TenantContext.getEscolaId();
+        if (escolaId != null) mov.setEscolaId(escolaId);
         mov.setTipo(tipo.toUpperCase());
         mov.setDescricao(descricao.trim());
         mov.setValor(valor);

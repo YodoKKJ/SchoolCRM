@@ -15,6 +15,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
     Optional<Usuario> findByLoginAndEscolaId(String login, Long escolaId);
 
+    Optional<Usuario> findByLoginAndEscolaIsNullAndRole(String login, String role);
+
     List<Usuario> findByEscolaId(Long escolaId);
 
     @Query(value = "SELECT * FROM usuarios WHERE " +

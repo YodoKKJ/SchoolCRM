@@ -16,6 +16,9 @@ public class FinPessoa {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "escola_id")
+    private Long escolaId;
+
     // FISICA | JURIDICA
     @Column(name = "tipo_pessoa", nullable = false, length = 10)
     private String tipoPessoa;
@@ -57,6 +60,8 @@ public class FinPessoa {
     }
 
     public Long getId() { return id; }
+    public Long getEscolaId() { return escolaId; }
+    public void setEscolaId(Long escolaId) { this.escolaId = escolaId; }
     public String getTipoPessoa() { return tipoPessoa; }
     public String getNome() { return nome; }
     public String getCpf() { return cpf; }

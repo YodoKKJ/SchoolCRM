@@ -2,6 +2,7 @@ package com.dom.schoolcrm.service;
 
 import com.dom.schoolcrm.entity.*;
 import com.dom.schoolcrm.repository.*;
+import com.dom.schoolcrm.security.TenantContext;
 import com.dom.schoolcrm.util.FinUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -133,6 +134,9 @@ public class FinContratoService {
             pessoaRepository.findById(respSecId).ifPresent(contrato::setResponsavelSecundario);
         }
 
+        Long escolaId = TenantContext.getEscolaId();
+        if (escolaId != null) contrato.setEscolaId(escolaId);
+
         contratoRepository.save(contrato);
 
         List<FinContaReceber> parcelas = gerarParcelas(contrato, valorMensal, numParcelas, inicioBase, serie.getNome());
@@ -171,6 +175,7 @@ public class FinContratoService {
 
         BigDecimal valorParcela = valorTotal.setScale(2, RoundingMode.HALF_UP);
         BigDecimal ultimaParcela = valorParcela;
+        Long escolaId = TenantContext.getEscolaId();
 
         List<FinContaReceber> parcelas = new ArrayList<>();
         for (int i = 1; i <= numParcelas; i++) {
@@ -185,6 +190,7 @@ public class FinContratoService {
             cr.setValor(i == numParcelas ? ultimaParcela : valorParcela);
             cr.setDataVencimento(inicioBase.plusMonths(i - 1));
             cr.setStatus("PENDENTE");
+            if (escolaId != null) cr.setEscolaId(escolaId);
             parcelas.add(cr);
         }
         return parcelas;

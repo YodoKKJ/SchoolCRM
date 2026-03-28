@@ -2,6 +2,7 @@ package com.dom.schoolcrm.controller;
 
 import com.dom.schoolcrm.entity.*;
 import com.dom.schoolcrm.repository.*;
+import com.dom.schoolcrm.security.TenantContext;
 import com.dom.schoolcrm.service.AuditService;
 import com.dom.schoolcrm.util.FinUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -76,7 +77,8 @@ public class FinContaReceberController {
         String statusFiltro = (status != null && !status.isBlank()) ? status.toUpperCase() : null;
         String statusDb     = "VENCIDO".equals(statusFiltro) ? "PENDENTE" : statusFiltro;
 
-        List<FinContaReceber> lista = crRepository.buscar(alunoId, tipoFiltro, statusDb, de, ate);
+        Long escolaId = TenantContext.getEscolaId();
+        List<FinContaReceber> lista = crRepository.buscar(alunoId, tipoFiltro, statusDb, de, ate, escolaId);
 
         // Se filtro é VENCIDO, mantém só os realmente vencidos
         if ("VENCIDO".equals(statusFiltro)) {
@@ -92,8 +94,11 @@ public class FinContaReceberController {
 
     @GetMapping("/vencidas")
     public ResponseEntity<List<Map<String, Object>>> listarVencidas() {
+        Long escolaId = TenantContext.getEscolaId();
         LocalDate hoje = LocalDate.now();
-        List<FinContaReceber> lista = crRepository.findVencidas(hoje);
+        List<FinContaReceber> lista = escolaId != null
+                ? crRepository.findVencidasByEscola(hoje, escolaId)
+                : crRepository.findVencidas(hoje);
         return ResponseEntity.ok(lista.stream().map(cr -> toMap(cr, hoje)).collect(Collectors.toList()));
     }
 
@@ -124,6 +129,9 @@ public class FinContaReceberController {
         if (pessoaId != null) {
             pessoaRepository.findById(pessoaId).ifPresent(cr::setPessoa);
         }
+
+        Long escolaIdCriar = TenantContext.getEscolaId();
+        if (escolaIdCriar != null) cr.setEscolaId(escolaIdCriar);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(toMap(crRepository.save(cr), LocalDate.now()));
     }

@@ -46,7 +46,8 @@ public class JwtFilter extends OncePerRequestFilter {
                             : usuarioRepository.findByLogin(login);
 
                     if (usuario.isPresent() && Boolean.TRUE.equals(usuario.get().getAtivo())) {
-                        if (escolaId != null) {
+                        // MASTER users are cross-escola — don't set TenantContext
+                        if (escolaId != null && !"MASTER".equals(role)) {
                             TenantContext.setEscolaId(escolaId);
                         }
                         var auth = new UsernamePasswordAuthenticationToken(

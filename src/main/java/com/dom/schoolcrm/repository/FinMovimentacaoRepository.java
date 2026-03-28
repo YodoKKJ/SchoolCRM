@@ -11,6 +11,8 @@ import java.util.List;
 
 public interface FinMovimentacaoRepository extends JpaRepository<FinMovimentacao, Long> {
 
+    List<FinMovimentacao> findByEscolaId(Long escolaId);
+
     // Busca com filtros combinados para a tela de listagem
     // Usa native SQL para evitar falha de inferência de tipo null no Hibernate + PostgreSQL
     @Query(value = """
@@ -19,13 +21,15 @@ public interface FinMovimentacaoRepository extends JpaRepository<FinMovimentacao
           AND (cast(:categoria as text) IS NULL OR LOWER(categoria) LIKE LOWER(CONCAT('%', cast(:categoria as text), '%')))
           AND (cast(:de as date) IS NULL OR data_movimentacao >= cast(:de as date))
           AND (cast(:ate as date) IS NULL OR data_movimentacao <= cast(:ate as date))
+          AND (cast(:escolaId as bigint) IS NULL OR escola_id = cast(:escolaId as bigint))
         ORDER BY data_movimentacao DESC, created_at DESC
         """, nativeQuery = true)
     List<FinMovimentacao> buscar(
             @Param("tipo") String tipo,
             @Param("categoria") String categoria,
             @Param("de") LocalDate de,
-            @Param("ate") LocalDate ate
+            @Param("ate") LocalDate ate,
+            @Param("escolaId") Long escolaId
     );
 
     // Soma de entradas num período (para dashboard e resumo)
@@ -47,4 +51,26 @@ public interface FinMovimentacaoRepository extends JpaRepository<FinMovimentacao
           AND m.dataMovimentacao <= :ate
         """)
     BigDecimal somarSaidasNoPeriodo(@Param("de") LocalDate de, @Param("ate") LocalDate ate);
+
+    // ─── Escola-scoped dashboard queries ──────────────────────────────────────
+
+    @Query("""
+        SELECT COALESCE(SUM(m.valor), 0)
+        FROM FinMovimentacao m
+        WHERE m.tipo = 'ENTRADA'
+          AND m.dataMovimentacao >= :de
+          AND m.dataMovimentacao <= :ate
+          AND m.escolaId = :escolaId
+        """)
+    BigDecimal somarEntradasNoPeriodoByEscola(@Param("de") LocalDate de, @Param("ate") LocalDate ate, @Param("escolaId") Long escolaId);
+
+    @Query("""
+        SELECT COALESCE(SUM(m.valor), 0)
+        FROM FinMovimentacao m
+        WHERE m.tipo = 'SAIDA'
+          AND m.dataMovimentacao >= :de
+          AND m.dataMovimentacao <= :ate
+          AND m.escolaId = :escolaId
+        """)
+    BigDecimal somarSaidasNoPeriodoByEscola(@Param("de") LocalDate de, @Param("ate") LocalDate ate, @Param("escolaId") Long escolaId);
 }

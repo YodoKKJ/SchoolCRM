@@ -10,12 +10,17 @@ public class FinFormaPagamento {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "escola_id")
+    private Long escolaId;
+
     @Column(nullable = false, unique = true)
     private String nome;
 
     private Boolean ativo = true;
 
     public Long getId() { return id; }
+    public Long getEscolaId() { return escolaId; }
+    public void setEscolaId(Long escolaId) { this.escolaId = escolaId; }
     public String getNome() { return nome; }
     public Boolean getAtivo() { return ativo; }
 

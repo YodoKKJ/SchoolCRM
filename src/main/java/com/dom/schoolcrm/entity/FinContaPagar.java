@@ -24,6 +24,9 @@ public class FinContaPagar {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "escola_id")
+    private Long escolaId;
+
     // Modelo que gerou esta conta (nulo se lançamento manual)
     @ManyToOne
     @JoinColumn(name = "modelo_id")
@@ -84,6 +87,8 @@ public class FinContaPagar {
     private BigDecimal multaAplicada;
 
     public Long getId() { return id; }
+    public Long getEscolaId() { return escolaId; }
+    public void setEscolaId(Long escolaId) { this.escolaId = escolaId; }
     public FinContaPagarModelo getModelo() { return modelo; }
     public FinFuncionario getFuncionario() { return funcionario; }
     public FinPessoa getPessoa() { return pessoa; }

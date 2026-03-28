@@ -11,4 +11,8 @@ public interface FinSerieValorRepository extends JpaRepository<FinSerieValor, Lo
     List<FinSerieValor> findByAnoLetivo(Integer anoLetivo);
 
     Optional<FinSerieValor> findBySerieIdAndAnoLetivo(Long serieId, Integer anoLetivo);
+
+    List<FinSerieValor> findByEscolaId(Long escolaId);
+
+    List<FinSerieValor> findByEscolaIdAndAnoLetivo(Long escolaId, Integer anoLetivo);
 }

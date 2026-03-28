@@ -11,6 +11,9 @@ public class Comunicado {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "escola_id")
+    private Long escolaId;
+
     private String titulo;
 
     @Column(columnDefinition = "TEXT")
@@ -36,6 +39,8 @@ public class Comunicado {
     private Boolean ativo = true;
 
     public Long getId() { return id; }
+    public Long getEscolaId() { return escolaId; }
+    public void setEscolaId(Long escolaId) { this.escolaId = escolaId; }
     public String getTitulo() { return titulo; }
     public String getCorpo() { return corpo; }
     public Long getAutorId() { return autorId; }

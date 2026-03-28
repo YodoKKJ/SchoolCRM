@@ -86,6 +86,46 @@ public class AuthController {
         ));
     }
 
+    @PostMapping("/master-login")
+    public ResponseEntity<?> masterLogin(@RequestBody Map<String, String> body) {
+        String login = body.get("login");
+        String senha = body.get("senha");
+
+        if (login == null || login.isBlank() || senha == null || senha.isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Login e senha são obrigatórios");
+        }
+
+        Optional<Usuario> usuarioOpt = usuarioRepository.findByLoginAndEscolaIsNullAndRole(login, "MASTER");
+
+        if (usuarioOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("Usuário master não encontrado");
+        }
+
+        Usuario usuario = usuarioOpt.get();
+
+        if (!Boolean.TRUE.equals(usuario.getAtivo())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("Usuário inativo.");
+        }
+
+        if (!passwordEncoder.matches(senha, usuario.getSenhaHash())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("Senha incorreta");
+        }
+
+        boolean lembrar = "true".equalsIgnoreCase(body.get("lembrar"));
+        String token = jwtUtil.gerarToken(usuario.getLogin(), usuario.getRole(), null, lembrar);
+
+        return ResponseEntity.ok(Map.of(
+                "token", token,
+                "role", usuario.getRole(),
+                "nome", usuario.getNome(),
+                "id", usuario.getId()
+        ));
+    }
+
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> me(Authentication auth) {

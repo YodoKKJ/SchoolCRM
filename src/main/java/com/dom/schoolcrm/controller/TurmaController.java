@@ -6,6 +6,7 @@ import com.dom.schoolcrm.repository.SerieRepository;
 import com.dom.schoolcrm.repository.TurmaRepository;
 import com.dom.schoolcrm.repository.AlunoTurmaRepository;
 import com.dom.schoolcrm.repository.ProfessorTurmaMateriaRepository;
+import com.dom.schoolcrm.security.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -36,8 +37,10 @@ public class TurmaController {
     @PostMapping("/series")
     @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> cadastrarSerie(@RequestBody Map<String, String> body) {
+        Long escolaId = TenantContext.getEscolaId();
         Serie serie = new Serie();
         serie.setNome(body.get("nome"));
+        if (escolaId != null) serie.setEscolaId(escolaId);
         serieRepository.save(serie);
         return ResponseEntity.status(HttpStatus.CREATED).body(serie);
     }
@@ -45,12 +48,17 @@ public class TurmaController {
     @GetMapping("/series")
     @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<List<Serie>> listarSeries() {
-        return ResponseEntity.ok(serieRepository.findAll());
+        Long escolaId = TenantContext.getEscolaId();
+        List<Serie> result = escolaId != null
+                ? serieRepository.findByEscolaId(escolaId)
+                : serieRepository.findAll();
+        return ResponseEntity.ok(result);
     }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> cadastrarTurma(@RequestBody Map<String, String> body) {
+        Long escolaId = TenantContext.getEscolaId();
         Long serieId = Long.parseLong(body.get("serieId"));
         Optional<Serie> serie = serieRepository.findById(serieId);
         if (serie.isEmpty()) {
@@ -60,6 +68,7 @@ public class TurmaController {
         turma.setNome(body.get("nome"));
         turma.setSerie(serie.get());
         turma.setAnoLetivo(Integer.parseInt(body.get("anoLetivo")));
+        if (escolaId != null) turma.setEscolaId(escolaId);
         turmaRepository.save(turma);
         return ResponseEntity.status(HttpStatus.CREATED).body(turma);
     }
@@ -67,7 +76,11 @@ public class TurmaController {
     @GetMapping
     @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<List<Turma>> listarTurmas() {
-        return ResponseEntity.ok(turmaRepository.findAll());
+        Long escolaId = TenantContext.getEscolaId();
+        List<Turma> result = escolaId != null
+                ? turmaRepository.findByEscolaId(escolaId)
+                : turmaRepository.findAll();
+        return ResponseEntity.ok(result);
     }
 
     @GetMapping("/buscar")
@@ -75,8 +88,9 @@ public class TurmaController {
     public ResponseEntity<List<Turma>> buscar(
             @RequestParam(required = false) String nome,
             @RequestParam(required = false) Long serieId) {
+        Long escolaId = TenantContext.getEscolaId();
         String nomeParam = (nome == null || nome.isBlank()) ? null : nome.trim();
-        return ResponseEntity.ok(turmaRepository.buscar(nomeParam, serieId));
+        return ResponseEntity.ok(turmaRepository.buscar(nomeParam, serieId, escolaId));
     }
 
     @PutMapping("/{id}")

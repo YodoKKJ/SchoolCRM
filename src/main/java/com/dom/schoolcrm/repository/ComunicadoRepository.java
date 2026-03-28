@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface ComunicadoRepository extends JpaRepository<Comunicado, Long> {
     List<Comunicado> findByAtivoTrueOrderByDataPublicacaoDesc();
+
+    List<Comunicado> findByEscolaIdAndAtivoTrueOrderByDataPublicacaoDesc(Long escolaId);
 }

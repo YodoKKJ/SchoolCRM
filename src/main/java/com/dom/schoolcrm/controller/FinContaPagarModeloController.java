@@ -4,6 +4,7 @@ import com.dom.schoolcrm.entity.FinContaPagarModelo;
 import com.dom.schoolcrm.entity.FinPessoa;
 import com.dom.schoolcrm.repository.FinContaPagarModeloRepository;
 import com.dom.schoolcrm.repository.FinPessoaRepository;
+import com.dom.schoolcrm.security.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,9 +38,17 @@ public class FinContaPagarModeloController {
     @GetMapping
     public ResponseEntity<List<Map<String, Object>>> listar(
             @RequestParam(defaultValue = "false") boolean apenasAtivos) {
-        List<FinContaPagarModelo> lista = apenasAtivos
-                ? modeloRepository.findByAtivoTrueOrderByDescricaoAsc()
-                : modeloRepository.findAllByOrderByDescricaoAsc();
+        Long escolaId = TenantContext.getEscolaId();
+        List<FinContaPagarModelo> lista;
+        if (escolaId != null) {
+            lista = apenasAtivos
+                    ? modeloRepository.findByEscolaIdAndAtivoTrueOrderByDescricaoAsc(escolaId)
+                    : modeloRepository.findByEscolaIdOrderByDescricaoAsc(escolaId);
+        } else {
+            lista = apenasAtivos
+                    ? modeloRepository.findByAtivoTrueOrderByDescricaoAsc()
+                    : modeloRepository.findAllByOrderByDescricaoAsc();
+        }
         return ResponseEntity.ok(lista.stream().map(this::toMap).collect(Collectors.toList()));
     }
 
@@ -50,6 +59,8 @@ public class FinContaPagarModeloController {
 
         FinContaPagarModelo modelo = new FinContaPagarModelo();
         preencher(modelo, body);
+        Long escolaId = TenantContext.getEscolaId();
+        if (escolaId != null) modelo.setEscolaId(escolaId);
         return ResponseEntity.status(HttpStatus.CREATED).body(toMap(modeloRepository.save(modelo)));
     }
 

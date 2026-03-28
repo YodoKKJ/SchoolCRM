@@ -14,4 +14,10 @@ public interface FinFuncionarioRepository extends JpaRepository<FinFuncionario, 
 
     // Impede cadastrar a mesma pessoa como funcionário duas vezes
     Optional<FinFuncionario> findByPessoaId(Long pessoaId);
+
+    List<FinFuncionario> findByEscolaId(Long escolaId);
+
+    List<FinFuncionario> findByEscolaIdAndAtivoTrueOrderByPessoaNomeAsc(Long escolaId);
+
+    List<FinFuncionario> findByEscolaIdOrderByPessoaNomeAsc(Long escolaId);
 }

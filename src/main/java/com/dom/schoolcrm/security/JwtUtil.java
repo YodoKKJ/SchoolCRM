@@ -41,14 +41,15 @@ public class JwtUtil {
 
     public String gerarToken(String login, String role, Long escolaId, boolean lembrar) {
         long expiracao = lembrar ? expiracaoLembrarMs : expiracaoMs;
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .setSubject(login)
                 .claim("role", role)
-                .claim("escolaId", escolaId)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + expiracao))
-                .signWith(getChave())
-                .compact();
+                .setExpiration(new Date(System.currentTimeMillis() + expiracao));
+        if (escolaId != null) {
+            builder.claim("escolaId", escolaId);
+        }
+        return builder.signWith(getChave()).compact();
     }
 
     public String extrairLogin(String token) {

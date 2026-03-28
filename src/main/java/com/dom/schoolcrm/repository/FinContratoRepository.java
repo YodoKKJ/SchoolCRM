@@ -13,4 +13,10 @@ public interface FinContratoRepository extends JpaRepository<FinContrato, Long> 
     List<FinContrato> findByAnoLetivoOrderByAlunoNomeAsc(Integer anoLetivo);
 
     Optional<FinContrato> findByAlunoIdAndAnoLetivo(Long alunoId, Integer anoLetivo);
+
+    List<FinContrato> findByEscolaId(Long escolaId);
+
+    List<FinContrato> findByEscolaIdAndAnoLetivoOrderByAlunoNomeAsc(Long escolaId, Integer anoLetivo);
+
+    List<FinContrato> findByEscolaIdAndAlunoIdOrderByAnoLetivoDesc(Long escolaId, Long alunoId);
 }

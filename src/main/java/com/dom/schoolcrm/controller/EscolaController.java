@@ -17,13 +17,13 @@ public class EscolaController {
     private EscolaRepository escolaRepository;
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DIRECAO')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('DIRECAO') or hasRole('MASTER')")
     public List<Escola> listar() {
         return escolaRepository.findAll();
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DIRECAO')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('DIRECAO') or hasRole('MASTER')")
     public ResponseEntity<Escola> buscar(@PathVariable Long id) {
         return escolaRepository.findById(id)
                 .map(ResponseEntity::ok)
@@ -31,14 +31,14 @@ public class EscolaController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DIRECAO')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('DIRECAO') or hasRole('MASTER')")
     public Escola criar(@RequestBody Escola escola) {
         escola.setSlug(gerarSlug(escola.getNome()));
         return escolaRepository.save(escola);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('DIRECAO')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('DIRECAO') or hasRole('MASTER')")
     public ResponseEntity<Escola> atualizar(@PathVariable Long id, @RequestBody Escola dados) {
         return escolaRepository.findById(id).map(escola -> {
             escola.setNome(dados.getNome());
@@ -49,6 +49,16 @@ public class EscolaController {
             }
             return ResponseEntity.ok(escolaRepository.save(escola));
         }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('MASTER')")
+    public ResponseEntity<Void> deletar(@PathVariable Long id) {
+        if (!escolaRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        escolaRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
     }
 
     private String gerarSlug(String nome) {
