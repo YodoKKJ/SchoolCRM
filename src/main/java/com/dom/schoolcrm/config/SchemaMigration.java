@@ -183,5 +183,62 @@ public class SchemaMigration {
         try {
             jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_aluno_turma_aluno_id ON aluno_turma(aluno_id);");
         } catch (Exception ignored) {}
+
+        // Multi-tenant: tabela escolas e vinculação com usuarios
+        try {
+            jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS escolas (
+                    id BIGSERIAL PRIMARY KEY,
+                    nome VARCHAR(255) NOT NULL,
+                    slug VARCHAR(255) NOT NULL UNIQUE,
+                    cnpj VARCHAR(20),
+                    ativo BOOLEAN NOT NULL DEFAULT TRUE
+                );
+                """);
+        } catch (Exception ignored) {}
+
+        // Cria escola padrão se não existe e vincula todos os usuários órfãos
+        try {
+            jdbcTemplate.execute("""
+                INSERT INTO escolas (nome, slug, ativo)
+                SELECT 'Escola Padrão', 'escola-padrao', TRUE
+                WHERE NOT EXISTS (SELECT 1 FROM escolas WHERE slug = 'escola-padrao');
+                """);
+        } catch (Exception ignored) {}
+
+        try {
+            jdbcTemplate.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS escola_id BIGINT;");
+        } catch (Exception ignored) {}
+
+        // Vincula todos os usuários sem escola à escola padrão
+        try {
+            jdbcTemplate.execute("""
+                UPDATE usuarios SET escola_id = (SELECT id FROM escolas WHERE slug = 'escola-padrao')
+                WHERE escola_id IS NULL;
+                """);
+        } catch (Exception ignored) {}
+
+        // FK e índice
+        try {
+            jdbcTemplate.execute("""
+                DO $$ BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.table_constraints
+                        WHERE constraint_name = 'fk_usuarios_escola' AND table_name = 'usuarios'
+                    ) THEN
+                        ALTER TABLE usuarios ADD CONSTRAINT fk_usuarios_escola
+                            FOREIGN KEY (escola_id) REFERENCES escolas(id);
+                    END IF;
+                END $$;
+                """);
+        } catch (Exception ignored) {}
+
+        try {
+            jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_usuarios_escola_id ON usuarios(escola_id);");
+        } catch (Exception ignored) {}
+
+        try {
+            jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_usuarios_login_escola ON usuarios(login, escola_id);");
+        } catch (Exception ignored) {}
     }
 }

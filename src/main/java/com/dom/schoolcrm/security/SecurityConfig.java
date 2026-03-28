@@ -125,7 +125,12 @@ public class SecurityConfig {
                 new AntPathRequestMatcher("/professor"),
                 new AntPathRequestMatcher("/aluno"),
                 // Landing page pública da escola — sem autenticação
-                new AntPathRequestMatcher("/escola")
+                new AntPathRequestMatcher("/escola"),
+                // Multi-tenant: rotas SPA com slug da escola
+                new AntPathRequestMatcher("/escola/*/login"),
+                new AntPathRequestMatcher("/escola/*/direcao"),
+                new AntPathRequestMatcher("/escola/*/professor"),
+                new AntPathRequestMatcher("/escola/*/aluno")
         );
     }
 

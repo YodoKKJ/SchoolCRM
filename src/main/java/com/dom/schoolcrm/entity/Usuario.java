@@ -4,7 +4,9 @@ import jakarta.persistence.*;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "usuarios")
+@Table(name = "usuarios", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"login", "escola_id"})
+})
 public class Usuario {
 
     @Id
@@ -19,6 +21,10 @@ public class Usuario {
 
     private String role;
     private Boolean ativo;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "escola_id")
+    private Escola escola;
 
     @Column(name = "data_nascimento")
     private LocalDate dataNascimento;
@@ -38,6 +44,7 @@ public class Usuario {
     public String getSenhaHash() { return senhaHash; }
     public String getRole() { return role; }
     public Boolean getAtivo() { return ativo; }
+    public Escola getEscola() { return escola; }
     public LocalDate getDataNascimento() { return dataNascimento; }
     public String getNomePai() { return nomePai; }
     public String getNomeMae() { return nomeMae; }
@@ -49,6 +56,7 @@ public class Usuario {
     public void setSenhaHash(String senhaHash) { this.senhaHash = senhaHash; }
     public void setRole(String role) { this.role = role; }
     public void setAtivo(Boolean ativo) { this.ativo = ativo; }
+    public void setEscola(Escola escola) { this.escola = escola; }
     public void setDataNascimento(LocalDate dataNascimento) { this.dataNascimento = dataNascimento; }
     public void setNomePai(String nomePai) { this.nomePai = nomePai; }
     public void setNomeMae(String nomeMae) { this.nomeMae = nomeMae; }

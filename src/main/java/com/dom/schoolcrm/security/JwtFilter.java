@@ -30,28 +30,38 @@ public class JwtFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        String header = request.getHeader("Authorization");
+        try {
+            String header = request.getHeader("Authorization");
 
-        if (header != null && header.startsWith("Bearer ")) {
-            String token = header.substring(7);
+            if (header != null && header.startsWith("Bearer ")) {
+                String token = header.substring(7);
 
-            if (jwtUtil.tokenValido(token)) {
-                String login = jwtUtil.extrairLogin(token);
-                String role = jwtUtil.extrairRole(token);
+                if (jwtUtil.tokenValido(token)) {
+                    String login = jwtUtil.extrairLogin(token);
+                    String role = jwtUtil.extrairRole(token);
+                    Long escolaId = jwtUtil.extrairEscolaId(token);
 
-                var usuario = usuarioRepository.findByLogin(login);
+                    var usuario = escolaId != null
+                            ? usuarioRepository.findByLoginAndEscolaId(login, escolaId)
+                            : usuarioRepository.findByLogin(login);
 
-                if (usuario.isPresent() && Boolean.TRUE.equals(usuario.get().getAtivo())) {
-                    var auth = new UsernamePasswordAuthenticationToken(
-                            login,
-                            null,
-                            List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                    );
-                    SecurityContextHolder.getContext().setAuthentication(auth);
+                    if (usuario.isPresent() && Boolean.TRUE.equals(usuario.get().getAtivo())) {
+                        if (escolaId != null) {
+                            TenantContext.setEscolaId(escolaId);
+                        }
+                        var auth = new UsernamePasswordAuthenticationToken(
+                                login,
+                                null,
+                                List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                        );
+                        SecurityContextHolder.getContext().setAuthentication(auth);
+                    }
                 }
             }
-        }
 
-        filterChain.doFilter(request, response);
+            filterChain.doFilter(request, response);
+        } finally {
+            TenantContext.clear();
+        }
     }
 }

@@ -192,10 +192,11 @@ api.interceptors.response.use(
     error => {
         if (error.response?.status === 401 && !redirectingTo401) {
             redirectingTo401 = true;
+            const slug = localStorage.getItem("escolaSlug");
             localStorage.removeItem("token");
             localStorage.removeItem("role");
             localStorage.removeItem("nome");
-            window.location.href = "/";
+            window.location.href = slug ? `/escola/${slug}/login` : "/";
         }
         return Promise.reject(error);
     }
@@ -818,7 +819,7 @@ export default function DirecaoDashboard() {
     const _warnAlt = dark ? { background:"#3a2800", border:"1px solid #5a4020", color:"#f0c060" } : { background:"#fff8e1", border:"1px solid #ffe082", color:"#7a4800" };
     const _errBg = dark ? { background:"#2a1010", border:"1px solid #5a2020", color:"#f0a0a0" } : { background:"#fff5f5", border:"1px solid #f5c0c0", color:"#b94040" };
     const nome = localStorage.getItem("nome") || (isCoord ? "Coordenação" : "Direção");
-    const logout = () => { localStorage.clear(); window.location.href = "/"; };
+    const logout = () => { const slug = localStorage.getItem("escolaSlug"); localStorage.clear(); window.location.href = slug ? `/escola/${slug}/login` : "/"; };
     const toggleColapso = (id) => setColapsados(prev => ({ ...prev, [id]: !prev[id] }));
 
     // COORDENACAO não acessa o módulo financeiro

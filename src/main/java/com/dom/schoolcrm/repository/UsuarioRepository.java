@@ -13,9 +13,14 @@ import java.util.Optional;
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     Optional<Usuario> findByLogin(String login);
 
+    Optional<Usuario> findByLoginAndEscolaId(String login, Long escolaId);
+
+    List<Usuario> findByEscolaId(Long escolaId);
+
     @Query(value = "SELECT * FROM usuarios WHERE " +
+           "(CAST(:escolaId AS BIGINT) IS NULL OR escola_id = CAST(:escolaId AS BIGINT)) AND " +
            "(CAST(:nome AS TEXT) IS NULL OR LOWER(nome) LIKE LOWER('%' || CAST(:nome AS TEXT) || '%')) AND " +
            "(CAST(:role AS TEXT) IS NULL OR LOWER(role) LIKE LOWER('%' || CAST(:role AS TEXT) || '%'))",
            nativeQuery = true)
-    List<Usuario> buscar(@Param("nome") String nome, @Param("role") String role);
+    List<Usuario> buscar(@Param("escolaId") Long escolaId, @Param("nome") String nome, @Param("role") String role);
 }

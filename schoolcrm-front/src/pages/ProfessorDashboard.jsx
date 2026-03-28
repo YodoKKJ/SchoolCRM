@@ -23,10 +23,11 @@ api.interceptors.response.use(
     error => {
         if (error.response?.status === 401 && !redirectingTo401) {
             redirectingTo401 = true;
+            const slug = localStorage.getItem("escolaSlug");
             localStorage.removeItem("token");
             localStorage.removeItem("role");
             localStorage.removeItem("nome");
-            window.location.href = "/";
+            window.location.href = slug ? `/escola/${slug}/login` : "/";
         }
         return Promise.reject(error);
     }
@@ -228,7 +229,7 @@ export default function ProfessorDashboard() {
     const [dark, setDark] = useState(() => localStorage.getItem("theme") === "dark");
     const toggleDark = () => setDark(prev => { const next = !prev; localStorage.setItem("theme", next ? "dark" : "light"); return next; });
     const nome = localStorage.getItem("nome") || "Professor";
-    const logout = () => { localStorage.clear(); window.location.href = "/"; };
+    const logout = () => { const slug = localStorage.getItem("escolaSlug"); localStorage.clear(); window.location.href = slug ? `/escola/${slug}/login` : "/"; };
 
     useEffect(() => {
         api.get("/vinculos/professor-turma-materia/minhas").then(r => {

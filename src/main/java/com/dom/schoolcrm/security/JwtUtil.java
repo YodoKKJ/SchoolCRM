@@ -39,11 +39,12 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String gerarToken(String login, String role, boolean lembrar) {
+    public String gerarToken(String login, String role, Long escolaId, boolean lembrar) {
         long expiracao = lembrar ? expiracaoLembrarMs : expiracaoMs;
         return Jwts.builder()
                 .setSubject(login)
                 .claim("role", role)
+                .claim("escolaId", escolaId)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expiracao))
                 .signWith(getChave())
@@ -56,6 +57,10 @@ public class JwtUtil {
 
     public String extrairRole(String token) {
         return extrairClaims(token).get("role", String.class);
+    }
+
+    public Long extrairEscolaId(String token) {
+        return extrairClaims(token).get("escolaId", Long.class);
     }
 
     public boolean tokenValido(String token) {
