@@ -380,7 +380,7 @@ export default function MasterLogin() {
                                         onChange={e => setLogin(e.target.value)}
                                         onFocus={() => setFocusLogin(true)}
                                         onBlur={() => setFocusLogin(false)}
-                                        placeholder="admin"
+                                        placeholder="yodo"
                                         autoComplete="username"
                                     />
                                     <div className="ml-field-line" />

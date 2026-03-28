@@ -61,6 +61,24 @@ public class DataInitializer {
     }
 
     @Bean
+    CommandLineRunner initMaster(UsuarioRepository repo, PasswordEncoder encoder) {
+        return args -> {
+            // MASTER: sem escola vinculada (escola = null)
+            if (repo.findByLoginAndEscolaIsNullAndRole("yodo", "MASTER").isEmpty()) {
+                Usuario master = new Usuario();
+                master.setLogin("yodo");
+                master.setSenhaHash(encoder.encode("Cacto1010_"));
+                master.setNome("Yodo Master");
+                master.setRole("MASTER");
+                master.setAtivo(true);
+                // escola = null → acesso a todas as escolas
+                repo.save(master);
+                System.out.println(">>> Usuário MASTER 'yodo' criado");
+            }
+        };
+    }
+
+    @Bean
     CommandLineRunner initSeries(SerieRepository repo) {
         return args -> {
             if (repo.count() == 0) {
