@@ -5,6 +5,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -17,6 +19,8 @@ import java.util.List;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtFilter.class);
 
     @Autowired
     private JwtUtil jwtUtil;
@@ -41,32 +45,36 @@ public class JwtFilter extends OncePerRequestFilter {
                     String role = jwtUtil.extrairRole(token);
                     Long escolaId = jwtUtil.extrairEscolaId(token);
 
-                    var usuario = escolaId != null
-                            ? usuarioRepository.findByLoginAndEscolaId(login, escolaId)
-                            : usuarioRepository.findByLogin(login);
+                    try {
+                        var usuario = escolaId != null
+                                ? usuarioRepository.findByLoginAndEscolaId(login, escolaId)
+                                : "MASTER".equals(role)
+                                    ? usuarioRepository.findByLoginAndEscolaIsNullAndRole(login, "MASTER")
+                                    : usuarioRepository.findByLogin(login);
 
-                    // MASTER impersonation: token has escolaId but user has escola=null in DB
-                    if (usuario.isEmpty() && "MASTER".equals(role) && escolaId != null) {
-                        usuario = usuarioRepository.findByLoginAndEscolaIsNullAndRole(login, "MASTER");
-                    }
-
-                    if (usuario.isPresent() && Boolean.TRUE.equals(usuario.get().getAtivo())) {
-                        // Set TenantContext when escolaId is present (including MASTER impersonation)
-                        if (escolaId != null) {
-                            TenantContext.setEscolaId(escolaId);
+                        // MASTER impersonation: token has escolaId but user has escola=null in DB
+                        if (usuario.isEmpty() && "MASTER".equals(role) && escolaId != null) {
+                            usuario = usuarioRepository.findByLoginAndEscolaIsNullAndRole(login, "MASTER");
                         }
 
-                        // MASTER impersonating a school gets both ROLE_MASTER and ROLE_DIRECAO
-                        // so all @PreAuthorize("hasRole('DIRECAO')") pass without modification
-                        var authorities = "MASTER".equals(role) && escolaId != null
-                                ? List.of(new SimpleGrantedAuthority("ROLE_MASTER"),
-                                          new SimpleGrantedAuthority("ROLE_DIRECAO"))
-                                : List.of(new SimpleGrantedAuthority("ROLE_" + role));
+                        if (usuario.isPresent() && Boolean.TRUE.equals(usuario.get().getAtivo())) {
+                            if (escolaId != null) {
+                                TenantContext.setEscolaId(escolaId);
+                            }
 
-                        var auth = new UsernamePasswordAuthenticationToken(
-                                login, null, authorities
-                        );
-                        SecurityContextHolder.getContext().setAuthentication(auth);
+                            var authorities = "MASTER".equals(role) && escolaId != null
+                                    ? List.of(new SimpleGrantedAuthority("ROLE_MASTER"),
+                                              new SimpleGrantedAuthority("ROLE_DIRECAO"))
+                                    : List.of(new SimpleGrantedAuthority("ROLE_" + role));
+
+                            var auth = new UsernamePasswordAuthenticationToken(
+                                    login, null, authorities
+                            );
+                            SecurityContextHolder.getContext().setAuthentication(auth);
+                        }
+                    } catch (Exception ex) {
+                        log.warn("Erro ao buscar usuario no JwtFilter: login={}, role={}, escolaId={}: {}",
+                                login, role, escolaId, ex.getMessage());
                     }
                 }
             }
