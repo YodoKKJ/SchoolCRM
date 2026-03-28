@@ -54,7 +54,8 @@ function PrivateRoute({ children, role }) {
     if (slug && storedSlug && slug !== storedSlug) return <Navigate to={`/escola/${storedSlug}/login`} />;
 
     const allowed = Array.isArray(role) ? role : [role];
-    if (role && !allowed.includes(userRole)) return <Navigate to={slug ? `/escola/${slug}/login` : "/"} />;
+    // MASTER tem acesso a qualquer dashboard de escola (impersonação)
+    if (role && !allowed.includes(userRole) && userRole !== "MASTER") return <Navigate to={slug ? `/escola/${slug}/login` : "/"} />;
     return children;
 }
 
