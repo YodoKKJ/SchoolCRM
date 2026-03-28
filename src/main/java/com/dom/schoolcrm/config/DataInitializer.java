@@ -13,6 +13,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import javax.sql.DataSource;
 import java.util.List;
 
 @Configuration
@@ -106,6 +107,65 @@ public class DataInitializer {
                 fp.setAtivo(true);
                 repo.save(fp);
                 System.out.println(">>> Forma de pagamento BOLETO_SICOOB criada");
+            }
+        };
+    }
+
+    /**
+     * Migração one-time: atribui escola_id à escola padrão em todos os registros órfãos
+     * (criados antes do multi-tenant). Idempotente — só atualiza onde escola_id IS NULL.
+     * Pula usuarios com role MASTER (que devem ficar sem escola).
+     */
+    @Bean
+    CommandLineRunner migrateOrphanDataToEscolaPadrao(EscolaRepository escolaRepo, DataSource dataSource) {
+        return args -> {
+            Escola escola = escolaRepo.findBySlug("escola-padrao").orElse(null);
+            if (escola == null) return;
+            Long id = escola.getId();
+
+            // Tabelas que têm coluna escola_id (Long direto)
+            List<String> tabelas = List.of(
+                "turmas", "series", "materias", "comunicados", "audit_log",
+                "fin_contas_pagar", "fin_contas_receber", "fin_contratos",
+                "fin_configuracoes", "fin_formas_pagamento", "fin_movimentacoes",
+                "fin_pessoas", "fin_funcionarios", "fin_serie_valor",
+                "fin_contas_pagar_modelo"
+            );
+
+            int totalMigrado = 0;
+            try (var conn = dataSource.getConnection()) {
+                for (String tabela : tabelas) {
+                    // Verifica se a tabela existe (evita erro em banco novo)
+                    try (var check = conn.prepareStatement(
+                            "SELECT 1 FROM information_schema.columns WHERE table_name = ? AND column_name = 'escola_id'")) {
+                        check.setString(1, tabela);
+                        if (!check.executeQuery().next()) continue;
+                    }
+                    try (var stmt = conn.prepareStatement(
+                            "UPDATE " + tabela + " SET escola_id = ? WHERE escola_id IS NULL")) {
+                        stmt.setLong(1, id);
+                        int rows = stmt.executeUpdate();
+                        if (rows > 0) {
+                            totalMigrado += rows;
+                            System.out.println(">>> Migração: " + rows + " registros em " + tabela + " → escola " + id);
+                        }
+                    }
+                }
+
+                // Usuarios: FK (ManyToOne), só migra não-MASTER
+                try (var stmt = conn.prepareStatement(
+                        "UPDATE usuarios SET escola_id = ? WHERE escola_id IS NULL AND (role IS NULL OR role != 'MASTER')")) {
+                    stmt.setLong(1, id);
+                    int rows = stmt.executeUpdate();
+                    if (rows > 0) {
+                        totalMigrado += rows;
+                        System.out.println(">>> Migração: " + rows + " usuários → escola " + id);
+                    }
+                }
+            }
+
+            if (totalMigrado > 0) {
+                System.out.println(">>> Migração completa: " + totalMigrado + " registros vinculados à escola '" + escola.getNome() + "' (id=" + id + ")");
             }
         };
     }
