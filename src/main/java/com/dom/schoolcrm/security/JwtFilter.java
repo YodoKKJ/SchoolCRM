@@ -55,10 +55,16 @@ public class JwtFilter extends OncePerRequestFilter {
                         if (escolaId != null) {
                             TenantContext.setEscolaId(escolaId);
                         }
+
+                        // MASTER impersonating a school gets both ROLE_MASTER and ROLE_DIRECAO
+                        // so all @PreAuthorize("hasRole('DIRECAO')") pass without modification
+                        var authorities = "MASTER".equals(role) && escolaId != null
+                                ? List.of(new SimpleGrantedAuthority("ROLE_MASTER"),
+                                          new SimpleGrantedAuthority("ROLE_DIRECAO"))
+                                : List.of(new SimpleGrantedAuthority("ROLE_" + role));
+
                         var auth = new UsernamePasswordAuthenticationToken(
-                                login,
-                                null,
-                                List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                                login, null, authorities
                         );
                         SecurityContextHolder.getContext().setAuthentication(auth);
                     }
