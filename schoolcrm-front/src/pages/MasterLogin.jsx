@@ -17,6 +17,7 @@ export default function MasterLogin() {
             const response = await axios.post("/auth/master-login", { login, senha });
             const { token, role, nome, id } = response.data;
             localStorage.setItem("token", token);
+            localStorage.setItem("masterToken", token);
             localStorage.setItem("role", role);
             localStorage.setItem("nome", nome);
             localStorage.setItem("userId", String(id));

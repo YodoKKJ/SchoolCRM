@@ -126,6 +126,39 @@ public class AuthController {
         ));
     }
 
+    @PostMapping("/master-impersonate")
+    @PreAuthorize("hasRole('MASTER')")
+    public ResponseEntity<?> masterImpersonate(@RequestBody Map<String, Object> body) {
+        Object rawId = body.get("escolaId");
+        if (rawId == null) {
+            return ResponseEntity.badRequest().body("escolaId é obrigatório");
+        }
+        Long escolaId = Long.valueOf(rawId.toString());
+
+        var escola = escolaRepository.findById(escolaId);
+        if (escola.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Escola não encontrada");
+        }
+        if (!Boolean.TRUE.equals(escola.get().getAtivo())) {
+            return ResponseEntity.badRequest().body("Escola inativa");
+        }
+
+        // Pega o login do MASTER autenticado
+        String login = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication().getName();
+
+        // Gera token MASTER com escolaId — JwtFilter reconhece como impersonação
+        String token = jwtUtil.gerarToken(login, "MASTER", escolaId, false);
+
+        Escola e = escola.get();
+        return ResponseEntity.ok(Map.of(
+                "token", token,
+                "role", "MASTER",
+                "escolaSlug", e.getSlug(),
+                "escolaNome", e.getNome()
+        ));
+    }
+
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> me(Authentication auth) {

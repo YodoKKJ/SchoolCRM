@@ -9,7 +9,7 @@ import {
 const api = axios.create({ baseURL: "" });
 
 api.interceptors.request.use(config => {
-    config.headers.Authorization = `Bearer ${localStorage.getItem("token")}`;
+    config.headers.Authorization = `Bearer ${localStorage.getItem("masterToken") || localStorage.getItem("token")}`;
     if (config.method === "get") {
         config.params = { ...config.params, _t: Date.now() };
     }
@@ -23,6 +23,7 @@ api.interceptors.response.use(
         if (error.response?.status === 401 && !redirectingTo401) {
             redirectingTo401 = true;
             localStorage.removeItem("token");
+            localStorage.removeItem("masterToken");
             localStorage.removeItem("role");
             localStorage.removeItem("nome");
             window.location.href = "/master/login";
@@ -241,17 +242,30 @@ export default function MasterDashboard() {
         }
     };
 
-    const handleAcessar = (escola) => {
-        localStorage.setItem("escolaSlug", escola.slug);
-        localStorage.setItem("escolaNome", escola.nome);
-        window.location.href = `/escola/${escola.slug}/direcao`;
+    const handleAcessar = async (escola) => {
+        try {
+            const res = await api.post("/auth/master-impersonate", { escolaId: escola.id });
+            const { token, escolaSlug, escolaNome } = res.data;
+            // Salva credenciais da escola no localStorage (a nova aba lerá)
+            localStorage.setItem("token", token);
+            localStorage.setItem("role", "MASTER");
+            localStorage.setItem("escolaSlug", escolaSlug);
+            localStorage.setItem("escolaNome", escolaNome);
+            // Abre nova aba com o dashboard da escola
+            window.open(`/escola/${escolaSlug}/direcao`, "_blank");
+        } catch (err) {
+            showToast(err.response?.data || "Erro ao acessar escola", "err");
+        }
     };
 
     const handleLogout = () => {
         localStorage.removeItem("token");
+        localStorage.removeItem("masterToken");
         localStorage.removeItem("role");
         localStorage.removeItem("nome");
         localStorage.removeItem("userId");
+        localStorage.removeItem("escolaSlug");
+        localStorage.removeItem("escolaNome");
         window.location.href = "/master/login";
     };
 

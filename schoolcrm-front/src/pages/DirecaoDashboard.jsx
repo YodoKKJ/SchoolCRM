@@ -8570,7 +8570,7 @@ function Comunicados() {
                                         {c.autorNome} · {c.dataPublicacao ? new Date(c.dataPublicacao).toLocaleString("pt-BR", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" }) : ""}
                                     </p>
                                 </div>
-                                {(userRole === "DIRECAO" || userRole === "COORDENACAO") && (
+                                {(userRole === "DIRECAO" || userRole === "COORDENACAO" || userRole === "MASTER") && (
                                     <button onClick={() => deletar(c.id)} style={{ background:"none", border:"none", cursor:"pointer", color:"#c0a0a0", flexShrink:0 }}>
                                         <Trash2 size={14} />
                                     </button>
