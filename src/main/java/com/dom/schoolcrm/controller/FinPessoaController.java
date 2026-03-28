@@ -6,6 +6,7 @@ import com.dom.schoolcrm.repository.FinPessoaRepository;
 import com.dom.schoolcrm.repository.FinResponsavelAlunoRepository;
 import com.dom.schoolcrm.repository.FinFuncionarioRepository;
 import com.dom.schoolcrm.repository.UsuarioRepository;
+import com.dom.schoolcrm.security.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -47,12 +48,15 @@ public class FinPessoaController {
             @RequestParam(required = false) String tipoPessoa,
             @RequestParam(required = false) Boolean ativo) {
 
+        Long escolaId = TenantContext.getEscolaId();
         String nomeP      = (nome != null && !nome.isBlank()) ? nome.trim() : null;
         String cpfP       = (cpf != null && !cpf.isBlank()) ? cpf.trim() : null;
         String cnpjP      = (cnpj != null && !cnpj.isBlank()) ? cnpj.trim() : null;
         String tipoP      = (tipoPessoa != null && !tipoPessoa.isBlank()) ? tipoPessoa.trim() : null;
 
-        List<FinPessoa> lista = pessoaRepository.buscar(nomeP, cpfP, cnpjP, tipoP, ativo);
+        List<FinPessoa> lista = escolaId != null
+                ? pessoaRepository.buscarByEscola(nomeP, cpfP, cnpjP, tipoP, ativo, escolaId)
+                : pessoaRepository.buscar(nomeP, cpfP, cnpjP, tipoP, ativo);
         return ResponseEntity.ok(lista.stream().map(this::toMap).collect(Collectors.toList()));
     }
 
@@ -85,6 +89,8 @@ public class FinPessoaController {
 
         FinPessoa pessoa = new FinPessoa();
         preencherCampos(pessoa, body);
+        Long escolaIdCriar = TenantContext.getEscolaId();
+        if (escolaIdCriar != null) pessoa.setEscolaId(escolaIdCriar);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(toMap(pessoaRepository.save(pessoa)));
     }

@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import axios from "axios";
 
 export default function Login() {
+    const { slug } = useParams();
     const [login, setLogin] = useState("");
     const [senha, setSenha] = useState("");
     const [erro, setErro] = useState("");
@@ -10,21 +12,45 @@ export default function Login() {
     const [focusSenha, setFocusSenha] = useState(false);
     const [lembrar, setLembrar] = useState(false);
     const dark = localStorage.getItem("theme") === "dark";
+    const [escolaNome, setEscolaNome] = useState("");
+
+    useEffect(() => {
+        if (slug) {
+            axios.get(`/auth/escola/${slug}`)
+                .then(res => setEscolaNome(res.data.nome))
+                .catch(() => setErro("Escola não encontrada. Verifique o link."));
+        }
+    }, [slug]);
 
     const handleLogin = async (e) => {
         e.preventDefault();
         setErro("");
+
+        if (!slug) {
+            setErro("Link inválido. Acesse pelo link da sua escola.");
+            return;
+        }
+
         setLoading(true);
         try {
-            const response = await axios.post("/auth/login", { login, senha, lembrar: lembrar ? "true" : "false" });
-            const { token, role, nome, id } = response.data;
+            const response = await axios.post("/auth/login", {
+                login,
+                senha,
+                escolaSlug: slug,
+                lembrar: lembrar ? "true" : "false",
+            });
+            const { token, role, nome, id, escolaSlug, escolaNome: nomeEscola } = response.data;
             localStorage.setItem("token", token);
             localStorage.setItem("role", role);
             localStorage.setItem("nome", nome);
             localStorage.setItem("userId", String(id));
-            if (role === "DIRECAO" || role === "COORDENACAO") window.location.href = "/direcao";
-            else if (role === "PROFESSOR") window.location.href = "/professor";
-            else if (role === "ALUNO") window.location.href = "/aluno";
+            localStorage.setItem("escolaSlug", escolaSlug);
+            localStorage.setItem("escolaNome", nomeEscola);
+
+            const basePath = `/escola/${escolaSlug}`;
+            if (role === "DIRECAO" || role === "COORDENACAO") window.location.href = `${basePath}/direcao`;
+            else if (role === "PROFESSOR") window.location.href = `${basePath}/professor`;
+            else if (role === "ALUNO") window.location.href = `${basePath}/aluno`;
         } catch (err) {
             setErro(err.response?.data || "Login ou senha incorretos.");
         } finally {
@@ -198,6 +224,18 @@ export default function Login() {
                     font-weight: 300;
                     margin-bottom: 40px;
                     line-height: 1.5;
+                }
+
+                .escola-badge {
+                    display: inline-block;
+                    background: #e8f5ee;
+                    color: #1a4d3a;
+                    font-size: 12px;
+                    font-weight: 500;
+                    letter-spacing: 0.04em;
+                    padding: 6px 14px;
+                    margin-bottom: 24px;
+                    border-left: 3px solid #7ec8a0;
                 }
 
                 /* mobile logo */
@@ -463,6 +501,14 @@ export default function Login() {
                         <h2 className="form-title">Bem-vindo</h2>
                         <p className="form-subtitle">Insira suas credenciais para continuar.</p>
 
+                        {escolaNome && <div className="escola-badge">{escolaNome}</div>}
+
+                        {!slug && (
+                            <div className="erro-msg">
+                                Acesse pelo link da sua escola para fazer login.
+                            </div>
+                        )}
+
                         <form onSubmit={handleLogin}>
                             <div className="field">
                                 <label className="field-label">Login</label>
@@ -476,6 +522,7 @@ export default function Login() {
                                         onBlur={() => setFocusLogin(false)}
                                         placeholder="seu.login"
                                         autoComplete="username"
+                                        disabled={!slug}
                                     />
                                     <div className="field-line" />
                                 </div>
@@ -493,6 +540,7 @@ export default function Login() {
                                         onBlur={() => setFocusSenha(false)}
                                         placeholder="••••••••"
                                         autoComplete="current-password"
+                                        disabled={!slug}
                                     />
                                     <div className="field-line" />
                                 </div>
@@ -511,7 +559,7 @@ export default function Login() {
 
                             {erro && <div className="erro-msg">{erro}</div>}
 
-                            <button type="submit" className="btn-submit" disabled={loading}>
+                            <button type="submit" className="btn-submit" disabled={loading || !slug}>
                                 {loading ? <><div className="btn-spinner" /> Verificando...</> : <>Entrar <span className="btn-arrow">→</span></>}
                             </button>
                         </form>

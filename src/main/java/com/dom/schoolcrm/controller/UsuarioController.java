@@ -1,9 +1,12 @@
 package com.dom.schoolcrm.controller;
 
+import com.dom.schoolcrm.entity.Escola;
 import com.dom.schoolcrm.entity.Usuario;
 import com.dom.schoolcrm.repository.AlunoTurmaRepository;
+import com.dom.schoolcrm.repository.EscolaRepository;
 import com.dom.schoolcrm.repository.ProfessorTurmaMateriaRepository;
 import com.dom.schoolcrm.repository.UsuarioRepository;
+import com.dom.schoolcrm.security.TenantContext;
 import com.dom.schoolcrm.service.AuditService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -39,19 +42,27 @@ public class UsuarioController {
     private PasswordEncoder passwordEncoder;
 
     @Autowired
+    private EscolaRepository escolaRepository;
+
+    @Autowired
     private AuditService auditService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<?> cadastrar(@RequestBody Map<String, String> body, Authentication auth) {
+        Long escolaId = TenantContext.getEscolaId();
+        if (escolaId == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Escola não identificada.");
+        }
+
         String login = body.get("login");
         if (login == null || login.isBlank()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Login é obrigatório.");
         }
 
-        if (usuarioRepository.findByLogin(login).isPresent()) {
+        if (usuarioRepository.findByLoginAndEscolaId(login, escolaId).isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
-                    .body("Login já existe");
+                    .body("Login já existe nesta escola");
         }
 
         String role = body.get("role");
@@ -69,12 +80,18 @@ public class UsuarioController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Nome é obrigatório.");
         }
 
+        Escola escola = escolaRepository.findById(escolaId).orElse(null);
+        if (escola == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Escola não encontrada.");
+        }
+
         Usuario usuario = new Usuario();
         usuario.setNome(nome.trim());
         usuario.setLogin(login);
         usuario.setSenhaHash(passwordEncoder.encode(senha));
         usuario.setRole(role);
         usuario.setAtivo(true);
+        usuario.setEscola(escola);
 
         String dataNascStr = body.get("dataNascimento");
         if (dataNascStr != null && !dataNascStr.isBlank()) usuario.setDataNascimento(LocalDate.parse(dataNascStr));
@@ -98,6 +115,10 @@ public class UsuarioController {
     @GetMapping
     @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
     public ResponseEntity<List<Usuario>> listar() {
+        Long escolaId = TenantContext.getEscolaId();
+        if (escolaId != null) {
+            return ResponseEntity.ok(usuarioRepository.findByEscolaId(escolaId));
+        }
         return ResponseEntity.ok(usuarioRepository.findAll());
     }
 
@@ -106,9 +127,13 @@ public class UsuarioController {
     public ResponseEntity<List<Usuario>> buscar(
             @RequestParam(required = false) String nome,
             @RequestParam(required = false) String role) {
+        Long escolaId = TenantContext.getEscolaId();
         String nomeParam = (nome == null || nome.isBlank()) ? null : nome.trim();
         String roleParam = (role == null || role.isBlank()) ? null : role.trim();
-        return ResponseEntity.ok(usuarioRepository.buscar(nomeParam, roleParam));
+        if (escolaId != null) {
+            return ResponseEntity.ok(usuarioRepository.buscar(escolaId, nomeParam, roleParam));
+        }
+        return ResponseEntity.ok(usuarioRepository.buscar(null, nomeParam, roleParam));
     }
 
     @PutMapping("/{id}")
@@ -124,8 +149,11 @@ public class UsuarioController {
 
         String login = body.get("login");
         if (login != null && !login.isBlank() && !login.equals(usuario.getLogin())) {
-            if (usuarioRepository.findByLogin(login).isPresent())
-                return ResponseEntity.status(HttpStatus.CONFLICT).body("Login já existe");
+            Long escolaId = TenantContext.getEscolaId();
+            boolean existe = escolaId != null
+                    ? usuarioRepository.findByLoginAndEscolaId(login, escolaId).isPresent()
+                    : usuarioRepository.findByLogin(login).isPresent();
+            if (existe) return ResponseEntity.status(HttpStatus.CONFLICT).body("Login já existe nesta escola");
             usuario.setLogin(login.trim());
         }
 

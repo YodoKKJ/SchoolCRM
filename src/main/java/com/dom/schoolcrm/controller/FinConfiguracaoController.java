@@ -1,6 +1,7 @@
 package com.dom.schoolcrm.controller;
 
 import com.dom.schoolcrm.entity.FinConfiguracao;
+import com.dom.schoolcrm.security.TenantContext;
 import com.dom.schoolcrm.service.FinConfiguracaoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

@@ -3,28 +3,33 @@ package com.dom.schoolcrm.entity;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "fin_formas_pagamento")
-public class FinFormaPagamento {
+@Table(name = "escolas")
+public class Escola {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "escola_id")
-    private Long escolaId;
-
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String nome;
 
+    @Column(nullable = false, unique = true)
+    private String slug;
+
+    private String cnpj;
+
+    @Column(nullable = false)
     private Boolean ativo = true;
 
     public Long getId() { return id; }
-    public Long getEscolaId() { return escolaId; }
-    public void setEscolaId(Long escolaId) { this.escolaId = escolaId; }
     public String getNome() { return nome; }
+    public String getSlug() { return slug; }
+    public String getCnpj() { return cnpj; }
     public Boolean getAtivo() { return ativo; }
 
     public void setId(Long id) { this.id = id; }
     public void setNome(String nome) { this.nome = nome; }
+    public void setSlug(String slug) { this.slug = slug; }
+    public void setCnpj(String cnpj) { this.cnpj = cnpj; }
     public void setAtivo(Boolean ativo) { this.ativo = ativo; }
 }

@@ -2,6 +2,7 @@ package com.dom.schoolcrm.controller;
 
 import com.dom.schoolcrm.entity.FinFormaPagamento;
 import com.dom.schoolcrm.repository.FinFormaPagamentoRepository;
+import com.dom.schoolcrm.security.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,14 +28,23 @@ public class FinFormaPagamentoController {
     @GetMapping
     public ResponseEntity<List<FinFormaPagamento>> listar(
             @RequestParam(defaultValue = "false") boolean apenasAtivas) {
-        List<FinFormaPagamento> lista = apenasAtivas
-                ? repository.findByAtivoTrueOrderByNomeAsc()
-                : repository.findAllByOrderByNomeAsc();
+        Long escolaId = TenantContext.getEscolaId();
+        List<FinFormaPagamento> lista;
+        if (escolaId != null) {
+            lista = apenasAtivas
+                    ? repository.findByEscolaIdAndAtivoTrueOrderByNomeAsc(escolaId)
+                    : repository.findByEscolaIdOrderByNomeAsc(escolaId);
+        } else {
+            lista = apenasAtivas
+                    ? repository.findByAtivoTrueOrderByNomeAsc()
+                    : repository.findAllByOrderByNomeAsc();
+        }
         return ResponseEntity.ok(lista);
     }
 
     @PostMapping
     public ResponseEntity<?> criar(@RequestBody Map<String, String> body) {
+        Long escolaId = TenantContext.getEscolaId();
         String nome = body.get("nome");
         if (nome == null || nome.isBlank()) {
             return ResponseEntity.badRequest().body("Nome é obrigatório.");
@@ -46,6 +56,7 @@ public class FinFormaPagamentoController {
         FinFormaPagamento forma = new FinFormaPagamento();
         forma.setNome(nome.trim());
         forma.setAtivo(true);
+        if (escolaId != null) forma.setEscolaId(escolaId);
         return ResponseEntity.status(HttpStatus.CREATED).body(repository.save(forma));
     }
 

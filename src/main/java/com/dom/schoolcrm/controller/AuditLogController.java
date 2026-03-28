@@ -1,6 +1,7 @@
 package com.dom.schoolcrm.controller;
 
 import com.dom.schoolcrm.repository.AuditLogRepository;
+import com.dom.schoolcrm.security.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -29,6 +30,10 @@ public class AuditLogController {
             dataTo   = to   != null ? LocalDate.parse(to).atTime(23, 59, 59) : LocalDateTime.now().plusDays(1);
         } catch (DateTimeParseException e) {
             return ResponseEntity.badRequest().body("Formato de data inválido. Use YYYY-MM-DD.");
+        }
+        Long escolaId = TenantContext.getEscolaId();
+        if (escolaId != null) {
+            return ResponseEntity.ok(auditLogRepository.buscarByEscola(dataFrom, dataTo, escolaId));
         }
         return ResponseEntity.ok(auditLogRepository.buscar(dataFrom, dataTo));
     }

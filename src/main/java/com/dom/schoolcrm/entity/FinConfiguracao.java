@@ -11,6 +11,9 @@ public class FinConfiguracao {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "escola_id")
+    private Long escolaId;
+
     @Column(name = "num_parcelas_padrao")
     private Integer numParcelasPadrao;
 
@@ -34,6 +37,8 @@ public class FinConfiguracao {
     private String singletonKey = "default";
 
     public Long getId() { return id; }
+    public Long getEscolaId() { return escolaId; }
+    public void setEscolaId(Long escolaId) { this.escolaId = escolaId; }
     public Integer getNumParcelasPadrao() { return numParcelasPadrao; }
     public Integer getDiaVencimentoPadrao() { return diaVencimentoPadrao; }
     public BigDecimal getJurosAtrasoPct() { return jurosAtrasoPct; }

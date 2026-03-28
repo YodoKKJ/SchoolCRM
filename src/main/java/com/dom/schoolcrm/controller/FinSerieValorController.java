@@ -4,6 +4,7 @@ import com.dom.schoolcrm.entity.FinSerieValor;
 import com.dom.schoolcrm.entity.Serie;
 import com.dom.schoolcrm.repository.FinSerieValorRepository;
 import com.dom.schoolcrm.repository.SerieRepository;
+import com.dom.schoolcrm.security.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -41,7 +42,8 @@ public class FinSerieValorController {
     public ResponseEntity<List<Map<String, Object>>> listar(
             @RequestParam Integer anoLetivo) {
 
-        List<Serie> todasSeries = serieRepository.findAll();
+        Long escolaId = TenantContext.getEscolaId();
+        List<Serie> todasSeries = escolaId != null ? serieRepository.findByEscolaId(escolaId) : serieRepository.findAll();
         List<FinSerieValor> valores = serieValorRepository.findByAnoLetivo(anoLetivo);
 
         List<Map<String, Object>> resultado = new ArrayList<>();
@@ -98,6 +100,8 @@ public class FinSerieValorController {
         registro.setAnoLetivo(anoLetivo);
         registro.setValorPadrao(valorPadrao);
         registro.setUpdatedAt(LocalDateTime.now());
+        Long escolaId = TenantContext.getEscolaId();
+        if (escolaId != null) registro.setEscolaId(escolaId);
 
         return ResponseEntity.ok(serieValorRepository.save(registro));
     }

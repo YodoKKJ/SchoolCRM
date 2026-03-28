@@ -56,17 +56,20 @@ public class SecurityConfig {
 
                         // 🔓 Config acadêmica (mediaMinima/freqMinima) — acessível a todos os usuários autenticados
                         .requestMatchers(HttpMethod.GET, "/notas/config").authenticated()
-                        // 🔒 Módulo financeiro — /fin/configuracoes restrito a DIRECAO/COORDENACAO (contém dados financeiros sensíveis)
-                        .requestMatchers(HttpMethod.GET, "/fin/configuracoes").hasAnyRole("DIRECAO", "COORDENACAO")
-                        .requestMatchers("/fin/**").hasRole("DIRECAO")
+                        // 🔒 Módulo financeiro — /fin/configuracoes restrito a DIRECAO/COORDENACAO/MASTER (contém dados financeiros sensíveis)
+                        .requestMatchers(HttpMethod.GET, "/fin/configuracoes").hasAnyRole("DIRECAO", "COORDENACAO", "MASTER")
+                        .requestMatchers("/fin/**").hasAnyRole("DIRECAO", "MASTER")
 
                         // 🔒 WhatsApp — restrito a DIRECAO (config + envio)
                         .requestMatchers("/whatsapp/**").hasRole("DIRECAO")
 
                         // 🔒 Regras específicas
-                        .requestMatchers(HttpMethod.DELETE, "/turmas/**").hasAnyRole("DIRECAO", "COORDENACAO")
-                        .requestMatchers(HttpMethod.DELETE, "/materias/**").hasAnyRole("DIRECAO", "COORDENACAO")
-                        .requestMatchers(HttpMethod.DELETE, "/vinculos/**").hasAnyRole("DIRECAO", "COORDENACAO")
+                        .requestMatchers(HttpMethod.DELETE, "/turmas/**").hasAnyRole("DIRECAO", "COORDENACAO", "MASTER")
+                        .requestMatchers(HttpMethod.DELETE, "/materias/**").hasAnyRole("DIRECAO", "COORDENACAO", "MASTER")
+                        .requestMatchers(HttpMethod.DELETE, "/vinculos/**").hasAnyRole("DIRECAO", "COORDENACAO", "MASTER")
+
+                        // 🔓 Escolas — acesso controlado por @PreAuthorize no controller (MASTER, ADMIN, DIRECAO)
+                        .requestMatchers("/escolas/**").authenticated()
 
 
                         .anyRequest().authenticated()
@@ -125,7 +128,15 @@ public class SecurityConfig {
                 new AntPathRequestMatcher("/professor"),
                 new AntPathRequestMatcher("/aluno"),
                 // Landing page pública da escola — sem autenticação
-                new AntPathRequestMatcher("/escola")
+                new AntPathRequestMatcher("/escola"),
+                // Multi-tenant: rotas SPA com slug da escola
+                new AntPathRequestMatcher("/escola/*/login"),
+                new AntPathRequestMatcher("/escola/*/direcao"),
+                new AntPathRequestMatcher("/escola/*/professor"),
+                new AntPathRequestMatcher("/escola/*/aluno"),
+                // Master SPA routes
+                new AntPathRequestMatcher("/master"),
+                new AntPathRequestMatcher("/master/**")
         );
     }
 

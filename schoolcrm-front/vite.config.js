@@ -18,6 +18,8 @@ export default defineConfig({
       '/aulas': 'http://localhost:8080',
       '/horarios': 'http://localhost:8080',
       '/fin': 'http://localhost:8080',
+      '/escolas': 'http://localhost:8080',
+      '/relatorios': 'http://localhost:8080',
     }
   }
 })

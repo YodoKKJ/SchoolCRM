@@ -16,6 +16,9 @@ public class FinContaPagarModelo {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "escola_id")
+    private Long escolaId;
+
     @Column(nullable = false)
     private String descricao;
 
@@ -38,6 +41,8 @@ public class FinContaPagarModelo {
     private Boolean ativo = true;
 
     public Long getId() { return id; }
+    public Long getEscolaId() { return escolaId; }
+    public void setEscolaId(Long escolaId) { this.escolaId = escolaId; }
     public String getDescricao() { return descricao; }
     public String getCategoria() { return categoria; }
     public BigDecimal getValor() { return valor; }

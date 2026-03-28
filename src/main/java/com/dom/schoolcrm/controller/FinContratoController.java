@@ -2,6 +2,7 @@ package com.dom.schoolcrm.controller;
 
 import com.dom.schoolcrm.entity.FinContrato;
 import com.dom.schoolcrm.repository.FinContratoRepository;
+import com.dom.schoolcrm.security.TenantContext;
 import com.dom.schoolcrm.service.FinContratoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -25,16 +26,23 @@ public class FinContratoController {
             @RequestParam(required = false) Long alunoId,
             @RequestParam(required = false) Integer anoLetivo) {
 
+        Long escolaId = TenantContext.getEscolaId();
         List<FinContrato> lista;
         if (alunoId != null && anoLetivo != null) {
             lista = contratoRepository.findByAlunoIdAndAnoLetivo(alunoId, anoLetivo)
                     .map(List::of).orElse(List.of());
         } else if (alunoId != null) {
-            lista = contratoRepository.findByAlunoIdOrderByAnoLetivoDesc(alunoId);
+            lista = escolaId != null
+                    ? contratoRepository.findByEscolaIdAndAlunoIdOrderByAnoLetivoDesc(escolaId, alunoId)
+                    : contratoRepository.findByAlunoIdOrderByAnoLetivoDesc(alunoId);
         } else if (anoLetivo != null) {
-            lista = contratoRepository.findByAnoLetivoOrderByAlunoNomeAsc(anoLetivo);
+            lista = escolaId != null
+                    ? contratoRepository.findByEscolaIdAndAnoLetivoOrderByAlunoNomeAsc(escolaId, anoLetivo)
+                    : contratoRepository.findByAnoLetivoOrderByAlunoNomeAsc(anoLetivo);
         } else {
-            lista = contratoRepository.findAll();
+            lista = escolaId != null
+                    ? contratoRepository.findByEscolaId(escolaId)
+                    : contratoRepository.findAll();
         }
 
         return ResponseEntity.ok(lista.stream()

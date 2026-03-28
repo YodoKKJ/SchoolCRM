@@ -15,4 +15,10 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
            nativeQuery = true)
     List<AuditLog> buscar(@org.springframework.data.repository.query.Param("dataInicio") LocalDateTime dataInicio,
                           @org.springframework.data.repository.query.Param("dataFim") LocalDateTime dataFim);
+
+    @Query(value = "SELECT * FROM audit_log WHERE timestamp >= :dataInicio AND timestamp <= :dataFim AND escola_id = :escolaId ORDER BY timestamp DESC",
+           nativeQuery = true)
+    List<AuditLog> buscarByEscola(@org.springframework.data.repository.query.Param("dataInicio") LocalDateTime dataInicio,
+                                  @org.springframework.data.repository.query.Param("dataFim") LocalDateTime dataFim,
+                                  @org.springframework.data.repository.query.Param("escolaId") Long escolaId);
 }

@@ -14,6 +14,8 @@ public interface FinContaReceberRepository extends JpaRepository<FinContaReceber
     // Parcelas de um contrato específico, ordenadas por número da parcela
     List<FinContaReceber> findByContratoIdOrderByNumParcelaAsc(Long contratoId);
 
+    List<FinContaReceber> findByEscolaId(Long escolaId);
+
     // Todas as CRs de um aluno (via contrato)
     @Query("""
         SELECT cr FROM FinContaReceber cr
@@ -40,6 +42,7 @@ public interface FinContaReceberRepository extends JpaRepository<FinContaReceber
           AND (cast(:status as text) IS NULL OR cr.status = cast(:status as text))
           AND (cast(:vencimentoDe as date) IS NULL OR cr.data_vencimento >= cast(:vencimentoDe as date))
           AND (cast(:vencimentoAte as date) IS NULL OR cr.data_vencimento <= cast(:vencimentoAte as date))
+          AND (cast(:escolaId as bigint) IS NULL OR cr.escola_id = cast(:escolaId as bigint))
         ORDER BY cr.data_vencimento ASC
         """, nativeQuery = true)
     List<FinContaReceber> buscar(
@@ -47,7 +50,8 @@ public interface FinContaReceberRepository extends JpaRepository<FinContaReceber
             @Param("tipo") String tipo,
             @Param("status") String status,
             @Param("vencimentoDe") LocalDate vencimentoDe,
-            @Param("vencimentoAte") LocalDate vencimentoAte
+            @Param("vencimentoAte") LocalDate vencimentoAte,
+            @Param("escolaId") Long escolaId
     );
 
     // Para o dashboard: soma de recebimentos por período
@@ -158,4 +162,62 @@ public interface FinContaReceberRepository extends JpaRepository<FinContaReceber
             @Param("de") LocalDate de,
             @Param("ate") LocalDate ate
     );
+
+    // ─── Escola-scoped dashboard queries ──────────────────────────────────────
+
+    @Query("""
+        SELECT COALESCE(SUM(cr.valorPago), 0)
+        FROM FinContaReceber cr
+        WHERE cr.status = 'PAGO'
+          AND cr.dataPagamento >= :de
+          AND cr.dataPagamento <= :ate
+          AND cr.escolaId = :escolaId
+        """)
+    java.math.BigDecimal somarRecebidoNoPeriodoByEscola(
+            @Param("de") LocalDate de, @Param("ate") LocalDate ate, @Param("escolaId") Long escolaId);
+
+    @Query("""
+        SELECT cr FROM FinContaReceber cr
+        LEFT JOIN FETCH cr.contrato c
+        LEFT JOIN FETCH c.aluno
+        LEFT JOIN FETCH cr.pessoa
+        WHERE cr.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
+          AND cr.dataVencimento < :hoje
+          AND cr.escolaId = :escolaId
+        ORDER BY cr.dataVencimento ASC
+        """)
+    List<FinContaReceber> findVencidasByEscola(@Param("hoje") LocalDate hoje, @Param("escolaId") Long escolaId);
+
+    @Query("""
+        SELECT COALESCE(SUM(cr.valor - COALESCE(cr.valorPago, 0)), 0)
+        FROM FinContaReceber cr
+        WHERE cr.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
+          AND cr.dataVencimento >= :hoje
+          AND cr.escolaId = :escolaId
+        """)
+    java.math.BigDecimal somarPendentesNaoVencidosByEscola(@Param("hoje") LocalDate hoje, @Param("escolaId") Long escolaId);
+
+    @Query("""
+        SELECT COALESCE(SUM(
+            cr.valor + COALESCE(cr.jurosAplicado, 0) + COALESCE(cr.multaAplicada, 0) - COALESCE(cr.valorPago, 0)
+        ), 0)
+        FROM FinContaReceber cr
+        WHERE cr.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
+          AND cr.dataVencimento < :hoje
+          AND cr.escolaId = :escolaId
+        """)
+    java.math.BigDecimal somarVencidosByEscola(@Param("hoje") LocalDate hoje, @Param("escolaId") Long escolaId);
+
+    @Query("""
+        SELECT cr FROM FinContaReceber cr
+        LEFT JOIN FETCH cr.contrato c
+        LEFT JOIN FETCH c.aluno
+        LEFT JOIN FETCH cr.pessoa
+        WHERE cr.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
+          AND cr.dataVencimento BETWEEN :de AND :ate
+          AND cr.escolaId = :escolaId
+        ORDER BY cr.dataVencimento ASC
+        """)
+    List<FinContaReceber> findProximasPorVencimentoByEscola(
+            @Param("de") LocalDate de, @Param("ate") LocalDate ate, @Param("escolaId") Long escolaId);
 }

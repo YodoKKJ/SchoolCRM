@@ -11,6 +11,8 @@ import java.util.List;
 
 public interface FinContaPagarRepository extends JpaRepository<FinContaPagar, Long> {
 
+    List<FinContaPagar> findByEscolaId(Long escolaId);
+
     // Busca com filtros combinados para a tela de listagem
     // Usa native SQL para evitar falha de inferência de tipo null no Hibernate + PostgreSQL
     @Query(value = """
@@ -21,6 +23,7 @@ public interface FinContaPagarRepository extends JpaRepository<FinContaPagar, Lo
           AND (cast(:vencimentoDe as date) IS NULL OR data_vencimento >= cast(:vencimentoDe as date))
           AND (cast(:vencimentoAte as date) IS NULL OR data_vencimento <= cast(:vencimentoAte as date))
           AND (cast(:mesReferencia as text) IS NULL OR mes_referencia = cast(:mesReferencia as text))
+          AND (cast(:escolaId as bigint) IS NULL OR escola_id = cast(:escolaId as bigint))
         ORDER BY data_vencimento ASC
         """, nativeQuery = true)
     List<FinContaPagar> buscar(
@@ -29,7 +32,8 @@ public interface FinContaPagarRepository extends JpaRepository<FinContaPagar, Lo
             @Param("status") String status,
             @Param("vencimentoDe") LocalDate vencimentoDe,
             @Param("vencimentoAte") LocalDate vencimentoAte,
-            @Param("mesReferencia") String mesReferencia
+            @Param("mesReferencia") String mesReferencia,
+            @Param("escolaId") Long escolaId
     );
 
     // CP vencidas: PENDENTE com dataVencimento anterior a hoje
@@ -102,4 +106,59 @@ public interface FinContaPagarRepository extends JpaRepository<FinContaPagar, Lo
             @Param("de") LocalDate de,
             @Param("ate") LocalDate ate
     );
+
+    // ─── Escola-scoped dashboard queries ──────────────────────────────────────
+
+    @Query("""
+        SELECT cp FROM FinContaPagar cp
+        WHERE cp.status = 'PENDENTE'
+          AND cp.dataVencimento < :hoje
+          AND cp.escolaId = :escolaId
+        ORDER BY cp.dataVencimento ASC
+        """)
+    List<FinContaPagar> findVencidasByEscola(@Param("hoje") LocalDate hoje, @Param("escolaId") Long escolaId);
+
+    @Query("""
+        SELECT COALESCE(SUM(cp.valorPago), 0)
+        FROM FinContaPagar cp
+        WHERE cp.status = 'PAGO'
+          AND cp.dataPagamento >= :de
+          AND cp.dataPagamento <= :ate
+          AND cp.escolaId = :escolaId
+        """)
+    BigDecimal somarPagoNoPeriodoByEscola(
+            @Param("de") LocalDate de, @Param("ate") LocalDate ate, @Param("escolaId") Long escolaId);
+
+    @Query("""
+        SELECT COALESCE(SUM(
+            cp.valor + COALESCE(cp.jurosAplicado, 0) + COALESCE(cp.multaAplicada, 0) - COALESCE(cp.valorPago, 0)
+        ), 0)
+        FROM FinContaPagar cp
+        WHERE cp.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
+          AND cp.dataVencimento >= :hoje
+          AND cp.escolaId = :escolaId
+        """)
+    BigDecimal somarPendentesNaoVencidosByEscola(@Param("hoje") LocalDate hoje, @Param("escolaId") Long escolaId);
+
+    @Query("""
+        SELECT COALESCE(SUM(
+            cp.valor + COALESCE(cp.jurosAplicado, 0) + COALESCE(cp.multaAplicada, 0) - COALESCE(cp.valorPago, 0)
+        ), 0)
+        FROM FinContaPagar cp
+        WHERE cp.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
+          AND cp.dataVencimento < :hoje
+          AND cp.escolaId = :escolaId
+        """)
+    BigDecimal somarVencidosByEscola(@Param("hoje") LocalDate hoje, @Param("escolaId") Long escolaId);
+
+    @Query("""
+        SELECT cp FROM FinContaPagar cp
+        LEFT JOIN FETCH cp.pessoa
+        WHERE cp.status IN ('PENDENTE', 'PARCIALMENTE_PAGO')
+          AND cp.dataVencimento BETWEEN :de AND :ate
+          AND cp.escolaId = :escolaId
+        ORDER BY cp.dataVencimento ASC
+        """)
+    List<FinContaPagar> findProximasPorVencimentoByEscola(
+            @Param("de") LocalDate de, @Param("ate") LocalDate ate, @Param("escolaId") Long escolaId);
 }

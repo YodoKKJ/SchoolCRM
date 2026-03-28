@@ -11,6 +11,9 @@ public class AuditLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "escola_id")
+    private Long escolaId;
+
     @Column(name = "usuario_id")
     private Long usuarioId;
 
@@ -32,6 +35,8 @@ public class AuditLog {
     private LocalDateTime timestamp;
 
     public Long getId() { return id; }
+    public Long getEscolaId() { return escolaId; }
+    public void setEscolaId(Long escolaId) { this.escolaId = escolaId; }
     public Long getUsuarioId() { return usuarioId; }
     public String getUsuarioLogin() { return usuarioLogin; }
     public String getUsuarioRole() { return usuarioRole; }

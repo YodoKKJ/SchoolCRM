@@ -183,5 +183,85 @@ public class SchemaMigration {
         try {
             jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_aluno_turma_aluno_id ON aluno_turma(aluno_id);");
         } catch (Exception ignored) {}
+
+        // Multi-tenant: tabela escolas e vinculação com usuarios
+        try {
+            jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS escolas (
+                    id BIGSERIAL PRIMARY KEY,
+                    nome VARCHAR(255) NOT NULL,
+                    slug VARCHAR(255) NOT NULL UNIQUE,
+                    cnpj VARCHAR(20),
+                    ativo BOOLEAN NOT NULL DEFAULT TRUE
+                );
+                """);
+        } catch (Exception ignored) {}
+
+        // Cria escola padrão se não existe e vincula todos os usuários órfãos
+        try {
+            jdbcTemplate.execute("""
+                INSERT INTO escolas (nome, slug, ativo)
+                SELECT 'Escola Padrão', 'escola-padrao', TRUE
+                WHERE NOT EXISTS (SELECT 1 FROM escolas WHERE slug = 'escola-padrao');
+                """);
+        } catch (Exception ignored) {}
+
+        try {
+            jdbcTemplate.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS escola_id BIGINT;");
+        } catch (Exception ignored) {}
+
+        // Vincula todos os usuários sem escola à escola padrão (exceto MASTER)
+        try {
+            jdbcTemplate.execute("""
+                UPDATE usuarios SET escola_id = (SELECT id FROM escolas WHERE slug = 'escola-padrao')
+                WHERE escola_id IS NULL AND (role IS NULL OR role != 'MASTER');
+                """);
+        } catch (Exception ignored) {}
+
+        // FK e índice
+        try {
+            jdbcTemplate.execute("""
+                DO $$ BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.table_constraints
+                        WHERE constraint_name = 'fk_usuarios_escola' AND table_name = 'usuarios'
+                    ) THEN
+                        ALTER TABLE usuarios ADD CONSTRAINT fk_usuarios_escola
+                            FOREIGN KEY (escola_id) REFERENCES escolas(id);
+                    END IF;
+                END $$;
+                """);
+        } catch (Exception ignored) {}
+
+        try {
+            jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_usuarios_escola_id ON usuarios(escola_id);");
+        } catch (Exception ignored) {}
+
+        try {
+            jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_usuarios_login_escola ON usuarios(login, escola_id);");
+        } catch (Exception ignored) {}
+
+        // Multi-tenant: adiciona escola_id em todas as tabelas principais
+        String[] tabelas = {
+            "series", "turmas", "materias", "comunicados", "audit_log",
+            "fin_configuracoes", "fin_pessoas", "fin_formas_pagamento",
+            "fin_funcionarios", "fin_contratos", "fin_contas_pagar",
+            "fin_contas_receber", "fin_contas_pagar_modelo",
+            "fin_serie_valor", "fin_movimentacoes"
+        };
+        for (String tabela : tabelas) {
+            try {
+                jdbcTemplate.execute("ALTER TABLE " + tabela + " ADD COLUMN IF NOT EXISTS escola_id BIGINT;");
+            } catch (Exception ignored) {}
+            try {
+                jdbcTemplate.execute(
+                    "UPDATE " + tabela + " SET escola_id = (SELECT id FROM escolas WHERE slug = 'escola-padrao') " +
+                    "WHERE escola_id IS NULL;"
+                );
+            } catch (Exception ignored) {}
+            try {
+                jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_" + tabela + "_escola_id ON " + tabela + "(escola_id);");
+            } catch (Exception ignored) {}
+        }
     }
 }

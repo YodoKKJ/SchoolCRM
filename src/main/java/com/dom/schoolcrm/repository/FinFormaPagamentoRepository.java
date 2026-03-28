@@ -14,4 +14,8 @@ public interface FinFormaPagamentoRepository extends JpaRepository<FinFormaPagam
     boolean existsByNomeIgnoreCase(String nome);
 
     java.util.Optional<FinFormaPagamento> findByNome(String nome);
+
+    List<FinFormaPagamento> findByEscolaIdOrderByNomeAsc(Long escolaId);
+
+    List<FinFormaPagamento> findByEscolaIdAndAtivoTrueOrderByNomeAsc(Long escolaId);
 }

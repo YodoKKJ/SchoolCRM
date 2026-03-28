@@ -10,4 +10,8 @@ public interface FinContaPagarModeloRepository extends JpaRepository<FinContaPag
     List<FinContaPagarModelo> findByAtivoTrueOrderByDescricaoAsc();
 
     List<FinContaPagarModelo> findAllByOrderByDescricaoAsc();
+
+    List<FinContaPagarModelo> findByEscolaIdOrderByDescricaoAsc(Long escolaId);
+
+    List<FinContaPagarModelo> findByEscolaIdAndAtivoTrueOrderByDescricaoAsc(Long escolaId);
 }

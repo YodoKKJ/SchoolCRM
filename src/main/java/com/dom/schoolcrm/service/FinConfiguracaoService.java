@@ -2,6 +2,7 @@ package com.dom.schoolcrm.service;
 
 import com.dom.schoolcrm.entity.FinConfiguracao;
 import com.dom.schoolcrm.repository.FinConfiguracaoRepository;
+import com.dom.schoolcrm.security.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -14,6 +15,9 @@ import java.math.BigDecimal;
  * Usa Spring Cache para evitar múltiplas consultas ao banco
  * por requisição (findAll() era chamado N vezes em cada endpoint).
  * O cache é evicted automaticamente sempre que a config é salva.
+ *
+ * Tenant-aware: cada escola tem sua própria configuração.
+ * MASTER (escolaId = null) vê a config global (primeiro registro).
  */
 @Service
 public class FinConfiguracaoService {
@@ -23,8 +27,13 @@ public class FinConfiguracaoService {
 
     @Cacheable("finConfig")
     public FinConfiguracao getConfig() {
+        Long escolaId = TenantContext.getEscolaId();
+        if (escolaId != null) {
+            return repository.findByEscolaId(escolaId)
+                    .orElseGet(() -> criarDefault(escolaId));
+        }
         return repository.findAll().stream().findFirst()
-                .orElseGet(this::criarDefault);
+                .orElseGet(() -> criarDefault(null));
     }
 
     @CacheEvict(value = "finConfig", allEntries = true)
@@ -42,7 +51,7 @@ public class FinConfiguracaoService {
         return c.getFreqMinima() != null ? c.getFreqMinima().doubleValue() : 75.0;
     }
 
-    private FinConfiguracao criarDefault() {
+    private FinConfiguracao criarDefault(Long escolaId) {
         FinConfiguracao config = new FinConfiguracao();
         config.setNumParcelasPadrao(12);
         config.setDiaVencimentoPadrao(10);
@@ -50,6 +59,7 @@ public class FinConfiguracaoService {
         config.setMultaAtrasoPct(new BigDecimal("2.00"));
         config.setMediaMinima(new BigDecimal("6.00"));
         config.setFreqMinima(new BigDecimal("75.00"));
+        if (escolaId != null) config.setEscolaId(escolaId);
         return repository.save(config);
     }
 }

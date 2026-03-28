@@ -1,10 +1,12 @@
 import { Component } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import Login from "./pages/Login";
 import DirecaoDashboard from "./pages/DirecaoDashboard";
 import ProfessorDashboard from "./pages/ProfessorDashboard";
 import AlunoDashboard from "./pages/AlunoDashboard";
 import LandingEscola from "./pages/LandingEscola";
+import MasterLogin from "./pages/MasterLogin";
+import MasterDashboard from "./pages/MasterDashboard";
 
 class AppErrorBoundary extends Component {
     constructor(props) {
@@ -43,11 +45,40 @@ class AppErrorBoundary extends Component {
 }
 
 function PrivateRoute({ children, role }) {
+    const { slug } = useParams();
     const token = localStorage.getItem("token");
     const userRole = localStorage.getItem("role");
-    if (!token) return <Navigate to="/" />;
+    const storedSlug = localStorage.getItem("escolaSlug");
+
+    if (!token) return <Navigate to={slug ? `/escola/${slug}/login` : "/"} />;
+    if (slug && storedSlug && slug !== storedSlug) return <Navigate to={`/escola/${storedSlug}/login`} />;
+
     const allowed = Array.isArray(role) ? role : [role];
-    if (role && !allowed.includes(userRole)) return <Navigate to="/" />;
+    if (role && !allowed.includes(userRole)) return <Navigate to={slug ? `/escola/${slug}/login` : "/"} />;
+    return children;
+}
+
+function MasterPrivateRoute({ children }) {
+    const token = localStorage.getItem("token");
+    const userRole = localStorage.getItem("role");
+    if (!token || userRole !== "MASTER") return <Navigate to="/master/login" />;
+    return children;
+}
+
+// Wrapper para rotas legadas (sem slug) — redireciona para rota com slug se tiver no localStorage
+function LegacyRedirect({ role, children }) {
+    const storedSlug = localStorage.getItem("escolaSlug");
+    const token = localStorage.getItem("token");
+    const userRole = localStorage.getItem("role");
+
+    if (!token) return <Navigate to="/" />;
+    if (storedSlug) {
+        const allowed = Array.isArray(role) ? role : [role];
+        if (role && !allowed.includes(userRole)) return <Navigate to="/" />;
+        // Redireciona para a rota com slug
+        const path = userRole === "PROFESSOR" ? "professor" : userRole === "ALUNO" ? "aluno" : "direcao";
+        return <Navigate to={`/escola/${storedSlug}/${path}`} />;
+    }
     return children;
 }
 
@@ -56,27 +87,74 @@ function App() {
         <AppErrorBoundary>
             <BrowserRouter>
                 <Routes>
-                    <Route path="/" element={<Login />} />
-                    <Route path="/direcao" element={
+                    {/* Página inicial — redireciona para login da escola se já tiver slug salvo */}
+                    <Route path="/" element={<RootRedirect />} />
+
+                    {/* Multi-tenant: rotas com slug */}
+                    <Route path="/escola/:slug/login" element={<Login />} />
+                    <Route path="/escola/:slug/direcao" element={
                         <PrivateRoute role={["DIRECAO", "COORDENACAO"]}>
                             <DirecaoDashboard />
                         </PrivateRoute>
                     } />
-                    <Route path="/professor" element={
+                    <Route path="/escola/:slug/professor" element={
                         <PrivateRoute role="PROFESSOR">
                             <ProfessorDashboard />
                         </PrivateRoute>
                     } />
-                    <Route path="/aluno" element={
+                    <Route path="/escola/:slug/aluno" element={
                         <PrivateRoute role="ALUNO">
                             <AlunoDashboard />
                         </PrivateRoute>
                     } />
+
+                    {/* Rotas legadas — redireciona para rota com slug */}
+                    <Route path="/direcao" element={
+                        <LegacyRedirect role={["DIRECAO", "COORDENACAO"]}>
+                            <DirecaoDashboard />
+                        </LegacyRedirect>
+                    } />
+                    <Route path="/professor" element={
+                        <LegacyRedirect role="PROFESSOR">
+                            <ProfessorDashboard />
+                        </LegacyRedirect>
+                    } />
+                    <Route path="/aluno" element={
+                        <LegacyRedirect role="ALUNO">
+                            <AlunoDashboard />
+                        </LegacyRedirect>
+                    } />
+
+                    {/* Master routes */}
+                    <Route path="/master/login" element={<MasterLogin />} />
+                    <Route path="/master" element={
+                        <MasterPrivateRoute>
+                            <MasterDashboard />
+                        </MasterPrivateRoute>
+                    } />
+
+                    {/* Landing pública */}
                     <Route path="/escola" element={<LandingEscola />} />
                 </Routes>
             </BrowserRouter>
         </AppErrorBoundary>
     );
+}
+
+function RootRedirect() {
+    const storedSlug = localStorage.getItem("escolaSlug");
+    const token = localStorage.getItem("token");
+    const role = localStorage.getItem("role");
+
+    if (token && storedSlug && role) {
+        const path = role === "PROFESSOR" ? "professor" : role === "ALUNO" ? "aluno" : "direcao";
+        return <Navigate to={`/escola/${storedSlug}/${path}`} />;
+    }
+    if (storedSlug) {
+        return <Navigate to={`/escola/${storedSlug}/login`} />;
+    }
+    // Sem slug salvo — mostra login genérico (será redirecionado quando escola for selecionada)
+    return <Login />;
 }
 
 export default App;

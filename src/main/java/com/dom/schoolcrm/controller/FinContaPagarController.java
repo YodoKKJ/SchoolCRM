@@ -2,6 +2,7 @@ package com.dom.schoolcrm.controller;
 
 import com.dom.schoolcrm.entity.*;
 import com.dom.schoolcrm.repository.*;
+import com.dom.schoolcrm.security.TenantContext;
 import com.dom.schoolcrm.service.AuditService;
 import com.dom.schoolcrm.util.FinUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -86,7 +87,8 @@ public class FinContaPagarController {
         String statusDb = "VENCIDO".equalsIgnoreCase(status) ? "PENDENTE"
                         : (blank(status) ? null : status.toUpperCase());
 
-        List<FinContaPagar> lista = cpRepository.buscar(tipoF, catF, statusDb, de, ate, mesF);
+        Long escolaId = TenantContext.getEscolaId();
+        List<FinContaPagar> lista = cpRepository.buscar(tipoF, catF, statusDb, de, ate, mesF, escolaId);
         LocalDate hoje = LocalDate.now();
 
         if ("VENCIDO".equalsIgnoreCase(status)) {
@@ -102,9 +104,13 @@ public class FinContaPagarController {
 
     @GetMapping("/vencidas")
     public ResponseEntity<List<Map<String, Object>>> listarVencidas() {
+        Long escolaId = TenantContext.getEscolaId();
         LocalDate hoje = LocalDate.now();
+        List<FinContaPagar> lista = escolaId != null
+                ? cpRepository.findVencidasByEscola(hoje, escolaId)
+                : cpRepository.findVencidas(hoje);
         return ResponseEntity.ok(
-                cpRepository.findVencidas(hoje).stream()
+                lista.stream()
                         .map(cp -> toMap(cp, hoje))
                         .collect(Collectors.toList())
         );
@@ -135,6 +141,9 @@ public class FinContaPagarController {
 
         Long pessoaId = parseLong(body.get("pessoaId"));
         if (pessoaId != null) pessoaRepository.findById(pessoaId).ifPresent(cp::setPessoa);
+
+        Long escolaIdCriar = TenantContext.getEscolaId();
+        if (escolaIdCriar != null) cp.setEscolaId(escolaIdCriar);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(toMap(cpRepository.save(cp), LocalDate.now()));
     }
@@ -308,7 +317,10 @@ public class FinContaPagarController {
         try { ym = YearMonth.parse(mes); }
         catch (Exception e) { return ResponseEntity.badRequest().body("Formato de mês inválido. Use YYYY-MM."); }
 
-        List<FinFuncionario> funcionarios = funcionarioRepository.findByAtivoTrueOrderByPessoaNomeAsc();
+        Long escolaIdFolha = TenantContext.getEscolaId();
+        List<FinFuncionario> funcionarios = escolaIdFolha != null
+                ? funcionarioRepository.findByEscolaIdAndAtivoTrueOrderByPessoaNomeAsc(escolaIdFolha)
+                : funcionarioRepository.findByAtivoTrueOrderByPessoaNomeAsc();
         if (funcionarios.isEmpty()) return ResponseEntity.badRequest().body("Nenhum funcionário ativo cadastrado.");
 
         String nomeMes = ym.getMonth().getDisplayName(TextStyle.FULL, new Locale("pt", "BR"));

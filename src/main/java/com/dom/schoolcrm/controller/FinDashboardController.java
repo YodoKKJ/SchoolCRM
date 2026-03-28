@@ -3,6 +3,7 @@ package com.dom.schoolcrm.controller;
 import com.dom.schoolcrm.entity.FinContaPagar;
 import com.dom.schoolcrm.entity.FinContaReceber;
 import com.dom.schoolcrm.repository.*;
+import com.dom.schoolcrm.security.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -49,41 +50,42 @@ public class FinDashboardController {
         LocalDate inicio = ym.atDay(1);
         LocalDate fim    = ym.atEndOfMonth();
         LocalDate hoje   = LocalDate.now();
+        Long escolaId    = TenantContext.getEscolaId();
 
         Map<String, Object> resposta = new LinkedHashMap<>();
         resposta.put("mesReferencia", ym.toString());
         resposta.put("periodo", Map.of("de", inicio, "ate", fim));
-        resposta.put("kpis",               calcularKpis(inicio, fim, hoje));
-        resposta.put("grafico",            calcularGrafico(ym));
-        resposta.put("proximosVencimentos", calcularProximosVencimentos(hoje));
-        resposta.put("inadimplentes",       calcularInadimplentes(hoje));
+        resposta.put("kpis",               calcularKpis(inicio, fim, hoje, escolaId));
+        resposta.put("grafico",            calcularGrafico(ym, escolaId));
+        resposta.put("proximosVencimentos", calcularProximosVencimentos(hoje, escolaId));
+        resposta.put("inadimplentes",       calcularInadimplentes(hoje, escolaId));
 
         return ResponseEntity.ok(resposta);
     }
 
     // ─── KPIs do mês ──────────────────────────────────────────────────────────
 
-    private Map<String, Object> calcularKpis(LocalDate inicio, LocalDate fim, LocalDate hoje) {
+    private Map<String, Object> calcularKpis(LocalDate inicio, LocalDate fim, LocalDate hoje, Long escolaId) {
 
         // Recebimentos: mensalidades/CR pagas no mês + entradas avulsas
-        BigDecimal crRecebido       = crRepository.somarRecebidoNoPeriodo(inicio, fim);
-        BigDecimal entradasAvulsas  = movRepository.somarEntradasNoPeriodo(inicio, fim);
+        BigDecimal crRecebido       = escolaId != null ? crRepository.somarRecebidoNoPeriodoByEscola(inicio, fim, escolaId) : crRepository.somarRecebidoNoPeriodo(inicio, fim);
+        BigDecimal entradasAvulsas  = escolaId != null ? movRepository.somarEntradasNoPeriodoByEscola(inicio, fim, escolaId) : movRepository.somarEntradasNoPeriodo(inicio, fim);
         BigDecimal totalEntradas    = crRecebido.add(entradasAvulsas);
 
         // Pagamentos: CP pagas no mês + saídas avulsas
-        BigDecimal cpPago           = cpRepository.somarPagoNoPeriodo(inicio, fim);
-        BigDecimal saidasAvulsas    = movRepository.somarSaidasNoPeriodo(inicio, fim);
+        BigDecimal cpPago           = escolaId != null ? cpRepository.somarPagoNoPeriodoByEscola(inicio, fim, escolaId) : cpRepository.somarPagoNoPeriodo(inicio, fim);
+        BigDecimal saidasAvulsas    = escolaId != null ? movRepository.somarSaidasNoPeriodoByEscola(inicio, fim, escolaId) : movRepository.somarSaidasNoPeriodo(inicio, fim);
         BigDecimal totalSaidas      = cpPago.add(saidasAvulsas);
 
         BigDecimal saldoMes = totalEntradas.subtract(totalSaidas);
 
         // Pendências (não vencidas)
-        BigDecimal crAReceber = crRepository.somarPendentesNaoVencidos(hoje);
-        BigDecimal cpAPagar   = cpRepository.somarPendentesNaoVencidos(hoje);
+        BigDecimal crAReceber = escolaId != null ? crRepository.somarPendentesNaoVencidosByEscola(hoje, escolaId) : crRepository.somarPendentesNaoVencidos(hoje);
+        BigDecimal cpAPagar   = escolaId != null ? cpRepository.somarPendentesNaoVencidosByEscola(hoje, escolaId) : cpRepository.somarPendentesNaoVencidos(hoje);
 
         // Inadimplência / atraso
-        BigDecimal crVencido  = crRepository.somarVencidos(hoje);
-        BigDecimal cpVencido  = cpRepository.somarVencidos(hoje);
+        BigDecimal crVencido  = escolaId != null ? crRepository.somarVencidosByEscola(hoje, escolaId) : crRepository.somarVencidos(hoje);
+        BigDecimal cpVencido  = escolaId != null ? cpRepository.somarVencidosByEscola(hoje, escolaId) : cpRepository.somarVencidos(hoje);
 
         Map<String, Object> kpis = new LinkedHashMap<>();
         kpis.put("crRecebidoMes",     crRecebido);
@@ -103,7 +105,7 @@ public class FinDashboardController {
 
     // ─── Gráfico: últimos 6 meses ─────────────────────────────────────────────
 
-    private List<Map<String, Object>> calcularGrafico(YearMonth mesAtual) {
+    private List<Map<String, Object>> calcularGrafico(YearMonth mesAtual, Long escolaId) {
         List<Map<String, Object>> grafico = new ArrayList<>();
 
         // Do mês mais antigo ao mais recente
@@ -112,12 +114,12 @@ public class FinDashboardController {
             LocalDate inicio = ym.atDay(1);
             LocalDate fim    = ym.atEndOfMonth();
 
-            BigDecimal crRecebido      = crRepository.somarRecebidoNoPeriodo(inicio, fim);
-            BigDecimal entradasAvulsas = movRepository.somarEntradasNoPeriodo(inicio, fim);
+            BigDecimal crRecebido      = escolaId != null ? crRepository.somarRecebidoNoPeriodoByEscola(inicio, fim, escolaId) : crRepository.somarRecebidoNoPeriodo(inicio, fim);
+            BigDecimal entradasAvulsas = escolaId != null ? movRepository.somarEntradasNoPeriodoByEscola(inicio, fim, escolaId) : movRepository.somarEntradasNoPeriodo(inicio, fim);
             BigDecimal receitas        = crRecebido.add(entradasAvulsas);
 
-            BigDecimal cpPago          = cpRepository.somarPagoNoPeriodo(inicio, fim);
-            BigDecimal saidasAvulsas   = movRepository.somarSaidasNoPeriodo(inicio, fim);
+            BigDecimal cpPago          = escolaId != null ? cpRepository.somarPagoNoPeriodoByEscola(inicio, fim, escolaId) : cpRepository.somarPagoNoPeriodo(inicio, fim);
+            BigDecimal saidasAvulsas   = escolaId != null ? movRepository.somarSaidasNoPeriodoByEscola(inicio, fim, escolaId) : movRepository.somarSaidasNoPeriodo(inicio, fim);
             BigDecimal despesas        = cpPago.add(saidasAvulsas);
 
             String nomeMes = ym.getMonth()
@@ -139,13 +141,13 @@ public class FinDashboardController {
 
     // ─── Próximos vencimentos (CR + CP — próximos 7 dias) ────────────────────
 
-    private List<Map<String, Object>> calcularProximosVencimentos(LocalDate hoje) {
+    private List<Map<String, Object>> calcularProximosVencimentos(LocalDate hoje, Long escolaId) {
         LocalDate limite = hoje.plusDays(7);
 
         List<Map<String, Object>> vencimentos = new ArrayList<>();
 
         // CR pendentes no período
-        for (FinContaReceber cr : crRepository.findProximasPorVencimento(hoje, limite)) {
+        for (FinContaReceber cr : escolaId != null ? crRepository.findProximasPorVencimentoByEscola(hoje, limite, escolaId) : crRepository.findProximasPorVencimento(hoje, limite)) {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("modulo",         "CR");
             item.put("id",             cr.getId());
@@ -164,7 +166,7 @@ public class FinDashboardController {
         }
 
         // CP pendentes no período
-        for (FinContaPagar cp : cpRepository.findProximasPorVencimento(hoje, limite)) {
+        for (FinContaPagar cp : escolaId != null ? cpRepository.findProximasPorVencimentoByEscola(hoje, limite, escolaId) : cpRepository.findProximasPorVencimento(hoje, limite)) {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("modulo",         "CP");
             item.put("id",             cp.getId());
@@ -193,10 +195,10 @@ public class FinDashboardController {
 
     // ─── Inadimplentes ────────────────────────────────────────────────────────
 
-    private List<Map<String, Object>> calcularInadimplentes(LocalDate hoje) {
+    private List<Map<String, Object>> calcularInadimplentes(LocalDate hoje, Long escolaId) {
         List<Map<String, Object>> inadimplentes = new ArrayList<>();
 
-        for (FinContaReceber cr : crRepository.findVencidas(hoje)) {
+        for (FinContaReceber cr : escolaId != null ? crRepository.findVencidasByEscola(hoje, escolaId) : crRepository.findVencidas(hoje)) {
             // Saldo devedor real = valor + juros + multa - já pago
             BigDecimal juros  = cr.getJurosAplicado()  != null ? cr.getJurosAplicado()  : BigDecimal.ZERO;
             BigDecimal multa  = cr.getMultaAplicada()  != null ? cr.getMultaAplicada()  : BigDecimal.ZERO;

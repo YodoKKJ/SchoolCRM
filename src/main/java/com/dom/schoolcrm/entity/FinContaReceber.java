@@ -19,6 +19,9 @@ public class FinContaReceber {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "escola_id")
+    private Long escolaId;
+
     // Nulo para lançamentos avulsos (matrícula, uniforme, evento...)
     @ManyToOne
     @JoinColumn(name = "contrato_id")
@@ -72,6 +75,8 @@ public class FinContaReceber {
     private String observacoes;
 
     public Long getId() { return id; }
+    public Long getEscolaId() { return escolaId; }
+    public void setEscolaId(Long escolaId) { this.escolaId = escolaId; }
     public FinContrato getContrato() { return contrato; }
     public FinPessoa getPessoa() { return pessoa; }
     public String getDescricao() { return descricao; }

@@ -1,8 +1,10 @@
 package com.dom.schoolcrm.config;
 
+import com.dom.schoolcrm.entity.Escola;
 import com.dom.schoolcrm.entity.FinFormaPagamento;
 import com.dom.schoolcrm.entity.Serie;
 import com.dom.schoolcrm.entity.Usuario;
+import com.dom.schoolcrm.repository.EscolaRepository;
 import com.dom.schoolcrm.repository.FinFormaPagamentoRepository;
 import com.dom.schoolcrm.repository.SerieRepository;
 import com.dom.schoolcrm.repository.UsuarioRepository;
@@ -17,17 +19,61 @@ import java.util.List;
 public class DataInitializer {
 
     @Bean
-    CommandLineRunner initAdmin(UsuarioRepository repo, PasswordEncoder encoder) {
+    CommandLineRunner initEscolaPadrao(EscolaRepository escolaRepo) {
         return args -> {
-            if (repo.findByLogin("admin").isEmpty()) {
-                Usuario admin = new Usuario();
-                admin.setLogin("admin");
-                admin.setSenhaHash(encoder.encode("admin123"));
-                admin.setNome("Administrador");
-                admin.setRole("ADMIN");
-                admin.setAtivo(true);
-                repo.save(admin);
-                System.out.println(">>> Usuário admin criado com senha: admin123");
+            if (escolaRepo.findBySlug("escola-padrao").isEmpty()) {
+                Escola escola = new Escola();
+                escola.setNome("Escola Padrão");
+                escola.setSlug("escola-padrao");
+                escola.setAtivo(true);
+                escolaRepo.save(escola);
+                System.out.println(">>> Escola padrão criada com slug: escola-padrao");
+            }
+        };
+    }
+
+    @Bean
+    CommandLineRunner initAdmin(UsuarioRepository repo, EscolaRepository escolaRepo, PasswordEncoder encoder) {
+        return args -> {
+            Escola escolaPadrao = escolaRepo.findBySlug("escola-padrao").orElse(null);
+            if (escolaPadrao == null) return;
+
+            if (repo.findByLoginAndEscolaId("admin", escolaPadrao.getId()).isEmpty()) {
+                // Verifica se já existe um admin legado sem escola
+                var adminLegado = repo.findByLogin("admin");
+                if (adminLegado.isPresent() && adminLegado.get().getEscola() == null) {
+                    adminLegado.get().setEscola(escolaPadrao);
+                    repo.save(adminLegado.get());
+                    System.out.println(">>> Admin existente vinculado à escola padrão");
+                } else if (adminLegado.isEmpty()) {
+                    Usuario admin = new Usuario();
+                    admin.setLogin("admin");
+                    admin.setSenhaHash(encoder.encode("admin123"));
+                    admin.setNome("Administrador");
+                    admin.setRole("DIRECAO");
+                    admin.setAtivo(true);
+                    admin.setEscola(escolaPadrao);
+                    repo.save(admin);
+                    System.out.println(">>> Usuário admin criado com senha: admin123");
+                }
+            }
+        };
+    }
+
+    @Bean
+    CommandLineRunner initMaster(UsuarioRepository repo, PasswordEncoder encoder) {
+        return args -> {
+            // MASTER: sem escola vinculada (escola = null)
+            if (repo.findByLoginAndEscolaIsNullAndRole("yodo", "MASTER").isEmpty()) {
+                Usuario master = new Usuario();
+                master.setLogin("yodo");
+                master.setSenhaHash(encoder.encode("Cacto1010_"));
+                master.setNome("Yodo Master");
+                master.setRole("MASTER");
+                master.setAtivo(true);
+                // escola = null → acesso a todas as escolas
+                repo.save(master);
+                System.out.println(">>> Usuário MASTER 'yodo' criado");
             }
         };
     }
