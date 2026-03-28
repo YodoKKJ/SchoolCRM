@@ -33,7 +33,7 @@ api.interceptors.response.use(
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 const _toastListeners = [];
-function showToast(msg, tipo = "ok") { _toastListeners.forEach(fn => fn(msg, tipo)); }
+function showToast(msg, tipo = "ok") { const text = typeof msg === "string" ? msg : JSON.stringify(msg); _toastListeners.forEach(fn => fn(text, tipo)); }
 
 function ToastContainer() {
     const [toasts, setToasts] = useState([]);
@@ -170,8 +170,8 @@ export default function MasterDashboard() {
 
     const fetchEscolas = async () => {
         try {
-            const res = await api.get("/master/escolas");
-            setEscolas(res.data);
+            const res = await api.get("/escolas");
+            setEscolas(Array.isArray(res.data) ? res.data : []);
         } catch (err) {
             showToast("Erro ao carregar escolas", "err");
         } finally {
@@ -183,7 +183,7 @@ export default function MasterDashboard() {
         if (!createNome.trim()) { showToast("Nome obrigatorio", "err"); return; }
         setSaving(true);
         try {
-            await api.post("/master/escolas", {
+            await api.post("/escolas", {
                 nome: createNome.trim(),
                 cnpj: createCnpj.trim() || null,
                 slug: createSlug.trim() || gerarSlug(createNome),
@@ -213,7 +213,7 @@ export default function MasterDashboard() {
         if (!editNome.trim()) { showToast("Nome obrigatorio", "err"); return; }
         setSaving(true);
         try {
-            await api.put(`/master/escolas/${editId}`, {
+            await api.put(`/escolas/${editId}`, {
                 nome: editNome.trim(),
                 cnpj: editCnpj.trim() || null,
                 slug: editSlug.trim(),
@@ -233,7 +233,7 @@ export default function MasterDashboard() {
         const ok = await showConfirm(`Deseja realmente excluir a escola "${escola.nome}"?\n\nEsta acao nao pode ser desfeita.`);
         if (!ok) return;
         try {
-            await api.delete(`/master/escolas/${escola.id}`);
+            await api.delete(`/escolas/${escola.id}`);
             showToast("Escola removida");
             fetchEscolas();
         } catch (err) {
@@ -255,7 +255,8 @@ export default function MasterDashboard() {
         window.location.href = "/master/login";
     };
 
-    const filtered = escolas.filter(e => {
+    const listaEscolas = Array.isArray(escolas) ? escolas : [];
+    const filtered = listaEscolas.filter(e => {
         if (!search) return true;
         const s = search.toLowerCase();
         return (e.nome || "").toLowerCase().includes(s)
@@ -263,8 +264,8 @@ export default function MasterDashboard() {
             || (e.cnpj || "").toLowerCase().includes(s);
     });
 
-    const totalEscolas = escolas.length;
-    const ativas = escolas.filter(e => e.ativo !== false).length;
+    const totalEscolas = listaEscolas.length;
+    const ativas = listaEscolas.filter(e => e.ativo !== false).length;
     const inativas = totalEscolas - ativas;
 
     // ── Inline styles ─────────────────────────────────────────────────────────
