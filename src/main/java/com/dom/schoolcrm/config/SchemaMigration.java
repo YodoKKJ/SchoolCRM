@@ -237,47 +237,39 @@ public class SchemaMigration {
             jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_usuarios_escola_id ON usuarios(escola_id);");
         } catch (Exception ignored) {}
 
-        // Drop old unique constraints/indexes on ONLY login (without escola_id)
-        // Hibernate ddl-auto=update never drops constraints, so old single-column unique on login blocks multi-tenant
+        // Drop ALL unique constraints/indexes on usuarios except PK and our composite
+        // Hibernate ddl-auto=update never drops old constraints, so we nuke everything and recreate
         try {
             jdbcTemplate.execute("""
                 DO $$ DECLARE r RECORD; BEGIN
-                    -- Drop unique INDEXES on usuarios that cover only 'login' (not composite with escola_id)
                     FOR r IN
-                        SELECT i.relname AS index_name
+                        SELECT i.relname AS idx_name
                         FROM pg_index ix
                         JOIN pg_class i ON i.oid = ix.indexrelid
                         JOIN pg_class t ON t.oid = ix.indrelid
-                        JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(ix.indkey)
                         WHERE t.relname = 'usuarios'
                           AND ix.indisunique = TRUE
-                          AND i.relname != 'ux_usuarios_login_escola'
                           AND i.relname != 'usuarios_pkey'
-                        GROUP BY i.relname
-                        HAVING array_agg(a.attname ORDER BY a.attname) = ARRAY['login']
+                          AND i.relname != 'ux_usuarios_login_escola'
                     LOOP
-                        EXECUTE 'DROP INDEX IF EXISTS ' || quote_ident(r.index_name);
-                    END LOOP;
-                    -- Drop unique CONSTRAINTS on usuarios that cover only 'login'
-                    FOR r IN
-                        SELECT tc.constraint_name
-                        FROM information_schema.table_constraints tc
-                        JOIN information_schema.constraint_column_usage ccu
-                            ON tc.constraint_name = ccu.constraint_name AND tc.table_schema = ccu.table_schema
-                        WHERE tc.table_name = 'usuarios'
-                          AND tc.constraint_type = 'UNIQUE'
-                          AND tc.constraint_name != 'ux_usuarios_login_escola'
-                        GROUP BY tc.constraint_name
-                        HAVING array_agg(ccu.column_name ORDER BY ccu.column_name) = ARRAY['login']
-                    LOOP
-                        EXECUTE 'ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS ' || quote_ident(r.constraint_name);
+                        -- Try as constraint first, then as index
+                        BEGIN
+                            EXECUTE 'ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS ' || quote_ident(r.idx_name);
+                        EXCEPTION WHEN OTHERS THEN NULL;
+                        END;
+                        BEGIN
+                            EXECUTE 'DROP INDEX IF EXISTS ' || quote_ident(r.idx_name);
+                        EXCEPTION WHEN OTHERS THEN NULL;
+                        END;
                     END LOOP;
                 END $$;
                 """);
         } catch (Exception ignored) {}
 
+        // Recreate the composite unique index (login per escola)
         try {
-            jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS ux_usuarios_login_escola ON usuarios(login, escola_id);");
+            jdbcTemplate.execute("DROP INDEX IF EXISTS ux_usuarios_login_escola;");
+            jdbcTemplate.execute("CREATE UNIQUE INDEX ux_usuarios_login_escola ON usuarios(login, escola_id);");
         } catch (Exception ignored) {}
 
         // Multi-tenant: adiciona escola_id em todas as tabelas principais
