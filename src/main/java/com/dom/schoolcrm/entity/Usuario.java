@@ -1,5 +1,6 @@
 package com.dom.schoolcrm.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 
@@ -16,12 +17,14 @@ public class Usuario {
     private String nome;
     private String login;
 
+    @JsonIgnore
     @Column(name = "senha_hash")
     private String senhaHash;
 
     private String role;
     private Boolean ativo;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "escola_id")
     private Escola escola;
