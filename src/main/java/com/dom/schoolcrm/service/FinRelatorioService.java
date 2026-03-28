@@ -3,6 +3,7 @@ package com.dom.schoolcrm.service;
 import com.dom.schoolcrm.dto.relatorio.fin.*;
 import com.dom.schoolcrm.entity.*;
 import com.dom.schoolcrm.repository.*;
+import com.dom.schoolcrm.security.TenantContext;
 import com.dom.schoolcrm.util.FinUtil;
 import net.sf.jasperreports.engine.*;
 import net.sf.jasperreports.engine.data.JRBeanCollectionDataSource;
@@ -37,7 +38,7 @@ public class FinRelatorioService {
     // 1. CONTAS A RECEBER POR PERÍODO
     // ─────────────────────────────────────────────────────────────────────────
     public byte[] gerarContasReceberPDF(LocalDate de, LocalDate ate, String status, String tipo) throws JRException {
-        List<FinContaReceber> lista = crRepo.buscar(null, tipo, status, de, ate);
+        List<FinContaReceber> lista = crRepo.buscar(null, tipo, status, de, ate, TenantContext.getEscolaId());
         LocalDate hoje = LocalDate.now();
 
         List<FinCRRelatorioItemDTO> rows = new ArrayList<>();
@@ -88,7 +89,7 @@ public class FinRelatorioService {
     // 2. CONTAS A PAGAR POR PERÍODO
     // ─────────────────────────────────────────────────────────────────────────
     public byte[] gerarContasPagarPDF(LocalDate de, LocalDate ate, String status, String tipo, String categoria) throws JRException {
-        List<FinContaPagar> lista = cpRepo.buscar(tipo, categoria, status, de, ate, null);
+        List<FinContaPagar> lista = cpRepo.buscar(tipo, categoria, status, de, ate, null, TenantContext.getEscolaId());
         LocalDate hoje = LocalDate.now();
 
         List<FinCPRelatorioItemDTO> rows = new ArrayList<>();
@@ -223,7 +224,7 @@ public class FinRelatorioService {
         BigDecimal totalSaidas   = BigDecimal.ZERO;
 
         // CR recebidas no período
-        List<FinContaReceber> crRecebidas = crRepo.buscar(null, null, "PAGO", de, ate);
+        List<FinContaReceber> crRecebidas = crRepo.buscar(null, null, "PAGO", de, ate, TenantContext.getEscolaId());
         for (FinContaReceber cr : crRecebidas) {
             if (cr.getDataPagamento() == null) continue;
             BigDecimal val = nvl(cr.getValorPago());
@@ -240,7 +241,7 @@ public class FinRelatorioService {
         }
 
         // CP pagas no período
-        List<FinContaPagar> cpPagas = cpRepo.buscar(null, null, "PAGO", de, ate, null);
+        List<FinContaPagar> cpPagas = cpRepo.buscar(null, null, "PAGO", de, ate, null, TenantContext.getEscolaId());
         for (FinContaPagar cp : cpPagas) {
             if (cp.getDataPagamento() == null) continue;
             BigDecimal val = nvl(cp.getValorPago());
@@ -257,7 +258,7 @@ public class FinRelatorioService {
         }
 
         // Movimentações avulsas no período
-        List<FinMovimentacao> movs = movRepo.buscar(null, null, de, ate);
+        List<FinMovimentacao> movs = movRepo.buscar(null, null, de, ate, TenantContext.getEscolaId());
         for (FinMovimentacao m : movs) {
             if ("ENTRADA".equals(m.getTipo())) totalEntradas = totalEntradas.add(m.getValor());
             else                               totalSaidas   = totalSaidas.add(m.getValor());
