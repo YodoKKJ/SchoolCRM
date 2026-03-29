@@ -5,6 +5,7 @@ import DirecaoDashboard from "./pages/DirecaoDashboard";
 import ProfessorDashboard from "./pages/ProfessorDashboard";
 import AlunoDashboard from "./pages/AlunoDashboard";
 import LandingEscola from "./pages/LandingEscola";
+import LandingSkolyo from "./pages/LandingSkolyo";
 import MasterLogin from "./pages/MasterLogin";
 import MasterDashboard from "./pages/MasterDashboard";
 
@@ -136,6 +137,9 @@ function App() {
 
                     {/* Landing pública */}
                     <Route path="/escola" element={<LandingEscola />} />
+
+                    {/* Landing page institucional Skolyo */}
+                    <Route path="/landing" element={<LandingSkolyo />} />
                 </Routes>
             </BrowserRouter>
         </AppErrorBoundary>
@@ -154,8 +158,8 @@ function RootRedirect() {
     if (storedSlug) {
         return <Navigate to={`/escola/${storedSlug}/login`} />;
     }
-    // Sem slug salvo — mostra login genérico (será redirecionado quando escola for selecionada)
-    return <Login />;
+    // Sem slug salvo — mostra landing page institucional
+    return <LandingSkolyo />;
 }
 
 export default App;
