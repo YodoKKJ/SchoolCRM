@@ -1,16 +1,66 @@
-# React + Vite
+# Skolyo - Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend do **Skolyo**, sistema de gestão escolar (ERP) para escolas particulares de pequeno e médio porte.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **React 19** + **Vite 7**
+- **Tailwind CSS 3** para estilização utilitária
+- **Lucide React** para ícones
+- **Recharts** para gráficos e dashboards
+- **Axios** para comunicação com a API
+- **React Router DOM 7** com rotas multi-tenant (slug por escola)
 
-## React Compiler
+## Estrutura
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```
+src/
+  pages/
+    LandingSkolyo.jsx      # Landing page institucional (skolyo.com/)
+    LandingEscola.jsx      # Landing pública por escola
+    Login.jsx              # Login multi-tenant
+    DirecaoDashboard.jsx   # Painel da Direção/Coordenação
+    ProfessorDashboard.jsx # Painel do Professor
+    AlunoDashboard.jsx     # Painel do Aluno
+    MasterLogin.jsx        # Login do admin master
+    MasterDashboard.jsx    # Painel do admin master
+  components/
+    SearchSelect.jsx       # Dropdown com busca
+  App.jsx                  # Rotas e autenticação
+  main.jsx                 # Entry point
+```
 
-## Expanding the ESLint configuration
+## Rotas
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+| Rota | Acesso | Descrição |
+|------|--------|-----------|
+| `/` | Público | Landing page (ou redirect se logado) |
+| `/landing` | Público | Landing page institucional |
+| `/escola/:slug/login` | Público | Login da escola |
+| `/escola/:slug/direcao` | DIRECAO, COORDENACAO | Dashboard administrativo |
+| `/escola/:slug/professor` | PROFESSOR | Dashboard do professor |
+| `/escola/:slug/aluno` | ALUNO | Dashboard do aluno |
+| `/master/login` | Público | Login master |
+| `/master` | MASTER | Painel master |
+
+## Desenvolvimento
+
+```bash
+# Instalar dependencias
+npm install
+
+# Rodar dev server (porta 5173)
+npm run dev
+
+# Build de producao
+npm run build
+
+# Lint
+npm run lint
+```
+
+O dev server faz proxy das chamadas de API para `http://localhost:8080` (backend Spring Boot).
+
+## Deploy
+
+O build de produção (`npm run build`) gera a pasta `dist/` que é servida como assets estáticos pelo Spring Boot em produção. O deploy é feito via Railway em `skolyo.com`.
