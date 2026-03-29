@@ -750,7 +750,7 @@ function Footer() {
         alignItems: "center", gap: 24,
       }}>
         <div>
-          <span style={{ fontSize: 22, fontWeight: 800, color: "#fff", letterSpacing: "-.02em" }}>Skolyo</span>
+          <img src="/logo-skolyo.png" alt="Skolyo" style={{ height: 34, objectFit: "contain", filter: "brightness(0) invert(1)" }} />
         </div>
         <nav style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
           {links.map(l => (
