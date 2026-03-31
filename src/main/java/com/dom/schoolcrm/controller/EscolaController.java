@@ -34,6 +34,8 @@ public class EscolaController {
     @PreAuthorize("hasRole('ADMIN') or hasRole('DIRECAO') or hasRole('MASTER')")
     public Escola criar(@RequestBody Escola escola) {
         escola.setSlug(gerarSlug(escola.getNome()));
+        if (escola.getCorPrimaria() == null || escola.getCorPrimaria().isBlank()) escola.setCorPrimaria("#7ec8a0");
+        if (escola.getCorSecundaria() == null || escola.getCorSecundaria().isBlank()) escola.setCorSecundaria("#3a8d5c");
         return escolaRepository.save(escola);
     }
 
@@ -47,6 +49,8 @@ public class EscolaController {
             if (dados.getSlug() != null && !dados.getSlug().isBlank()) {
                 escola.setSlug(dados.getSlug());
             }
+            if (dados.getCorPrimaria() != null) escola.setCorPrimaria(dados.getCorPrimaria());
+            if (dados.getCorSecundaria() != null) escola.setCorSecundaria(dados.getCorSecundaria());
             return ResponseEntity.ok(escolaRepository.save(escola));
         }).orElse(ResponseEntity.notFound().build());
     }
