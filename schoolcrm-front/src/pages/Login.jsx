@@ -13,11 +13,17 @@ export default function Login() {
     const [lembrar, setLembrar] = useState(false);
     const dark = localStorage.getItem("theme") === "dark";
     const [escolaNome, setEscolaNome] = useState("");
+    const [corPrimaria, setCorPrimaria] = useState("#7ec8a0");
+    const [corSecundaria, setCorSecundaria] = useState("#3a8d5c");
 
     useEffect(() => {
         if (slug) {
             axios.get(`/auth/escola/${slug}`)
-                .then(res => setEscolaNome(res.data.nome))
+                .then(res => {
+                    setEscolaNome(res.data.nome);
+                    if (res.data.corPrimaria) setCorPrimaria(res.data.corPrimaria);
+                    if (res.data.corSecundaria) setCorSecundaria(res.data.corSecundaria);
+                })
                 .catch(() => setErro("Escola não encontrada. Verifique o link."));
         }
     }, [slug]);
@@ -39,13 +45,15 @@ export default function Login() {
                 escolaSlug: slug,
                 lembrar: lembrar ? "true" : "false",
             });
-            const { token, role, nome, id, escolaSlug, escolaNome: nomeEscola } = response.data;
+            const { token, role, nome, id, escolaSlug, escolaNome: nomeEscola, corPrimaria: cp, corSecundaria: cs } = response.data;
             localStorage.setItem("token", token);
             localStorage.setItem("role", role);
             localStorage.setItem("nome", nome);
             localStorage.setItem("userId", String(id));
             localStorage.setItem("escolaSlug", escolaSlug);
             localStorage.setItem("escolaNome", nomeEscola);
+            localStorage.setItem("corPrimaria", cp || "#7ec8a0");
+            localStorage.setItem("corSecundaria", cs || "#3a8d5c");
 
             const basePath = `/escola/${escolaSlug}`;
             if (role === "DIRECAO" || role === "COORDENACAO") window.location.href = `${basePath}/direcao`;
@@ -126,8 +134,8 @@ export default function Login() {
                     width: 36px;
                     height: 36px;
                     border-radius: 8px;
-                    background: linear-gradient(135deg, #7ec8a0 0%, #3a8d5c 100%);
-                    box-shadow: 0 2px 8px rgba(126,200,160,.3);
+                    background: linear-gradient(135deg, var(--cor1) 0%, var(--cor2) 100%);
+                    box-shadow: 0 2px 8px color-mix(in srgb, var(--cor1) 30%, transparent);
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -157,7 +165,7 @@ export default function Login() {
 
                 .left-headline em {
                     font-style: italic;
-                    color: #7ec8a0;
+                    color: var(--cor1);
                 }
 
                 .left-tagline {
@@ -204,7 +212,7 @@ export default function Login() {
                     font-weight: 500;
                     letter-spacing: 0.14em;
                     text-transform: uppercase;
-                    color: #7ec8a0;
+                    color: var(--cor1);
                     margin-bottom: 12px;
                 }
 
@@ -228,14 +236,14 @@ export default function Login() {
 
                 .escola-badge {
                     display: inline-block;
-                    background: #e8f5ee;
-                    color: #1a4d3a;
+                    background: color-mix(in srgb, var(--cor1) 12%, #fff);
+                    color: var(--cor2);
                     font-size: 12px;
                     font-weight: 500;
                     letter-spacing: 0.04em;
                     padding: 6px 14px;
                     margin-bottom: 24px;
-                    border-left: 3px solid #7ec8a0;
+                    border-left: 3px solid var(--cor1);
                 }
 
                 /* mobile logo */
@@ -251,8 +259,8 @@ export default function Login() {
                     width: 30px;
                     height: 30px;
                     border-radius: 7px;
-                    background: linear-gradient(135deg, #7ec8a0 0%, #3a8d5c 100%);
-                    box-shadow: 0 2px 6px rgba(126,200,160,.25);
+                    background: linear-gradient(135deg, var(--cor1) 0%, var(--cor2) 100%);
+                    box-shadow: 0 2px 6px color-mix(in srgb, var(--cor1) 25%, transparent);
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -435,25 +443,25 @@ export default function Login() {
                 [data-theme="dark"] .right-panel { background: #0f1a14; }
                 [data-theme="dark"] .form-title { color: #e0ebe3; }
                 [data-theme="dark"] .form-subtitle { color: #5a7a65; }
-                [data-theme="dark"] .form-eyebrow { color: #7ec8a0; }
+                [data-theme="dark"] .form-eyebrow { color: var(--cor1); }
                 [data-theme="dark"] .field-label { color: #5a7a65; }
                 [data-theme="dark"] .field-wrap { border-bottom-color: #2a3d32; }
-                [data-theme="dark"] .field-wrap.focused { border-color: #7ec8a0; }
+                [data-theme="dark"] .field-wrap.focused { border-color: var(--cor1); }
                 [data-theme="dark"] .field-input { color: #e0ebe3; }
                 [data-theme="dark"] .field-input::placeholder { color: #3a5a48; }
-                [data-theme="dark"] .field-line { background: #7ec8a0; }
+                [data-theme="dark"] .field-line { background: var(--cor1); }
                 [data-theme="dark"] .lembrar-label { color: #5a7a65; }
                 [data-theme="dark"] .lembrar-box { border-color: #2a3d32; }
-                [data-theme="dark"] .lembrar-box.checked { border-color: #7ec8a0; background: #7ec8a0; }
-                [data-theme="dark"] .btn-submit { background: #7ec8a0; color: #0a1a12; }
-                [data-theme="dark"] .btn-submit:hover:not(:disabled) { background: #5db88a; }
+                [data-theme="dark"] .lembrar-box.checked { border-color: var(--cor1); background: var(--cor1); }
+                [data-theme="dark"] .btn-submit { background: var(--cor1); color: #0a1a12; }
+                [data-theme="dark"] .btn-submit:hover:not(:disabled) { background: var(--cor2); }
                 [data-theme="dark"] .erro-msg { background: rgba(185,64,64,.15); }
                 [data-theme="dark"] .form-footer { color: #3a5a48; }
                 [data-theme="dark"] .mobile-logo-mark { background: #1a2e23; }
                 [data-theme="dark"] .mobile-logo-name { color: #7a9a85; }
             `}</style>
 
-            <div className="login-root" data-theme={dark ? "dark" : "light"}>
+            <div className="login-root" data-theme={dark ? "dark" : "light"} style={{ "--cor1": corPrimaria, "--cor2": corSecundaria }}>
 
                 {/* ── Painel esquerdo (desktop) ── */}
                 <div className="left-panel">
@@ -467,7 +475,7 @@ export default function Login() {
                                     <circle cx="8" cy="8" r="2" fill="#fff" />
                                 </svg>
                             </div>
-                            <span className="left-logo-name">DomGestão</span>
+                            <span className="left-logo-name">{escolaNome || "Sistema Escolar"}</span>
                         </div>
 
                         <div>
@@ -478,7 +486,7 @@ export default function Login() {
                             <p className="left-tagline">Sistema integrado de administração</p>
                         </div>
 
-                        <p className="left-footer">© {new Date().getFullYear()} DomGestão</p>
+                        <p className="left-footer">© {new Date().getFullYear()} {escolaNome || "Sistema Escolar"}</p>
                     </div>
                 </div>
 
@@ -494,7 +502,7 @@ export default function Login() {
                                     <circle cx="8" cy="8" r="2" fill="#fff" />
                                 </svg>
                             </div>
-                            <span className="mobile-logo-name">DomGestão</span>
+                            <span className="mobile-logo-name">{escolaNome || "Sistema Escolar"}</span>
                         </div>
 
                         <p className="form-eyebrow">Acesso ao sistema</p>

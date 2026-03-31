@@ -229,6 +229,9 @@ export default function ProfessorDashboard() {
     const [dark, setDark] = useState(() => localStorage.getItem("theme") === "dark");
     const toggleDark = () => setDark(prev => { const next = !prev; localStorage.setItem("theme", next ? "dark" : "light"); return next; });
     const nome = localStorage.getItem("nome") || "Professor";
+    const _escolaNome = localStorage.getItem("escolaNome") || "Sistema Escolar";
+    const _corPri = localStorage.getItem("corPrimaria") || "#7ec8a0";
+    const _corSec = localStorage.getItem("corSecundaria") || "#3a8d5c";
     const logout = () => { const slug = localStorage.getItem("escolaSlug"); localStorage.clear(); window.location.href = slug ? `/escola/${slug}/login` : "/"; };
 
     useEffect(() => {
@@ -271,15 +274,15 @@ export default function ProfessorDashboard() {
                     {/* logo */}
                     <div style={{ padding:"24px 22px 20px", display:"flex", alignItems:"center", gap:12,
                         borderBottom:"1px solid rgba(255,255,255,.08)" }}>
-                        <div style={{ width:32, height:32, borderRadius:"8px", background:"linear-gradient(135deg, #7ec8a0 0%, #3a8d5c 100%)", display:"flex",
-                            alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 2px 8px rgba(126,200,160,.3)" }}>
+                        <div style={{ width:32, height:32, borderRadius:"8px", background:`linear-gradient(135deg, ${_corPri} 0%, ${_corSec} 100%)`, display:"flex",
+                            alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:`0 2px 8px ${_corPri}4D` }}>
                             <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
                                 <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="rgba(255,255,255,.9)" strokeWidth="1.2"/>
                                 <circle cx="8" cy="8" r="2" fill="#fff"/>
                             </svg>
                         </div>
                         <div>
-                            <p style={{ fontFamily:"'Playfair Display',serif", fontWeight:700, fontSize:15, color:"rgba(255,255,255,.9)", lineHeight:1, letterSpacing:"-.01em" }}>DomGestão</p>
+                            <p style={{ fontFamily:"'Playfair Display',serif", fontWeight:700, fontSize:15, color:"rgba(255,255,255,.9)", lineHeight:1, letterSpacing:"-.01em" }}>{_escolaNome}</p>
                             <p style={{ fontSize:9, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,.35)", marginTop:4, fontWeight:500 }}>Professor</p>
                         </div>
                     </div>
@@ -287,9 +290,9 @@ export default function ProfessorDashboard() {
                     {/* user */}
                     <div style={{ padding:"16px 22px", display:"flex", alignItems:"center", gap:10,
                         borderBottom:"1px solid rgba(255,255,255,.08)" }}>
-                        <div style={{ width:32, height:32, borderRadius:"50%", background:"linear-gradient(135deg, rgba(126,200,160,.2) 0%, rgba(126,200,160,.1) 100%)",
-                            border:"1.5px solid rgba(126,200,160,.3)", display:"flex", alignItems:"center",
-                            justifyContent:"center", flexShrink:0, fontSize:12, fontWeight:600, color:"#7ec8a0" }}>
+                        <div style={{ width:32, height:32, borderRadius:"50%", background:`linear-gradient(135deg, ${_corPri}33 0%, ${_corPri}1A 100%)`,
+                            border:`1.5px solid ${_corPri}4D`, display:"flex", alignItems:"center",
+                            justifyContent:"center", flexShrink:0, fontSize:12, fontWeight:600, color:_corPri }}>
                             {nome.charAt(0).toUpperCase()}
                         </div>
                         <div style={{ minWidth:0, flex:1 }}>

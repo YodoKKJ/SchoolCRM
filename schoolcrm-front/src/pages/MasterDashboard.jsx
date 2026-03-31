@@ -152,6 +152,8 @@ export default function MasterDashboard() {
     const [createCnpj, setCreateCnpj] = useState("");
     const [createSlug, setCreateSlug] = useState("");
     const [slugManual, setSlugManual] = useState(false);
+    const [createCorPrimaria, setCreateCorPrimaria] = useState("#7ec8a0");
+    const [createCorSecundaria, setCreateCorSecundaria] = useState("#3a8d5c");
     const [saving, setSaving] = useState(false);
 
     // Edit state
@@ -160,6 +162,8 @@ export default function MasterDashboard() {
     const [editCnpj, setEditCnpj] = useState("");
     const [editSlug, setEditSlug] = useState("");
     const [editAtivo, setEditAtivo] = useState(true);
+    const [editCorPrimaria, setEditCorPrimaria] = useState("#7ec8a0");
+    const [editCorSecundaria, setEditCorSecundaria] = useState("#3a8d5c");
 
     const nome = localStorage.getItem("nome") || "Admin";
 
@@ -188,10 +192,13 @@ export default function MasterDashboard() {
                 nome: createNome.trim(),
                 cnpj: createCnpj.trim() || null,
                 slug: createSlug.trim() || gerarSlug(createNome),
+                corPrimaria: createCorPrimaria,
+                corSecundaria: createCorSecundaria,
             });
             showToast("Escola criada com sucesso");
             setShowCreate(false);
             setCreateNome(""); setCreateCnpj(""); setCreateSlug(""); setSlugManual(false);
+            setCreateCorPrimaria("#7ec8a0"); setCreateCorSecundaria("#3a8d5c");
             fetchEscolas();
         } catch (err) {
             showToast(err.response?.data?.message || err.response?.data || "Erro ao criar escola", "err");
@@ -206,6 +213,8 @@ export default function MasterDashboard() {
         setEditCnpj(e.cnpj || "");
         setEditSlug(e.slug);
         setEditAtivo(e.ativo !== false);
+        setEditCorPrimaria(e.corPrimaria || "#7ec8a0");
+        setEditCorSecundaria(e.corSecundaria || "#3a8d5c");
     };
 
     const cancelEdit = () => setEditId(null);
@@ -219,6 +228,8 @@ export default function MasterDashboard() {
                 cnpj: editCnpj.trim() || null,
                 slug: editSlug.trim(),
                 ativo: editAtivo,
+                corPrimaria: editCorPrimaria,
+                corSecundaria: editCorSecundaria,
             });
             showToast("Escola atualizada");
             setEditId(null);
@@ -245,12 +256,13 @@ export default function MasterDashboard() {
     const handleAcessar = async (escola) => {
         try {
             const res = await api.post("/auth/master-impersonate", { escolaId: escola.id });
-            const { token, escolaSlug, escolaNome } = res.data;
-            // Salva credenciais da escola no localStorage (a nova aba lerá)
+            const { token, escolaSlug, escolaNome, corPrimaria, corSecundaria } = res.data;
             localStorage.setItem("token", token);
             localStorage.setItem("role", "MASTER");
             localStorage.setItem("escolaSlug", escolaSlug);
             localStorage.setItem("escolaNome", escolaNome);
+            localStorage.setItem("corPrimaria", corPrimaria || "#7ec8a0");
+            localStorage.setItem("corSecundaria", corSecundaria || "#3a8d5c");
             // Abre nova aba com o dashboard da escola
             window.open(`/escola/${escolaSlug}/direcao`, "_blank");
         } catch (err) {
@@ -473,6 +485,33 @@ export default function MasterDashboard() {
                                            style={sInput} placeholder="nome-da-escola" />
                                 </div>
                             </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 16 }}>
+                                <div>
+                                    <label style={sLabel}>Cor Primária</label>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                        <input type="color" value={createCorPrimaria} onChange={e => setCreateCorPrimaria(e.target.value)}
+                                               style={{ width: 40, height: 36, border: `1px solid ${C.border}`, borderRadius: 6, cursor: "pointer", padding: 2, background: "#fff" }} />
+                                        <input value={createCorPrimaria} onChange={e => setCreateCorPrimaria(e.target.value)}
+                                               style={{ ...sInput, flex: 1 }} placeholder="#7ec8a0" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style={sLabel}>Cor Secundária</label>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                                        <input type="color" value={createCorSecundaria} onChange={e => setCreateCorSecundaria(e.target.value)}
+                                               style={{ width: 40, height: 36, border: `1px solid ${C.border}`, borderRadius: 6, cursor: "pointer", padding: 2, background: "#fff" }} />
+                                        <input value={createCorSecundaria} onChange={e => setCreateCorSecundaria(e.target.value)}
+                                               style={{ ...sInput, flex: 1 }} placeholder="#3a8d5c" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style={sLabel}>Preview</label>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 10, height: 36 }}>
+                                        <div style={{ width: 36, height: 36, borderRadius: 8, background: `linear-gradient(135deg, ${createCorPrimaria} 0%, ${createCorSecundaria} 100%)`, flexShrink: 0 }} />
+                                        <span style={{ fontSize: 12, color: C.textMuted }}>Gradiente do logo</span>
+                                    </div>
+                                </div>
+                            </div>
                             <div style={{ display: "flex", gap: 10 }}>
                                 <button onClick={handleCreate} disabled={saving} style={sBtn(C.accent, "#fff")}>
                                     {saving ? "Salvando..." : "Criar"}
@@ -537,6 +576,30 @@ export default function MasterDashboard() {
                                                         {editAtivo ? "Sim" : "Nao"}
                                                     </span>
                                                 </div>
+                                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 12, marginTop: 4 }}>
+                                                    <div>
+                                                        <label style={sLabel}>Cor Primária</label>
+                                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                            <input type="color" value={editCorPrimaria} onChange={e => setEditCorPrimaria(e.target.value)}
+                                                                   style={{ width: 36, height: 32, border: `1px solid ${C.border}`, borderRadius: 6, cursor: "pointer", padding: 2, background: "#fff" }} />
+                                                            <input value={editCorPrimaria} onChange={e => setEditCorPrimaria(e.target.value)}
+                                                                   style={{ ...sInput, flex: 1, fontSize: 12 }} />
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <label style={sLabel}>Cor Secundária</label>
+                                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                            <input type="color" value={editCorSecundaria} onChange={e => setEditCorSecundaria(e.target.value)}
+                                                                   style={{ width: 36, height: 32, border: `1px solid ${C.border}`, borderRadius: 6, cursor: "pointer", padding: 2, background: "#fff" }} />
+                                                            <input value={editCorSecundaria} onChange={e => setEditCorSecundaria(e.target.value)}
+                                                                   style={{ ...sInput, flex: 1, fontSize: 12 }} />
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <label style={sLabel}>Preview</label>
+                                                        <div style={{ width: 36, height: 32, borderRadius: 8, background: `linear-gradient(135deg, ${editCorPrimaria} 0%, ${editCorSecundaria} 100%)` }} />
+                                                    </div>
+                                                </div>
                                             </div>
                                             <div style={{ display: "flex", gap: 10 }}>
                                                 <button onClick={handleUpdate} disabled={saving} style={sBtn(C.accent, "#fff")}>
@@ -575,10 +638,16 @@ export default function MasterDashboard() {
                                             </div>
 
                                             {escola.cnpj && (
-                                                <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 12 }}>
+                                                <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 8 }}>
                                                     CNPJ: {escola.cnpj}
                                                 </div>
                                             )}
+                                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                                                <div style={{ width: 20, height: 20, borderRadius: 6, background: `linear-gradient(135deg, ${escola.corPrimaria || "#7ec8a0"} 0%, ${escola.corSecundaria || "#3a8d5c"} 100%)`, flexShrink: 0, border: `1px solid ${C.border}` }} />
+                                                <span style={{ fontSize: 11, color: C.textMuted }}>
+                                                    {escola.corPrimaria || "#7ec8a0"} / {escola.corSecundaria || "#3a8d5c"}
+                                                </span>
+                                            </div>
 
                                             <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
                                                 <button onClick={() => handleAcessar(escola)}

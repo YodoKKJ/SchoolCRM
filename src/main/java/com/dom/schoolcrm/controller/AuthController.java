@@ -76,14 +76,16 @@ public class AuthController {
         boolean lembrar = "true".equalsIgnoreCase(body.get("lembrar"));
         String token = jwtUtil.gerarToken(usuario.getLogin(), usuario.getRole(), escola.getId(), lembrar);
 
-        return ResponseEntity.ok(Map.of(
-                "token", token,
-                "role", usuario.getRole(),
-                "nome", usuario.getNome(),
-                "id", usuario.getId(),
-                "escolaSlug", escola.getSlug(),
-                "escolaNome", escola.getNome()
-        ));
+        java.util.Map<String, Object> resp = new java.util.HashMap<>();
+        resp.put("token", token);
+        resp.put("role", usuario.getRole());
+        resp.put("nome", usuario.getNome());
+        resp.put("id", usuario.getId());
+        resp.put("escolaSlug", escola.getSlug());
+        resp.put("escolaNome", escola.getNome());
+        resp.put("corPrimaria", escola.getCorPrimaria() != null ? escola.getCorPrimaria() : "#7ec8a0");
+        resp.put("corSecundaria", escola.getCorSecundaria() != null ? escola.getCorSecundaria() : "#3a8d5c");
+        return ResponseEntity.ok(resp);
     }
 
     @PostMapping("/master-login")
@@ -151,12 +153,14 @@ public class AuthController {
         String token = jwtUtil.gerarToken(login, "MASTER", escolaId, false);
 
         Escola e = escola.get();
-        return ResponseEntity.ok(Map.of(
-                "token", token,
-                "role", "MASTER",
-                "escolaSlug", e.getSlug(),
-                "escolaNome", e.getNome()
-        ));
+        java.util.Map<String, Object> impResp = new java.util.HashMap<>();
+        impResp.put("token", token);
+        impResp.put("role", "MASTER");
+        impResp.put("escolaSlug", e.getSlug());
+        impResp.put("escolaNome", e.getNome());
+        impResp.put("corPrimaria", e.getCorPrimaria() != null ? e.getCorPrimaria() : "#7ec8a0");
+        impResp.put("corSecundaria", e.getCorSecundaria() != null ? e.getCorSecundaria() : "#3a8d5c");
+        return ResponseEntity.ok(impResp);
     }
 
     @GetMapping("/me")
@@ -179,10 +183,12 @@ public class AuthController {
                     .body("Escola não encontrada");
         }
         Escola escola = escolaOpt.get();
-        return ResponseEntity.ok(Map.of(
-                "id", escola.getId(),
-                "nome", escola.getNome(),
-                "slug", escola.getSlug()
-        ));
+        java.util.Map<String, Object> escolaResp = new java.util.HashMap<>();
+        escolaResp.put("id", escola.getId());
+        escolaResp.put("nome", escola.getNome());
+        escolaResp.put("slug", escola.getSlug());
+        escolaResp.put("corPrimaria", escola.getCorPrimaria() != null ? escola.getCorPrimaria() : "#7ec8a0");
+        escolaResp.put("corSecundaria", escola.getCorSecundaria() != null ? escola.getCorSecundaria() : "#3a8d5c");
+        return ResponseEntity.ok(escolaResp);
     }
 }
