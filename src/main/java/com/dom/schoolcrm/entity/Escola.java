@@ -21,15 +21,25 @@ public class Escola {
     @Column(nullable = false)
     private Boolean ativo = true;
 
+    @Column(name = "cor_primaria")
+    private String corPrimaria;
+
+    @Column(name = "cor_secundaria")
+    private String corSecundaria;
+
     public Long getId() { return id; }
     public String getNome() { return nome; }
     public String getSlug() { return slug; }
     public String getCnpj() { return cnpj; }
     public Boolean getAtivo() { return ativo; }
+    public String getCorPrimaria() { return corPrimaria; }
+    public String getCorSecundaria() { return corSecundaria; }
 
     public void setId(Long id) { this.id = id; }
     public void setNome(String nome) { this.nome = nome; }
     public void setSlug(String slug) { this.slug = slug; }
     public void setCnpj(String cnpj) { this.cnpj = cnpj; }
     public void setAtivo(Boolean ativo) { this.ativo = ativo; }
+    public void setCorPrimaria(String corPrimaria) { this.corPrimaria = corPrimaria; }
+    public void setCorSecundaria(String corSecundaria) { this.corSecundaria = corSecundaria; }
 }
