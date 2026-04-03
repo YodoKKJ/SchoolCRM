@@ -141,6 +141,7 @@ const C = {
 };
 
 export default function MasterDashboard() {
+    useEffect(() => { document.title = "Skolyo — Master"; }, []);
     const [escolas, setEscolas] = useState([]);
     const [loading, setLoading] = useState(true);
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -354,7 +355,7 @@ export default function MasterDashboard() {
                                 <Shield size={18} color="#fff" />
                             </div>
                             <div>
-                                <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: ".02em" }}>DomGestao</div>
+                                <div style={{ fontSize: 14, fontWeight: 600, letterSpacing: ".02em" }}>Skolyo</div>
                                 <div style={{ fontSize: 10, color: "rgba(255,255,255,.4)", letterSpacing: ".1em", textTransform: "uppercase" }}>Painel Master</div>
                             </div>
                         </div>

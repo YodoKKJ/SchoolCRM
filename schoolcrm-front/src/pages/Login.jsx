@@ -23,8 +23,11 @@ export default function Login() {
                     setEscolaNome(res.data.nome);
                     if (res.data.corPrimaria) setCorPrimaria(res.data.corPrimaria);
                     if (res.data.corSecundaria) setCorSecundaria(res.data.corSecundaria);
+                    document.title = res.data.nome || "Skolyo";
                 })
                 .catch(() => setErro("Escola não encontrada. Verifique o link."));
+        } else {
+            document.title = "Skolyo";
         }
     }, [slug]);
 
