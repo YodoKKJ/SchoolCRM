@@ -36,14 +36,14 @@ const STYLE = `
 .ad-user-wrap { border-bottom: 1px solid rgba(255,255,255,0.08); }
 .ad-nav-btn { display:flex; align-items:center; gap:10px; padding:8px 14px; font-size:13px; font-weight:400; color:rgba(255,255,255,.45); border:none; background:transparent; width:100%; text-align:left; cursor:pointer; border-left:2px solid transparent; transition:all .18s ease; border-radius:0 4px 4px 0; }
 .ad-nav-btn:hover { color:rgba(255,255,255,.85); background:rgba(255,255,255,.05); }
-.ad-nav-btn.active { color:#7ec8a0; border-left-color:#7ec8a0; background:rgba(126,200,160,.08); font-weight:500; }
+.ad-nav-btn.active { color:var(--cor1, #7ec8a0); border-left-color:var(--cor1, #7ec8a0); background:color-mix(in srgb, var(--cor1, #7ec8a0) 8%, transparent); font-weight:500; }
 
 /* ── Header ────────────────────────────────────────────────── */
 .ad-header { background:#fff; border-bottom:none; box-shadow:0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04); position:sticky; top:0; z-index:10; }
 .ad-page-title { font-family:'Playfair Display', serif; font-size:22px; font-weight:700; color:#0d1f18; letter-spacing:-.02em; line-height:1; }
 .ad-page-sub { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#9aaa9f; margin-top:3px; }
 .ad-breadcrumb { font-size:10px; letter-spacing:.06em; color:#b8c4be; margin-top:2px; }
-.ad-breadcrumb span { color:#7ec8a0; }
+.ad-breadcrumb span { color:var(--cor1, #7ec8a0); }
 
 /* ── Cards ─────────────────────────────────────────────────── */
 .ad-card { background:#fff; border:1px solid #eaeef2; border-top:2px solid var(--accent, #0d1f18); padding:18px 20px; transition:box-shadow .25s ease, transform .2s ease; }
@@ -143,7 +143,7 @@ const STYLE = `
 [data-theme="dark"] .ad-accordion-btn:hover { background:#1a2822 !important; }
 [data-theme="dark"] .ad-accordion-row { border-bottom-color:#1e2e25 !important; }
 [data-theme="dark"] .ad-progress-bar-bg { background:#1e2e25 !important; }
-[data-theme="dark"] .ad-badge { background:rgba(93,184,138,.12) !important; color:#7ec8a0 !important; }
+[data-theme="dark"] .ad-badge { background:color-mix(in srgb, var(--cor1, #7ec8a0) 12%, transparent) !important; color:var(--cor1, #7ec8a0) !important; }
 
 [data-theme="dark"] .ad-ano-btn { background:#1a2822 !important; border:1px solid #2a3d32 !important; color:#8aaa95 !important; }
 [data-theme="dark"] .ad-ano-btn:hover { background:#1e3028 !important; border-color:#3a5a45 !important; }
@@ -316,7 +316,7 @@ function Inicio({ vinculos, notas, turmaId, config = { mediaMinima: 6.0, freqMin
         <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
             {/* ── Cards ── */}
             <div className="ad-cards-grid" style={{ gridTemplateColumns:"repeat(4,1fr)" }}>
-                <div className="ad-card" style={{ "--accent":"#7ec8a0" }}>
+                <div className="ad-card" style={{ "--accent":_corPri }}>
                     <div className="ad-card-num">{mediaGeral !== null ? fmt(mediaGeral) : "—"}</div>
                     <div className="ad-card-label">Média Geral</div>
                 </div>
@@ -572,10 +572,10 @@ function Boletim({ notas, turmaId, config = { mediaMinima: 6.0, freqMinima: 75.0
                                                         })}
                                                         {bonus.map(n => (
                                                             <tr key={n.id}>
-                                                                <td style={{ fontSize:12, color:"#7ec8a0", paddingBottom:5, paddingRight:8 }}>
+                                                                <td style={{ fontSize:12, color:_corPri, paddingBottom:5, paddingRight:8 }}>
                                                                     +{n.avaliacao?.descricao || "Bônus"}
                                                                 </td>
-                                                                <td style={{ fontSize:13, fontWeight:600, color:"#7ec8a0", textAlign:"right", paddingBottom:5 }}>
+                                                                <td style={{ fontSize:13, fontWeight:600, color:_corPri, textAlign:"right", paddingBottom:5 }}>
                                                                     +{fmt(n.valor)}
                                                                 </td>
                                                             </tr>
@@ -660,7 +660,7 @@ function Frequencia({ notas, turmaId, config = { mediaMinima: 6.0, freqMinima: 7
                                     <td>
                                         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                                             <div style={{ width:72, height:6, background:"#eaeef2", borderRadius:3, overflow:"hidden" }}>
-                                                <div style={{ height:"100%", width:`${Math.min(pct,100)}%`, background: pct>=config.freqMinima?"#7ec8a0":pct>=60?"#e9c46a":"#e63946", borderRadius:3, transition:"width .4s" }} />
+                                                <div style={{ height:"100%", width:`${Math.min(pct,100)}%`, background: pct>=config.freqMinima?_corPri:pct>=60?"#e9c46a":"#e63946", borderRadius:3, transition:"width .4s" }} />
                                             </div>
                                             <span style={{ fontSize:12, fontWeight:600, color:corFreq(pct), minWidth:36 }}>
                                                 {fmt(pct)}%
@@ -821,6 +821,7 @@ export default function AlunoDashboard() {
     const _escolaNome = localStorage.getItem("escolaNome") || "Sistema Escolar";
     const _corPri = localStorage.getItem("corPrimaria") || "#7ec8a0";
     const _corSec = localStorage.getItem("corSecundaria") || "#3a8d5c";
+    useEffect(() => { document.title = _escolaNome; }, []);
     const logout = () => { const slug = localStorage.getItem("escolaSlug"); localStorage.clear(); window.location.href = slug ? `/escola/${slug}/login` : "/"; };
 
     useEffect(() => {
@@ -855,7 +856,7 @@ export default function AlunoDashboard() {
     return (
         <>
             <style>{STYLE}</style>
-            <div data-theme={dark ? "dark" : "light"} style={{ display:"flex", minHeight:"100vh", background: dark ? "#111816" : "#f5f8f5" }}>
+            <div data-theme={dark ? "dark" : "light"} style={{ display:"flex", minHeight:"100vh", background: dark ? "#111816" : "#f5f8f5", "--cor1": _corPri, "--cor2": _corSec }}>
 
                 {/* overlay mobile */}
                 {sidebarAberta && (
@@ -939,7 +940,7 @@ export default function AlunoDashboard() {
                                 <p style={{ fontSize:12, fontWeight:500, color: dark ? "#c5d5ca" : "#2a3a2e", lineHeight:1 }}>{nome}</p>
                                 <p style={{ fontSize:10, color: dark ? "#5a7a65" : "#9aaa9f", marginTop:2 }}>Estudante</p>
                             </div>
-                            <div style={{ width:34, height:34, borderRadius:"50%", background: dark ? "#243d30" : "#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:600, color:"#7ec8a0", letterSpacing:".04em" }}>
+                            <div style={{ width:34, height:34, borderRadius:"50%", background: dark ? "#243d30" : "#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:600, color:_corPri, letterSpacing:".04em" }}>
                                 {nome.charAt(0).toUpperCase()}
                             </div>
                         </div>

@@ -630,7 +630,7 @@ export default function LandingEscola() {
         <div className="lp-footer-logo">Dom<span>Escola</span></div>
         <div className="lp-footer-text">© {new Date().getFullYear()} · Todos os direitos reservados</div>
         <div className="lp-footer-powered">
-          Gerenciado por <a href="/" target="_blank" rel="noreferrer">DomGestão</a>
+          Gerenciado por <a href="/" target="_blank" rel="noreferrer">Skolyo</a>
         </div>
       </footer>
     </>

@@ -1,7 +1,7 @@
 {
-  "name": "DomGestão",
-  "short_name": "DomGestão",
-  "description": "Sistema de gestão escolar DomGestão",
+  "name": "Skolyo",
+  "short_name": "Skolyo",
+  "description": "Sistema de gestão escolar Skolyo",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
