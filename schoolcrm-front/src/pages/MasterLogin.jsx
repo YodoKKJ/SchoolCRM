@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 
 export default function MasterLogin() {
+    useEffect(() => { document.title = "Skolyo — Master Login"; }, []);
     const [login, setLogin] = useState("");
     const [senha, setSenha] = useState("");
     const [erro, setErro] = useState("");
@@ -336,7 +337,7 @@ export default function MasterLogin() {
                                     <circle cx="8" cy="8" r="2" fill="#a5b4fc" />
                                 </svg>
                             </div>
-                            <span className="ml-left-logo-name">DomGestão</span>
+                            <span className="ml-left-logo-name">Skolyo</span>
                         </div>
 
                         <div>
@@ -347,7 +348,7 @@ export default function MasterLogin() {
                             <p className="ml-left-tagline">Painel master do sistema</p>
                         </div>
 
-                        <p className="ml-left-footer">&copy; {new Date().getFullYear()} DomGestão</p>
+                        <p className="ml-left-footer">&copy; {new Date().getFullYear()} Skolyo</p>
                     </div>
                 </div>
 
@@ -363,7 +364,7 @@ export default function MasterLogin() {
                                     <circle cx="8" cy="8" r="2" fill="#a5b4fc" />
                                 </svg>
                             </div>
-                            <span className="ml-mobile-logo-name">DomGestão</span>
+                            <span className="ml-mobile-logo-name">Skolyo</span>
                         </div>
 
                         <p className="ml-eyebrow">Acesso restrito</p>

@@ -821,6 +821,7 @@ export default function AlunoDashboard() {
     const _escolaNome = localStorage.getItem("escolaNome") || "Sistema Escolar";
     const _corPri = localStorage.getItem("corPrimaria") || "#7ec8a0";
     const _corSec = localStorage.getItem("corSecundaria") || "#3a8d5c";
+    useEffect(() => { document.title = _escolaNome; }, []);
     const logout = () => { const slug = localStorage.getItem("escolaSlug"); localStorage.clear(); window.location.href = slug ? `/escola/${slug}/login` : "/"; };
 
     useEffect(() => {
