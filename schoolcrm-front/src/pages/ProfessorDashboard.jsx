@@ -46,7 +46,7 @@ const STYLE = `
 .pd-sidebar { background: linear-gradient(180deg, #0d1f18 0%, #0a1a14 100%); }
 .pd-nav-btn { display:flex; align-items:center; gap:10px; padding:8px 14px; font-size:13px; font-weight:400; color:rgba(255,255,255,.45); border:none; background:transparent; width:100%; text-align:left; cursor:pointer; border-left:2px solid transparent; transition:all .18s ease; border-radius:0 4px 4px 0; }
 .pd-nav-btn:hover { color:rgba(255,255,255,.85); background:rgba(255,255,255,.05); }
-.pd-nav-btn.active { color:#7ec8a0; border-left-color:#7ec8a0; background:rgba(126,200,160,.08); font-weight:500; }
+.pd-nav-btn.active { color:var(--cor1, #7ec8a0); border-left-color:var(--cor1, #7ec8a0); background:color-mix(in srgb, var(--cor1, #7ec8a0) 8%, transparent); font-weight:500; }
 .pd-nav-label { font-size:9px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:rgba(255,255,255,.28); padding:0 14px; margin-bottom:6px; }
 
 /* ── Sections ──────────────────────────────────────────────── */
@@ -58,7 +58,7 @@ const STYLE = `
 .pd-page-title { font-family:'Playfair Display', serif; font-size:22px; font-weight:700; color:#0d1f18; letter-spacing:-.02em; line-height:1; }
 .pd-page-sub { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#9aaa9f; margin-top:3px; }
 .pd-breadcrumb { font-size:10px; letter-spacing:.06em; color:#b8c4be; margin-top:2px; }
-.pd-breadcrumb span { color:#7ec8a0; }
+.pd-breadcrumb span { color:var(--cor1, #7ec8a0); }
 
 /* ── Tables ────────────────────────────────────────────────── */
 .pd-table { width:100%; border-collapse:collapse; }
@@ -86,7 +86,7 @@ const STYLE = `
 .pd-label { font-size:10px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:#9aaa9f; display:block; margin-bottom:6px; }
 
 /* ── Feedback ──────────────────────────────────────────────── */
-.pd-ok { font-size:12px; color:#3a6649; padding:10px 14px; background:#f0f5f2; border-left:3px solid #7ec8a0; border-radius:0 2px 2px 0; }
+.pd-ok { font-size:12px; color:#3a6649; padding:10px 14px; background:#f0f5f2; border-left:3px solid var(--cor1, #7ec8a0); border-radius:0 2px 2px 0; }
 .pd-err { font-size:12px; color:#b94040; padding:10px 14px; background:#fdf0f0; border-left:3px solid #b94040; border-radius:0 2px 2px 0; }
 
 /* ── Modais ─────────────────────────────────────────────────── */
@@ -260,7 +260,7 @@ export default function ProfessorDashboard() {
     return (
         <>
             <style>{STYLE}</style>
-            <div data-theme={dark ? "dark" : "light"} style={{ display:"flex", minHeight:"100vh", background: dark ? "#111816" : "#f5f8f5" }}>
+            <div data-theme={dark ? "dark" : "light"} style={{ display:"flex", minHeight:"100vh", background: dark ? "#111816" : "#f5f8f5", "--cor1": _corPri, "--cor2": _corSec }}>
 
                 {sidebarAberta && (
                     <div style={{ position:"fixed", inset:0, background:"rgba(13,31,24,.4)", zIndex:20 }}
@@ -349,7 +349,7 @@ export default function ProfessorDashboard() {
                                 <p style={{ fontSize:10, color: dark ? "#5a7a65" : "#9aaa9f", marginTop:2 }}>Professor</p>
                             </div>
                             <div style={{ width:34, height:34, borderRadius:"50%", background: dark ? "#243d30" : "#0d1f18", display:"flex", alignItems:"center",
-                                justifyContent:"center", fontSize:13, fontWeight:600, color:"#7ec8a0" }}>
+                                justifyContent:"center", fontSize:13, fontWeight:600, color:_corPri }}>
                                 {nome.charAt(0).toUpperCase()}
                             </div>
                         </div>
@@ -425,7 +425,7 @@ function Inicio({ vinculos }) {
                 {[
                     { label:"Turmas",     value: turmas.length,    accent:"#0d1f18" },
                     { label:"Matérias",   value: vinculos.length,  accent:"#2d6a4f" },
-                    { label:"Alunos",     value: totalAlunos || "—", accent:"#7ec8a0" },
+                    { label:"Alunos",     value: totalAlunos || "—", accent:_corPri },
                     { label:"Em Risco",   value: totalEmRisco || "0", accent: totalEmRisco > 0 ? "#e63946" : "#b7dfc8",
                       valueColor: totalEmRisco > 0 ? "#e63946" : undefined },
                 ].map(c => (
@@ -899,7 +899,7 @@ function LancarNotas({ vinculos }) {
                                                     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                                                         <div style={{ width:26, height:26, background:"#0d1f18", display:"flex",
                                                             alignItems:"center", justifyContent:"center", fontSize:11,
-                                                            fontWeight:600, color:"#7ec8a0", flexShrink:0 }}>
+                                                            fontWeight:600, color:_corPri, flexShrink:0 }}>
                                                             {aluno.nome.charAt(0)}
                                                         </div>
                                                         <span style={{ fontWeight:500 }}>{aluno.nome}</span>
@@ -964,7 +964,7 @@ function LancarNotas({ vinculos }) {
                                                 style={{ flex:1, padding:"9px", border:"1px solid #eaeef2",
                                                     borderRight: i < 3 ? "none" : "1px solid #eaeef2",
                                                     background: formAv.bimestre===b ? "#0d1f18" : "white",
-                                                    color: formAv.bimestre===b ? "#7ec8a0" : "#9aaa9f",
+                                                    color: formAv.bimestre===b ? _corPri : "#9aaa9f",
                                                     fontSize:11, fontWeight:500, letterSpacing:".06em",
                                                     textTransform:"uppercase", cursor:"pointer" }}>
                                             {b}º
@@ -981,7 +981,7 @@ function LancarNotas({ vinculos }) {
                                                 style={{ flex:"1 0 auto", padding:"9px", border:"1px solid #eaeef2",
                                                     borderRight: i < arr.length - 1 ? "none" : "1px solid #eaeef2",
                                                     background: formAv.tipo===t ? (t==="RECUPERACAO" ? "#7a3800" : "#0d1f18") : "white",
-                                                    color: formAv.tipo===t ? (t==="RECUPERACAO" ? "#ffd08a" : "#7ec8a0") : "#9aaa9f",
+                                                    color: formAv.tipo===t ? (t==="RECUPERACAO" ? "#ffd08a" : _corPri) : "#9aaa9f",
                                                     fontSize:11, fontWeight:500, letterSpacing:".06em",
                                                     textTransform:"uppercase", cursor:"pointer" }}>
                                             {t==="SIMULADO" ? "Bônus" : t==="RECUPERACAO" ? "Recup." : t}
@@ -1071,7 +1071,7 @@ function LancarNotas({ vinculos }) {
                                                style={{ accentColor:"#b45309", width:15, height:15, flexShrink:0 }} />
                                         <div style={{ width:26, height:26, background:"#0d1f18", display:"flex",
                                             alignItems:"center", justifyContent:"center", fontSize:11,
-                                            fontWeight:600, color:"#7ec8a0", flexShrink:0 }}>
+                                            fontWeight:600, color:_corPri, flexShrink:0 }}>
                                             {aluno.nome.charAt(0)}
                                         </div>
                                         <span style={{ fontSize:13, fontWeight:500, color:"#0d1f18" }}>{aluno.nome}</span>
@@ -1360,7 +1360,7 @@ function Chamada({ vinculos }) {
                                                         background: presente ? "#0d1f18" : "#e8e8e8",
                                                         display:"flex", alignItems:"center", justifyContent:"center",
                                                         fontSize:11, fontWeight:600,
-                                                        color: presente ? "#7ec8a0" : "#aaa",
+                                                        color: presente ? _corPri : "#aaa",
                                                         flexShrink:0, transition:"background .15s" }}>
                                                         {aluno.nome.charAt(0)}
                                                     </div>
@@ -1379,7 +1379,7 @@ function Chamada({ vinculos }) {
                                                             }))}
                                                             style={{ padding:"6px 20px", border:"1px solid #eaeef2", borderRight:"none",
                                                                 background: presente ? "#0d1f18" : "white",
-                                                                color: presente ? "#7ec8a0" : "#9aaa9f",
+                                                                color: presente ? _corPri : "#9aaa9f",
                                                                 fontSize:11, fontWeight:600, cursor:"pointer",
                                                                 letterSpacing:".06em", transition:"all .15s" }}>P</button>
                                                     <button onClick={() => setChamadaPorAula(p => ({
@@ -1439,7 +1439,7 @@ function Chamada({ vinculos }) {
                                             <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                                                 <div style={{ flex:1, height:4, background:"#eaeef2", overflow:"hidden" }}>
                                                     <div style={{ width:`${pct}%`, height:"100%", transition:"width .3s",
-                                                        background: pct >= 75 ? "#7ec8a0" : pct >= 50 ? "#e6a817" : "#b94040" }} />
+                                                        background: pct >= 75 ? _corPri : pct >= 50 ? "#e6a817" : "#b94040" }} />
                                                 </div>
                                                 <span style={{ fontSize:12, fontWeight:500, width:36, textAlign:"right",
                                                     color: pct >= 75 ? "#2d6a4f" : pct >= 50 ? "#a05c00" : "#b94040" }}>

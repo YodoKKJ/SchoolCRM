@@ -59,7 +59,7 @@ function ToastContainer() {
                     <div key={t.id} style={{
                         padding:"14px 18px 16px",
                         background: isErr ? "#fdf0f0" : "#f0f5f2",
-                        borderLeft: `3px solid ${isErr ? "#b94040" : "#7ec8a0"}`,
+                        borderLeft: `3px solid ${isErr ? "#b94040" : (localStorage.getItem("corPrimaria") || "#7ec8a0")}`,
                         color: isErr ? "#b94040" : "#3a6649",
                         fontSize:13, fontFamily:"'DM Sans',sans-serif",
                         boxShadow:"0 4px 16px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.08)",
@@ -78,7 +78,7 @@ function ToastContainer() {
                         </div>
                         <div style={{
                             position:"absolute", bottom:0, left:0, height:2,
-                            background: isErr ? "#b94040" : "#7ec8a0",
+                            background: isErr ? "#b94040" : (localStorage.getItem("corPrimaria") || "#7ec8a0"),
                             animation:"ddToastProgress 4s linear forwards",
                             opacity:.4,
                         }} />
@@ -292,14 +292,14 @@ const GLOBAL_STYLE = `
 .dd-sidebar nav::-webkit-scrollbar-track { background: transparent; }
 .dd-sidebar nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 2px; }
 .dd-sidebar nav::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.25); }
-.dd-ano-letivo-btn { width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; background:transparent; border:none; border-bottom:1px solid rgba(255,255,255,.15); border-radius:0; padding:5px 2px 6px; cursor:pointer; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:500; color:#7ec8a0; letter-spacing:.01em; transition: border-color .15s; }
+.dd-ano-letivo-btn { width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px; background:transparent; border:none; border-bottom:1px solid rgba(255,255,255,.15); border-radius:0; padding:5px 2px 6px; cursor:pointer; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:500; color:var(--cor1, #7ec8a0); letter-spacing:.01em; transition: border-color .15s; }
 .dd-ano-letivo-btn:hover { border-bottom-color: rgba(255,255,255,.3); }
 .dd-nav-section-label { font-size:9px; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:rgba(255,255,255,.28); padding:0 14px; margin-bottom:6px; margin-top:4px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; border:none; background:none; width:100%; transition:color .2s; }
 .dd-nav-section-label:hover { color:rgba(255,255,255,.55); }
 .dd-nav-section-items { overflow:hidden; transition: max-height .25s ease, opacity .2s ease; }
 .dd-nav-btn { display:flex; align-items:center; gap:10px; padding:8px 14px; font-size:13px; font-weight:400; color:rgba(255,255,255,.45); border:none; background:transparent; width:100%; text-align:left; cursor:pointer; border-left:2px solid transparent; transition:all .18s ease; border-radius:0 4px 4px 0; margin-left:0; }
 .dd-nav-btn:hover { color:rgba(255,255,255,.85); background:rgba(255,255,255,.05); }
-.dd-nav-btn.active { color:#7ec8a0; border-left-color:#7ec8a0; background:rgba(126,200,160,.08); font-weight:500; }
+.dd-nav-btn.active { color:var(--cor1, #7ec8a0); border-left-color:var(--cor1, #7ec8a0); background:color-mix(in srgb, var(--cor1, #7ec8a0) 8%, transparent); font-weight:500; }
 .dd-nav-btn.disabled { color:rgba(255,255,255,.15); cursor:default; }
 .dd-nav-btn.disabled:hover { background:transparent; color:rgba(255,255,255,.15); }
 .dd-badge-soon { font-size:8px; letter-spacing:.08em; text-transform:uppercase; padding:2px 6px; background:rgba(255,255,255,.06); color:rgba(255,255,255,.2); border-radius:2px; }
@@ -309,7 +309,7 @@ const GLOBAL_STYLE = `
 .dd-page-title { font-family:'Playfair Display', serif; font-size:22px; font-weight:700; color:#0d1f18; letter-spacing:-.02em; line-height:1; }
 .dd-page-sub { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#9aaa9f; margin-top:3px; }
 .dd-breadcrumb { font-size:10px; letter-spacing:.06em; color:#b8c4be; margin-top:2px; }
-.dd-breadcrumb span { color:#7ec8a0; }
+.dd-breadcrumb span { color:var(--cor1, #7ec8a0); }
 
 /* ── Cards ─────────────────────────────────────────────────── */
 .dd-card { background:#fff; border:1px solid #eaeef2; border-top:2px solid var(--accent, #0d1f18); transition:box-shadow .25s ease, transform .2s ease; }
@@ -362,7 +362,7 @@ const GLOBAL_STYLE = `
 
 /* ── Feedback ──────────────────────────────────────────────── */
 .dd-err { font-size:12px; color:#b94040; padding:10px 14px; background:#fdf0f0; border-left:3px solid #b94040; margin-top:4px; border-radius:0 2px 2px 0; }
-.dd-ok { font-size:12px; color:#3a6649; padding:10px 14px; background:#f0f5f2; border-left:3px solid #7ec8a0; margin-top:4px; border-radius:0 2px 2px 0; }
+.dd-ok { font-size:12px; color:#3a6649; padding:10px 14px; background:#f0f5f2; border-left:3px solid var(--cor1, #7ec8a0); margin-top:4px; border-radius:0 2px 2px 0; }
 
 /* ── Search ────────────────────────────────────────────────── */
 .dd-search-wrap { display:flex; gap:8px; align-items:center; }
@@ -466,9 +466,9 @@ const GLOBAL_STYLE = `
 [data-theme="dark"] .dd-btn-ghost:hover { background:#1e3028 !important; border-color:#3a5a45 !important; }
 [data-theme="dark"] .dd-btn-danger { background:rgba(220,80,80,.12) !important; color:#f08080 !important; }
 [data-theme="dark"] .dd-btn-danger:hover { background:rgba(220,80,80,.2) !important; }
-[data-theme="dark"] .dd-btn-edit { background:rgba(93,184,138,.1) !important; color:#7ec8a0 !important; }
+[data-theme="dark"] .dd-btn-edit { background:color-mix(in srgb, var(--cor1, #7ec8a0) 10%, transparent) !important; color:var(--cor1, #7ec8a0) !important; }
 [data-theme="dark"] .dd-btn-toggle-on { background:rgba(220,80,80,.12) !important; color:#f08080 !important; }
-[data-theme="dark"] .dd-btn-toggle-off { background:rgba(93,184,138,.1) !important; color:#7ec8a0 !important; }
+[data-theme="dark"] .dd-btn-toggle-off { background:color-mix(in srgb, var(--cor1, #7ec8a0) 10%, transparent) !important; color:var(--cor1, #7ec8a0) !important; }
 
 [data-theme="dark"] .dd-err { background:rgba(220,80,80,.08) !important; border-left-color:#e06060 !important; color:#f0a0a0 !important; }
 [data-theme="dark"] .dd-ok { background:rgba(93,184,138,.08) !important; border-left-color:#5db88a !important; color:#8ad4aa !important; }
@@ -476,7 +476,7 @@ const GLOBAL_STYLE = `
 [data-theme="dark"] .dd-search-input { background:#1a2822 !important; border:1px solid #2a3d32 !important; color:#e0ebe3 !important; }
 [data-theme="dark"] .dd-search-input:focus { border-color:#3a5a45 !important; }
 [data-theme="dark"] .dd-search-select { background:#1a2822 !important; border:1px solid #2a3d32 !important; color:#c5d8ca !important; }
-[data-theme="dark"] .dd-badge { background:rgba(93,184,138,.12) !important; color:#7ec8a0 !important; }
+[data-theme="dark"] .dd-badge { background:color-mix(in srgb, var(--cor1, #7ec8a0) 12%, transparent) !important; color:var(--cor1, #7ec8a0) !important; }
 
 /* Recharts dark */
 [data-theme="dark"] .recharts-cartesian-grid line { stroke:#1e2e25 !important; }
@@ -854,7 +854,7 @@ export default function DirecaoDashboard() {
             <style>{GLOBAL_STYLE}</style>
             <ToastContainer />
             <ConfirmDialog />
-            <div data-theme={dark ? "dark" : "light"} style={{ display:"flex", minHeight:"100vh", background: dark ? "#111816" : "#f5f8f5" }}>
+            <div data-theme={dark ? "dark" : "light"} style={{ display:"flex", minHeight:"100vh", background: dark ? "#111816" : "#f5f8f5", "--cor1": _corPri, "--cor2": _corSec }}>
                 {/* overlay mobile */}
                 {sidebarAberta && (
                     <div style={{ position:"fixed", inset:0, background:"rgba(13,31,24,.4)", zIndex:20 }}
@@ -973,7 +973,7 @@ export default function DirecaoDashboard() {
                                 <p style={{ fontSize:12, fontWeight:500, color: dark ? "#c5d5ca" : "#2a3a2e", lineHeight:1 }}>{nome}</p>
                                 <p style={{ fontSize:10, color: dark ? "#5a7a65" : "#9aaa9f", marginTop:2 }}>{isCoord ? "Coordenação" : "Direção"}</p>
                             </div>
-                            <div style={{ width:34, height:34, borderRadius:"50%", background: dark ? "#243d30" : "#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:600, color:"#7ec8a0", letterSpacing:".04em" }}>
+                            <div style={{ width:34, height:34, borderRadius:"50%", background: dark ? "#243d30" : "#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:600, color:_corPri, letterSpacing:".04em" }}>
                                 {nome.charAt(0).toUpperCase()}
                             </div>
                         </div>
@@ -1084,7 +1084,7 @@ function Inicio({ anoLetivo }) {
     const cards = [
         { label: "Alunos",      sub: `em ${anoLetivo}`,     value: stats.alunos,      accent: "#0d1f18", icon: GraduationCap },
         { label: "Professores", sub: "ativos",               value: stats.professores, accent: "#2d6a4f", icon: Users },
-        { label: "Turmas",      sub: `em ${anoLetivo}`,     value: stats.turmas,      accent: "#7ec8a0", icon: School },
+        { label: "Turmas",      sub: `em ${anoLetivo}`,     value: stats.turmas,      accent: _corPri, icon: School },
         { label: "Matérias",    sub: "cadastradas",          value: stats.materias,    accent: "#1a4d3a", icon: BookOpen },
         { label: "Média Geral", sub: "todas as turmas",
           value: mediaGeral ?? (alertasCarregando ? "..." : "—"),
@@ -1148,7 +1148,7 @@ function Inicio({ anoLetivo }) {
                                     />
                                     <Legend formatter={v => v === "media" ? "Média" : "Frequência %"} wrapperStyle={{ fontSize:11 }} />
                                     <Bar dataKey="media" fill="#2d6a4f" radius={[4,4,0,0]} maxBarSize={32} />
-                                    <Bar dataKey="frequencia" fill="#7ec8a0" radius={[4,4,0,0]} maxBarSize={32} yAxisId={0} hide />
+                                    <Bar dataKey="frequencia" fill={_corPri} radius={[4,4,0,0]} maxBarSize={32} yAxisId={0} hide />
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
@@ -1585,7 +1585,7 @@ function Usuarios() {
                         {/* Header */}
                         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20, flexShrink:0 }}>
                             <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                                <div style={{ width:44, height:44, borderRadius:"50%", background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:17, fontWeight:700, color:"#7ec8a0", flexShrink:0 }}>
+                                <div style={{ width:44, height:44, borderRadius:"50%", background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:17, fontWeight:700, color:_corPri, flexShrink:0 }}>
                                     {fichaAluno.nome.charAt(0)}
                                 </div>
                                 <div>
@@ -1605,7 +1605,7 @@ function Usuarios() {
 
                                 {/* 1. Dados Pessoais */}
                                 <div style={{ background:"#f8faf8", borderRadius:8, padding:"14px 16px" }}>
-                                    <p style={{ fontSize:10, fontWeight:700, color:"#7ec8a0", textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:12, margin:"0 0 12px" }}>Dados Pessoais</p>
+                                    <p style={{ fontSize:10, fontWeight:700, color:_corPri, textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:12, margin:"0 0 12px" }}>Dados Pessoais</p>
                                     <div style={{ display:"flex", gap:24, flexWrap:"wrap" }}>
                                         {[
                                             ["Nascimento", fichaAluno.dataNascimento ? new Date(fichaAluno.dataNascimento + "T12:00").toLocaleDateString("pt-BR") : "—"],
@@ -1622,7 +1622,7 @@ function Usuarios() {
 
                                 {/* 2. Situação Acadêmica */}
                                 <div>
-                                    <p style={{ fontSize:10, fontWeight:700, color:"#7ec8a0", textTransform:"uppercase", letterSpacing:"0.8px", margin:"0 0 12px" }}>
+                                    <p style={{ fontSize:10, fontWeight:700, color:_corPri, textTransform:"uppercase", letterSpacing:"0.8px", margin:"0 0 12px" }}>
                                         Situação Acadêmica {fichaBoletim ? `— ${fichaBoletim.turma?.anoLetivo}` : ""}
                                     </p>
                                     {fichaBoletim ? (() => {
@@ -1697,7 +1697,7 @@ function Usuarios() {
 
                                 {/* 3. Financeiro */}
                                 <div>
-                                    <p style={{ fontSize:10, fontWeight:700, color:"#7ec8a0", textTransform:"uppercase", letterSpacing:"0.8px", margin:"0 0 12px" }}>Financeiro</p>
+                                    <p style={{ fontSize:10, fontWeight:700, color:_corPri, textTransform:"uppercase", letterSpacing:"0.8px", margin:"0 0 12px" }}>Financeiro</p>
                                     {fichaContratos.length === 0 ? (
                                         <p style={{ color:"#9aaa9f", fontSize:13 }}>Nenhum contrato encontrado.</p>
                                     ) : (
@@ -1785,14 +1785,14 @@ function Usuarios() {
 
                                 {/* 4. Histórico de Turmas */}
                                 <div>
-                                    <p style={{ fontSize:10, fontWeight:700, color:"#7ec8a0", textTransform:"uppercase", letterSpacing:"0.8px", margin:"0 0 12px" }}>Histórico de Turmas</p>
+                                    <p style={{ fontSize:10, fontWeight:700, color:_corPri, textTransform:"uppercase", letterSpacing:"0.8px", margin:"0 0 12px" }}>Histórico de Turmas</p>
                                     {fichaHistorico.length === 0 ? (
                                         <p style={{ color:"#9aaa9f", fontSize:13 }}>Nenhuma turma encontrada.</p>
                                     ) : (
                                         <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                                             {[...fichaHistorico].sort((a,b) => (b.turma?.anoLetivo ?? 0) - (a.turma?.anoLetivo ?? 0)).map((v, i) => (
                                                 <div key={i} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", background:"#f8fafb", borderRadius:6, border:"1px solid #eef0ec" }}>
-                                                    <div style={{ width:38, height:38, background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:"#7ec8a0", flexShrink:0, borderRadius:5 }}>
+                                                    <div style={{ width:38, height:38, background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:12, fontWeight:700, color:_corPri, flexShrink:0, borderRadius:5 }}>
                                                         {v.turma?.anoLetivo ?? "—"}
                                                     </div>
                                                     <div style={{ flex:1 }}>
@@ -1906,7 +1906,7 @@ function Usuarios() {
                             {["ALUNO", "PROFESSOR", "DIRECAO", "COORDENACAO"].map(r => (
                                 <button key={r} onClick={() => setTermoBusca(termoBusca === r ? "" : r)}
                                         className="dd-badge"
-                                        style={{ background: termoBusca === r ? "#0d1f18" : "#f0f5f2", color: termoBusca === r ? "#7ec8a0" : "#3a6649", cursor:"pointer", border:"none" }}>
+                                        style={{ background: termoBusca === r ? "#0d1f18" : "#f0f5f2", color: termoBusca === r ? _corPri : "#3a6649", cursor:"pointer", border:"none" }}>
                                     {r}
                                 </button>
                             ))}
@@ -1924,7 +1924,7 @@ function Usuarios() {
                             <tr key={u.id} style={{ opacity: inativo ? 0.5 : 1 }}>
                                 <td>
                                     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                                        <div style={{ width:26, height:26, background: inativo ? "#ccc" : "#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color: inativo ? "#fff" : "#7ec8a0", flexShrink:0 }}>
+                                        <div style={{ width:26, height:26, background: inativo ? "#ccc" : "#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color: inativo ? "#fff" : _corPri, flexShrink:0 }}>
                                             {u.nome.charAt(0)}
                                         </div>
                                         <span style={{ fontWeight:500 }}>{u.nome}</span>
@@ -2455,7 +2455,7 @@ function EditarTurma({ turma, onVoltar }) {
                         : vinculosAluno.map(v => (
                             <div key={v.aluno?.id} style={{ padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #f2f5f2" }}>
                                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                                    <div style={{ width:26, height:26, background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color:"#7ec8a0" }}>
+                                    <div style={{ width:26, height:26, background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color:_corPri }}>
                                         {v.aluno?.nome?.charAt(0)}
                                     </div>
                                     <span style={{ fontSize:13 }}>{v.aluno?.nome}</span>
@@ -2916,7 +2916,7 @@ function Lancamentos({ anoLetivo }) {
                                                 style={{ padding:"4px 10px", border:"1px solid #eaeef2",
                                                     borderRight: i < arr.length - 1 ? "none" : "1px solid #eaeef2",
                                                     background: bimestroFiltro === val ? "#0d1f18" : "white",
-                                                    color: bimestroFiltro === val ? "#7ec8a0" : "#9aaa9f",
+                                                    color: bimestroFiltro === val ? _corPri : "#9aaa9f",
                                                     fontSize:10, fontWeight:500, letterSpacing:".05em",
                                                     textTransform:"uppercase", cursor:"pointer" }}>
                                             {label}
@@ -3057,7 +3057,7 @@ function Lancamentos({ anoLetivo }) {
                                             <tr key={aluno.id} style={{ background: temErro ? "#fff5f5" : undefined }}>
                                                 <td>
                                                     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                                                        <div style={{ width:26, height:26, background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color:"#7ec8a0", flexShrink:0 }}>
+                                                        <div style={{ width:26, height:26, background:"#0d1f18", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color:_corPri, flexShrink:0 }}>
                                                             {aluno.nome.charAt(0)}
                                                         </div>
                                                         <span style={{ fontWeight:500, fontSize:13 }}>{aluno.nome}</span>
@@ -3191,7 +3191,7 @@ function Lancamentos({ anoLetivo }) {
                                         <tr key={aluno.id}>
                                             <td>
                                                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                                                    <div style={{ width:26, height:26, background: presente ? "#0d1f18" : "#e8e8e8", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color: presente ? "#7ec8a0" : "#aaa", flexShrink:0, transition:"background .15s" }}>
+                                                    <div style={{ width:26, height:26, background: presente ? "#0d1f18" : "#e8e8e8", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:600, color: presente ? _corPri : "#aaa", flexShrink:0, transition:"background .15s" }}>
                                                         {aluno.nome.charAt(0)}
                                                     </div>
                                                     <span style={{ fontWeight:500, fontSize:13, color: presente ? "#0d1f18" : "#aaa", transition:"color .15s" }}>
@@ -3205,7 +3205,7 @@ function Lancamentos({ anoLetivo }) {
                                                                 ...p,
                                                                 [aula.ordemAula]: { ...p[aula.ordemAula], [aluno.id]: true }
                                                             }))}
-                                                            style={{ padding:"6px 16px", border:"1px solid #eaeef2", borderRight:"none", background: presente ? "#0d1f18" : "white", color: presente ? "#7ec8a0" : "#9aaa9f", fontSize:11, fontWeight:500, cursor:"pointer", letterSpacing:".04em", transition:"all .15s" }}>
+                                                            style={{ padding:"6px 16px", border:"1px solid #eaeef2", borderRight:"none", background: presente ? "#0d1f18" : "white", color: presente ? _corPri : "#9aaa9f", fontSize:11, fontWeight:500, cursor:"pointer", letterSpacing:".04em", transition:"all .15s" }}>
                                                         P
                                                     </button>
                                                     <button onClick={() => setChamadaPorAula(p => ({
@@ -3256,7 +3256,7 @@ function Lancamentos({ anoLetivo }) {
                                             <td>
                                                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                                                     <div style={{ flex:1, height:4, background:"#eaeef2", overflow:"hidden" }}>
-                                                        <div style={{ width:`${pct}%`, height:"100%", background: pct >= 75 ? "#7ec8a0" : pct >= 50 ? "#e6a817" : "#b94040", transition:"width .3s" }} />
+                                                        <div style={{ width:`${pct}%`, height:"100%", background: pct >= 75 ? _corPri : pct >= 50 ? "#e6a817" : "#b94040", transition:"width .3s" }} />
                                                     </div>
                                                     <span style={{ fontSize:12, fontWeight:500, color: pct >= 75 ? "#2d6a4f" : pct >= 50 ? "#a05c00" : "#b94040", width:36, textAlign:"right" }}>
                                                         {pct}%
@@ -3295,7 +3295,7 @@ function Lancamentos({ anoLetivo }) {
                                                 style={{ flex:"1 0 auto", padding:"9px", border:"1px solid #eaeef2",
                                                     borderRight: i < arr.length - 1 ? "none" : "1px solid #eaeef2",
                                                     background: formAv.tipo===t ? (t==="RECUPERACAO" ? "#7a3800" : "#0d1f18") : "white",
-                                                    color: formAv.tipo===t ? (t==="RECUPERACAO" ? "#ffd08a" : "#7ec8a0") : "#9aaa9f",
+                                                    color: formAv.tipo===t ? (t==="RECUPERACAO" ? "#ffd08a" : _corPri) : "#9aaa9f",
                                                     fontSize:11, fontWeight:500, letterSpacing:".06em", textTransform:"uppercase", cursor:"pointer" }}>
                                             {t==="SIMULADO" ? "Bônus" : t==="RECUPERACAO" ? "Recup." : t}
                                         </button>
@@ -3311,7 +3311,7 @@ function Lancamentos({ anoLetivo }) {
                                                 style={{ flex:1, padding:"9px", border:"1px solid #eaeef2",
                                                     borderRight: i < 3 ? "none" : "1px solid #eaeef2",
                                                     background: formAv.bimestre===b ? "#0d1f18" : "white",
-                                                    color: formAv.bimestre===b ? "#7ec8a0" : "#9aaa9f",
+                                                    color: formAv.bimestre===b ? _corPri : "#9aaa9f",
                                                     fontSize:11, fontWeight:500, letterSpacing:".06em",
                                                     textTransform:"uppercase", cursor:"pointer" }}>
                                             {b}º
@@ -3409,7 +3409,7 @@ function Lancamentos({ anoLetivo }) {
                                                style={{ accentColor:"#b45309", width:15, height:15, flexShrink:0 }} />
                                         <div style={{ width:26, height:26, background:"#0d1f18", display:"flex",
                                             alignItems:"center", justifyContent:"center", fontSize:11,
-                                            fontWeight:600, color:"#7ec8a0", flexShrink:0 }}>
+                                            fontWeight:600, color:_corPri, flexShrink:0 }}>
                                             {aluno.nome.charAt(0)}
                                         </div>
                                         <span style={{ fontSize:13, fontWeight:500, color:"#0d1f18" }}>{aluno.nome}</span>
@@ -3561,7 +3561,7 @@ function Atrasos() {
                         </p>
                         {!eHoje && (
                             <button onClick={() => setDataSel(hoje)}
-                                    style={{ fontSize:10, padding:"2px 8px", background:"#0d1f18", color:"#7ec8a0",
+                                    style={{ fontSize:10, padding:"2px 8px", background:"#0d1f18", color:_corPri,
                                         border:"none", cursor:"pointer", letterSpacing:".04em" }}>
                                 HOJE
                             </button>
@@ -3608,7 +3608,7 @@ function Atrasos() {
                                                 alignItems:"center", gap:10 }}>
                                         <div style={{ width:24, height:24, background:"#0d1f18", flexShrink:0,
                                             display:"flex", alignItems:"center", justifyContent:"center",
-                                            fontSize:10, fontWeight:600, color:"#7ec8a0" }}>
+                                            fontSize:10, fontWeight:600, color:_corPri }}>
                                             {a.nome.charAt(0)}
                                         </div>
                                         <span style={{ fontWeight:500 }}>{a.nome}</span>
@@ -3624,7 +3624,7 @@ function Atrasos() {
                             background:"#f8faf8", border:"1px solid #eaeef2", borderLeft:"3px solid #7ec8a0" }}>
                             <div style={{ width:36, height:36, background:"#0d1f18", display:"flex",
                                 alignItems:"center", justifyContent:"center", fontSize:14,
-                                fontWeight:600, color:"#7ec8a0", flexShrink:0 }}>
+                                fontWeight:600, color:_corPri, flexShrink:0 }}>
                                 {alunoSel.nome.charAt(0)}
                             </div>
                             <div style={{ flex:1 }}>
@@ -3711,7 +3711,7 @@ function Atrasos() {
                                     <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                                         <div style={{ width:26, height:26, background:"#0d1f18", flexShrink:0,
                                             display:"flex", alignItems:"center", justifyContent:"center",
-                                            fontSize:10, fontWeight:600, color:"#7ec8a0" }}>
+                                            fontSize:10, fontWeight:600, color:_corPri }}>
                                             {r.alunoNome.charAt(0)}
                                         </div>
                                         <span style={{ fontWeight:500, fontSize:13 }}>{r.alunoNome}</span>
@@ -7076,7 +7076,7 @@ function FinRelatorios() {
                                         title="Gerar PDF"
                                         onClick={() => abrirModal(rel)}
                                     >
-                                        <FileText size={14} color="#7ec8a0" />
+                                        <FileText size={14} color={_corPri} />
                                     </button>
                                 </td>
                             </tr>
