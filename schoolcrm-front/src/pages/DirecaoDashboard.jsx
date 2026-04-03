@@ -1010,6 +1010,7 @@ export default function DirecaoDashboard() {
 
 // ---- INÍCIO ----
 function Inicio({ anoLetivo }) {
+    const _corPri = localStorage.getItem("corPrimaria") || "#7ec8a0";
     const [stats, setStats] = useState({ alunos: 0, professores: 0, turmas: 0, materias: 0 });
     const [turmasDoAno, setTurmasDoAno] = useState([]);
     const [alertas, setAlertas] = useState([]);
