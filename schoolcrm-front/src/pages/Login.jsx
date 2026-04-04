@@ -50,7 +50,7 @@ export default function Login() {
                 escolaSlug: slug,
                 lembrar: lembrar ? "true" : "false",
             });
-            const { token, role, nome, id, escolaSlug, escolaNome: nomeEscola, corPrimaria: cp, corSecundaria: cs } = response.data;
+            const { token, role, nome, id, escolaSlug, escolaNome: nomeEscola, corPrimaria: cp, corSecundaria: cs, logoUrl: lu } = response.data;
             localStorage.setItem("token", token);
             localStorage.setItem("role", role);
             localStorage.setItem("nome", nome);
@@ -59,6 +59,7 @@ export default function Login() {
             localStorage.setItem("escolaNome", nomeEscola);
             localStorage.setItem("corPrimaria", cp || "#7ec8a0");
             localStorage.setItem("corSecundaria", cs || "#3a8d5c");
+            if (lu) localStorage.setItem("escolaLogoUrl", lu); else localStorage.removeItem("escolaLogoUrl");
 
             const basePath = `/escola/${escolaSlug}`;
             if (role === "DIRECAO" || role === "COORDENACAO") window.location.href = `${basePath}/direcao`;
