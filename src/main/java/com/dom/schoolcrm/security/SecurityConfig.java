@@ -68,6 +68,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.DELETE, "/materias/**").hasAnyRole("DIRECAO", "COORDENACAO", "MASTER")
                         .requestMatchers(HttpMethod.DELETE, "/vinculos/**").hasAnyRole("DIRECAO", "COORDENACAO", "MASTER")
 
+                        // 🔓 Logo pública da escola — sem autenticação (exibida na landing page)
+                        .requestMatchers(HttpMethod.GET, "/escolas/logo/**").permitAll()
+
                         // 🔓 Escolas — acesso controlado por @PreAuthorize no controller (MASTER, ADMIN, DIRECAO)
                         .requestMatchers("/escolas/**").authenticated()
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import {
     Building2, Plus, Pencil, Trash2, ExternalLink, LogOut, Shield,
-    Menu, X, CheckCircle2, XCircle, Search
+    Menu, X, CheckCircle2, XCircle, Search, Upload, ImageIcon, Trash
 } from "lucide-react";
 
 // ── API instance ──────────────────────────────────────────────────────────────
@@ -166,6 +166,9 @@ export default function MasterDashboard() {
     const [editCorPrimaria, setEditCorPrimaria] = useState("#7ec8a0");
     const [editCorSecundaria, setEditCorSecundaria] = useState("#3a8d5c");
 
+    // Logo upload
+    const [uploadingLogo, setUploadingLogo] = useState(false);
+
     const nome = localStorage.getItem("nome") || "Admin";
 
     useEffect(() => { fetchEscolas(); }, []);
@@ -251,6 +254,36 @@ export default function MasterDashboard() {
             fetchEscolas();
         } catch (err) {
             showToast(err.response?.data?.message || err.response?.data || "Erro ao excluir", "err");
+        }
+    };
+
+    const handleUploadLogo = async (escolaId, file) => {
+        if (!file) return;
+        setUploadingLogo(true);
+        try {
+            const formData = new FormData();
+            formData.append("arquivo", file);
+            await api.post(`/escolas/${escolaId}/logo`, formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            });
+            showToast("Logo atualizada com sucesso");
+            fetchEscolas();
+        } catch (err) {
+            showToast(err.response?.data?.erro || "Erro ao enviar logo", "err");
+        } finally {
+            setUploadingLogo(false);
+        }
+    };
+
+    const handleRemoverLogo = async (escolaId) => {
+        const ok = await showConfirm("Deseja remover a logo desta escola?");
+        if (!ok) return;
+        try {
+            await api.delete(`/escolas/${escolaId}/logo`);
+            showToast("Logo removida");
+            fetchEscolas();
+        } catch (err) {
+            showToast("Erro ao remover logo", "err");
         }
     };
 
@@ -601,6 +634,40 @@ export default function MasterDashboard() {
                                                         <div style={{ width: 36, height: 32, borderRadius: 8, background: `linear-gradient(135deg, ${editCorPrimaria} 0%, ${editCorSecundaria} 100%)` }} />
                                                     </div>
                                                 </div>
+                                                {/* Logo upload */}
+                                                <div style={{ marginTop: 12 }}>
+                                                    <label style={sLabel}>Logo da Escola</label>
+                                                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                                                        {escola.logoUrl ? (
+                                                            <img src={`/escolas/logo/${escola.slug}`}
+                                                                 alt="Logo"
+                                                                 style={{ width: 48, height: 48, objectFit: "contain", borderRadius: 8, border: `1px solid ${C.border}`, background: "#fff" }} />
+                                                        ) : (
+                                                            <div style={{ width: 48, height: 48, borderRadius: 8, border: `1px dashed ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", background: "#fafafa" }}>
+                                                                <ImageIcon size={20} color={C.textMuted} />
+                                                            </div>
+                                                        )}
+                                                        <label style={{
+                                                            ...sBtn(C.accentLight, C.accent),
+                                                            display: "inline-flex", alignItems: "center", gap: 6,
+                                                            cursor: uploadingLogo ? "wait" : "pointer",
+                                                            opacity: uploadingLogo ? 0.6 : 1,
+                                                        }}>
+                                                            <Upload size={13} />
+                                                            {uploadingLogo ? "Enviando..." : "Enviar Logo"}
+                                                            <input type="file" accept="image/*" style={{ display: "none" }}
+                                                                   disabled={uploadingLogo}
+                                                                   onChange={e => { if (e.target.files[0]) handleUploadLogo(escola.id, e.target.files[0]); e.target.value = ""; }} />
+                                                        </label>
+                                                        {escola.logoUrl && (
+                                                            <button onClick={() => handleRemoverLogo(escola.id)}
+                                                                    style={{ ...sIconBtn(C.dangerBg, C.danger), flexShrink: 0 }}
+                                                                    title="Remover logo">
+                                                                <Trash size={14} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                             <div style={{ display: "flex", gap: 10 }}>
                                                 <button onClick={handleUpdate} disabled={saving} style={sBtn(C.accent, "#fff")}>
@@ -616,13 +683,19 @@ export default function MasterDashboard() {
                                         <div>
                                             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 12 }}>
                                                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                                    <div style={{
-                                                        width: 38, height: 38, borderRadius: 8,
-                                                        background: escola.ativo !== false ? C.accentLight : C.dangerBg,
-                                                        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                                                    }}>
-                                                        <Building2 size={18} color={escola.ativo !== false ? C.accent : C.danger} />
-                                                    </div>
+                                                    {escola.logoUrl ? (
+                                                        <img src={`/escolas/logo/${escola.slug}`}
+                                                             alt={escola.nome}
+                                                             style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 8, border: `1px solid ${C.border}`, background: "#fff", flexShrink: 0 }} />
+                                                    ) : (
+                                                        <div style={{
+                                                            width: 38, height: 38, borderRadius: 8,
+                                                            background: escola.ativo !== false ? C.accentLight : C.dangerBg,
+                                                            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                                                        }}>
+                                                            <Building2 size={18} color={escola.ativo !== false ? C.accent : C.danger} />
+                                                        </div>
+                                                    )}
                                                     <div>
                                                         <div style={{ fontSize: 16, fontWeight: 600, color: C.text, lineHeight: 1.2 }}>{escola.nome}</div>
                                                         <div style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>/{escola.slug}</div>

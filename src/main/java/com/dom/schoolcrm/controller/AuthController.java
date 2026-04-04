@@ -189,6 +189,7 @@ public class AuthController {
         escolaResp.put("slug", escola.getSlug());
         escolaResp.put("corPrimaria", escola.getCorPrimaria() != null ? escola.getCorPrimaria() : "#7ec8a0");
         escolaResp.put("corSecundaria", escola.getCorSecundaria() != null ? escola.getCorSecundaria() : "#3a8d5c");
+        escolaResp.put("logoUrl", escola.getLogoUrl());
         return ResponseEntity.ok(escolaResp);
     }
 }
