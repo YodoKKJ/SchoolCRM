@@ -386,6 +386,7 @@ export default function ProfessorDashboard() {
 // INÍCIO — visão geral das turmas do professor
 // ═══════════════════════════════════════════════════════════════
 function Inicio({ vinculos }) {
+    const _corPri = localStorage.getItem("corPrimaria") || "#7ec8a0";
     const [resumos, setResumos] = useState({});   // { turmaId: { ...resumo, carregando } }
     const [expandidas, setExpandidas] = useState(new Set()); // turmaIds expandidas
 
@@ -596,6 +597,7 @@ function Inicio({ vinculos }) {
 // LANÇAR NOTAS
 // ═══════════════════════════════════════════════════════════════
 function LancarNotas({ vinculos }) {
+    const _corPri = localStorage.getItem("corPrimaria") || "#7ec8a0";
     const [turmaId, setTurmaId] = useState("");
     const [materiaId, setMateriaId] = useState("");
     const [alunos, setAlunos] = useState([]);
@@ -1105,6 +1107,7 @@ function LancarNotas({ vinculos }) {
 // CHAMADA (PRESENÇA)
 // ═══════════════════════════════════════════════════════════════
 function Chamada({ vinculos }) {
+    const _corPri = localStorage.getItem("corPrimaria") || "#7ec8a0";
     const [turmaId, setTurmaId] = useState("");
     const [materiaId, setMateriaId] = useState("");
     const [alunos, setAlunos] = useState([]);

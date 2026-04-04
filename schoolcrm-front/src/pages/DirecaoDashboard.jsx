@@ -1336,6 +1336,7 @@ function Inicio({ anoLetivo }) {
 
 // ---- USUÁRIOS ----
 function Usuarios() {
+    const _corPri = localStorage.getItem("corPrimaria") || "#7ec8a0";
     const [usuarios, setUsuarios] = useState([]);
     const [idsComVinculos, setIdsComVinculos] = useState(new Set());
     const [form, setForm] = useState({ nome: "", login: "", senha: "", role: "ALUNO", dataNascimento: "", nomePai: "", nomeMae: "", telefone: "" });
@@ -2293,6 +2294,7 @@ function Turmas({ anoLetivo }) {
 
 // ---- EDITAR TURMA ----
 function EditarTurma({ turma, onVoltar }) {
+    const _corPri = localStorage.getItem("corPrimaria") || "#7ec8a0";
     const [vinculosAluno, setVinculosAluno] = useState([]);
     const [vinculosProf, setVinculosProf] = useState([]);
     const [todosAlunos, setTodosAlunos] = useState([]);
@@ -2599,6 +2601,7 @@ function Materias() {
 
 // ---- LANÇAMENTOS ----
 function Lancamentos({ anoLetivo }) {
+    const _corPri = localStorage.getItem("corPrimaria") || "#7ec8a0";
     const { _bgCard, _border, _text, _textMuted, _warn } = useDarkVars();
     // ── seleção
     const [turmas, setTurmas] = useState([]);
@@ -3443,6 +3446,7 @@ function Lancamentos({ anoLetivo }) {
 
 // ---- ATRASOS ----
 function Atrasos() {
+    const _corPri = localStorage.getItem("corPrimaria") || "#7ec8a0";
     const hoje = new Date().toISOString().slice(0, 10);
     const [dataSel, setDataSel] = useState(hoje);
     const [alunos, setAlunos] = useState([]);
@@ -6984,6 +6988,7 @@ const FIN_RELATORIOS_LIST = [
 ];
 
 function FinRelatorios() {
+    const _corPri = localStorage.getItem("corPrimaria") || "#7ec8a0";
     const { _bgCard, _border, _text, _textMuted, _errBg } = useDarkVars();
     const [modalRel, setModalRel]   = useState(null); // relatório selecionado
     const [filtros, setFiltros]     = useState({});

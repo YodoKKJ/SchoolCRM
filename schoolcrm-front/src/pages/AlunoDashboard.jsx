@@ -262,6 +262,7 @@ const DIA_LABEL = { SEG: "Segunda-feira", TER: "Terça-feira", QUA: "Quarta-feir
 
 // ── Seção: Início ─────────────────────────────────────────────────────────────
 function Inicio({ vinculos, notas, turmaId, config = { mediaMinima: 6.0, freqMinima: 75.0 } }) {
+    const _corPri = localStorage.getItem("corPrimaria") || "#7ec8a0";
     const porMateria = agruparPorMateria(notas);
     const [frequencias, setFrequencias] = useState({});
     const [proximas, setProximas] = useState([]);
@@ -446,6 +447,7 @@ function Inicio({ vinculos, notas, turmaId, config = { mediaMinima: 6.0, freqMin
 
 // ── Seção: Boletim ────────────────────────────────────────────────────────────
 function Boletim({ notas, turmaId, config = { mediaMinima: 6.0, freqMinima: 75.0 } }) {
+    const _corPri = localStorage.getItem("corPrimaria") || "#7ec8a0";
     const porMateria = agruparPorMateria(notas);
     const [baixando, setBaixando] = useState(false);
     const [erroPdf, setErroPdf] = useState(null);
@@ -605,6 +607,7 @@ function Boletim({ notas, turmaId, config = { mediaMinima: 6.0, freqMinima: 75.0
 
 // ── Seção Frequência ──────────────────────────────────────────────
 function Frequencia({ notas, turmaId, config = { mediaMinima: 6.0, freqMinima: 75.0 } }) {
+    const _corPri = localStorage.getItem("corPrimaria") || "#7ec8a0";
     const [frequencias, setFrequencias] = useState({});
     const [carregando, setCarregando] = useState(false);
 
