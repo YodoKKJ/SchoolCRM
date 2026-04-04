@@ -232,7 +232,16 @@ export default function ProfessorDashboard() {
     const _escolaNome = localStorage.getItem("escolaNome") || "Sistema Escolar";
     const _corPri = localStorage.getItem("corPrimaria") || "#7ec8a0";
     const _corSec = localStorage.getItem("corSecundaria") || "#3a8d5c";
-    useEffect(() => { document.title = _escolaNome; }, []);
+    const _escolaSlug = localStorage.getItem("escolaSlug");
+    const _escolaLogo = localStorage.getItem("escolaLogoUrl") && _escolaSlug ? `/escolas/logo/${_escolaSlug}` : null;
+    useEffect(() => {
+        document.title = _escolaNome;
+        if (_escolaLogo) {
+            let link = document.querySelector("link[rel~='icon']");
+            if (!link) { link = document.createElement("link"); link.rel = "icon"; document.head.appendChild(link); }
+            link.href = _escolaLogo;
+        }
+    }, []);
     const logout = () => { const slug = localStorage.getItem("escolaSlug"); localStorage.clear(); window.location.href = slug ? `/escola/${slug}/login` : "/"; };
 
     useEffect(() => {
@@ -275,13 +284,17 @@ export default function ProfessorDashboard() {
                     {/* logo */}
                     <div style={{ padding:"24px 22px 20px", display:"flex", alignItems:"center", gap:12,
                         borderBottom:"1px solid rgba(255,255,255,.08)" }}>
-                        <div style={{ width:32, height:32, borderRadius:"8px", background:`linear-gradient(135deg, ${_corPri} 0%, ${_corSec} 100%)`, display:"flex",
-                            alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:`0 2px 8px ${_corPri}4D` }}>
-                            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                                <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="rgba(255,255,255,.9)" strokeWidth="1.2"/>
-                                <circle cx="8" cy="8" r="2" fill="#fff"/>
-                            </svg>
-                        </div>
+                        {_escolaLogo ? (
+                            <img src={_escolaLogo} alt={_escolaNome} style={{ width:32, height:32, objectFit:"contain", borderRadius:"8px", flexShrink:0 }} />
+                        ) : (
+                            <div style={{ width:32, height:32, borderRadius:"8px", background:`linear-gradient(135deg, ${_corPri} 0%, ${_corSec} 100%)`, display:"flex",
+                                alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:`0 2px 8px ${_corPri}4D` }}>
+                                <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                                    <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="rgba(255,255,255,.9)" strokeWidth="1.2"/>
+                                    <circle cx="8" cy="8" r="2" fill="#fff"/>
+                                </svg>
+                            </div>
+                        )}
                         <div>
                             <p style={{ fontFamily:"'Playfair Display',serif", fontWeight:700, fontSize:15, color:"rgba(255,255,255,.9)", lineHeight:1, letterSpacing:"-.01em" }}>{_escolaNome}</p>
                             <p style={{ fontSize:9, letterSpacing:"0.12em", textTransform:"uppercase", color:"rgba(255,255,255,.35)", marginTop:4, fontWeight:500 }}>Professor</p>

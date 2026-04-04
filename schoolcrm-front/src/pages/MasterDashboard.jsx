@@ -290,13 +290,14 @@ export default function MasterDashboard() {
     const handleAcessar = async (escola) => {
         try {
             const res = await api.post("/auth/master-impersonate", { escolaId: escola.id });
-            const { token, escolaSlug, escolaNome, corPrimaria, corSecundaria } = res.data;
+            const { token, escolaSlug, escolaNome, corPrimaria, corSecundaria, logoUrl } = res.data;
             localStorage.setItem("token", token);
             localStorage.setItem("role", "MASTER");
             localStorage.setItem("escolaSlug", escolaSlug);
             localStorage.setItem("escolaNome", escolaNome);
             localStorage.setItem("corPrimaria", corPrimaria || "#7ec8a0");
             localStorage.setItem("corSecundaria", corSecundaria || "#3a8d5c");
+            if (logoUrl) localStorage.setItem("escolaLogoUrl", logoUrl); else localStorage.removeItem("escolaLogoUrl");
             // Abre nova aba com o dashboard da escola
             window.open(`/escola/${escolaSlug}/direcao`, "_blank");
         } catch (err) {
