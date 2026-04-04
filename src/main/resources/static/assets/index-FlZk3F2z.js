@@ -36,7 +36,7 @@ Please change the parent <Route path="${E}"> to <Route path="${E==="/"?"*":`${E}
                     width: 52%;
                     position: relative;
                     overflow: hidden;
-                    background: #111;
+                    background: color-mix(in srgb, var(--cor2) 15%, #000);
                 }
                 @media (min-width: 900px) { .left-panel { display: block; } }
 
@@ -44,9 +44,9 @@ Please change the parent <Route path="${E}"> to <Route path="${E==="/"?"*":`${E}
                     position: absolute;
                     inset: 0;
                     background:
-                        radial-gradient(ellipse 80% 60% at 20% 80%, #1a4d3a55 0%, transparent 60%),
-                        radial-gradient(ellipse 60% 80% at 80% 20%, #2c6e4966 0%, transparent 60%),
-                        #0d1f18;
+                        radial-gradient(ellipse 80% 60% at 20% 80%, color-mix(in srgb, var(--cor1) 35%, transparent) 0%, transparent 60%),
+                        radial-gradient(ellipse 60% 80% at 80% 20%, color-mix(in srgb, var(--cor2) 40%, transparent) 0%, transparent 60%),
+                        color-mix(in srgb, var(--cor2) 20%, #0a0a0a);
                 }
 
                 /* grade fina sobre o fundo */
