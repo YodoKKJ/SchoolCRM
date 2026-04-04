@@ -1,6 +1,7 @@
 package com.dom.schoolcrm.service.boleto;
 
 import com.dom.schoolcrm.entity.FinBoleto;
+import com.dom.schoolcrm.entity.FinConvenio;
 import com.dom.schoolcrm.entity.FinContaReceber;
 import com.dom.schoolcrm.entity.FinSicoobConfig;
 import com.dom.schoolcrm.service.FinSicoobConfigService;
@@ -132,17 +133,50 @@ public class SicoobBoletoService implements BoletoService {
         FinSicoobConfig config = configService.getConfig();
         validarConfig(config);
 
+        // Busca convênio ativo — se não houver, usa defaults do config (retrocompatibilidade)
+        FinConvenio convenio = configService.getConvenioAtivo();
+
         try {
             String url = config.getBaseUrl() + "/boletos";
 
+            // Dados do convênio (ou fallback para config legado)
+            String numContrato = convenio != null && convenio.getNumeroContrato() != null
+                    ? convenio.getNumeroContrato() : config.getNumeroContratoCobranca();
+            int modalidade = convenio != null && convenio.getModalidade() != null
+                    ? convenio.getModalidade() : (config.getModalidade() != null ? config.getModalidade() : 1);
+            String especieDoc = convenio != null && convenio.getEspecieDocumento() != null
+                    ? convenio.getEspecieDocumento() : (config.getEspecieDocumento() != null ? config.getEspecieDocumento() : "DM");
+            boolean aceite = convenio != null && convenio.getAceite() != null
+                    ? convenio.getAceite() : (config.getAceite() != null && config.getAceite());
+
+            // Juros, multa e desconto do convênio
+            java.math.BigDecimal pctJuros = convenio != null ? convenio.getPercentualJuros() : java.math.BigDecimal.ZERO;
+            java.math.BigDecimal pctMulta = convenio != null ? convenio.getPercentualMulta() : java.math.BigDecimal.ZERO;
+            java.math.BigDecimal pctDesconto = convenio != null ? convenio.getPercentualDesconto() : java.math.BigDecimal.ZERO;
+
+            boolean nossoNumeroPeloBanco = convenio == null || convenio.getNossoNumeroPeloBanco() == null
+                    || convenio.getNossoNumeroPeloBanco();
+
             // API V3 espera um ARRAY com um objeto boleto
             ObjectNode boletoObj = mapper.createObjectNode();
-            boletoObj.put("numeroContrato", config.getNumeroContratoCobranca());
-            boletoObj.put("modalidade", config.getModalidade() != null ? config.getModalidade() : 1);
+            boletoObj.put("numeroContrato", numContrato);
+            boletoObj.put("modalidade", modalidade);
             boletoObj.put("numeroContaCorrente", config.getContaCorrente());
-            boletoObj.put("especieDocumento", config.getEspecieDocumento() != null ? config.getEspecieDocumento() : "DM");
+            boletoObj.put("especieDocumento", especieDoc);
             boletoObj.put("dataEmissao", LocalDate.now().format(DATE_FMT));
-            boletoObj.putNull("nossoNumero"); // Sicoob gera automaticamente
+
+            // Nosso número: gerado pelo banco ou pelo sistema
+            if (nossoNumeroPeloBanco) {
+                boletoObj.putNull("nossoNumero");
+            } else if (convenio != null && convenio.getNossoNumeroAtual() != null) {
+                long proximo = convenio.getNossoNumeroAtual() + 1;
+                boletoObj.put("nossoNumero", proximo);
+                convenio.setNossoNumeroAtual(proximo);
+                configService.salvarConvenio(convenio);
+            } else {
+                boletoObj.putNull("nossoNumero");
+            }
+
             boletoObj.put("seuNumero", String.valueOf(cr.getId()));
             boletoObj.putNull("identificacaoBoletoEmpresa");
             boletoObj.put("identificacaoEmissaoBoleto", 1); // 1=Cooperativa emite
@@ -151,21 +185,46 @@ public class SicoobBoletoService implements BoletoService {
             boletoObj.put("dataVencimento", boleto.getDataVencimento().format(DATE_FMT));
             boletoObj.putNull("dataLimitePagamento");
             boletoObj.putNull("valorAbatimento");
-            boletoObj.put("tipoDesconto", 0); // 0=Sem desconto
-            boletoObj.putNull("dataPrimeiroDesconto");
-            boletoObj.putNull("valorPrimeiroDesconto");
+
+            // Desconto
+            if (pctDesconto != null && pctDesconto.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                boletoObj.put("tipoDesconto", 2); // 2=Percentual até data informada
+                boletoObj.put("dataPrimeiroDesconto", boleto.getDataVencimento().format(DATE_FMT));
+                boletoObj.put("valorPrimeiroDesconto", pctDesconto.doubleValue());
+            } else {
+                boletoObj.put("tipoDesconto", 0);
+                boletoObj.putNull("dataPrimeiroDesconto");
+                boletoObj.putNull("valorPrimeiroDesconto");
+            }
             boletoObj.putNull("dataSegundoDesconto");
             boletoObj.putNull("valorSegundoDesconto");
             boletoObj.putNull("dataTerceiroDesconto");
             boletoObj.putNull("valorTerceiroDesconto");
-            boletoObj.put("tipoMulta", 0); // 0=Sem multa
-            boletoObj.putNull("dataMulta");
-            boletoObj.putNull("valorMulta");
-            boletoObj.put("tipoJurosMora", 3); // 3=Isento
-            boletoObj.putNull("dataJurosMora");
-            boletoObj.putNull("valorJurosMora");
+
+            // Multa
+            if (pctMulta != null && pctMulta.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                boletoObj.put("tipoMulta", 2); // 2=Percentual
+                boletoObj.put("dataMulta", boleto.getDataVencimento().plusDays(1).format(DATE_FMT));
+                boletoObj.put("valorMulta", pctMulta.doubleValue());
+            } else {
+                boletoObj.put("tipoMulta", 0);
+                boletoObj.putNull("dataMulta");
+                boletoObj.putNull("valorMulta");
+            }
+
+            // Juros mora
+            if (pctJuros != null && pctJuros.compareTo(java.math.BigDecimal.ZERO) > 0) {
+                boletoObj.put("tipoJurosMora", 2); // 2=Percentual ao mês
+                boletoObj.put("dataJurosMora", boleto.getDataVencimento().plusDays(1).format(DATE_FMT));
+                boletoObj.put("valorJurosMora", pctJuros.doubleValue());
+            } else {
+                boletoObj.put("tipoJurosMora", 3); // 3=Isento
+                boletoObj.putNull("dataJurosMora");
+                boletoObj.putNull("valorJurosMora");
+            }
+
             boletoObj.put("numeroParcela", 1);
-            boletoObj.put("aceite", config.getAceite() != null && config.getAceite());
+            boletoObj.put("aceite", aceite);
             boletoObj.put("codigoNegativacao", 3); // 3=Não negativar
             boletoObj.putNull("numeroDiasNegativacao");
             boletoObj.put("codigoProtesto", 3); // 3=Não protestar
@@ -215,12 +274,23 @@ public class SicoobBoletoService implements BoletoService {
             sacador.putNull("nomeSacadorAvalista");
             boletoObj.set("sacadorAvalista", sacador);
 
-            // Mensagens de instrução
-            ObjectNode mensagens = mapper.createObjectNode();
+            // Mensagens de instrução (do convênio, se configuradas)
+            ObjectNode mensagensNode = mapper.createObjectNode();
             var msgArray = mapper.createArrayNode();
-            msgArray.addNull(); msgArray.addNull(); msgArray.addNull(); msgArray.addNull(); msgArray.addNull();
-            mensagens.set("mensagens", msgArray);
-            boletoObj.set("mensagensInstrucao", mensagens);
+            if (convenio != null && convenio.getMensagens() != null && !convenio.getMensagens().isBlank()) {
+                String[] linhas = convenio.getMensagens().split("\n");
+                for (int i = 0; i < 5; i++) {
+                    if (i < linhas.length && !linhas[i].isBlank()) {
+                        msgArray.add(truncar(linhas[i].trim(), 80));
+                    } else {
+                        msgArray.addNull();
+                    }
+                }
+            } else {
+                msgArray.addNull(); msgArray.addNull(); msgArray.addNull(); msgArray.addNull(); msgArray.addNull();
+            }
+            mensagensNode.set("mensagens", msgArray);
+            boletoObj.set("mensagensInstrucao", mensagensNode);
 
             // Body é um ARRAY
             var bodyArray = mapper.createArrayNode();

@@ -49,7 +49,7 @@ public class FinSicoobConfig {
     @Column(name = "numero_contrato_cobranca", length = 30)
     private String numeroContratoCobranca;
 
-    // Dados do beneficiário (escola)
+    // Dados da conta bancária
     @Column(name = "numero_beneficiario", length = 30)
     private String numeroBeneficiario;
 
@@ -58,6 +58,27 @@ public class FinSicoobConfig {
 
     @Column(name = "conta_corrente", length = 20)
     private String contaCorrente;
+
+    @Column(name = "digito_conta", length = 2)
+    private String digitoConta;
+
+    @Column(name = "agencia", length = 10)
+    private String agencia;
+
+    @Column(name = "digito_agencia", length = 2)
+    private String digitoAgencia;
+
+    @Column(name = "codigo_banco_correspondente", length = 10)
+    private String codigoBancoCorrespondente;
+
+    @Column(name = "codigo_conta_empresa", length = 30)
+    private String codigoContaEmpresa;
+
+    @Column(name = "emite_boletos")
+    private Boolean emiteBoletos = true;
+
+    @Column(name = "recebe_pix")
+    private Boolean recebePix = false;
 
     // Webhook
     @Column(name = "webhook_secret", length = 255)
@@ -128,6 +149,13 @@ public class FinSicoobConfig {
     public String getNumeroBeneficiario() { return numeroBeneficiario; }
     public String getCooperativa() { return cooperativa; }
     public String getContaCorrente() { return contaCorrente; }
+    public String getDigitoConta() { return digitoConta; }
+    public String getAgencia() { return agencia; }
+    public String getDigitoAgencia() { return digitoAgencia; }
+    public String getCodigoBancoCorrespondente() { return codigoBancoCorrespondente; }
+    public String getCodigoContaEmpresa() { return codigoContaEmpresa; }
+    public Boolean getEmiteBoletos() { return emiteBoletos; }
+    public Boolean getRecebePix() { return recebePix; }
     public String getWebhookSecret() { return webhookSecret; }
     public String getCertTipo() { return certTipo; }
     public String getCertNomeArquivo() { return certNomeArquivo; }
@@ -155,6 +183,13 @@ public class FinSicoobConfig {
     public void setNumeroBeneficiario(String numeroBeneficiario) { this.numeroBeneficiario = numeroBeneficiario; }
     public void setCooperativa(String cooperativa) { this.cooperativa = cooperativa; }
     public void setContaCorrente(String contaCorrente) { this.contaCorrente = contaCorrente; }
+    public void setDigitoConta(String digitoConta) { this.digitoConta = digitoConta; }
+    public void setAgencia(String agencia) { this.agencia = agencia; }
+    public void setDigitoAgencia(String digitoAgencia) { this.digitoAgencia = digitoAgencia; }
+    public void setCodigoBancoCorrespondente(String codigoBancoCorrespondente) { this.codigoBancoCorrespondente = codigoBancoCorrespondente; }
+    public void setCodigoContaEmpresa(String codigoContaEmpresa) { this.codigoContaEmpresa = codigoContaEmpresa; }
+    public void setEmiteBoletos(Boolean emiteBoletos) { this.emiteBoletos = emiteBoletos; }
+    public void setRecebePix(Boolean recebePix) { this.recebePix = recebePix; }
     public void setWebhookSecret(String webhookSecret) { this.webhookSecret = webhookSecret; }
     public void setCertTipo(String certTipo) { this.certTipo = certTipo; }
     public void setCertNomeArquivo(String certNomeArquivo) { this.certNomeArquivo = certNomeArquivo; }

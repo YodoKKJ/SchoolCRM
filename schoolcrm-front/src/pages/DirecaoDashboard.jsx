@@ -7250,6 +7250,13 @@ function FinConfiguracoes({ anoLetivo }) {
     const [showSecrets, setShowSecrets] = useState({});
     const [salvando, setSalvando] = useState(false);
 
+    // Convênios state
+    const [convenios, setConvenios] = useState([]);
+    const [convModalOpen, setConvModalOpen] = useState(false);
+    const [convEditId, setConvEditId] = useState(null);
+    const [convForm, setConvForm] = useState({});
+    const [salvandoConv, setSalvandoConv] = useState(false);
+
     const flash = (texto, tipo="ok") => { setMsg({ texto, tipo }); setTimeout(() => setMsg({ texto:"", tipo:"" }), 3500); };
 
     // Sicoob functions
@@ -7265,6 +7272,13 @@ function FinConfiguracoes({ anoLetivo }) {
                 numeroContratoCobranca: r.data.numeroContratoCobranca || "",
                 cooperativa: r.data.cooperativa || "",
                 contaCorrente: r.data.contaCorrente || "",
+                digitoConta: r.data.digitoConta || "",
+                agencia: r.data.agencia || "",
+                digitoAgencia: r.data.digitoAgencia || "",
+                codigoBancoCorrespondente: r.data.codigoBancoCorrespondente || "",
+                codigoContaEmpresa: r.data.codigoContaEmpresa || "",
+                emiteBoletos: r.data.emiteBoletos ?? true,
+                recebePix: r.data.recebePix ?? false,
                 webhookSecret: r.data.webhookSecret || "",
                 baseUrl: r.data.baseUrl || "",
                 tokenUrl: r.data.tokenUrl || "",
@@ -7273,17 +7287,64 @@ function FinConfiguracoes({ anoLetivo }) {
                 aceite: r.data.aceite ?? false,
             });
         }).catch(() => {
-            // Se o backend ainda não tem o endpoint, mostra form vazio
             setSicoobConfig({ ativo: false, ambiente: "SANDBOX", temCertificado: false });
             setSicoobForm({
                 ambiente: "SANDBOX", clientId: "", clientSecret: "", accessToken: "",
                 numeroBeneficiario: "", numeroContratoCobranca: "", cooperativa: "", contaCorrente: "",
+                digitoConta: "", agencia: "", digitoAgencia: "", codigoBancoCorrespondente: "",
+                codigoContaEmpresa: "", emiteBoletos: true, recebePix: false,
                 webhookSecret: "", baseUrl: "https://sandbox.sicoob.com.br/sicoob/sandbox/cobranca-bancaria/v3",
                 tokenUrl: "https://auth.sicoob.com.br/auth/realms/cooperado/protocol/openid-connect/token",
                 modalidade: 1, especieDocumento: "DM", aceite: false,
             });
         });
+        carregarConvenios();
     };
+
+    const carregarConvenios = () => {
+        api.get("/fin/sicoob-config/convenios").then(r => setConvenios(Array.isArray(r.data) ? r.data : [])).catch(() => setConvenios([]));
+    };
+
+    const abrirConvModal = (conv) => {
+        if (conv) {
+            setConvEditId(conv.id);
+            setConvForm({ ...conv });
+        } else {
+            setConvEditId(null);
+            setConvForm({ cnab: 240, numero: "", descricao: "", situacao: "ATIVA", numeroCarteira: "", codigoCarteira: "",
+                remessaReiniciaDiariamente: false, numeroRemessa: "", tipoWebservice: "", numeroContrato: "",
+                nossoNumeroPeloBanco: false, nossoNumeroAtual: "", percentualJuros: "0.00", percentualMulta: "0.00",
+                percentualDesconto: "0.00", apiId: "", modalidade: 1, especieDocumento: "DM", aceite: false, mensagens: "" });
+        }
+        setConvModalOpen(true);
+    };
+
+    const salvarConvenio = async (e) => {
+        e.preventDefault();
+        setSalvandoConv(true);
+        try {
+            if (convEditId) {
+                await api.put(`/fin/sicoob-config/convenios/${convEditId}`, convForm);
+            } else {
+                await api.post("/fin/sicoob-config/convenios", convForm);
+            }
+            flash(convEditId ? "Convênio atualizado!" : "Convênio criado!");
+            setConvModalOpen(false);
+            carregarConvenios();
+        } catch(err) { flash(err.response?.data?.erro || "Erro ao salvar convênio.", "err"); }
+        finally { setSalvandoConv(false); }
+    };
+
+    const deletarConvenio = async (id) => {
+        if (!await showConfirm("Remover este convênio?")) return;
+        try {
+            await api.delete(`/fin/sicoob-config/convenios/${id}`);
+            flash("Convênio removido.");
+            carregarConvenios();
+        } catch(err) { flash(err.response?.data?.erro || "Erro.", "err"); }
+    };
+
+    const cfc = (k, v) => setConvForm(f => ({ ...f, [k]: v }));
 
     const salvarSicoob = async e => {
         e.preventDefault();
@@ -7551,8 +7612,8 @@ function FinConfiguracoes({ anoLetivo }) {
             {/* ═══════ ABA SICOOB ═══════ */}
             {configTab === "sicoob" && <>
 
-            {/* ─── Integração Sicoob / Boletos ─── */}
-            <div className="dd-section">
+            {/* ─── Header com status ─── */}
+            <div className="dd-section" style={{ borderRadius:0, borderTop:"none" }}>
                 <div className="dd-section-header" style={{ justifyContent:"space-between" }}>
                     <span className="dd-section-title" style={{ display:"flex", alignItems:"center", gap:8 }}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={sicoobConfig?.ativo ? "#2d6a4f" : _textMuted} strokeWidth="2"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 14h.01M10 14h4"/></svg>
@@ -7569,268 +7630,527 @@ function FinConfiguracoes({ anoLetivo }) {
                         )}
                     </div>
                 </div>
-                <div style={{ padding:24 }}>
-                    {!sicoobConfig ? (
-                        <div style={{ textAlign:"center", color:_textMuted, padding:20 }}>Carregando...</div>
-                    ) : (
-                        <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
 
-                            {/* Status cards */}
-                            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(180px, 1fr))", gap:12 }}>
-                                {[
-                                    { label:"Client ID", ok: !!sicoobConfig.clientId },
-                                    { label:"Access Token", ok: !!sicoobConfig.accessToken },
-                                    { label:"Beneficiário", ok: !!sicoobConfig.numeroBeneficiario },
-                                    { label:"Contrato", ok: !!sicoobConfig.numeroContratoCobranca },
-                                ].map((c, i) => (
-                                    <div key={i} style={{ padding:"12px 16px", border:"1px solid "+_border, borderRadius:6, background: dark ? "#1e3028" : "#f8faf8" }}>
-                                        <div style={{ fontSize:10, color:_textMuted, marginBottom:4 }}>{c.label}</div>
-                                        <div style={{ fontSize:13, fontWeight:600, color: c.ok ? "#2d6a4f" : "#b94040", display:"flex", alignItems:"center", gap:4 }}>
-                                            <span style={{ width:6, height:6, borderRadius:"50%", background: c.ok ? "#2d6a4f" : "#b94040", display:"inline-block" }} />
-                                            {c.ok ? (c.detail || "Configurado") : (c.detail || "Pendente")}
-                                        </div>
+                {!sicoobConfig ? (
+                    <div style={{ textAlign:"center", color:_textMuted, padding:20 }}>Carregando...</div>
+                ) : (
+                <div style={{ padding:24, display:"flex", flexDirection:"column", gap:20 }}>
+
+                    {/* Status cards */}
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(150px, 1fr))", gap:12 }}>
+                        {[
+                            { label:"Client ID", ok: !!sicoobConfig.clientId },
+                            { label:"Access Token", ok: !!sicoobConfig.accessToken },
+                            { label:"Beneficiário", ok: !!sicoobConfig.numeroBeneficiario },
+                            { label:"Convênio", ok: convenios.some(c => c.situacao === "ATIVA") },
+                        ].map((c, i) => (
+                            <div key={i} style={{ padding:"12px 16px", border:"1px solid "+_border, borderRadius:6, background: dark ? "#1e3028" : "#f8faf8" }}>
+                                <div style={{ fontSize:10, color:_textMuted, marginBottom:4 }}>{c.label}</div>
+                                <div style={{ fontSize:13, fontWeight:600, color: c.ok ? "#2d6a4f" : "#b94040", display:"flex", alignItems:"center", gap:4 }}>
+                                    <span style={{ width:6, height:6, borderRadius:"50%", background: c.ok ? "#2d6a4f" : "#b94040", display:"inline-block" }} />
+                                    {c.ok ? "Configurado" : "Pendente"}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* ─── CONTA BANCÁRIA ─── */}
+                    <form onSubmit={salvarSicoob}>
+                        <div style={{ marginBottom:12, fontWeight:600, fontSize:14, color:_text, display:"flex", alignItems:"center", gap:6 }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={_text} strokeWidth="2"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3"/></svg>
+                            Dados da Conta Bancária
+                        </div>
+
+                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+                            <div style={{ gridColumn:"1/-1" }}>
+                                <label className="dd-label">Banco</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" value="Sicoob - Banco Cooperativo do Brasil S.A. - BANCOOB (756)" disabled style={{ background: dark?"#1a2520":"#f0f5f2", color:_textMuted }} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Nº Conta*</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" value={sicoobForm.contaCorrente||""} onChange={e => sfc("contaCorrente", e.target.value)} placeholder="Ex: 12345" required />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div style={{ maxWidth:100 }}>
+                                <label className="dd-label">Dígito</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" value={sicoobForm.digitoConta||""} onChange={e => sfc("digitoConta", e.target.value)} placeholder="0" maxLength={2} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Agência*</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" value={sicoobForm.agencia||""} onChange={e => sfc("agencia", e.target.value)} placeholder="Ex: 3001" required />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div style={{ maxWidth:100 }}>
+                                <label className="dd-label">Dígito</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" value={sicoobForm.digitoAgencia||""} onChange={e => sfc("digitoAgencia", e.target.value)} placeholder="0" maxLength={2} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Código Beneficiário*</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" value={sicoobForm.numeroBeneficiario||""} onChange={e => sfc("numeroBeneficiario", e.target.value)} placeholder="Ex: 123456" required />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Cooperativa</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" value={sicoobForm.cooperativa||""} onChange={e => sfc("cooperativa", e.target.value)} placeholder="Ex: 0001" />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Código Banco Correspondente</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" value={sicoobForm.codigoBancoCorrespondente||""} onChange={e => sfc("codigoBancoCorrespondente", e.target.value)} placeholder="" />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Código Conta Empresa</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" value={sicoobForm.codigoContaEmpresa||""} onChange={e => sfc("codigoContaEmpresa", e.target.value)} placeholder="" />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ display:"flex", gap:16, marginTop:16 }}>
+                            <label style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:_text, cursor:"pointer" }}>
+                                <input type="checkbox" checked={sicoobForm.emiteBoletos??true} onChange={e => sfc("emiteBoletos", e.target.checked)} /> Emite boletos
+                            </label>
+                            <label style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:_text, cursor:"pointer" }}>
+                                <input type="checkbox" checked={sicoobForm.recebePix??false} onChange={e => sfc("recebePix", e.target.checked)} /> Recebe PIX
+                            </label>
+                        </div>
+
+                        {/* ─── Credenciais OAuth2 ─── */}
+                        <div style={{ marginTop:24, marginBottom:12, fontWeight:600, fontSize:14, color:_text }}>Credenciais OAuth2</div>
+                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+                            <div>
+                                <label className="dd-label">Ambiente</label>
+                                <div className="dd-input-wrap">
+                                    <select className="dd-input" value={sicoobForm.ambiente||""} onChange={e => sfc("ambiente", e.target.value)} style={{ background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
+                                        <option value="SANDBOX">Sandbox (Homologação)</option>
+                                        <option value="PRODUCAO">Produção</option>
+                                    </select>
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Client ID</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" value={sicoobForm.clientId||""} onChange={e => sfc("clientId", e.target.value)} placeholder="Fornecido pelo Sicoob" />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Client Secret</label>
+                                <div style={{ display:"flex", gap:4, alignItems:"flex-end" }}>
+                                    <div className="dd-input-wrap" style={{ flex:1 }}>
+                                        <input className="dd-input" type={showSecrets.clientSecret ? "text" : "password"} value={sicoobForm.clientSecret||""} onChange={e => sfc("clientSecret", e.target.value)} placeholder="••••••••" />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                    <button type="button" onClick={() => setShowSecrets(s => ({...s, clientSecret:!s.clientSecret}))} style={{ background:"none", border:"none", cursor:"pointer", color:_textMuted, fontSize:11, padding:"4px 6px" }}>
+                                        {showSecrets.clientSecret ? "Ocultar" : "Mostrar"}
+                                    </button>
+                                </div>
+                            </div>
+                            <div style={{ gridColumn:"1 / -1" }}>
+                                <label className="dd-label">Access Token <span style={{ fontWeight:400, fontSize:10, color:_textMuted }}>(sandbox: gerado no portal · produção: renovado automaticamente)</span></label>
+                                <div style={{ display:"flex", gap:4, alignItems:"flex-end" }}>
+                                    <div className="dd-input-wrap" style={{ flex:1 }}>
+                                        <input className="dd-input" type={showSecrets.accessToken ? "text" : "password"} value={sicoobForm.accessToken||""} onChange={e => sfc("accessToken", e.target.value)} placeholder="••••••••" style={{ fontSize:11 }} />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                    <button type="button" onClick={() => setShowSecrets(s => ({...s, accessToken:!s.accessToken}))} style={{ background:"none", border:"none", cursor:"pointer", color:_textMuted, fontSize:11, padding:"4px 6px" }}>
+                                        {showSecrets.accessToken ? "Ocultar" : "Mostrar"}
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Webhook Secret</label>
+                                <div style={{ display:"flex", gap:4, alignItems:"flex-end" }}>
+                                    <div className="dd-input-wrap" style={{ flex:1 }}>
+                                        <input className="dd-input" type={showSecrets.webhook ? "text" : "password"} value={sicoobForm.webhookSecret||""} onChange={e => sfc("webhookSecret", e.target.value)} placeholder="••••••••" />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                    <button type="button" onClick={() => setShowSecrets(s => ({...s, webhook:!s.webhook}))} style={{ background:"none", border:"none", cursor:"pointer", color:_textMuted, fontSize:11, padding:"4px 6px" }}>
+                                        {showSecrets.webhook ? "Ocultar" : "Mostrar"}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* URLs da API */}
+                        <div style={{ marginTop:20, marginBottom:12, fontWeight:600, fontSize:13, color:_text }}>URLs da API <span style={{ fontWeight:400, fontSize:11, color:_textMuted }}>(preenchidas automaticamente pelo ambiente)</span></div>
+                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+                            <div>
+                                <label className="dd-label">Base URL</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" value={sicoobForm.baseUrl||""} onChange={e => sfc("baseUrl", e.target.value)} style={{ fontSize:11 }} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="dd-label">Token URL</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" value={sicoobForm.tokenUrl||""} onChange={e => sfc("tokenUrl", e.target.value)} style={{ fontSize:11 }} />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ marginTop:16, display:"flex", gap:8 }}>
+                            <button type="submit" className="dd-btn-primary" disabled={salvandoSicoob}>{salvandoSicoob ? "Salvando..." : "Salvar Conta"}</button>
+                            <button type="button" className="dd-btn-edit" onClick={testarConexaoSicoob} style={{ fontSize:11 }}>Testar Configuração</button>
+                            <button type="button" onClick={toggleSicoob} style={{
+                                fontSize:11, padding:"6px 16px", borderRadius:4, border:"none", cursor:"pointer", fontWeight:600,
+                                background: sicoobConfig?.ativo ? (dark?"#3a2020":"#fdf0f0") : (dark?"#1a3328":"#f0f5f2"),
+                                color: sicoobConfig?.ativo ? "#b94040" : "#2d6a4f"
+                            }}>
+                                {sicoobConfig?.ativo ? "Desativar Integração" : "Ativar Integração"}
+                            </button>
+                        </div>
+                    </form>
+
+                    {/* Resultado do teste */}
+                    {sicoobTestResult && (
+                        <div style={{ padding:16, border:"1px solid "+_border, borderRadius:6, background: dark ? "#1e3028" : "#f8faf8" }}>
+                            <div style={{ fontWeight:600, fontSize:13, color:_text, marginBottom:12, display:"flex", alignItems:"center", gap:8 }}>
+                                <span style={{ width:8, height:8, borderRadius:"50%", background: sicoobTestResult.prontoParaHomologacao ? "#2d6a4f" : "#b94040" }} />
+                                {sicoobTestResult.prontoParaHomologacao ? "Pronto para homologação!" : "Configuração incompleta"}
+                            </div>
+                            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(150px, 1fr))", gap:8 }}>
+                                {Object.entries(sicoobTestResult).filter(([k]) => !["prontoParaHomologacao","ambiente","ativo"].includes(k)).map(([k, v]) => (
+                                    <div key={k} style={{ fontSize:11, display:"flex", justifyContent:"space-between", padding:"4px 8px", background: dark ? "#151f1a" : "#fff", borderRadius:3, border:"1px solid "+_border }}>
+                                        <span style={{ color:_textMuted }}>{k}</span>
+                                        <span style={{ fontWeight:600, color: String(v).startsWith("OK") ? "#2d6a4f" : (String(v).startsWith("FALHA") || String(v) === "AUSENTE" ? "#b94040" : _text) }}>{String(v).length > 60 ? String(v).substring(0, 60) + "..." : String(v)}</span>
                                     </div>
                                 ))}
                             </div>
+                        </div>
+                    )}
 
-                            {/* Credenciais OAuth2 */}
-                            <form onSubmit={salvarSicoob}>
-                                <div style={{ marginBottom:12, fontWeight:600, fontSize:13, color:_text }}>Credenciais OAuth2</div>
-                                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
-                                    <div>
-                                        <label className="dd-label">Ambiente</label>
-                                        <div className="dd-input-wrap">
-                                            <select className="dd-input" value={sicoobForm.ambiente||""} onChange={e => sfc("ambiente", e.target.value)} style={{ background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
-                                                <option value="SANDBOX">Sandbox (Homologação)</option>
-                                                <option value="PRODUCAO">Produção</option>
-                                            </select>
-                                            <div className="dd-input-line" />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="dd-label">Client ID</label>
-                                        <div className="dd-input-wrap">
-                                            <input className="dd-input" value={sicoobForm.clientId||""} onChange={e => sfc("clientId", e.target.value)} placeholder="Fornecido pelo Sicoob" />
-                                            <div className="dd-input-line" />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="dd-label">Client Secret</label>
-                                        <div style={{ display:"flex", gap:4, alignItems:"flex-end" }}>
-                                            <div className="dd-input-wrap" style={{ flex:1 }}>
-                                                <input className="dd-input" type={showSecrets.clientSecret ? "text" : "password"} value={sicoobForm.clientSecret||""} onChange={e => sfc("clientSecret", e.target.value)} placeholder="••••••••" />
-                                                <div className="dd-input-line" />
-                                            </div>
-                                            <button type="button" onClick={() => setShowSecrets(s => ({...s, clientSecret:!s.clientSecret}))} style={{ background:"none", border:"none", cursor:"pointer", color:_textMuted, fontSize:11, padding:"4px 6px" }}>
-                                                {showSecrets.clientSecret ? "Ocultar" : "Mostrar"}
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div style={{ gridColumn:"1 / -1" }}>
-                                        <label className="dd-label">Access Token <span style={{ fontWeight:400, fontSize:10, color:_textMuted }}>(gerado no portal Sicoob Developers)</span></label>
-                                        <div style={{ display:"flex", gap:4, alignItems:"flex-end" }}>
-                                            <div className="dd-input-wrap" style={{ flex:1 }}>
-                                                <input className="dd-input" type={showSecrets.accessToken ? "text" : "password"} value={sicoobForm.accessToken||""} onChange={e => sfc("accessToken", e.target.value)} placeholder="••••••••" style={{ fontSize:11 }} />
-                                                <div className="dd-input-line" />
-                                            </div>
-                                            <button type="button" onClick={() => setShowSecrets(s => ({...s, accessToken:!s.accessToken}))} style={{ background:"none", border:"none", cursor:"pointer", color:_textMuted, fontSize:11, padding:"4px 6px" }}>
-                                                {showSecrets.accessToken ? "Ocultar" : "Mostrar"}
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="dd-label">Webhook Secret</label>
-                                        <div style={{ display:"flex", gap:4, alignItems:"flex-end" }}>
-                                            <div className="dd-input-wrap" style={{ flex:1 }}>
-                                                <input className="dd-input" type={showSecrets.webhook ? "text" : "password"} value={sicoobForm.webhookSecret||""} onChange={e => sfc("webhookSecret", e.target.value)} placeholder="••••••••" />
-                                                <div className="dd-input-line" />
-                                            </div>
-                                            <button type="button" onClick={() => setShowSecrets(s => ({...s, webhook:!s.webhook}))} style={{ background:"none", border:"none", cursor:"pointer", color:_textMuted, fontSize:11, padding:"4px 6px" }}>
-                                                {showSecrets.webhook ? "Ocultar" : "Mostrar"}
-                                            </button>
-                                        </div>
+                    {/* Certificado Digital */}
+                    <div style={{ borderTop:"1px solid "+_border, paddingTop:20 }}>
+                        <div style={{ fontWeight:600, fontSize:13, color:_text, marginBottom:12, display:"flex", alignItems:"center", gap:6 }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={_text} strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                            Certificado Digital (mTLS)
+                        </div>
+                        {sicoobConfig.temCertificado ? (
+                            <div style={{ padding:16, border:"1px solid "+_border, borderRadius:6, background: dark ? "#1e3028" : "#f8faf8", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                                <div>
+                                    <div style={{ fontSize:13, fontWeight:500, color:_text }}>{sicoobConfig.certNomeArquivo}</div>
+                                    <div style={{ fontSize:11, color:_textMuted, marginTop:4 }}>
+                                        Tipo: {sicoobConfig.certTipo}
+                                        {sicoobConfig.certValidade && <span> · Validade: {new Date(sicoobConfig.certValidade).toLocaleDateString("pt-BR")}</span>}
                                     </div>
                                 </div>
-
-                                <div style={{ marginTop:20, marginBottom:12, fontWeight:600, fontSize:13, color:_text }}>Dados do Beneficiário</div>
-                                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
-                                    <div>
-                                        <label className="dd-label">Nº Beneficiário (numeroCliente)</label>
-                                        <div className="dd-input-wrap">
-                                            <input className="dd-input" value={sicoobForm.numeroBeneficiario||""} onChange={e => sfc("numeroBeneficiario", e.target.value)} placeholder="Ex: 123456" />
-                                            <div className="dd-input-line" />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="dd-label">Nº Contrato Cobrança</label>
-                                        <div className="dd-input-wrap">
-                                            <input className="dd-input" value={sicoobForm.numeroContratoCobranca||""} onChange={e => sfc("numeroContratoCobranca", e.target.value)} placeholder="Ex: 1234567" />
-                                            <div className="dd-input-line" />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="dd-label">Cooperativa</label>
-                                        <div className="dd-input-wrap">
-                                            <input className="dd-input" value={sicoobForm.cooperativa||""} onChange={e => sfc("cooperativa", e.target.value)} placeholder="Ex: 0001" />
-                                            <div className="dd-input-line" />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="dd-label">Conta Corrente</label>
-                                        <div className="dd-input-wrap">
-                                            <input className="dd-input" value={sicoobForm.contaCorrente||""} onChange={e => sfc("contaCorrente", e.target.value)} placeholder="Ex: 12345-6" />
-                                            <div className="dd-input-line" />
-                                        </div>
-                                    </div>
+                                <div style={{ display:"flex", gap:8 }}>
+                                    <label className="dd-btn-edit" style={{ fontSize:10, cursor:"pointer" }}>
+                                        Substituir <input type="file" accept=".pfx,.p12,.pem,.crt,.cer" onChange={uploadCertificado} hidden />
+                                    </label>
+                                    <button className="dd-btn-danger" style={{ fontSize:10 }} onClick={removerCertificado}>Remover</button>
                                 </div>
-
-                                <div style={{ marginTop:20, marginBottom:12, fontWeight:600, fontSize:13, color:_text }}>Configurações do Boleto</div>
-                                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16 }}>
-                                    <div>
-                                        <label className="dd-label">Modalidade</label>
-                                        <div className="dd-input-wrap">
-                                            <select className="dd-input" value={sicoobForm.modalidade??1} onChange={e => sfc("modalidade", Number(e.target.value))} style={{ background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
-                                                <option value={1}>1 — Simples com Registro</option>
-                                                <option value={2}>2 — Vinculada</option>
-                                                <option value={3}>3 — Caucionada</option>
-                                            </select>
-                                            <div className="dd-input-line" />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="dd-label">Espécie Documento</label>
-                                        <div className="dd-input-wrap">
-                                            <select className="dd-input" value={sicoobForm.especieDocumento||"DM"} onChange={e => sfc("especieDocumento", e.target.value)} style={{ background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
-                                                <option value="DM">DM — Duplicata Mercantil</option>
-                                                <option value="DS">DS — Duplicata de Serviço</option>
-                                                <option value="RC">RC — Recibo</option>
-                                                <option value="NP">NP — Nota Promissória</option>
-                                                <option value="OU">OU — Outros</option>
-                                            </select>
-                                            <div className="dd-input-line" />
-                                        </div>
-                                    </div>
-                                    <div style={{ display:"flex", alignItems:"flex-end", paddingBottom:4 }}>
-                                        <label style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:_text, cursor:"pointer" }}>
-                                            <input type="checkbox" checked={sicoobForm.aceite??false} onChange={e => sfc("aceite", e.target.checked)} />
-                                            Aceite automático
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <div style={{ marginTop:20, marginBottom:12, fontWeight:600, fontSize:13, color:_text }}>URLs da API <span style={{ fontWeight:400, fontSize:11, color:_textMuted }}>(preenchidas automaticamente pelo ambiente)</span></div>
-                                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
-                                    <div>
-                                        <label className="dd-label">Base URL</label>
-                                        <div className="dd-input-wrap">
-                                            <input className="dd-input" value={sicoobForm.baseUrl||""} onChange={e => sfc("baseUrl", e.target.value)} style={{ fontSize:11 }} />
-                                            <div className="dd-input-line" />
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <label className="dd-label">Token URL</label>
-                                        <div className="dd-input-wrap">
-                                            <input className="dd-input" value={sicoobForm.tokenUrl||""} onChange={e => sfc("tokenUrl", e.target.value)} style={{ fontSize:11 }} />
-                                            <div className="dd-input-line" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div style={{ marginTop:16, display:"flex", gap:8 }}>
-                                    <button type="submit" className="dd-btn-primary" disabled={salvandoSicoob}>{salvandoSicoob ? "Salvando..." : "Salvar Configuração Sicoob"}</button>
-                                    <button type="button" className="dd-btn-edit" onClick={testarConexaoSicoob} style={{ fontSize:11 }}>Testar Configuração</button>
-                                    <button type="button" onClick={toggleSicoob} style={{
-                                        fontSize:11, padding:"6px 16px", borderRadius:4, border:"none", cursor:"pointer", fontWeight:600,
-                                        background: sicoobConfig?.ativo ? (dark?"#3a2020":"#fdf0f0") : (dark?"#1a3328":"#f0f5f2"),
-                                        color: sicoobConfig?.ativo ? "#b94040" : "#2d6a4f"
-                                    }}>
-                                        {sicoobConfig?.ativo ? "Desativar Integração" : "Ativar Integração"}
-                                    </button>
-                                </div>
-                            </form>
-
-                            {/* Resultado do teste */}
-                            {sicoobTestResult && (
-                                <div style={{ padding:16, border:"1px solid "+_border, borderRadius:6, background: dark ? "#1e3028" : "#f8faf8" }}>
-                                    <div style={{ fontWeight:600, fontSize:13, color:_text, marginBottom:12, display:"flex", alignItems:"center", gap:8 }}>
-                                        <span style={{ width:8, height:8, borderRadius:"50%", background: sicoobTestResult.prontoParaHomologacao ? "#2d6a4f" : "#b94040" }} />
-                                        {sicoobTestResult.prontoParaHomologacao ? "Pronto para homologação!" : "Configuração incompleta"}
-                                    </div>
-                                    <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(150px, 1fr))", gap:8 }}>
-                                        {Object.entries(sicoobTestResult).filter(([k]) => !["prontoParaHomologacao","ambiente","ativo"].includes(k)).map(([k, v]) => (
-                                            <div key={k} style={{ fontSize:11, display:"flex", justifyContent:"space-between", padding:"4px 8px", background: dark ? "#151f1a" : "#fff", borderRadius:3, border:"1px solid "+_border }}>
-                                                <span style={{ color:_textMuted }}>{k}</span>
-                                                <span style={{ fontWeight:600, color: v === "OK" ? "#2d6a4f" : "#b94040" }}>{v}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Certificado Digital */}
-                            <div style={{ borderTop:"1px solid "+_border, paddingTop:20 }}>
-                                <div style={{ fontWeight:600, fontSize:13, color:_text, marginBottom:12, display:"flex", alignItems:"center", gap:6 }}>
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={_text} strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                                    Certificado Digital (mTLS)
-                                </div>
-
-                                {sicoobConfig.temCertificado ? (
-                                    <div style={{ padding:16, border:"1px solid "+_border, borderRadius:6, background: dark ? "#1e3028" : "#f8faf8", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                                        <div>
-                                            <div style={{ fontSize:13, fontWeight:500, color:_text }}>{sicoobConfig.certNomeArquivo}</div>
-                                            <div style={{ fontSize:11, color:_textMuted, marginTop:4 }}>
-                                                Tipo: {sicoobConfig.certTipo}
-                                                {sicoobConfig.certValidade && (
-                                                    <span> · Validade: {new Date(sicoobConfig.certValidade).toLocaleDateString("pt-BR")}</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div style={{ display:"flex", gap:8 }}>
-                                            <label className="dd-btn-edit" style={{ fontSize:10, cursor:"pointer" }}>
-                                                Substituir
-                                                <input type="file" accept=".pfx,.p12,.pem,.crt,.cer" onChange={uploadCertificado} hidden />
-                                            </label>
-                                            <button className="dd-btn-danger" style={{ fontSize:10 }} onClick={removerCertificado}>Remover</button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div style={{ padding:20, border:"2px dashed "+_border, borderRadius:8, textAlign:"center" }}>
-                                        <div style={{ fontSize:12, color:_textMuted, marginBottom:12 }}>
-                                            Envie o certificado digital fornecido pelo Sicoob (.pfx, .p12 ou .pem)
-                                        </div>
-                                        <div style={{ display:"flex", gap:12, justifyContent:"center", alignItems:"flex-end", flexWrap:"wrap" }}>
-                                            <div>
-                                                <label className="dd-label" style={{ fontSize:10 }}>Tipo</label>
-                                                <select value={certTipo} onChange={e => setCertTipo(e.target.value)}
-                                                    style={{ display:"block", border:"1px solid "+_border, padding:"6px 10px", fontSize:12, borderRadius:4, background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
-                                                    <option value="PFX">PFX / P12</option>
-                                                    <option value="PEM">PEM / CRT</option>
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="dd-label" style={{ fontSize:10 }}>Senha do Certificado</label>
-                                                <input type="password" value={certSenha} onChange={e => setCertSenha(e.target.value)} placeholder="Senha..."
-                                                    style={{ display:"block", border:"1px solid "+_border, padding:"6px 10px", fontSize:12, borderRadius:4, background:_bgCard, color:_text, width:160 }} />
-                                            </div>
-                                            <label className="dd-btn-primary" style={{ cursor:"pointer", fontSize:11 }}>
-                                                {uploadingCert ? "Enviando..." : "Enviar Certificado"}
-                                                <input type="file" accept=".pfx,.p12,.pem,.crt,.cer" onChange={uploadCertificado} hidden disabled={uploadingCert} />
-                                            </label>
-                                        </div>
-                                    </div>
-                                )}
                             </div>
-
-                            {/* Info de atualização */}
-                            {sicoobConfig.atualizadoEm && (
-                                <div style={{ fontSize:10, color:_textMuted, textAlign:"right" }}>
-                                    Última atualização: {new Date(sicoobConfig.atualizadoEm).toLocaleString("pt-BR")}
+                        ) : (
+                            <div style={{ padding:20, border:"2px dashed "+_border, borderRadius:8, textAlign:"center" }}>
+                                <div style={{ fontSize:12, color:_textMuted, marginBottom:12 }}>
+                                    Envie o certificado digital fornecido pelo Sicoob (.pfx, .p12 ou .pem)
                                 </div>
-                            )}
+                                <div style={{ display:"flex", gap:12, justifyContent:"center", alignItems:"flex-end", flexWrap:"wrap" }}>
+                                    <div>
+                                        <label className="dd-label" style={{ fontSize:10 }}>Tipo</label>
+                                        <select value={certTipo} onChange={e => setCertTipo(e.target.value)}
+                                            style={{ display:"block", border:"1px solid "+_border, padding:"6px 10px", fontSize:12, borderRadius:4, background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
+                                            <option value="PFX">PFX / P12</option>
+                                            <option value="PEM">PEM / CRT</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="dd-label" style={{ fontSize:10 }}>Senha do Certificado</label>
+                                        <input type="password" value={certSenha} onChange={e => setCertSenha(e.target.value)} placeholder="Senha..."
+                                            style={{ display:"block", border:"1px solid "+_border, padding:"6px 10px", fontSize:12, borderRadius:4, background:_bgCard, color:_text, width:160 }} />
+                                    </div>
+                                    <label className="dd-btn-primary" style={{ cursor:"pointer", fontSize:11 }}>
+                                        {uploadingCert ? "Enviando..." : "Enviar Certificado"}
+                                        <input type="file" accept=".pfx,.p12,.pem,.crt,.cer" onChange={uploadCertificado} hidden disabled={uploadingCert} />
+                                    </label>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* ─── CONVÊNIOS ─── */}
+                    <div style={{ borderTop:"1px solid "+_border, paddingTop:20 }}>
+                        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+                            <div style={{ fontWeight:600, fontSize:14, color:_text, display:"flex", alignItems:"center", gap:6 }}>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={_text} strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                                Convênios
+                                <span style={{ fontSize:11, fontWeight:400, color:_textMuted, marginLeft:4 }}>{convenios.length}</span>
+                            </div>
+                            <button className="dd-btn-primary" style={{ fontSize:11 }} onClick={() => abrirConvModal(null)}>+ Adicionar Convênio</button>
+                        </div>
+
+                        <table className="dd-table" style={{ width:"100%" }}>
+                            <thead><tr><th>Número</th><th>Descrição</th><th>Carteira</th><th>Contrato</th><th>CNAB</th><th>Situação</th><th>Ações</th></tr></thead>
+                            <tbody>
+                                {convenios.length === 0 && (
+                                    <tr><td colSpan={7} style={{ textAlign:"center", color:_textMuted, padding:24 }}>
+                                        Nenhum convênio cadastrado. Adicione um convênio para emitir boletos.
+                                    </td></tr>
+                                )}
+                                {convenios.map(c => (
+                                    <tr key={c.id}>
+                                        <td style={{ fontWeight:600 }}>{c.numero}</td>
+                                        <td>{c.descricao}</td>
+                                        <td>{c.numeroCarteira}</td>
+                                        <td>{c.numeroContrato || "—"}</td>
+                                        <td>{c.cnab}</td>
+                                        <td>
+                                            <span style={{ fontSize:10, padding:"2px 8px", borderRadius:3, fontWeight:600,
+                                                background: c.situacao==="ATIVA" ? (dark?"#1a3328":"#f0f5f2") : (dark?"#3a2020":"#fdf0f0"),
+                                                color: c.situacao==="ATIVA" ? "#2d6a4f" : "#b94040" }}>
+                                                {c.situacao}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div style={{ display:"flex", gap:6 }}>
+                                                <button className="dd-btn-edit" style={{ fontSize:10 }} onClick={() => abrirConvModal(c)}>Editar</button>
+                                                <button className="dd-btn-danger" style={{ fontSize:10 }} onClick={() => deletarConvenio(c.id)}>Rem.</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Info de atualização */}
+                    {sicoobConfig.atualizadoEm && (
+                        <div style={{ fontSize:10, color:_textMuted, textAlign:"right" }}>
+                            Última atualização: {new Date(sicoobConfig.atualizadoEm).toLocaleString("pt-BR")}
                         </div>
                     )}
                 </div>
+                )}
             </div>
+
+            {/* ─── Modal Convênio ─── */}
+            {convModalOpen && (
+                <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", display:"flex", justifyContent:"center", alignItems:"flex-start", paddingTop:40, zIndex:9999, overflowY:"auto" }}>
+                    <div style={{ background:_bgCard, borderRadius:10, width:"95%", maxWidth:740, padding:0, boxShadow:"0 8px 32px rgba(0,0,0,.15)", maxHeight:"90vh", overflowY:"auto" }}>
+                        <div style={{ padding:"16px 24px", borderBottom:"1px solid "+_border, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                            <span style={{ fontWeight:700, fontSize:15, color:_text }}>{convEditId ? "Editar Convênio" : "Novo Convênio"}</span>
+                            <button onClick={() => setConvModalOpen(false)} style={{ background:"none", border:"none", fontSize:20, cursor:"pointer", color:_textMuted }}>×</button>
+                        </div>
+                        <form onSubmit={salvarConvenio} style={{ padding:24 }}>
+                            <div style={{ display:"grid", gridTemplateColumns:"100px 1fr 1fr 120px", gap:16 }}>
+                                <div>
+                                    <label className="dd-label">CNAB*</label>
+                                    <div className="dd-input-wrap">
+                                        <select className="dd-input" value={convForm.cnab??240} onChange={e => cfc("cnab", Number(e.target.value))} style={{ background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
+                                            <option value={240}>240</option>
+                                            <option value={400}>400</option>
+                                        </select>
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="dd-label">Número*</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" value={convForm.numero||""} onChange={e => cfc("numero", e.target.value)} required />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="dd-label">Descrição*</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" value={convForm.descricao||""} onChange={e => cfc("descricao", e.target.value)} required />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="dd-label">Situação</label>
+                                    <div className="dd-input-wrap">
+                                        <select className="dd-input" value={convForm.situacao||"ATIVA"} onChange={e => cfc("situacao", e.target.value)} style={{ background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
+                                            <option value="ATIVA">Ativa</option>
+                                            <option value="INATIVA">Inativa</option>
+                                        </select>
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 160px", gap:16, marginTop:16 }}>
+                                <div>
+                                    <label className="dd-label">Número Carteira*</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" value={convForm.numeroCarteira||""} onChange={e => cfc("numeroCarteira", e.target.value)} required />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="dd-label">Código Carteira</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" value={convForm.codigoCarteira||""} onChange={e => cfc("codigoCarteira", e.target.value)} />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="dd-label">Remessa reinicia/dia</label>
+                                    <div className="dd-input-wrap">
+                                        <select className="dd-input" value={convForm.remessaReiniciaDiariamente ? "true" : "false"} onChange={e => cfc("remessaReiniciaDiariamente", e.target.value === "true")} style={{ background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
+                                            <option value="false">Não</option>
+                                            <option value="true">Sim</option>
+                                        </select>
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16, marginTop:16 }}>
+                                <div>
+                                    <label className="dd-label">Número da Remessa</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" type="number" value={convForm.numeroRemessa||""} onChange={e => cfc("numeroRemessa", e.target.value)} />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="dd-label">Tipo Webservice</label>
+                                    <div className="dd-input-wrap">
+                                        <select className="dd-input" value={convForm.tipoWebservice||""} onChange={e => cfc("tipoWebservice", e.target.value)} style={{ background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
+                                            <option value="">Selecione</option>
+                                            <option value="REST">REST (API)</option>
+                                            <option value="SOAP">SOAP</option>
+                                            <option value="CNAB">CNAB (Arquivo)</option>
+                                        </select>
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="dd-label">Número Contrato</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" value={convForm.numeroContrato||""} onChange={e => cfc("numeroContrato", e.target.value)} />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ display:"grid", gridTemplateColumns:"160px 1fr 1fr 1fr", gap:16, marginTop:16 }}>
+                                <div>
+                                    <label className="dd-label">Nosso nº pelo banco</label>
+                                    <div className="dd-input-wrap">
+                                        <select className="dd-input" value={convForm.nossoNumeroPeloBanco ? "true" : "false"} onChange={e => cfc("nossoNumeroPeloBanco", e.target.value === "true")} style={{ background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
+                                            <option value="false">Não</option>
+                                            <option value="true">Sim</option>
+                                        </select>
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="dd-label">Nosso Número</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" type="number" value={convForm.nossoNumeroAtual||""} onChange={e => cfc("nossoNumeroAtual", e.target.value)} placeholder="Próximo nº" disabled={convForm.nossoNumeroPeloBanco} />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="dd-label">Percentual Juros (%)</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" type="number" step="0.01" value={convForm.percentualJuros||""} onChange={e => cfc("percentualJuros", e.target.value)} placeholder="0,00" />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16, marginTop:16 }}>
+                                <div>
+                                    <label className="dd-label">Percentual Multa (%)</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" type="number" step="0.01" value={convForm.percentualMulta||""} onChange={e => cfc("percentualMulta", e.target.value)} placeholder="0,00" />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="dd-label">Percentual Desconto (%)</label>
+                                    <div className="dd-input-wrap">
+                                        <input className="dd-input" type="number" step="0.01" value={convForm.percentualDesconto||""} onChange={e => cfc("percentualDesconto", e.target.value)} placeholder="0,00" />
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ marginTop:20, marginBottom:12, fontWeight:600, fontSize:13, color:_text }}>Configurações do Boleto</div>
+                            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16 }}>
+                                <div>
+                                    <label className="dd-label">Modalidade</label>
+                                    <div className="dd-input-wrap">
+                                        <select className="dd-input" value={convForm.modalidade??1} onChange={e => cfc("modalidade", Number(e.target.value))} style={{ background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
+                                            <option value={1}>1 — Simples com Registro</option>
+                                            <option value={2}>2 — Vinculada</option>
+                                            <option value={3}>3 — Caucionada</option>
+                                        </select>
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="dd-label">Espécie Documento</label>
+                                    <div className="dd-input-wrap">
+                                        <select className="dd-input" value={convForm.especieDocumento||"DM"} onChange={e => cfc("especieDocumento", e.target.value)} style={{ background:_bgCard, color:_text, colorScheme: dark?"dark":"light" }}>
+                                            <option value="DM">DM — Duplicata Mercantil</option>
+                                            <option value="DS">DS — Duplicata de Serviço</option>
+                                            <option value="RC">RC — Recibo</option>
+                                            <option value="NP">NP — Nota Promissória</option>
+                                            <option value="OU">OU — Outros</option>
+                                        </select>
+                                        <div className="dd-input-line" />
+                                    </div>
+                                </div>
+                                <div style={{ display:"flex", alignItems:"flex-end", paddingBottom:4 }}>
+                                    <label style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:_text, cursor:"pointer" }}>
+                                        <input type="checkbox" checked={convForm.aceite??false} onChange={e => cfc("aceite", e.target.checked)} />
+                                        Aceite automático
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div style={{ marginTop:16 }}>
+                                <label className="dd-label">API ID*</label>
+                                <div className="dd-input-wrap">
+                                    <input className="dd-input" value={convForm.apiId||""} onChange={e => cfc("apiId", e.target.value)} placeholder="Client ID da API para este convênio" />
+                                    <div className="dd-input-line" />
+                                </div>
+                            </div>
+
+                            <div style={{ marginTop:16 }}>
+                                <label className="dd-label">Mensagens de Instrução <span style={{ fontWeight:400, fontSize:10, color:_textMuted }}>(até 5 linhas, uma por linha)</span></label>
+                                <textarea className="dd-input" value={convForm.mensagens||""} onChange={e => cfc("mensagens", e.target.value)} rows={4}
+                                    style={{ width:"100%", resize:"vertical", fontFamily:"'DM Sans',sans-serif", border:"1px solid "+_border, borderRadius:4, padding:8, fontSize:12, background:_bgCard, color:_text }} />
+                            </div>
+
+                            <div style={{ marginTop:20, display:"flex", gap:8, justifyContent:"flex-end" }}>
+                                <button type="button" onClick={() => setConvModalOpen(false)} style={{ padding:"8px 20px", border:"1px solid "+_border, borderRadius:4, background:"none", cursor:"pointer", color:_text, fontSize:12 }}>Cancelar</button>
+                                <button type="submit" className="dd-btn-primary" disabled={salvandoConv}>{salvandoConv ? "Salvando..." : "Salvar Convênio"}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             </>}
         </div>
