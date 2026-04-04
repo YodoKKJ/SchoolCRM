@@ -135,7 +135,8 @@ function App() {
                         </MasterPrivateRoute>
                     } />
 
-                    {/* Landing pública */}
+                    {/* Landing pública da escola (com e sem slug) */}
+                    <Route path="/escola/:slug" element={<LandingEscola />} />
                     <Route path="/escola" element={<LandingEscola />} />
 
                     {/* Landing page institucional Skolyo */}

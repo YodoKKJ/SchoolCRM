@@ -85,6 +85,7 @@ public class AuthController {
         resp.put("escolaNome", escola.getNome());
         resp.put("corPrimaria", escola.getCorPrimaria() != null ? escola.getCorPrimaria() : "#7ec8a0");
         resp.put("corSecundaria", escola.getCorSecundaria() != null ? escola.getCorSecundaria() : "#3a8d5c");
+        resp.put("logoUrl", escola.getLogoUrl());
         return ResponseEntity.ok(resp);
     }
 
@@ -160,6 +161,7 @@ public class AuthController {
         impResp.put("escolaNome", e.getNome());
         impResp.put("corPrimaria", e.getCorPrimaria() != null ? e.getCorPrimaria() : "#7ec8a0");
         impResp.put("corSecundaria", e.getCorSecundaria() != null ? e.getCorSecundaria() : "#3a8d5c");
+        impResp.put("logoUrl", e.getLogoUrl());
         return ResponseEntity.ok(impResp);
     }
 
@@ -189,6 +191,7 @@ public class AuthController {
         escolaResp.put("slug", escola.getSlug());
         escolaResp.put("corPrimaria", escola.getCorPrimaria() != null ? escola.getCorPrimaria() : "#7ec8a0");
         escolaResp.put("corSecundaria", escola.getCorSecundaria() != null ? escola.getCorSecundaria() : "#3a8d5c");
+        escolaResp.put("logoUrl", escola.getLogoUrl());
         return ResponseEntity.ok(escolaResp);
     }
 }

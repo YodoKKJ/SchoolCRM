@@ -15,6 +15,7 @@ export default function Login() {
     const [escolaNome, setEscolaNome] = useState("");
     const [corPrimaria, setCorPrimaria] = useState("#7ec8a0");
     const [corSecundaria, setCorSecundaria] = useState("#3a8d5c");
+    const [logoUrl, setLogoUrl] = useState(null);
 
     useEffect(() => {
         if (slug) {
@@ -23,6 +24,7 @@ export default function Login() {
                     setEscolaNome(res.data.nome);
                     if (res.data.corPrimaria) setCorPrimaria(res.data.corPrimaria);
                     if (res.data.corSecundaria) setCorSecundaria(res.data.corSecundaria);
+                    if (res.data.logoUrl) setLogoUrl(`/escolas/logo/${slug}`);
                     document.title = res.data.nome || "Skolyo";
                 })
                 .catch(() => setErro("Escola não encontrada. Verifique o link."));
@@ -48,7 +50,7 @@ export default function Login() {
                 escolaSlug: slug,
                 lembrar: lembrar ? "true" : "false",
             });
-            const { token, role, nome, id, escolaSlug, escolaNome: nomeEscola, corPrimaria: cp, corSecundaria: cs } = response.data;
+            const { token, role, nome, id, escolaSlug, escolaNome: nomeEscola, corPrimaria: cp, corSecundaria: cs, logoUrl: lu } = response.data;
             localStorage.setItem("token", token);
             localStorage.setItem("role", role);
             localStorage.setItem("nome", nome);
@@ -57,6 +59,7 @@ export default function Login() {
             localStorage.setItem("escolaNome", nomeEscola);
             localStorage.setItem("corPrimaria", cp || "#7ec8a0");
             localStorage.setItem("corSecundaria", cs || "#3a8d5c");
+            if (lu) localStorage.setItem("escolaLogoUrl", lu); else localStorage.removeItem("escolaLogoUrl");
 
             const basePath = `/escola/${escolaSlug}`;
             if (role === "DIRECAO" || role === "COORDENACAO") window.location.href = `${basePath}/direcao`;
@@ -94,7 +97,7 @@ export default function Login() {
                     width: 52%;
                     position: relative;
                     overflow: hidden;
-                    background: #111;
+                    background: color-mix(in srgb, var(--cor2) 15%, #000);
                 }
                 @media (min-width: 900px) { .left-panel { display: block; } }
 
@@ -102,9 +105,9 @@ export default function Login() {
                     position: absolute;
                     inset: 0;
                     background:
-                        radial-gradient(ellipse 80% 60% at 20% 80%, #1a4d3a55 0%, transparent 60%),
-                        radial-gradient(ellipse 60% 80% at 80% 20%, #2c6e4966 0%, transparent 60%),
-                        #0d1f18;
+                        radial-gradient(ellipse 80% 60% at 20% 80%, color-mix(in srgb, var(--cor1) 35%, transparent) 0%, transparent 60%),
+                        radial-gradient(ellipse 60% 80% at 80% 20%, color-mix(in srgb, var(--cor2) 40%, transparent) 0%, transparent 60%),
+                        color-mix(in srgb, var(--cor2) 20%, #0a0a0a);
                 }
 
                 /* grade fina sobre o fundo */
@@ -472,13 +475,19 @@ export default function Login() {
                     <div className="left-grid" />
                     <div className="left-content">
                         <div className="left-logo">
-                            <div className="left-logo-mark">
-                                <svg viewBox="0 0 16 16" fill="none">
-                                    <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="rgba(255,255,255,0.9)" strokeWidth="1.2" />
-                                    <circle cx="8" cy="8" r="2" fill="#fff" />
-                                </svg>
-                            </div>
-                            <span className="left-logo-name">{escolaNome || "Sistema Escolar"}</span>
+                            {logoUrl ? (
+                                <img src={logoUrl} alt={escolaNome} style={{ height: 40, maxWidth: 180, objectFit: "contain" }} />
+                            ) : (
+                                <>
+                                    <div className="left-logo-mark">
+                                        <svg viewBox="0 0 16 16" fill="none">
+                                            <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="rgba(255,255,255,0.9)" strokeWidth="1.2" />
+                                            <circle cx="8" cy="8" r="2" fill="#fff" />
+                                        </svg>
+                                    </div>
+                                    <span className="left-logo-name">{escolaNome || "Sistema Escolar"}</span>
+                                </>
+                            )}
                         </div>
 
                         <div>
@@ -499,13 +508,19 @@ export default function Login() {
 
                         {/* logo mobile */}
                         <div className="mobile-logo">
-                            <div className="mobile-logo-mark">
-                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                                    <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="rgba(255,255,255,0.9)" strokeWidth="1.4" />
-                                    <circle cx="8" cy="8" r="2" fill="#fff" />
-                                </svg>
-                            </div>
-                            <span className="mobile-logo-name">{escolaNome || "Sistema Escolar"}</span>
+                            {logoUrl ? (
+                                <img src={logoUrl} alt={escolaNome} style={{ height: 32, maxWidth: 150, objectFit: "contain" }} />
+                            ) : (
+                                <>
+                                    <div className="mobile-logo-mark">
+                                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                                            <path d="M8 1L14 4.5V11.5L8 15L2 11.5V4.5L8 1Z" stroke="rgba(255,255,255,0.9)" strokeWidth="1.4" />
+                                            <circle cx="8" cy="8" r="2" fill="#fff" />
+                                        </svg>
+                                    </div>
+                                    <span className="mobile-logo-name">{escolaNome || "Sistema Escolar"}</span>
+                                </>
+                            )}
                         </div>
 
                         <p className="form-eyebrow">Acesso ao sistema</p>
