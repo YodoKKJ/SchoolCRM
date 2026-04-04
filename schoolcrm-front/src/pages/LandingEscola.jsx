@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { useParams } from "react-router-dom";
+import axios from "axios";
 
 // ── Paleta ─────────────────────────────────────────────────────────────────
 // Verde escuro (#0d1f18), branco (#fff / #f5f8f5), dourado (#c9a84c) como acento
@@ -316,6 +318,24 @@ function StatCard({ value, suffix = "", label, active }) {
 
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function LandingEscola() {
+  const { slug } = useParams();
+
+  // Dados da escola (carregados via API quando tem slug)
+  const [escola, setEscola] = useState(null);
+  useEffect(() => {
+    if (slug) {
+      axios.get(`/auth/escola/${slug}`)
+        .then(res => {
+          setEscola(res.data);
+          if (res.data.nome) document.title = res.data.nome;
+        })
+        .catch(() => {});
+    }
+  }, [slug]);
+
+  const escolaNome = escola?.nome || "DomEscola";
+  const logoUrl = escola?.logoUrl ? `/escolas/logo/${slug}` : null;
+
   // Navbar scroll
   const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
@@ -340,7 +360,13 @@ export default function LandingEscola() {
 
       {/* ── NAVBAR ─────────────────────────────────────────────────────── */}
       <nav className={`lp-nav${scrolled ? " scrolled" : ""}`}>
-        <div className="lp-nav-logo">Dom<span>Escola</span></div>
+        {logoUrl ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <img src={logoUrl} alt={escolaNome} style={{ height: 40, maxWidth: 160, objectFit: "contain" }} />
+          </div>
+        ) : (
+          <div className="lp-nav-logo">Dom<span>Escola</span></div>
+        )}
         <div className="lp-nav-links">
           <a href="#jornada" className="lp-nav-link">Ensino</a>
           <a href="#aprovacoes" className="lp-nav-link">Resultados</a>
@@ -627,8 +653,12 @@ export default function LandingEscola() {
 
       {/* ── FOOTER ─────────────────────────────────────────────────────── */}
       <footer className="lp-footer">
-        <div className="lp-footer-logo">Dom<span>Escola</span></div>
-        <div className="lp-footer-text">© {new Date().getFullYear()} · Todos os direitos reservados</div>
+        {logoUrl ? (
+          <img src={logoUrl} alt={escolaNome} style={{ height: 32, maxWidth: 140, objectFit: "contain", opacity: 0.7 }} />
+        ) : (
+          <div className="lp-footer-logo">Dom<span>Escola</span></div>
+        )}
+        <div className="lp-footer-text">© {new Date().getFullYear()} {escolaNome} · Todos os direitos reservados</div>
         <div className="lp-footer-powered">
           Gerenciado por <a href="/" target="_blank" rel="noreferrer">Skolyo</a>
         </div>
