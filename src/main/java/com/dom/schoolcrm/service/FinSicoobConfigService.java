@@ -1,6 +1,8 @@
 package com.dom.schoolcrm.service;
 
+import com.dom.schoolcrm.entity.FinConvenio;
 import com.dom.schoolcrm.entity.FinSicoobConfig;
+import com.dom.schoolcrm.repository.FinConvenioRepository;
 import com.dom.schoolcrm.repository.FinSicoobConfigRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -26,6 +28,7 @@ import java.nio.file.StandardCopyOption;
 import java.security.KeyStore;
 import java.security.cert.X509Certificate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.time.ZoneId;
 import java.util.Enumeration;
 import java.util.LinkedHashMap;
@@ -42,6 +45,9 @@ public class FinSicoobConfigService {
 
     @Autowired
     private FinSicoobConfigRepository repository;
+
+    @Autowired
+    private FinConvenioRepository convenioRepository;
 
     /**
      * Retorna a config singleton. Cria com defaults se não existir.
@@ -295,6 +301,13 @@ public class FinSicoobConfigService {
         m.put("numeroBeneficiario", config.getNumeroBeneficiario());
         m.put("cooperativa", config.getCooperativa());
         m.put("contaCorrente", config.getContaCorrente());
+        m.put("digitoConta", config.getDigitoConta());
+        m.put("agencia", config.getAgencia());
+        m.put("digitoAgencia", config.getDigitoAgencia());
+        m.put("codigoBancoCorrespondente", config.getCodigoBancoCorrespondente());
+        m.put("codigoContaEmpresa", config.getCodigoContaEmpresa());
+        m.put("emiteBoletos", config.getEmiteBoletos());
+        m.put("recebePix", config.getRecebePix());
         m.put("webhookSecret", ofuscar(config.getWebhookSecret()));
         m.put("certTipo", config.getCertTipo());
         m.put("certNomeArquivo", config.getCertNomeArquivo());
@@ -306,6 +319,62 @@ public class FinSicoobConfigService {
         m.put("especieDocumento", config.getEspecieDocumento());
         m.put("aceite", config.getAceite());
         m.put("atualizadoEm", config.getAtualizadoEm());
+        return m;
+    }
+
+    // ---- Convênios ----
+
+    public List<FinConvenio> listarConvenios() {
+        FinSicoobConfig config = getConfig();
+        return convenioRepository.findBySicoobConfigIdOrderByNumeroAsc(config.getId());
+    }
+
+    public FinConvenio getConvenioAtivo() {
+        FinSicoobConfig config = getConfig();
+        return convenioRepository.findFirstBySicoobConfigIdAndSituacao(config.getId(), "ATIVA")
+                .orElse(null);
+    }
+
+    @Transactional
+    public FinConvenio salvarConvenio(FinConvenio convenio) {
+        convenio.setSicoobConfig(getConfig());
+        return convenioRepository.save(convenio);
+    }
+
+    @Transactional
+    public void deletarConvenio(Long convenioId) {
+        convenioRepository.deleteById(convenioId);
+    }
+
+    public FinConvenio buscarConvenio(Long convenioId) {
+        return convenioRepository.findById(convenioId).orElse(null);
+    }
+
+    public Map<String, Object> convenioToMap(FinConvenio c) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", c.getId());
+        m.put("cnab", c.getCnab());
+        m.put("numero", c.getNumero());
+        m.put("descricao", c.getDescricao());
+        m.put("situacao", c.getSituacao());
+        m.put("numeroCarteira", c.getNumeroCarteira());
+        m.put("codigoCarteira", c.getCodigoCarteira());
+        m.put("remessaReiniciaDiariamente", c.getRemessaReiniciaDiariamente());
+        m.put("numeroRemessa", c.getNumeroRemessa());
+        m.put("tipoWebservice", c.getTipoWebservice());
+        m.put("numeroContrato", c.getNumeroContrato());
+        m.put("nossoNumeroPeloBanco", c.getNossoNumeroPeloBanco());
+        m.put("nossoNumeroAtual", c.getNossoNumeroAtual());
+        m.put("percentualJuros", c.getPercentualJuros());
+        m.put("percentualMulta", c.getPercentualMulta());
+        m.put("percentualDesconto", c.getPercentualDesconto());
+        m.put("apiId", c.getApiId());
+        m.put("modalidade", c.getModalidade());
+        m.put("especieDocumento", c.getEspecieDocumento());
+        m.put("aceite", c.getAceite());
+        m.put("mensagens", c.getMensagens());
+        m.put("createdAt", c.getCreatedAt());
+        m.put("updatedAt", c.getUpdatedAt());
         return m;
     }
 
