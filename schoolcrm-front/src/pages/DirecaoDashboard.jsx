@@ -5871,6 +5871,13 @@ function FinContratos({ anoLetivo }) {
                                                             setFormBaixar({ dataPagamento: new Date().toISOString().slice(0,10), valorPago: totalPreencher, formaPagamentoId:"", jurosAplicado: enc.juros, multaAplicada: enc.multa, observacoes:"" });
                                                             setModalBaixar({ crId: cr.id, contratoId: null, valor: cr.valor, isVencido, jaFoiPago, saldoDevedor: saldo });
                                                         }}>Baixar</button>
+                                                    {cr.pessoaId && (
+                                                        <button style={{ fontSize:10, padding:"3px 8px", background:"#e8f0ff", color:"#2563eb", border:"1px solid #c7d8f5", borderRadius:4, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", fontWeight:500 }}
+                                                            onClick={() => verBoleto(cr.id)}
+                                                            disabled={gerandoBoleto === cr.id}>
+                                                            {gerandoBoleto === cr.id ? "..." : (boletosGerados[cr.id] ? "Ver Boleto" : "Boleto")}
+                                                        </button>
+                                                    )}
                                                     <button className="dd-btn-danger" style={{ fontSize:10, padding:"3px 8px" }} onClick={() => cancelarAvulsa(cr.id)}>Cancelar</button>
                                                 </>)}
                                                 {(st === "PAGO" || st === "PARCIALMENTE_PAGO") && (
