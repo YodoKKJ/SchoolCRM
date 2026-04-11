@@ -159,12 +159,20 @@ public class SicoobBoletoService implements BoletoService {
             boolean nossoNumeroPeloBanco = convenio == null || convenio.getNossoNumeroPeloBanco() == null
                     || convenio.getNossoNumeroPeloBanco();
 
+            // Payload conforme spec Sicoob Cobrança Bancária V3
+            // Ref: https://github.com/mangati/sicoob-sdk (Boleto.php model)
             ObjectNode boletoObj = mapper.createObjectNode();
-            boletoObj.put("numeroContrato", parseLong(numContrato));
-            boletoObj.put("modalidade", modalidade);
+            boletoObj.put("numeroCliente", parseLong(config.getNumeroBeneficiario()));
+            boletoObj.put("codigoModalidade", modalidade);
             boletoObj.put("numeroContaCorrente", parseLong(config.getContaCorrente()));
-            boletoObj.put("especieDocumento", especieDoc);
+            boletoObj.put("codigoEspecieDocumento", especieDoc);
             boletoObj.put("dataEmissao", LocalDate.now().format(DATE_FMT));
+            boletoObj.put("seuNumero", String.valueOf(cr.getId()));
+            boletoObj.put("identificacaoEmissaoBoleto", 1); // 1=Cooperativa emite
+            boletoObj.put("identificacaoDistribuicaoBoleto", 1); // 1=Cooperativa distribui
+            boletoObj.put("valor", boleto.getValor().doubleValue());
+            boletoObj.put("dataVencimento", boleto.getDataVencimento().format(DATE_FMT));
+            boletoObj.put("gerarPdf", true);
 
             // Nosso número: gerado pelo banco ou pelo sistema
             if (!nossoNumeroPeloBanco && convenio != null && convenio.getNossoNumeroAtual() != null) {
@@ -174,11 +182,10 @@ public class SicoobBoletoService implements BoletoService {
                 configService.salvarConvenio(convenio);
             }
 
-            boletoObj.put("seuNumero", String.valueOf(cr.getId()));
-            boletoObj.put("identificacaoEmissaoBoleto", 1); // 1=Cooperativa emite
-            boletoObj.put("identificacaoDistribuicaoBoleto", 1); // 1=Cooperativa distribui
-            boletoObj.put("valor", boleto.getValor().doubleValue());
-            boletoObj.put("dataVencimento", boleto.getDataVencimento().format(DATE_FMT));
+            // Número do contrato de cobrança (se configurado)
+            if (numContrato != null && !numContrato.isBlank()) {
+                boletoObj.put("numeroContratoCobranca", parseLong(numContrato));
+            }
 
             // Desconto
             if (pctDesconto != null && pctDesconto.compareTo(java.math.BigDecimal.ZERO) > 0) {
@@ -211,19 +218,18 @@ public class SicoobBoletoService implements BoletoService {
             boletoObj.put("aceite", aceite);
             boletoObj.put("codigoNegativacao", 3); // 3=Não negativar
             boletoObj.put("codigoProtesto", 3); // 3=Não protestar
-            boletoObj.put("gerarPdf", true);
 
-            // Pagador (objeto nested)
+            // Pagador (objeto nested — campos: numeroCpfCnpj, nome, endereco, bairro, cidade, cep, uf, email)
             ObjectNode pagador = mapper.createObjectNode();
             String cpfCnpj = boleto.getPagadorCpfCnpj().replaceAll("[^0-9]", "");
             pagador.put("numeroCpfCnpj", truncar(cpfCnpj, 14));
             pagador.put("nome", truncar(boleto.getPagadorNome(), 50));
-            pagador.put("tipoPessoa", cpfCnpj.length() <= 11 ? 1 : 2); // 1=PF (CPF), 2=PJ (CNPJ)
             pagador.put("endereco", truncar("Nao informado", 40));
             pagador.put("bairro", truncar("Centro", 30));
             pagador.put("cidade", truncar("Nao informado", 40));
             pagador.put("cep", "00000000");
             pagador.put("uf", "MG");
+            pagador.put("email", "");
 
             // Tentar preencher com dados reais do pagador se disponíveis
             FinPessoa pessoaPagador = null;
@@ -247,26 +253,24 @@ public class SicoobBoletoService implements BoletoService {
                     pagador.put("uf", pessoaPagador.getEstado());
                 }
                 if (pessoaPagador.getEmail() != null && !pessoaPagador.getEmail().isBlank()) {
-                    var emails = mapper.createArrayNode();
-                    emails.add(pessoaPagador.getEmail());
-                    pagador.set("email", emails);
+                    pagador.put("email", pessoaPagador.getEmail());
                 }
             }
 
             boletoObj.set("pagador", pagador);
 
-            // Mensagens de instrução (do convênio, se configuradas)
-            // API V3 espera formato: {"mensagem1": "...", "mensagem2": "...", ...}
+            // Mensagens de instrução — V3 usa {"mensagens": ["msg1", "msg2", ...]}
             ObjectNode mensagensNode = mapper.createObjectNode();
+            var msgArray = mapper.createArrayNode();
             if (convenio != null && convenio.getMensagens() != null && !convenio.getMensagens().isBlank()) {
                 String[] linhas = convenio.getMensagens().split("\n");
-                for (int i = 0; i < 5; i++) {
-                    String key = "mensagem" + (i + 1);
-                    if (i < linhas.length && !linhas[i].isBlank()) {
-                        mensagensNode.put(key, truncar(linhas[i].trim(), 80));
+                for (int i = 0; i < Math.min(linhas.length, 5); i++) {
+                    if (!linhas[i].isBlank()) {
+                        msgArray.add(truncar(linhas[i].trim(), 80));
                     }
                 }
             }
+            mensagensNode.set("mensagens", msgArray);
             boletoObj.set("mensagensInstrucao", mensagensNode);
 
             bodyJson = mapper.writeValueAsString(boletoObj);
