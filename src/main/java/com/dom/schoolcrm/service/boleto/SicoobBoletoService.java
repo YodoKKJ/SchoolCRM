@@ -3,6 +3,7 @@ package com.dom.schoolcrm.service.boleto;
 import com.dom.schoolcrm.entity.FinBoleto;
 import com.dom.schoolcrm.entity.FinConvenio;
 import com.dom.schoolcrm.entity.FinContaReceber;
+import com.dom.schoolcrm.entity.FinPessoa;
 import com.dom.schoolcrm.entity.FinSicoobConfig;
 import com.dom.schoolcrm.service.FinSicoobConfigService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -157,24 +158,19 @@ public class SicoobBoletoService implements BoletoService {
             boolean nossoNumeroPeloBanco = convenio == null || convenio.getNossoNumeroPeloBanco() == null
                     || convenio.getNossoNumeroPeloBanco();
 
-            // API V3 espera um ARRAY com um objeto boleto
             ObjectNode boletoObj = mapper.createObjectNode();
-            boletoObj.put("numeroContrato", numContrato);
+            boletoObj.put("numeroContrato", parseLong(numContrato));
             boletoObj.put("modalidade", modalidade);
-            boletoObj.put("numeroContaCorrente", config.getContaCorrente());
+            boletoObj.put("numeroContaCorrente", parseLong(config.getContaCorrente()));
             boletoObj.put("especieDocumento", especieDoc);
             boletoObj.put("dataEmissao", LocalDate.now().format(DATE_FMT));
 
             // Nosso número: gerado pelo banco ou pelo sistema
-            if (nossoNumeroPeloBanco) {
-                boletoObj.putNull("nossoNumero");
-            } else if (convenio != null && convenio.getNossoNumeroAtual() != null) {
+            if (!nossoNumeroPeloBanco && convenio != null && convenio.getNossoNumeroAtual() != null) {
                 long proximo = convenio.getNossoNumeroAtual() + 1;
                 boletoObj.put("nossoNumero", proximo);
                 convenio.setNossoNumeroAtual(proximo);
                 configService.salvarConvenio(convenio);
-            } else {
-                boletoObj.putNull("nossoNumero");
             }
 
             boletoObj.put("seuNumero", String.valueOf(cr.getId()));
@@ -229,25 +225,29 @@ public class SicoobBoletoService implements BoletoService {
             pagador.put("uf", "MG");
 
             // Tentar preencher com dados reais do pagador se disponíveis
+            FinPessoa pessoaPagador = null;
             if (cr.getContrato() != null && cr.getContrato().getResponsavelPrincipal() != null) {
-                var pessoa = cr.getContrato().getResponsavelPrincipal();
-                if (pessoa.getEndereco() != null && !pessoa.getEndereco().isBlank()) {
-                    pagador.put("endereco", truncar(pessoa.getEndereco(), 40));
+                pessoaPagador = cr.getContrato().getResponsavelPrincipal();
+            } else if (cr.getPessoa() != null) {
+                pessoaPagador = cr.getPessoa();
+            }
+            if (pessoaPagador != null) {
+                if (pessoaPagador.getEndereco() != null && !pessoaPagador.getEndereco().isBlank()) {
+                    pagador.put("endereco", truncar(pessoaPagador.getEndereco(), 40));
                 }
-                if (pessoa.getCidade() != null && !pessoa.getCidade().isBlank()) {
-                    pagador.put("cidade", truncar(pessoa.getCidade(), 40));
+                if (pessoaPagador.getCidade() != null && !pessoaPagador.getCidade().isBlank()) {
+                    pagador.put("cidade", truncar(pessoaPagador.getCidade(), 40));
                 }
-                if (pessoa.getCep() != null && !pessoa.getCep().isBlank()) {
-                    String cepLimpo = pessoa.getCep().replaceAll("[^0-9]", "");
+                if (pessoaPagador.getCep() != null && !pessoaPagador.getCep().isBlank()) {
+                    String cepLimpo = pessoaPagador.getCep().replaceAll("[^0-9]", "");
                     pagador.put("cep", truncar(cepLimpo, 8));
                 }
-                if (pessoa.getEstado() != null && !pessoa.getEstado().isBlank()) {
-                    pagador.put("uf", pessoa.getEstado());
+                if (pessoaPagador.getEstado() != null && !pessoaPagador.getEstado().isBlank()) {
+                    pagador.put("uf", pessoaPagador.getEstado());
                 }
-                if (pessoa.getEmail() != null && !pessoa.getEmail().isBlank()) {
-                    // Email é array de strings na V3
+                if (pessoaPagador.getEmail() != null && !pessoaPagador.getEmail().isBlank()) {
                     var emails = mapper.createArrayNode();
-                    emails.add(pessoa.getEmail());
+                    emails.add(pessoaPagador.getEmail());
                     pagador.set("email", emails);
                 }
             }
@@ -268,11 +268,7 @@ public class SicoobBoletoService implements BoletoService {
             }
             boletoObj.set("mensagensInstrucao", mensagensNode);
 
-            // Body é um ARRAY
-            var bodyArray = mapper.createArrayNode();
-            bodyArray.add(boletoObj);
-
-            String bodyJson = mapper.writeValueAsString(bodyArray);
+            String bodyJson = mapper.writeValueAsString(boletoObj);
             log.info("Body do boleto V3: {}", bodyJson);
 
             log.info("Registrando boleto na API Sicoob V3: seuNumero=CR-{}, valor={}", cr.getId(), boleto.getValor());
@@ -298,9 +294,10 @@ public class SicoobBoletoService implements BoletoService {
 
         } catch (HttpClientErrorException e) {
             String errorBody = e.getResponseBodyAsString();
-            log.error("Erro ao registrar boleto na API Sicoob: HTTP {} - {}", e.getStatusCode(), errorBody);
+            log.error("Erro ao registrar boleto na API Sicoob: HTTP {} - Body enviado: {} - Resposta: {}", e.getStatusCode(), bodyJson, errorBody);
+            String msgErro = extrairMensagemErro(errorBody);
             throw new BoletoRegistroException(
-                    "API Sicoob retornou erro " + e.getStatusCode().value() + ": " + extrairMensagemErro(errorBody));
+                    "API Sicoob retornou erro " + e.getStatusCode().value() + ": " + msgErro);
         } catch (BoletoRegistroException e) {
             throw e;
         } catch (Exception e) {
@@ -585,5 +582,10 @@ public class SicoobBoletoService implements BoletoService {
     private String truncar(String s, int max) {
         if (s == null) return "";
         return s.length() <= max ? s : s.substring(0, max);
+    }
+
+    private long parseLong(String s) {
+        if (s == null || s.isBlank()) return 0;
+        return Long.parseLong(s.replaceAll("[^0-9]", ""));
     }
 }
