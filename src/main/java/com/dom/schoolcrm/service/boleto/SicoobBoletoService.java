@@ -159,8 +159,8 @@ public class SicoobBoletoService implements BoletoService {
             boolean nossoNumeroPeloBanco = convenio == null || convenio.getNossoNumeroPeloBanco() == null
                     || convenio.getNossoNumeroPeloBanco();
 
-            // Payload conforme spec Sicoob Cobrança Bancária V3
-            // Ref: https://github.com/mangati/sicoob-sdk (Boleto.php model)
+            // Payload SIMPLIFICADO — apenas campos obrigatórios do Sicoob V3
+            // Removidos campos opcionais suspeitos de causar 406
             ObjectNode boletoObj = mapper.createObjectNode();
             boletoObj.put("numeroCliente", parseLong(config.getNumeroBeneficiario()));
             boletoObj.put("codigoModalidade", modalidade);
@@ -172,9 +172,14 @@ public class SicoobBoletoService implements BoletoService {
             boletoObj.put("identificacaoDistribuicaoBoleto", 1); // 1=Cooperativa distribui
             boletoObj.put("valor", boleto.getValor().doubleValue());
             boletoObj.put("dataVencimento", boleto.getDataVencimento().format(DATE_FMT));
-            boletoObj.put("gerarPdf", true);
 
-            // Nosso número: gerado pelo banco ou pelo sistema
+            // Número do contrato de cobrança (obrigatório)
+            if (numContrato != null && !numContrato.isBlank()) {
+                boletoObj.put("numeroContratoCobranca", parseLong(numContrato));
+            }
+
+            // Nosso número: deixar o banco gerar para evitar problemas de formato
+            // Apenas envia se convênio está configurado para gerar localmente
             if (!nossoNumeroPeloBanco && convenio != null && convenio.getNossoNumeroAtual() != null) {
                 long proximo = convenio.getNossoNumeroAtual() + 1;
                 boletoObj.put("nossoNumero", proximo);
@@ -182,42 +187,34 @@ public class SicoobBoletoService implements BoletoService {
                 configService.salvarConvenio(convenio);
             }
 
-            // Número do contrato de cobrança (se configurado)
-            if (numContrato != null && !numContrato.isBlank()) {
-                boletoObj.put("numeroContratoCobranca", parseLong(numContrato));
-            }
-
-            // Desconto
+            // Desconto — só envia se configurado
             if (pctDesconto != null && pctDesconto.compareTo(java.math.BigDecimal.ZERO) > 0) {
-                boletoObj.put("tipoDesconto", 2); // 2=Percentual até data informada
+                boletoObj.put("tipoDesconto", 2);
                 boletoObj.put("dataPrimeiroDesconto", boleto.getDataVencimento().format(DATE_FMT));
                 boletoObj.put("valorPrimeiroDesconto", pctDesconto.doubleValue());
             } else {
                 boletoObj.put("tipoDesconto", 0);
             }
 
-            // Multa
+            // Multa — só envia se configurado
             if (pctMulta != null && pctMulta.compareTo(java.math.BigDecimal.ZERO) > 0) {
-                boletoObj.put("tipoMulta", 2); // 2=Percentual
+                boletoObj.put("tipoMulta", 2);
                 boletoObj.put("dataMulta", boleto.getDataVencimento().plusDays(1).format(DATE_FMT));
                 boletoObj.put("valorMulta", pctMulta.doubleValue());
             } else {
                 boletoObj.put("tipoMulta", 0);
             }
 
-            // Juros mora
+            // Juros mora — só envia se configurado
             if (pctJuros != null && pctJuros.compareTo(java.math.BigDecimal.ZERO) > 0) {
-                boletoObj.put("tipoJurosMora", 2); // 2=Percentual ao mês
+                boletoObj.put("tipoJurosMora", 2);
                 boletoObj.put("dataJurosMora", boleto.getDataVencimento().plusDays(1).format(DATE_FMT));
                 boletoObj.put("valorJurosMora", pctJuros.doubleValue());
             } else {
                 boletoObj.put("tipoJurosMora", 3); // 3=Isento
             }
 
-            boletoObj.put("numeroParcela", cr.getNumParcela() != null ? cr.getNumParcela() : 1);
             boletoObj.put("aceite", aceite);
-            boletoObj.put("codigoNegativacao", 3); // 3=Não negativar
-            boletoObj.put("codigoProtesto", 3); // 3=Não protestar
 
             // Pagador (objeto nested — campos: numeroCpfCnpj, nome, endereco, bairro, cidade, cep, uf, email)
             ObjectNode pagador = mapper.createObjectNode();
@@ -259,19 +256,21 @@ public class SicoobBoletoService implements BoletoService {
 
             boletoObj.set("pagador", pagador);
 
-            // Mensagens de instrução — V3 usa {"mensagens": ["msg1", "msg2", ...]}
-            ObjectNode mensagensNode = mapper.createObjectNode();
-            var msgArray = mapper.createArrayNode();
+            // Mensagens de instrução — só envia se houver mensagens configuradas
             if (convenio != null && convenio.getMensagens() != null && !convenio.getMensagens().isBlank()) {
+                ObjectNode mensagensNode = mapper.createObjectNode();
+                var msgArray = mapper.createArrayNode();
                 String[] linhas = convenio.getMensagens().split("\n");
                 for (int i = 0; i < Math.min(linhas.length, 5); i++) {
                     if (!linhas[i].isBlank()) {
                         msgArray.add(truncar(linhas[i].trim(), 80));
                     }
                 }
+                if (msgArray.size() > 0) {
+                    mensagensNode.set("mensagens", msgArray);
+                    boletoObj.set("mensagensInstrucao", mensagensNode);
+                }
             }
-            mensagensNode.set("mensagens", msgArray);
-            boletoObj.set("mensagensInstrucao", mensagensNode);
 
             bodyJson = mapper.writeValueAsString(boletoObj);
             log.info("Body do boleto V3: {}", bodyJson);
