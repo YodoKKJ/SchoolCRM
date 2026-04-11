@@ -160,9 +160,9 @@ public class SicoobBoletoService implements BoletoService {
                     || convenio.getNossoNumeroPeloBanco();
 
             ObjectNode boletoObj = mapper.createObjectNode();
-            boletoObj.put("numeroContrato", parseLong(numContrato));
-            boletoObj.put("modalidade", modalidade);
-            boletoObj.put("numeroContaCorrente", parseLong(config.getContaCorrente()));
+            boletoObj.put("numeroCliente", parseLong(config.getNumeroBeneficiario()));
+            boletoObj.put("codigoModalidade", modalidade);
+            boletoObj.put("codigoSacadorAvalista", 0);
             boletoObj.put("especieDocumento", especieDoc);
             boletoObj.put("dataEmissao", LocalDate.now().format(DATE_FMT));
 
@@ -210,15 +210,15 @@ public class SicoobBoletoService implements BoletoService {
             boletoObj.put("numeroParcela", cr.getNumParcela() != null ? cr.getNumParcela() : 1);
             boletoObj.put("aceite", aceite);
             boletoObj.put("codigoNegativacao", 3); // 3=Não negativar
+            boletoObj.put("numeroDiasNegativacao", 0);
             boletoObj.put("codigoProtesto", 3); // 3=Não protestar
-            boletoObj.put("gerarPdf", true);
+            boletoObj.put("numeroDiasProtesto", 0);
 
             // Pagador (objeto nested)
             ObjectNode pagador = mapper.createObjectNode();
             String cpfCnpj = boleto.getPagadorCpfCnpj().replaceAll("[^0-9]", "");
             pagador.put("numeroCpfCnpj", truncar(cpfCnpj, 14));
             pagador.put("nome", truncar(boleto.getPagadorNome(), 50));
-            pagador.put("tipoPessoa", cpfCnpj.length() <= 11 ? 1 : 2); // 1=PF (CPF), 2=PJ (CNPJ)
             pagador.put("endereco", truncar("Nao informado", 40));
             pagador.put("bairro", truncar("Centro", 30));
             pagador.put("cidade", truncar("Nao informado", 40));
