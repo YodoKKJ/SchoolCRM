@@ -274,6 +274,8 @@ public class FinBoletoService {
         if (cr.getContrato() != null) {
             m.put("contratoId", cr.getContrato().getId());
             m.put("alunoNome", cr.getContrato().getAluno().getNome());
+        } else if (cr.getPessoa() != null) {
+            m.put("alunoNome", cr.getPessoa().getNome());
         }
 
         return m;
