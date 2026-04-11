@@ -178,13 +178,10 @@ public class SicoobBoletoService implements BoletoService {
             }
 
             boletoObj.put("seuNumero", String.valueOf(cr.getId()));
-            boletoObj.putNull("identificacaoBoletoEmpresa");
             boletoObj.put("identificacaoEmissaoBoleto", 1); // 1=Cooperativa emite
             boletoObj.put("identificacaoDistribuicaoBoleto", 1); // 1=Cooperativa distribui
             boletoObj.put("valor", boleto.getValor().doubleValue());
             boletoObj.put("dataVencimento", boleto.getDataVencimento().format(DATE_FMT));
-            boletoObj.putNull("dataLimitePagamento");
-            boletoObj.putNull("valorAbatimento");
 
             // Desconto
             if (pctDesconto != null && pctDesconto.compareTo(java.math.BigDecimal.ZERO) > 0) {
@@ -193,13 +190,7 @@ public class SicoobBoletoService implements BoletoService {
                 boletoObj.put("valorPrimeiroDesconto", pctDesconto.doubleValue());
             } else {
                 boletoObj.put("tipoDesconto", 0);
-                boletoObj.putNull("dataPrimeiroDesconto");
-                boletoObj.putNull("valorPrimeiroDesconto");
             }
-            boletoObj.putNull("dataSegundoDesconto");
-            boletoObj.putNull("valorSegundoDesconto");
-            boletoObj.putNull("dataTerceiroDesconto");
-            boletoObj.putNull("valorTerceiroDesconto");
 
             // Multa
             if (pctMulta != null && pctMulta.compareTo(java.math.BigDecimal.ZERO) > 0) {
@@ -208,8 +199,6 @@ public class SicoobBoletoService implements BoletoService {
                 boletoObj.put("valorMulta", pctMulta.doubleValue());
             } else {
                 boletoObj.put("tipoMulta", 0);
-                boletoObj.putNull("dataMulta");
-                boletoObj.putNull("valorMulta");
             }
 
             // Juros mora
@@ -219,16 +208,12 @@ public class SicoobBoletoService implements BoletoService {
                 boletoObj.put("valorJurosMora", pctJuros.doubleValue());
             } else {
                 boletoObj.put("tipoJurosMora", 3); // 3=Isento
-                boletoObj.putNull("dataJurosMora");
-                boletoObj.putNull("valorJurosMora");
             }
 
-            boletoObj.put("numeroParcela", 1);
+            boletoObj.put("numeroParcela", cr.getNumParcela() != null ? cr.getNumParcela() : 1);
             boletoObj.put("aceite", aceite);
             boletoObj.put("codigoNegativacao", 3); // 3=Não negativar
-            boletoObj.putNull("numeroDiasNegativacao");
             boletoObj.put("codigoProtesto", 3); // 3=Não protestar
-            boletoObj.putNull("numeroDiasProtesto");
             boletoObj.put("gerarPdf", true);
 
             // Pagador (objeto nested)
@@ -236,6 +221,7 @@ public class SicoobBoletoService implements BoletoService {
             String cpfCnpj = boleto.getPagadorCpfCnpj().replaceAll("[^0-9]", "");
             pagador.put("numeroCpfCnpj", truncar(cpfCnpj, 14));
             pagador.put("nome", truncar(boleto.getPagadorNome(), 50));
+            pagador.put("tipoPessoa", cpfCnpj.length() <= 11 ? 1 : 2); // 1=PF (CPF), 2=PJ (CNPJ)
             pagador.put("endereco", truncar("Nao informado", 40));
             pagador.put("bairro", truncar("Centro", 30));
             pagador.put("cidade", truncar("Nao informado", 40));
@@ -268,28 +254,18 @@ public class SicoobBoletoService implements BoletoService {
 
             boletoObj.set("pagador", pagador);
 
-            // Sacador/Avalista (pode ser null)
-            ObjectNode sacador = mapper.createObjectNode();
-            sacador.putNull("numeroCpfCnpjSacadorAvalista");
-            sacador.putNull("nomeSacadorAvalista");
-            boletoObj.set("sacadorAvalista", sacador);
-
             // Mensagens de instrução (do convênio, se configuradas)
+            // API V3 espera formato: {"mensagem1": "...", "mensagem2": "...", ...}
             ObjectNode mensagensNode = mapper.createObjectNode();
-            var msgArray = mapper.createArrayNode();
             if (convenio != null && convenio.getMensagens() != null && !convenio.getMensagens().isBlank()) {
                 String[] linhas = convenio.getMensagens().split("\n");
                 for (int i = 0; i < 5; i++) {
+                    String key = "mensagem" + (i + 1);
                     if (i < linhas.length && !linhas[i].isBlank()) {
-                        msgArray.add(truncar(linhas[i].trim(), 80));
-                    } else {
-                        msgArray.addNull();
+                        mensagensNode.put(key, truncar(linhas[i].trim(), 80));
                     }
                 }
-            } else {
-                msgArray.addNull(); msgArray.addNull(); msgArray.addNull(); msgArray.addNull(); msgArray.addNull();
             }
-            mensagensNode.set("mensagens", msgArray);
             boletoObj.set("mensagensInstrucao", mensagensNode);
 
             // Body é um ARRAY
@@ -580,11 +556,27 @@ public class SicoobBoletoService implements BoletoService {
             if (node.has("detail")) return node.get("detail").asText();
             // Formato V3: {"mensagens":[{"mensagem":"...", "codigo":"..."}]}
             if (node.has("mensagens") && node.get("mensagens").isArray() && node.get("mensagens").size() > 0) {
-                JsonNode primeiro = node.get("mensagens").get(0);
-                if (primeiro.isObject() && primeiro.has("mensagem")) {
-                    return primeiro.get("mensagem").asText();
+                StringBuilder sb = new StringBuilder();
+                for (JsonNode msg : node.get("mensagens")) {
+                    if (msg.isObject() && msg.has("mensagem")) {
+                        if (sb.length() > 0) sb.append(" | ");
+                        sb.append(msg.get("mensagem").asText());
+                        if (msg.has("campo")) sb.append(" (campo: ").append(msg.get("campo").asText()).append(")");
+                    } else {
+                        if (sb.length() > 0) sb.append(" | ");
+                        sb.append(msg.asText());
+                    }
                 }
-                return primeiro.asText();
+                if (sb.length() > 0) return sb.toString();
+            }
+            // Formato alternativo: {"erros":[...]}
+            if (node.has("erros") && node.get("erros").isArray() && node.get("erros").size() > 0) {
+                StringBuilder sb = new StringBuilder();
+                for (JsonNode err : node.get("erros")) {
+                    if (sb.length() > 0) sb.append(" | ");
+                    sb.append(err.isObject() && err.has("mensagem") ? err.get("mensagem").asText() : err.asText());
+                }
+                return sb.toString();
             }
         } catch (Exception ignored) {}
         return errorBody != null && errorBody.length() > 500 ? errorBody.substring(0, 500) : errorBody;
