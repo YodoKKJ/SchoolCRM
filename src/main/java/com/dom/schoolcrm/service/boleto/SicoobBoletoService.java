@@ -136,6 +136,7 @@ public class SicoobBoletoService implements BoletoService {
 
         // Busca convênio ativo — se não houver, usa defaults do config (retrocompatibilidade)
         FinConvenio convenio = configService.getConvenioAtivo();
+        String bodyJson = null;
 
         try {
             String url = config.getBaseUrl() + "/boletos";
@@ -268,7 +269,7 @@ public class SicoobBoletoService implements BoletoService {
             }
             boletoObj.set("mensagensInstrucao", mensagensNode);
 
-            String bodyJson = mapper.writeValueAsString(boletoObj);
+            bodyJson = mapper.writeValueAsString(boletoObj);
             log.info("Body do boleto V3: {}", bodyJson);
 
             log.info("Registrando boleto na API Sicoob V3: seuNumero=CR-{}, valor={}", cr.getId(), boleto.getValor());
