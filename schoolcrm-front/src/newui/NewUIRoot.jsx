@@ -36,8 +36,8 @@ export default function NewUIRoot() {
             </div>
           </div>
           <div className="empty">
-            <div className="t">Ainda não migrado</div>
-            <div className="s">USE A UI CLÁSSICA POR ENQUANTO</div>
+            <div className="t">Em breve</div>
+            <div className="s">ESTE MÓDULO ESTÁ SENDO MIGRADO</div>
           </div>
         </div>
       )}
