@@ -3,6 +3,10 @@ import AppShell from "./AppShell";
 import Inicio from "./pages/Inicio";
 import Turmas from "./pages/Turmas";
 import Materias from "./pages/Materias";
+import Horarios from "./pages/Horarios";
+import Atrasos from "./pages/Atrasos";
+import Lancamentos from "./pages/Lancamentos";
+import Boletins from "./pages/Boletins";
 import Usuarios from "./pages/Usuarios";
 import Responsaveis from "./pages/Responsaveis";
 
@@ -20,6 +24,10 @@ function renderSection(section, page) {
   if (section === "academico") {
     if (page === "turmas") return <Turmas />;
     if (page === "materias") return <Materias />;
+    if (page === "horarios") return <Horarios />;
+    if (page === "atrasos") return <Atrasos />;
+    if (page === "lancamentos") return <Lancamentos />;
+    if (page === "boletins") return <Boletins />;
     return <EmBreve titulo={page || "Acadêmico"} />;
   }
 
