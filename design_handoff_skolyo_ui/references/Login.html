@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Skolyo — Acesso</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap"/>
+  <link rel="icon" href="assets/skolyo-logo.svg"/>
+  <style>
+    :root {
+      --bg: #F5F1EA;
+      --panel: #FFFFFF;
+      --panel-2: #FAF7F0;
+      --ink: #1A1F1C;
+      --ink-2: #5B625E;
+      --ink-3: #8A908B;
+      --ink-4: #B8BCB9;
+      --line: #E8E2D6;
+      --line-2: #D4CDBE;
+      --accent: #2F7F5E;
+      --accent-ink: #1F5540;
+      --accent-soft: rgba(47, 127, 94, 0.08);
+      --dark-bg: #0D1512;
+      --dark-bg-2: #142019;
+      --dark-ink: #E8E0CC;
+      --dark-ink-2: #A8B0A9;
+      --dark-line: rgba(232, 224, 204, 0.08);
+      --font-sans: 'Inter Tight', sans-serif;
+      --font-display: 'Instrument Serif', serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: var(--font-sans);
+      color: var(--ink);
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+      font-size: 14px;
+    }
+    .shell { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; }
+
+    /* ═════════ LADO ESQUERDO ═════════ */
+    .hero {
+      position: relative;
+      background: var(--dark-bg);
+      color: var(--dark-ink);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 40px 48px;
+    }
+    .hero-brand {
+      display: inline-flex; align-items: center; gap: 10px;
+      z-index: 2;
+    }
+    .hero-brand img { width: 26px; height: 26px; border-radius: 5px; }
+    .hero-brand .name {
+      font-family: var(--font-display);
+      font-size: 20px; letter-spacing: -0.01em;
+      color: var(--dark-ink);
+    }
+    .hero-body {
+      margin-top: auto; margin-bottom: auto;
+      z-index: 2; max-width: 440px;
+    }
+    .hero-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 11px; letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 20px;
+      display: inline-flex; align-items: center; gap: 10px;
+    }
+    .hero-eyebrow::before {
+      content: ''; width: 24px; height: 1px; background: var(--accent);
+    }
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: 62px; line-height: 0.98;
+      letter-spacing: -0.02em;
+      color: var(--dark-ink);
+    }
+    .hero-title .it {
+      font-style: italic;
+      color: var(--accent);
+    }
+    .hero-sub {
+      margin-top: 22px;
+      font-size: 14.5px; line-height: 1.6;
+      color: var(--dark-ink-2);
+      max-width: 380px;
+    }
+    .hero-foot {
+      z-index: 2;
+      display: flex; justify-content: space-between; align-items: flex-end;
+      font-family: var(--font-mono);
+      font-size: 10.5px; letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(232, 224, 204, 0.45);
+    }
+    .hero-foot .dot { width: 5px; height: 5px; border-radius: 3px; background: var(--accent); display: inline-block; margin-right: 6px; vertical-align: middle; }
+
+    /* ── Variação A: minimal editorial ── */
+    .hero[data-variant="minimal"] .bg-minimal {
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 70% 50% at 30% 40%, rgba(47, 127, 94, 0.22), transparent 70%),
+        radial-gradient(ellipse 60% 40% at 80% 90%, rgba(47, 127, 94, 0.08), transparent 70%);
+    }
+
+    /* ── Variação B: grid técnico + partículas ── */
+    .hero[data-variant="grid"] .bg-grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(232, 224, 204, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(232, 224, 204, 0.035) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: radial-gradient(circle at center, black 40%, transparent 85%);
+    }
+    .hero[data-variant="grid"] .bg-glow {
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 70% 50% at 40% 50%, rgba(47, 127, 94, 0.18), transparent 65%);
+    }
+    .particles { position: absolute; inset: 0; pointer-events: none; }
+    .particle {
+      position: absolute; width: 2px; height: 2px; border-radius: 2px;
+      background: var(--accent); opacity: 0.5;
+      animation: float 12s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0) translateX(0); opacity: 0.2; }
+      25% { transform: translateY(-20px) translateX(10px); opacity: 0.6; }
+      50% { transform: translateY(-10px) translateX(-8px); opacity: 0.4; }
+      75% { transform: translateY(-25px) translateX(4px); opacity: 0.7; }
+    }
+
+    /* ── Variação C: geométrico abstrato ── */
+    .hero[data-variant="geo"] .bg-geo {
+      position: absolute; inset: 0;
+      overflow: hidden;
+    }
+    .hero[data-variant="geo"] .bg-geo::before {
+      content: '';
+      position: absolute;
+      top: -20%; right: -30%;
+      width: 900px; height: 900px;
+      background: linear-gradient(135deg, rgba(47, 127, 94, 0.4), rgba(47, 127, 94, 0.05) 70%);
+      transform: rotate(-18deg);
+      clip-path: polygon(0 30%, 100% 0, 100% 60%, 0 90%);
+      filter: blur(1px);
+    }
+    .hero[data-variant="geo"] .bg-geo::after {
+      content: '';
+      position: absolute;
+      bottom: -20%; left: -10%;
+      width: 600px; height: 600px;
+      border: 1px solid rgba(47, 127, 94, 0.15);
+      border-radius: 50%;
+    }
+    .hero[data-variant="geo"] .bg-geo-circles {
+      position: absolute; bottom: 100px; left: 60px;
+      width: 140px; height: 140px;
+      border: 1px solid rgba(232, 224, 204, 0.08);
+      border-radius: 50%;
+    }
+    .hero[data-variant="geo"] .bg-geo-circles::before {
+      content: '';
+      position: absolute; inset: -30px;
+      border: 1px solid rgba(232, 224, 204, 0.05);
+      border-radius: 50%;
+    }
+
+    /* ═════════ LADO DIREITO ═════════ */
+    .form-side {
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      padding: 40px 48px;
+      position: relative;
+    }
+    .form-top {
+      display: flex; justify-content: flex-end;
+      gap: 8px;
+    }
+    .btn-ghost {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px;
+      font-family: var(--font-mono); font-size: 11px;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--ink-3); background: transparent;
+      border: 1px solid var(--line); border-radius: 20px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .btn-ghost:hover { color: var(--ink); border-color: var(--line-2); background: var(--panel); }
+
+    .form-wrap {
+      margin: auto; width: 100%; max-width: 420px;
+      padding: 20px 0;
+    }
+
+    .form-eyebrow {
+      font-family: var(--font-mono); font-size: 11px;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--accent-ink);
+      display: inline-flex; align-items: center; gap: 10px;
+      margin-bottom: 16px;
+    }
+    .form-eyebrow::before {
+      content: ''; width: 16px; height: 1px; background: var(--accent);
+    }
+    .form-title {
+      font-family: var(--font-display);
+      font-size: 44px; line-height: 1;
+      letter-spacing: -0.02em;
+      color: var(--ink);
+      margin-bottom: 10px;
+    }
+    .form-sub {
+      font-size: 13.5px; color: var(--ink-2);
+      margin-bottom: 32px;
+    }
+    .form-sub .strong { color: var(--ink); font-weight: 500; }
+
+    .escola-badge {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 8px 14px;
+      background: var(--panel); border: 1px solid var(--line);
+      border-radius: 10px;
+      margin-bottom: 28px;
+      font-size: 12.5px;
+    }
+    .escola-badge .logo {
+      width: 22px; height: 22px; border-radius: 4px;
+      background: linear-gradient(135deg, #2F7F5E, #1F5540);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: #fff; font-family: var(--font-display); font-size: 11px;
+    }
+    .escola-badge .name { font-weight: 500; }
+    .escola-badge .sep { color: var(--ink-4); font-family: var(--font-mono); font-size: 10px; }
+    .escola-badge .slug { color: var(--ink-3); font-family: var(--font-mono); font-size: 10.5px; }
+    .escola-badge .chev { color: var(--ink-4); transition: transform 0.2s; }
+    .escola-badge:hover { border-color: var(--line-2); cursor: pointer; }
+    .escola-badge:hover .chev { transform: translateX(2px); }
+
+    .field { margin-bottom: 20px; }
+    .field-label {
+      font-family: var(--font-mono); font-size: 10px;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--ink-3); margin-bottom: 8px; display: block;
+    }
+    .field-wrap {
+      position: relative;
+      border-bottom: 1px solid var(--line-2);
+      transition: border-color 0.2s;
+      padding-bottom: 2px;
+    }
+    .field-wrap.focused { border-bottom-color: var(--accent); }
+    .field-wrap.focused::after {
+      content: ''; position: absolute; bottom: -1px; left: 0;
+      width: 100%; height: 1px; background: var(--accent);
+      animation: lineIn 0.3s ease;
+    }
+    @keyframes lineIn { from { transform: scaleX(0); transform-origin: left; } to { transform: scaleX(1); } }
+    .field-input {
+      width: 100%; padding: 10px 0; font-size: 16px;
+      font-family: inherit; background: transparent;
+      border: 0; outline: 0; color: var(--ink);
+    }
+    .field-input::placeholder { color: var(--ink-4); }
+    .field-right-btn {
+      position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+      background: transparent; border: 0; cursor: pointer;
+      color: var(--ink-3); padding: 4px 0;
+      font-family: var(--font-mono); font-size: 10.5px;
+      letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .field-right-btn:hover { color: var(--ink); }
+
+    .row-between {
+      display: flex; align-items: center; justify-content: space-between;
+      margin: 12px 0 28px;
+    }
+    .check {
+      display: inline-flex; align-items: center; gap: 8px;
+      cursor: pointer; font-size: 12.5px; color: var(--ink-2);
+      user-select: none;
+    }
+    .check input { display: none; }
+    .check .box {
+      width: 16px; height: 16px;
+      border: 1px solid var(--line-2); border-radius: 3px;
+      display: inline-flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+      background: var(--panel);
+    }
+    .check input:checked + .box {
+      background: var(--ink); border-color: var(--ink);
+      color: var(--panel);
+    }
+    .check input:checked + .box svg { opacity: 1; }
+    .check .box svg { opacity: 0; width: 10px; height: 10px; }
+    .link {
+      font-size: 12.5px; color: var(--ink-3);
+      text-decoration: none;
+    }
+    .link:hover { color: var(--accent-ink); text-decoration: underline; }
+
+    .submit {
+      width: 100%; padding: 16px 18px;
+      background: var(--ink); color: var(--panel);
+      border: 0; border-radius: 8px;
+      font-family: inherit; font-size: 13px; font-weight: 500;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      cursor: pointer;
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 10px;
+      transition: all 0.2s;
+    }
+    .submit:hover {
+      background: var(--accent-ink);
+    }
+    .submit:hover .arrow { transform: translateX(4px); }
+    .arrow { transition: transform 0.2s; }
+    .submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .form-foot {
+      margin-top: 28px;
+      font-size: 12px; color: var(--ink-3);
+      text-align: center;
+    }
+    .form-foot .sep { color: var(--ink-4); margin: 0 6px; }
+
+    .trouble {
+      margin-top: 20px;
+      padding: 12px 16px;
+      border: 1px dashed var(--line-2); border-radius: 8px;
+      font-size: 12px; color: var(--ink-3); line-height: 1.5;
+      display: flex; gap: 10px; align-items: flex-start;
+    }
+    .trouble svg { flex-shrink: 0; margin-top: 2px; color: var(--ink-4); }
+
+    .erro {
+      padding: 10px 14px;
+      background: rgba(168, 71, 58, 0.06);
+      border: 1px solid rgba(168, 71, 58, 0.22);
+      border-radius: 6px;
+      color: #A8473A; font-size: 12.5px;
+      margin-bottom: 18px;
+      display: flex; gap: 10px; align-items: flex-start;
+    }
+
+    .form-top-brand {
+      display: none;
+      align-items: center; gap: 10px;
+    }
+    .form-top-brand img { width: 24px; height: 24px; }
+    .form-top-brand .n { font-family: var(--font-display); font-size: 18px; }
+
+    .copyright {
+      font-family: var(--font-mono); font-size: 10px;
+      letter-spacing: 0.1em; color: var(--ink-4);
+      text-align: center;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .shell { grid-template-columns: 1fr; }
+      .hero { display: none; }
+      .form-top { justify-content: space-between; }
+      .form-top-brand { display: inline-flex; }
+      .form-side { padding: 28px 24px; min-height: 100vh; }
+      .form-title { font-size: 36px; }
+    }
+    @media (max-width: 480px) {
+      .form-side { padding: 24px 20px; }
+      .form-title { font-size: 32px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+
+  <script type="text/babel">
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "variant": "grid",
+      "tagline1": "Gestão escolar",
+      "tagline2": "inteligente.",
+      "subtitle": "Sistema integrado de administração, finanças e acadêmico. Uma interface só para toda a escola.",
+      "escolaNome": "Escola Dom Bosco",
+      "escolaInicial": "a",
+      "accentColor": "#4f9679"
+    }/*EDITMODE-END*/;
+
+    const Eye = ({ closed }) => (
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        {closed
+          ? <><path d="M3 10s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"/><path d="M3 3l14 14" strokeWidth="1.2"/></>
+          : <><path d="M3 10s3-5 7-5 7 5 7 5-3 5-7 5-7-5-7-5z"/><circle cx="10" cy="10" r="2.2"/></>
+        }
+      </svg>
+    );
+
+    const ArrowRight = () => (
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="arrow">
+        <path d="M4 10h12M11 5l5 5-5 5"/>
+      </svg>
+    );
+
+    const Check = () => (
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 10l4 4 8-8"/>
+      </svg>
+    );
+
+    const Particles = () => {
+      const parts = React.useMemo(() =>
+        Array.from({ length: 18 }, (_, i) => ({
+          id: i,
+          left: Math.random() * 100,
+          top: Math.random() * 100,
+          delay: Math.random() * 12,
+          duration: 10 + Math.random() * 8,
+        }))
+      , []);
+      return (
+        <div className="particles">
+          {parts.map(p => (
+            <span key={p.id} className="particle" style={{
+              left: p.left + '%', top: p.top + '%',
+              animationDelay: `-${p.delay}s`,
+              animationDuration: `${p.duration}s`,
+            }}/>
+          ))}
+        </div>
+      );
+    };
+
+    const Hero = ({ variant, tagline1, tagline2, subtitle }) => (
+      <aside className="hero" data-variant={variant}>
+        {variant === 'minimal' && <div className="bg-minimal"/>}
+        {variant === 'grid' && <>
+          <div className="bg-grid"/>
+          <div className="bg-glow"/>
+          <Particles/>
+        </>}
+        {variant === 'geo' && <>
+          <div className="bg-geo"/>
+          <div className="bg-geo-circles"/>
+        </>}
+
+        <header className="hero-brand">
+          <img src="assets/skolyo-logo.svg" alt="Skolyo"/>
+          <span className="name">Skolyo</span>
+        </header>
+
+        <div className="hero-body">
+          <div className="hero-eyebrow">ERP · 2026</div>
+          <h1 className="hero-title">
+            {tagline1}<br/>
+            <span className="it">{tagline2}</span>
+          </h1>
+          <p className="hero-sub">{subtitle}</p>
+        </div>
+
+        <footer className="hero-foot">
+          <span><span className="dot"/>v2.4.0 · 24.abr.2026</span>
+          <span>© 2026 Skolyo</span>
+        </footer>
+      </aside>
+    );
+
+    const FormSide = ({ escolaNome, escolaInicial }) => {
+      const [login, setLogin] = React.useState('');
+      const [senha, setSenha] = React.useState('');
+      const [showPw, setShowPw] = React.useState(false);
+      const [lembrar, setLembrar] = React.useState(false);
+      const [loading, setLoading] = React.useState(false);
+      const [erro, setErro] = React.useState('');
+      const [focusL, setFocusL] = React.useState(false);
+      const [focusS, setFocusS] = React.useState(false);
+
+      const submit = (e) => {
+        e.preventDefault();
+        setErro('');
+        if (!login.trim() || !senha) {
+          setErro('Informe login e senha.');
+          return;
+        }
+        setLoading(true);
+        setTimeout(() => {
+          setLoading(false);
+          window.location.href = 'Skolyo ERP.html';
+        }, 900);
+      };
+
+      return (
+        <section className="form-side">
+          <div className="form-top">
+            <div className="form-top-brand">
+              <img src="assets/skolyo-logo.svg" alt="Skolyo"/>
+              <span className="n">Skolyo</span>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <a className="btn-ghost" href="#suporte">Suporte</a>
+              <a className="btn-ghost" href="#outra-escola">Outra escola</a>
+            </div>
+          </div>
+
+          <div className="form-wrap">
+            <div className="form-eyebrow">Acesso ao sistema</div>
+            <h2 className="form-title">Bem-vindo.</h2>
+            <p className="form-sub">Use suas credenciais para continuar. Direção, coordenação, professores e alunos acessam pela mesma porta.</p>
+
+            <div className="escola-badge">
+              <span className="logo">{escolaInicial}</span>
+              <span className="name">{escolaNome}</span>
+              <span className="sep">/</span>
+              <span className="slug">dom-bosco</span>
+              <svg className="chev" width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M7 5l5 5-5 5"/></svg>
+            </div>
+
+            {erro && <div className="erro">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="10" cy="10" r="7"/><path d="M10 6v5M10 14v.1"/></svg>
+              {erro}
+            </div>}
+
+            <form onSubmit={submit}>
+              <div className="field">
+                <label className="field-label">Login</label>
+                <div className={`field-wrap ${focusL ? 'focused' : ''}`}>
+                  <input
+                    className="field-input"
+                    type="text"
+                    value={login}
+                    onChange={e => setLogin(e.target.value)}
+                    onFocus={() => setFocusL(true)}
+                    onBlur={() => setFocusL(false)}
+                    placeholder="seu.login"
+                    autoComplete="username"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div className="field">
+                <label className="field-label">Senha</label>
+                <div className={`field-wrap ${focusS ? 'focused' : ''}`}>
+                  <input
+                    className="field-input"
+                    type={showPw ? 'text' : 'password'}
+                    value={senha}
+                    onChange={e => setSenha(e.target.value)}
+                    onFocus={() => setFocusS(true)}
+                    onBlur={() => setFocusS(false)}
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    style={{ paddingRight: 40 }}
+                  />
+                  <button type="button" className="field-right-btn" onClick={() => setShowPw(v => !v)}>
+                    <Eye closed={showPw}/>
+                  </button>
+                </div>
+              </div>
+
+              <div className="row-between">
+                <label className="check">
+                  <input type="checkbox" checked={lembrar} onChange={e => setLembrar(e.target.checked)}/>
+                  <span className="box"><Check/></span>
+                  Lembrar de mim por 30 dias
+                </label>
+                <a className="link" href="#esqueci">Esqueci minha senha</a>
+              </div>
+
+              <button className="submit" type="submit" disabled={loading}>
+                {loading ? 'Verificando…' : <>Entrar <ArrowRight/></>}
+              </button>
+            </form>
+
+            <div className="trouble">
+              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="10" cy="10" r="7"/><path d="M10 9v5M10 6v.1"/></svg>
+              <div>
+                <span className="strong" style={{ color: 'var(--ink-2)' }}>Problemas para acessar?</span> Responsáveis entram em contato com a secretaria. Funcionários e alunos, procure a coordenação.
+              </div>
+            </div>
+
+            <div className="form-foot">
+              <span>Skolyo ERP v2.4</span>
+              <span className="sep">·</span>
+              <a className="link" href="#privacidade">Privacidade</a>
+              <span className="sep">·</span>
+              <a className="link" href="#termos">Termos</a>
+            </div>
+          </div>
+
+          <div className="copyright">© 2026 {escolaNome} · Powered by Skolyo</div>
+        </section>
+      );
+    };
+
+    const App = () => {
+      const [values, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+      React.useEffect(() => {
+        document.documentElement.style.setProperty('--accent', values.accentColor);
+      }, [values.accentColor]);
+
+      return (
+        <>
+          <div className="shell">
+            <Hero
+              variant={values.variant}
+              tagline1={values.tagline1}
+              tagline2={values.tagline2}
+              subtitle={values.subtitle}
+            />
+            <FormSide
+              escolaNome={values.escolaNome}
+              escolaInicial={values.escolaInicial}
+            />
+          </div>
+
+          <TweaksPanel>
+            <TweakSection title="Visual do lado esquerdo">
+              <TweakRadio
+                label="Variação"
+                value={values.variant}
+                onChange={v => setTweak('variant', v)}
+                options={[
+                  { value: 'minimal', label: 'Minimal · gradiente editorial' },
+                  { value: 'grid', label: 'Grid técnico · partículas' },
+                  { value: 'geo', label: 'Geométrico · diagonais' },
+                ]}
+              />
+            </TweakSection>
+
+            <TweakSection title="Tagline">
+              <TweakText label="Linha 1" value={values.tagline1} onChange={v => setTweak('tagline1', v)}/>
+              <TweakText label="Linha 2 (itálica)" value={values.tagline2} onChange={v => setTweak('tagline2', v)}/>
+              <TweakText label="Subtítulo" value={values.subtitle} onChange={v => setTweak('subtitle', v)} multiline/>
+            </TweakSection>
+
+            <TweakSection title="Escola (multi-tenant)">
+              <TweakText label="Nome" value={values.escolaNome} onChange={v => setTweak('escolaNome', v)}/>
+              <TweakText label="Inicial (2 letras)" value={values.escolaInicial} onChange={v => setTweak('escolaInicial', v)}/>
+            </TweakSection>
+
+            <TweakSection title="Cor de destaque">
+              <TweakColor label="Accent" value={values.accentColor} onChange={v => setTweak('accentColor', v)}/>
+            </TweakSection>
+          </TweaksPanel>
+        </>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>
