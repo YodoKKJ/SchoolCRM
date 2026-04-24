@@ -3,6 +3,8 @@ import AppShell from "./AppShell";
 import Inicio from "./pages/Inicio";
 import Turmas from "./pages/Turmas";
 import Materias from "./pages/Materias";
+import Usuarios from "./pages/Usuarios";
+import Responsaveis from "./pages/Responsaveis";
 
 // Default page (sub-nav) por seção
 const DEFAULT_PAGE = {
@@ -19,6 +21,12 @@ function renderSection(section, page) {
     if (page === "turmas") return <Turmas />;
     if (page === "materias") return <Materias />;
     return <EmBreve titulo={page || "Acadêmico"} />;
+  }
+
+  if (section === "pessoas") {
+    if (page === "usuarios") return <Usuarios />;
+    if (page === "responsaveis") return <Responsaveis />;
+    return <EmBreve titulo={page || "Pessoas"} />;
   }
 
   return <EmBreve titulo={section} />;
