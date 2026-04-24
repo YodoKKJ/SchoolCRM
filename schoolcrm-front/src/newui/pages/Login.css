@@ -1,0 +1,310 @@
+/* Skolyo — Login (escopo .skolyo-login) */
+
+.skolyo-login {
+  /* tokens específicos do login (paleta editorial do handoff) */
+  --l-bg: #F5F1EA;
+  --l-panel: #FFFFFF;
+  --l-panel-2: #FAF7F0;
+  --l-ink: #1A1F1C;
+  --l-ink-2: #5B625E;
+  --l-ink-3: #8A908B;
+  --l-ink-4: #B8BCB9;
+  --l-line: #E8E2D6;
+  --l-line-2: #D4CDBE;
+  --l-accent: #2F7F5E;
+  --l-accent-ink: #1F5540;
+  --l-dark-bg: #0D1512;
+  --l-dark-ink: #E8E0CC;
+  --l-dark-ink-2: #A8B0A9;
+
+  --l-font-sans: 'Inter Tight', ui-sans-serif, system-ui, sans-serif;
+  --l-font-display: 'Instrument Serif', 'Times New Roman', serif;
+  --l-font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+  font-family: var(--l-font-sans);
+  color: var(--l-ink);
+  background: var(--l-bg);
+  min-height: 100vh;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.skolyo-login *,
+.skolyo-login *::before,
+.skolyo-login *::after { box-sizing: border-box; }
+
+.skolyo-login .shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+/* ═ LADO ESQUERDO (HERO) ═ */
+.skolyo-login .hero {
+  position: relative;
+  background: var(--l-dark-bg);
+  color: var(--l-dark-ink);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 40px 48px;
+}
+.skolyo-login .hero .bg-minimal {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 30% 40%, rgba(47, 127, 94, 0.22), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 80% 90%, rgba(47, 127, 94, 0.08), transparent 70%);
+}
+.skolyo-login .hero-brand {
+  display: inline-flex; align-items: center; gap: 10px;
+  z-index: 2;
+}
+.skolyo-login .hero-brand img { width: 26px; height: 26px; border-radius: 5px; }
+.skolyo-login .hero-brand .name {
+  font-family: var(--l-font-display);
+  font-size: 20px; letter-spacing: -0.01em;
+  color: var(--l-dark-ink);
+}
+.skolyo-login .hero-body {
+  margin-top: auto; margin-bottom: auto;
+  z-index: 2; max-width: 440px;
+}
+.skolyo-login .hero-eyebrow {
+  font-family: var(--l-font-mono);
+  font-size: 11px; letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--l-accent);
+  margin-bottom: 20px;
+  display: inline-flex; align-items: center; gap: 10px;
+}
+.skolyo-login .hero-eyebrow::before {
+  content: ''; width: 24px; height: 1px; background: var(--l-accent);
+}
+.skolyo-login .hero-title {
+  font-family: var(--l-font-display);
+  font-size: 62px; line-height: 0.98;
+  letter-spacing: -0.02em;
+  color: var(--l-dark-ink);
+  margin: 0;
+  font-weight: 400;
+}
+.skolyo-login .hero-title .it {
+  font-style: italic;
+  color: var(--l-accent);
+}
+.skolyo-login .hero-sub {
+  margin: 22px 0 0;
+  font-size: 14.5px; line-height: 1.6;
+  color: var(--l-dark-ink-2);
+  max-width: 380px;
+}
+.skolyo-login .hero-foot {
+  z-index: 2;
+  display: flex; justify-content: space-between; align-items: flex-end;
+  font-family: var(--l-font-mono);
+  font-size: 10.5px; letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(232, 224, 204, 0.45);
+}
+.skolyo-login .hero-foot .dot { width: 5px; height: 5px; border-radius: 3px; background: var(--l-accent); display: inline-block; margin-right: 6px; vertical-align: middle; }
+
+/* ═ LADO DIREITO (FORM) ═ */
+.skolyo-login .form-side {
+  background: var(--l-bg);
+  display: flex; flex-direction: column;
+  padding: 40px 48px;
+  position: relative;
+}
+.skolyo-login .form-top {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 8px;
+}
+.skolyo-login .form-top-brand {
+  display: none;
+  align-items: center; gap: 10px;
+}
+.skolyo-login .form-top-brand img { width: 24px; height: 24px; }
+.skolyo-login .form-top-brand .n { font-family: var(--l-font-display); font-size: 18px; }
+
+.skolyo-login .form-wrap {
+  margin: auto; width: 100%; max-width: 420px;
+  padding: 20px 0;
+}
+
+.skolyo-login .form-eyebrow {
+  font-family: var(--l-font-mono); font-size: 11px;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--l-accent-ink);
+  display: inline-flex; align-items: center; gap: 10px;
+  margin-bottom: 16px;
+}
+.skolyo-login .form-eyebrow::before {
+  content: ''; width: 16px; height: 1px; background: var(--l-accent);
+}
+.skolyo-login .form-title {
+  font-family: var(--l-font-display);
+  font-size: 44px; line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--l-ink);
+  margin: 0 0 10px;
+  font-weight: 400;
+}
+.skolyo-login .form-sub {
+  font-size: 13.5px; color: var(--l-ink-2);
+  margin: 0 0 32px;
+}
+.skolyo-login .form-sub .strong { color: var(--l-ink); font-weight: 500; }
+
+.skolyo-login .escola-badge {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 8px 14px;
+  background: var(--l-panel); border: 1px solid var(--l-line);
+  border-radius: 10px;
+  margin-bottom: 28px;
+  font-size: 12.5px;
+  max-width: 100%;
+}
+.skolyo-login .escola-badge .logo {
+  width: 22px; height: 22px; border-radius: 4px;
+  background: linear-gradient(135deg, #2F7F5E, #1F5540);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; font-family: var(--l-font-display); font-size: 11px;
+  flex-shrink: 0;
+}
+.skolyo-login .escola-badge img.logo-img {
+  width: 22px; height: 22px; border-radius: 4px; object-fit: contain;
+  background: var(--l-panel-2);
+}
+.skolyo-login .escola-badge .name { font-weight: 500; }
+.skolyo-login .escola-badge .sep { color: var(--l-ink-4); font-family: var(--l-font-mono); font-size: 10px; }
+.skolyo-login .escola-badge .slug { color: var(--l-ink-3); font-family: var(--l-font-mono); font-size: 10.5px; }
+
+.skolyo-login .field { margin-bottom: 20px; }
+.skolyo-login .field-label {
+  font-family: var(--l-font-mono); font-size: 10px;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--l-ink-3); margin-bottom: 8px; display: block;
+}
+.skolyo-login .field-wrap {
+  position: relative;
+  border-bottom: 1px solid var(--l-line-2);
+  transition: border-color 0.2s;
+  padding-bottom: 2px;
+}
+.skolyo-login .field-wrap.focused { border-bottom-color: var(--l-accent); }
+.skolyo-login .field-wrap.focused::after {
+  content: ''; position: absolute; bottom: -1px; left: 0;
+  width: 100%; height: 1px; background: var(--l-accent);
+  animation: sk-login-lineIn 0.3s ease;
+}
+@keyframes sk-login-lineIn { from { transform: scaleX(0); transform-origin: left; } to { transform: scaleX(1); } }
+.skolyo-login .field-input {
+  width: 100%; padding: 10px 0; font-size: 16px;
+  font-family: inherit; background: transparent;
+  border: 0; outline: 0; color: var(--l-ink);
+}
+.skolyo-login .field-input::placeholder { color: var(--l-ink-4); }
+.skolyo-login .field-input:disabled { color: var(--l-ink-4); cursor: not-allowed; }
+.skolyo-login .field-right-btn {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  background: transparent; border: 0; cursor: pointer;
+  color: var(--l-ink-3); padding: 4px 0;
+  font-family: var(--l-font-mono); font-size: 10.5px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+.skolyo-login .field-right-btn:hover { color: var(--l-ink); }
+
+.skolyo-login .row-between {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: 12px 0 28px;
+}
+.skolyo-login .check {
+  display: inline-flex; align-items: center; gap: 8px;
+  cursor: pointer; font-size: 12.5px; color: var(--l-ink-2);
+  user-select: none;
+}
+.skolyo-login .check input { display: none; }
+.skolyo-login .check .box {
+  width: 16px; height: 16px;
+  border: 1px solid var(--l-line-2); border-radius: 3px;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+  background: var(--l-panel);
+}
+.skolyo-login .check input:checked + .box {
+  background: var(--l-ink); border-color: var(--l-ink);
+  color: var(--l-panel);
+}
+.skolyo-login .check input:checked + .box svg { opacity: 1; }
+.skolyo-login .check .box svg { opacity: 0; width: 10px; height: 10px; }
+.skolyo-login .link {
+  font-size: 12.5px; color: var(--l-ink-3);
+  text-decoration: none;
+  background: transparent; border: 0; cursor: pointer;
+  font-family: inherit;
+}
+.skolyo-login .link:hover { color: var(--l-accent-ink); text-decoration: underline; }
+
+.skolyo-login .submit {
+  width: 100%; padding: 16px 18px;
+  background: var(--l-ink); color: var(--l-panel);
+  border: 0; border-radius: 8px;
+  font-family: inherit; font-size: 13px; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 10px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.skolyo-login .submit:hover:not(:disabled) {
+  background: var(--l-accent-ink);
+}
+.skolyo-login .submit:hover:not(:disabled) .arrow { transform: translateX(4px); }
+.skolyo-login .arrow { transition: transform 0.2s; }
+.skolyo-login .submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.skolyo-login .spinner {
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: sk-login-spin 0.6s linear infinite;
+}
+@keyframes sk-login-spin { to { transform: rotate(360deg); } }
+
+.skolyo-login .erro {
+  padding: 10px 14px;
+  background: rgba(168, 71, 58, 0.06);
+  border: 1px solid rgba(168, 71, 58, 0.22);
+  border-radius: 6px;
+  color: #A8473A; font-size: 12.5px;
+  margin-bottom: 18px;
+  display: flex; gap: 10px; align-items: flex-start;
+}
+
+.skolyo-login .form-foot {
+  margin-top: 28px;
+  font-size: 12px; color: var(--l-ink-3);
+  text-align: center;
+}
+
+.skolyo-login .copyright {
+  font-family: var(--l-font-mono); font-size: 10px;
+  letter-spacing: 0.1em; color: var(--l-ink-4);
+  text-align: center;
+  margin-top: auto;
+  padding-top: 24px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .skolyo-login .shell { grid-template-columns: 1fr; }
+  .skolyo-login .hero { display: none; }
+  .skolyo-login .form-top-brand { display: inline-flex; }
+  .skolyo-login .form-side { padding: 28px 24px; min-height: 100vh; }
+  .skolyo-login .form-title { font-size: 36px; }
+}
+@media (max-width: 480px) {
+  .skolyo-login .form-side { padding: 24px 20px; }
+  .skolyo-login .form-title { font-size: 32px; }
+}

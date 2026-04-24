@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Skolyo ERP — Acadêmico</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=Instrument+Serif&family=JetBrains+Mono:wght@400;500&display=swap"/>
+  <link rel="stylesheet" href="styles.css?v=5"/>
+  <link rel="icon" href="assets/skolyo-logo.svg"/>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="components/Icons.jsx"></script>
+  <script type="text/babel" src="components/AppShell.jsx"></script>
+  <script type="text/babel" src="components/Inicio.jsx"></script>
+  <script type="text/babel" src="components/Turmas.jsx"></script>
+  <script type="text/babel" src="components/Materias.jsx"></script>
+  <script type="text/babel" src="components/Horarios.jsx"></script>
+  <script type="text/babel" src="components/Atrasos.jsx"></script>
+  <script type="text/babel" src="components/Lancamentos.jsx"></script>
+  <script type="text/babel" src="components/Boletins.jsx"></script>
+  <script type="text/babel" src="components/Usuarios.jsx"></script>
+  <script type="text/babel" src="components/Responsaveis.jsx"></script>
+
+  <script type="text/babel">
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "theme": "light",
+      "accentColor": "#2F7F5E",
+      "fontScale": 1,
+      "density": "comfortable"
+    }/*EDITMODE-END*/;
+
+    const App = () => {
+      const [theme, setTheme] = React.useState(() => localStorage.getItem('skolyo:theme') || TWEAK_DEFAULTS.theme);
+      const [section, setSection] = React.useState(() => localStorage.getItem('skolyo:section') || 'academico');
+      const [page, setPage] = React.useState(() => localStorage.getItem('skolyo:page') || 'turmas');
+      const [tweaksOn, setTweaksOn] = React.useState(false);
+      const [accent, setAccent] = React.useState(TWEAK_DEFAULTS.accentColor);
+
+      React.useEffect(() => {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('skolyo:theme', theme);
+      }, [theme]);
+      React.useEffect(() => { localStorage.setItem('skolyo:section', section); }, [section]);
+      React.useEffect(() => { localStorage.setItem('skolyo:page', page); }, [page]);
+      React.useEffect(() => {
+        document.documentElement.style.setProperty('--accent', accent);
+      }, [accent]);
+
+      React.useEffect(() => {
+        const handler = (e) => {
+          if (e.data?.type === '__activate_edit_mode') setTweaksOn(true);
+          if (e.data?.type === '__deactivate_edit_mode') setTweaksOn(false);
+        };
+        window.addEventListener('message', handler);
+        window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+        return () => window.removeEventListener('message', handler);
+      }, []);
+
+      const onNav = (s) => {
+        setSection(s);
+        const defaults = { academico: 'turmas', pessoas: 'usuarios', financeiro: 'dashboard', inicio: null, comunicacao: null, relatorios: null };
+        if (defaults[s]) setPage(defaults[s]);
+        else setPage(s);
+      };
+
+      let content;
+      if (section === 'inicio') content = <Inicio/>;
+      else if (section === 'academico') {
+        if (page === 'turmas') content = <Turmas/>;
+        else if (page === 'materias') content = <Materias/>;
+        else if (page === 'horarios') content = <Horarios/>;
+        else if (page === 'atrasos') content = <Atrasos/>;
+        else if (page === 'lancamentos') content = <Lancamentos/>;
+        else if (page === 'boletins') content = <Boletins/>;
+        else content = <Turmas/>;
+      }
+      else if (section === 'pessoas') {
+        if (page === 'responsaveis') content = <Responsaveis/>;
+        else content = <Usuarios/>;
+      }
+      else content = (
+        <div className="page">
+          <div className="page-header">
+            <div>
+              <div className="page-eyebrow">Em construção</div>
+              <h1 className="page-title">Módulo {section}</h1>
+              <div className="page-subtitle">Este módulo ainda não foi desenhado. Volte ao Acadêmico para explorar as telas prontas.</div>
+            </div>
+          </div>
+          <div className="empty">
+            <div className="t">Nada por aqui ainda</div>
+            <div className="s">próximo módulo no roadmap</div>
+          </div>
+        </div>
+      );
+
+      const tweaks = (
+        <div className={`tweaks ${tweaksOn ? 'on' : ''}`}>
+          <h3>Tweaks</h3>
+          <div className="tweak-row">
+            <label>Tema</label>
+            <div style={{ display: 'inline-flex', background: 'var(--bg-2)', borderRadius: 6, padding: 2, border: '1px solid var(--line)' }}>
+              <button className="btn sm" onClick={() => setTheme('light')} style={{ background: theme === 'light' ? 'var(--panel)' : 'transparent', border: 0, fontSize: 11 }}>Claro</button>
+              <button className="btn sm" onClick={() => setTheme('dark')} style={{ background: theme === 'dark' ? 'var(--panel)' : 'transparent', border: 0, fontSize: 11 }}>Escuro</button>
+            </div>
+          </div>
+          <div className="tweak-row">
+            <label>Cor de destaque</label>
+            <div className="row" style={{ gap: 6 }}>
+              {['#2F7F5E', '#3F6FB0', '#7CB5DD', '#C04A3A', '#6A4FA6'].map(c => (
+                <button key={c} onClick={() => setAccent(c)} style={{ width: 20, height: 20, borderRadius: 4, background: c, border: accent === c ? '2px solid var(--ink)' : '1px solid var(--line)', cursor: 'pointer' }}/>
+              ))}
+            </div>
+          </div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--ink-4)', marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--line)' }}>Navegue pelo sub-menu acadêmico para ver todas as telas desenhadas.</div>
+        </div>
+      );
+
+      return (
+        <AppShell section={section} page={page} onNav={onNav} onSubNav={setPage} theme={theme} setTheme={setTheme} tweaks={tweaks}>
+          {content}
+        </AppShell>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>

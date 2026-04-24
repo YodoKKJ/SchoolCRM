@@ -1,0 +1,91 @@
+/* Skolyo ERP — Design Tokens (escopo .skolyo-ui) */
+/* Aplicado apenas dentro do contêiner .skolyo-ui para não vazar para a UI antiga. */
+
+.skolyo-ui {
+  --brand: #7CB5DD;
+  --brand-ink: #15242F;
+  --bg: #FAFAF9;
+  --bg-2: #F4F4F2;
+  --panel: #FFFFFF;
+  --panel-2: #F7F7F5;
+  --line: #E6E6E2;
+  --line-2: #D6D6D1;
+  --ink: #15242F;
+  --ink-2: #4A5560;
+  --ink-3: #7A8590;
+  --ink-4: #A8B0B8;
+  --accent: #2F7F5E;
+  --accent-ink: #1F5C43;
+  --accent-soft: #E8F1EC;
+  --ok: #2F7F5E;
+  --ok-soft: #E8F1EC;
+  --warn: #C08A2E;
+  --warn-soft: #FBF2DF;
+  --bad: #C04A3A;
+  --bad-soft: #FBEAE6;
+  --info: #3F6FB0;
+  --info-soft: #E8EEF7;
+  --r: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --shadow-sm: 0 1px 0 rgba(20, 36, 47, 0.04);
+  --shadow: 0 1px 2px rgba(20, 36, 47, 0.05), 0 0 0 0.5px rgba(20, 36, 47, 0.06);
+  --shadow-lg: 0 16px 40px -14px rgba(20, 36, 47, 0.18), 0 0 0 0.5px rgba(20, 36, 47, 0.06);
+
+  --font-sans: 'Inter Tight', ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'Instrument Serif', 'Times New Roman', serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+  /* Cores por papel (badges nas listas) */
+  --role-direcao: #A8473A;
+  --role-coordenacao: #C88C3C;
+  --role-professor: #2F7F5E;
+  --role-aluno: #3D6F9E;
+  --role-admin: #6B5BA8;
+
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+.skolyo-ui[data-theme="dark"] {
+  --bg: #0E1620;
+  --bg-2: #121C27;
+  --panel: #162230;
+  --panel-2: #1A2836;
+  --line: #243345;
+  --line-2: #2F4054;
+  --ink: #ECEFF2;
+  --ink-2: #B4BDC7;
+  --ink-3: #7A8590;
+  --ink-4: #525C67;
+  --accent: #4FAE85;
+  --accent-ink: #7BC9A5;
+  --accent-soft: #16302A;
+  --ok-soft: #16302A;
+  --warn-soft: #332A18;
+  --bad-soft: #3A1D19;
+  --info-soft: #17243A;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 0 0.5px rgba(255, 255, 255, 0.04);
+  --shadow-lg: 0 16px 40px -14px rgba(0, 0, 0, 0.5), 0 0 0 0.5px rgba(255, 255, 255, 0.04);
+}
+
+.skolyo-ui *,
+.skolyo-ui *::before,
+.skolyo-ui *::after {
+  box-sizing: border-box;
+}
+
+.skolyo-ui ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.skolyo-ui ::-webkit-scrollbar-thumb {
+  background: var(--line-2);
+  border-radius: 10px;
+  border: 2px solid var(--bg);
+}

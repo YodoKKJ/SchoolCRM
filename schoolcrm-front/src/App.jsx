@@ -8,6 +8,8 @@ import LandingEscola from "./pages/LandingEscola";
 import LandingSkolyo from "./pages/LandingSkolyo";
 import MasterLogin from "./pages/MasterLogin";
 import MasterDashboard from "./pages/MasterDashboard";
+import NewUIRoot from "./newui/NewUIRoot";
+import NewLogin from "./newui/pages/Login";
 
 class AppErrorBoundary extends Component {
     constructor(props) {
@@ -91,6 +93,19 @@ function App() {
                 <Routes>
                     {/* Página inicial — redireciona para login da escola se já tiver slug salvo */}
                     <Route path="/" element={<RootRedirect />} />
+
+                    {/* Nova UI (feature flag) — login público + shell protegida */}
+                    <Route path="/new/escola/:slug/login" element={<NewLogin />} />
+                    <Route path="/new" element={
+                        <PrivateRoute role={["DIRECAO", "COORDENACAO", "PROFESSOR", "ALUNO"]}>
+                            <NewUIRoot />
+                        </PrivateRoute>
+                    } />
+                    <Route path="/new/escola/:slug/*" element={
+                        <PrivateRoute role={["DIRECAO", "COORDENACAO", "PROFESSOR", "ALUNO"]}>
+                            <NewUIRoot />
+                        </PrivateRoute>
+                    } />
 
                     {/* Multi-tenant: rotas com slug */}
                     <Route path="/escola/:slug/login" element={<Login />} />
