@@ -31,8 +31,9 @@ const SUBNAV = {
     { id: "boletins", label: "Boletins", icon: "clipboard" },
   ],
   pessoas: [
-    { id: "usuarios", label: "Usuários", icon: "users" },
-    { id: "responsaveis", label: "Responsáveis", icon: "users" },
+    { id: "usuarios",     label: "Usuários",     icon: "users" },
+    { id: "pessoas",      label: "Pessoas",       icon: "user"  },
+    { id: "responsaveis", label: "Responsáveis",  icon: "users" },
   ],
   financeiro: [
     { id: "dashboard",     label: "Dashboard",    icon: "chart" },

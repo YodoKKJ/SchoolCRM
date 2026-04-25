@@ -2,28 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import api from "../api";
 import Icon from "../Icon";
 
-const AVATAR_COLORS = ["c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8"];
-
-function iniciais(nome = "") {
-  const parts = nome.trim().split(/\s+/);
-  const a = parts[0]?.[0] || "";
-  const b = parts.length > 1 ? parts[parts.length - 1][0] : "";
-  return (a + b).toUpperCase() || "—";
-}
-function avatarColor(id) {
-  return AVATAR_COLORS[Math.abs(Number(id) || 0) % AVATAR_COLORS.length];
-}
-function fmtCpfCnpj(doc, tipo) {
-  if (!doc) return "—";
-  const d = String(doc).replace(/\D/g, "");
-  if (tipo === "JURIDICA" && d.length === 14) {
-    return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
-  }
-  if (d.length === 11) {
-    return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
-  }
-  return doc;
-}
+/* ─── helpers ──────────────────────────────────────────────────── */
 function fmtPhone(p) {
   if (!p) return "—";
   const d = String(p).replace(/\D/g, "");
@@ -32,539 +11,466 @@ function fmtPhone(p) {
   return p;
 }
 
-export default function Responsaveis() {
-  const [loading, setLoading] = useState(true);
-  const [lista, setLista] = useState([]);
-  const [busca, setBusca] = useState("");
-  const [filtroTipo, setFiltroTipo] = useState("TODOS"); // TODOS | FISICA | JURIDICA
-  const [filtroAtivo, setFiltroAtivo] = useState(true);
-  const [erro, setErro] = useState("");
-  const [modal, setModal] = useState(null); // { mode: "new" } | { mode: "edit", p } | { mode: "del", p }
-  const [drawer, setDrawer] = useState(null); // pessoa selecionada
+function fmtCpf(cpf) {
+  if (!cpf) return "—";
+  const d = String(cpf).replace(/\D/g, "");
+  if (d.length === 11) return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
+  return cpf;
+}
 
-  const load = () => {
+const TIPO_COLORS = {
+  PRINCIPAL:  { bg: "var(--ok)",    color: "#fff" },
+  SECUNDARIO: { bg: "var(--accent)", color: "#fff" },
+};
+
+const PARENTESCO_OPTS = ["PAI", "MAE", "AVO", "TIO", "RESPONSAVEL", "OUTRO"];
+const PARENTESCO_LABEL = {
+  PAI: "Pai", MAE: "Mãe", AVO: "Avó/Avô",
+  TIO: "Tio/Tia", RESPONSAVEL: "Responsável", OUTRO: "Outro",
+};
+
+/* ─── componente principal ─────────────────────────────────────── */
+export default function Responsaveis() {
+  const [alunos,   setAlunos]   = useState([]);
+  const [pessoas,  setPessoas]  = useState([]);  // /fin/pessoas para o select
+  const [alunoId,  setAlunoId]  = useState("");
+  const [resps,    setResps]    = useState([]);
+  const [loading,  setLoading]  = useState(false);
+  const [busca,    setBusca]    = useState("");
+  const [msg,      setMsg]      = useState({ t: "", ok: true });
+
+  /* modais */
+  const [modalVinc, setModalVinc] = useState(false);
+  const [editando,  setEditando]  = useState(null); // { id, tipo, parentesco }
+  const [form,      setForm]      = useState({ pessoaId: "", tipo: "PRINCIPAL", parentesco: "PAI" });
+  const [salvando,  setSalvando]  = useState(false);
+
+  const flash = (t, ok = true) => {
+    setMsg({ t, ok });
+    setTimeout(() => setMsg({ t: "", ok: true }), 3500);
+  };
+
+  /* ── loaders ─────────────────────────────────────────────────── */
+  useEffect(() => {
+    api.get("/usuarios", { params: { role: "ALUNO" } })
+      .then((r) => setAlunos((Array.isArray(r.data) ? r.data : []).filter((u) => u.ativo !== false)))
+      .catch(() => {});
+    api.get("/fin/pessoas")
+      .then((r) => setPessoas((Array.isArray(r.data) ? r.data : []).filter((p) => p.ativo !== false)))
+      .catch(() => {});
+  }, []);
+
+  const carregarResps = (id) => {
+    if (!id) { setResps([]); return; }
     setLoading(true);
-    setErro("");
-    api
-      .get("/fin/pessoas")
-      .then((r) => setLista(Array.isArray(r.data) ? r.data : []))
-      .catch(() => setErro("Não foi possível carregar as pessoas."))
+    api.get(`/fin/responsaveis/aluno/${id}`)
+      .then((r) => setResps(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setResps([]))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  useEffect(() => { carregarResps(alunoId); }, [alunoId]);
 
-  const filtered = useMemo(() => {
+  /* ── ações ───────────────────────────────────────────────────── */
+  const vincular = async () => {
+    if (!form.pessoaId || !alunoId) return;
+    setSalvando(true);
+    try {
+      await api.post("/fin/responsaveis", {
+        pessoaId: Number(form.pessoaId),
+        alunoId:  Number(alunoId),
+        tipo:        form.tipo,
+        parentesco:  form.parentesco,
+      });
+      flash("Responsável vinculado!");
+      setModalVinc(false);
+      carregarResps(alunoId);
+    } catch (e) {
+      flash(typeof e.response?.data === "string" ? e.response.data : "Erro ao vincular.", false);
+    } finally { setSalvando(false); }
+  };
+
+  const atualizar = async () => {
+    if (!editando) return;
+    setSalvando(true);
+    try {
+      await api.put(`/fin/responsaveis/${editando.id}`, {
+        tipo:       editando.tipo,
+        parentesco: editando.parentesco,
+      });
+      flash("Vínculo atualizado!");
+      setEditando(null);
+      carregarResps(alunoId);
+    } catch (e) {
+      flash(typeof e.response?.data === "string" ? e.response.data : "Erro ao atualizar.", false);
+    } finally { setSalvando(false); }
+  };
+
+  const remover = async (id) => {
+    if (!window.confirm("Remover este responsável do aluno?")) return;
+    try {
+      await api.delete(`/fin/responsaveis/${id}`);
+      flash("Vínculo removido.");
+      carregarResps(alunoId);
+    } catch (e) {
+      flash(typeof e.response?.data === "string" ? e.response.data : "Erro ao remover.", false);
+    }
+  };
+
+  /* ── derivados ──────────────────────────────────────────────── */
+  const alunosFiltrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    return lista.filter((p) => {
-      if (filtroTipo !== "TODOS" && p.tipoPessoa !== filtroTipo) return false;
-      if (filtroAtivo && p.ativo === false) return false;
-      if (!q) return true;
-      const hay = `${p.nome || ""} ${p.cpf || ""} ${p.cnpj || ""} ${p.email || ""}`.toLowerCase();
-      return hay.includes(q);
-    });
-  }, [lista, busca, filtroTipo, filtroAtivo]);
+    if (!q) return alunos;
+    return alunos.filter((a) => a.nome?.toLowerCase().includes(q));
+  }, [alunos, busca]);
 
-  const counts = useMemo(() => {
-    const fisica = lista.filter((p) => p.tipoPessoa === "FISICA").length;
-    const juridica = lista.filter((p) => p.tipoPessoa === "JURIDICA").length;
-    return { total: lista.length, fisica, juridica };
-  }, [lista]);
+  const alunoSel = alunos.find((a) => String(a.id) === String(alunoId));
+  const podeAdicionar = resps.length < 2;
 
+  /* ── render ──────────────────────────────────────────────────── */
   return (
     <div className="page">
       <div className="page-header">
         <div>
-          <div className="page-eyebrow">Pessoas · Responsáveis & Pessoas</div>
-          <h1 className="page-title">Cadastro de pessoas</h1>
+          <div className="page-eyebrow">Pessoas · Vínculos</div>
+          <h1 className="page-title">Responsáveis por aluno</h1>
           <div className="page-subtitle">
-            {loading
-              ? "carregando…"
-              : `${counts.total} pessoas — ${counts.fisica} físicas, ${counts.juridica} jurídicas`}
+            Gerencie quem é responsável financeiro de cada aluno (máx. 2 por aluno)
           </div>
         </div>
-        <div className="row">
-          <button className="btn accent" type="button" onClick={() => setModal({ mode: "new" })}>
-            <Icon name="plus" /> Nova pessoa
-          </button>
-        </div>
       </div>
 
-      {erro && (
-        <div className="card mb-4" style={{ borderColor: "var(--bad)" }}>
-          <div style={{ color: "var(--bad)", fontSize: 13 }}>{erro}</div>
+      {/* flash */}
+      {msg.t && (
+        <div className="card mb-4" style={{ borderColor: msg.ok ? "var(--ok)" : "var(--bad)", padding: "10px 14px" }}>
+          <div style={{ color: msg.ok ? "var(--ok)" : "var(--bad)", fontSize: 13 }}>{msg.t}</div>
         </div>
       )}
 
-      <div className="filter-row">
-        <div style={{ flex: 1, maxWidth: 320 }}>
-          <div className="search" style={{ width: "100%", minWidth: 0, background: "var(--panel)" }}>
-            <Icon name="search" size={13} />
-            <input
-              style={{
-                border: 0,
-                outline: 0,
-                background: "transparent",
-                flex: 1,
-                color: "var(--ink)",
-                fontFamily: "inherit",
-                fontSize: 13,
-              }}
-              placeholder="Buscar por nome, CPF, CNPJ ou e-mail…"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-            />
-          </div>
-        </div>
+      <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 16, alignItems: "start" }}>
 
-        <div className="row" style={{ gap: 6 }}>
-          {[
-            { id: "TODOS", label: "Todos" },
-            { id: "FISICA", label: "Pessoa física" },
-            { id: "JURIDICA", label: "Pessoa jurídica" },
-          ].map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className={`chip ${filtroTipo === t.id ? "active" : ""}`}
-              onClick={() => setFiltroTipo(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        <label className="row" style={{ gap: 6, fontSize: 12, color: "var(--ink-2)" }}>
-          <input
-            type="checkbox"
-            checked={filtroAtivo}
-            onChange={(e) => setFiltroAtivo(e.target.checked)}
-          />
-          Apenas ativos
-        </label>
-      </div>
-
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-        <table className="table">
-          <thead>
-            <tr>
-              <th style={{ width: 48 }}></th>
-              <th>Nome</th>
-              <th style={{ width: 90 }}>Tipo</th>
-              <th style={{ width: 160 }}>Documento</th>
-              <th style={{ width: 200 }}>E-mail</th>
-              <th style={{ width: 140 }}>Telefone</th>
-              <th style={{ width: 80 }}>Status</th>
-              <th style={{ width: 110, textAlign: "right" }}>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 && !loading && (
-              <tr>
-                <td colSpan={8} style={{ padding: 40, textAlign: "center", color: "var(--ink-3)" }}>
-                  {busca || filtroTipo !== "TODOS"
-                    ? "Nenhuma pessoa bate com os filtros."
-                    : "Nenhuma pessoa cadastrada."}
-                </td>
-              </tr>
-            )}
-            {filtered.map((p) => (
-              <tr key={p.id} className="row-link" onClick={() => setDrawer(p)}>
-                <td>
-                  <span className={`avatar ${avatarColor(p.id)}`}>{iniciais(p.nome)}</span>
-                </td>
-                <td>
-                  <span className="strong">{p.nome}</span>
-                  {p.cidade && (
-                    <div style={{ fontSize: 11, color: "var(--ink-3)" }}>
-                      {p.cidade}
-                      {p.estado ? ` / ${p.estado}` : ""}
-                    </div>
-                  )}
-                </td>
-                <td>
-                  <span className="pill" style={{ fontSize: 10 }}>
-                    {p.tipoPessoa === "JURIDICA" ? "PJ" : "PF"}
-                  </span>
-                </td>
-                <td style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>
-                  {fmtCpfCnpj(p.tipoPessoa === "JURIDICA" ? p.cnpj : p.cpf, p.tipoPessoa)}
-                </td>
-                <td style={{ fontSize: 12, color: "var(--ink-2)" }}>{p.email || "—"}</td>
-                <td style={{ fontFamily: "var(--font-mono)", fontSize: 12 }}>{fmtPhone(p.telefone)}</td>
-                <td>
-                  {p.ativo === false ? (
-                    <span className="pill" style={{ background: "var(--bad)", color: "#fff", fontSize: 10 }}>
-                      INATIVO
-                    </span>
-                  ) : (
-                    <span className="pill" style={{ background: "var(--ok)", color: "#fff", fontSize: 10 }}>
-                      ATIVO
-                    </span>
-                  )}
-                </td>
-                <td style={{ textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
-                  <button className="btn sm" type="button" onClick={() => setModal({ mode: "edit", p })}>
-                    <Icon name="edit" size={11} /> Editar
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {drawer && <PessoaDrawer pessoa={drawer} onClose={() => setDrawer(null)} onChanged={load} />}
-
-      {modal?.mode === "new" && (
-        <PessoaModal
-          onClose={() => setModal(null)}
-          onSaved={() => {
-            setModal(null);
-            load();
-          }}
-        />
-      )}
-      {modal?.mode === "edit" && (
-        <PessoaModal
-          pessoa={modal.p}
-          onClose={() => setModal(null)}
-          onSaved={() => {
-            setModal(null);
-            load();
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-// ────────────────────────────────────────────────────────────────────────────────
-// Drawer — visualização da pessoa, com os alunos vinculados (se for responsável)
-// ────────────────────────────────────────────────────────────────────────────────
-
-function PessoaDrawer({ pessoa, onClose, onChanged }) {
-  const [vinculos, setVinculos] = useState(null); // alunos sob responsabilidade desta pessoa
-  const [erro, setErro] = useState("");
-
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
-  // Para descobrir quais alunos esta pessoa é responsável precisamos varrer.
-  // Backend só expõe /aluno/{alunoId} → recolhemos no painel "Vínculos" via endpoint genérico.
-  // Como não há endpoint reverso, deixamos vazio + dica.
-  // (Se um dia o backend expor /fin/responsaveis/pessoa/{pessoaId} — só preencher aqui.)
-  useEffect(() => {
-    setVinculos([]);
-  }, [pessoa.id]);
-
-  const toggleStatus = async () => {
-    setErro("");
-    try {
-      await api.patch(`/fin/pessoas/${pessoa.id}/status`);
-      onChanged();
-      onClose();
-    } catch (err) {
-      setErro(typeof err.response?.data === "string" ? err.response.data : "Erro ao atualizar status.");
-    }
-  };
-
-  return (
-    <div className="drawer-overlay" onClick={onClose}>
-      <aside className="drawer" onClick={(e) => e.stopPropagation()}>
-        <div className="drawer-header">
-          <div className="row" style={{ gap: 12, alignItems: "center" }}>
-            <span className={`avatar lg ${avatarColor(pessoa.id)}`}>{iniciais(pessoa.nome)}</span>
-            <div>
-              <div className="card-eyebrow">{pessoa.tipoPessoa === "JURIDICA" ? "Pessoa jurídica" : "Pessoa física"}</div>
-              <div className="modal-title">{pessoa.nome}</div>
-              <div style={{ fontSize: 12, color: "var(--ink-3)", fontFamily: "var(--font-mono)" }}>
-                {fmtCpfCnpj(pessoa.tipoPessoa === "JURIDICA" ? pessoa.cnpj : pessoa.cpf, pessoa.tipoPessoa)}
-              </div>
+        {/* ── coluna esquerda: lista de alunos ─────────────────── */}
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border)" }}>
+            <div className="search" style={{ background: "var(--bg)", margin: 0 }}>
+              <Icon name="search" size={13} />
+              <input
+                style={{ border: 0, outline: 0, background: "transparent", flex: 1, color: "var(--ink)", fontFamily: "inherit", fontSize: 13 }}
+                placeholder="Buscar aluno…"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+              />
             </div>
           </div>
-          <button className="icon-btn" type="button" onClick={onClose}>
-            <Icon name="x" />
-          </button>
-        </div>
-
-        <div className="drawer-body">
-          <FichaSec titulo="Contato">
-            <FichaRow label="E-mail" value={pessoa.email || "—"} />
-            <FichaRow label="Telefone" value={fmtPhone(pessoa.telefone)} />
-          </FichaSec>
-
-          <FichaSec titulo="Endereço">
-            <FichaRow label="Logradouro" value={pessoa.endereco || "—"} />
-            <FichaRow label="CEP" value={pessoa.cep || "—"} />
-            <FichaRow label="Cidade / UF" value={[pessoa.cidade, pessoa.estado].filter(Boolean).join(" / ") || "—"} />
-          </FichaSec>
-
-          {pessoa.observacoes && (
-            <FichaSec titulo="Observações">
-              <div style={{ fontSize: 12, color: "var(--ink-2)", whiteSpace: "pre-wrap" }}>
-                {pessoa.observacoes}
+          <div style={{ overflowY: "auto", maxHeight: 560 }}>
+            {alunosFiltrados.length === 0 && (
+              <div style={{ padding: 24, textAlign: "center", color: "var(--ink-3)", fontSize: 13 }}>
+                Nenhum aluno encontrado.
               </div>
-            </FichaSec>
-          )}
-
-          {pessoa.usuarioId && (
-            <FichaSec titulo="Vínculo de sistema">
-              <FichaRow label="Login" value={pessoa.usuarioLogin || "—"} />
-              <FichaRow label="Papel" value={pessoa.usuarioRole || "—"} />
-            </FichaSec>
-          )}
-
-          {vinculos && vinculos.length > 0 && (
-            <FichaSec titulo="Alunos sob responsabilidade">
-              {vinculos.map((v) => (
-                <div key={v.id} className="row" style={{ justifyContent: "space-between", padding: "8px 0", borderTop: "1px solid var(--line)" }}>
-                  <span style={{ fontSize: 13 }}>{v.alunoNome}</span>
-                  <span className="pill" style={{ fontSize: 10 }}>{v.tipo}</span>
-                </div>
-              ))}
-            </FichaSec>
-          )}
-        </div>
-
-        <div className="drawer-footer">
-          {erro && <div style={{ color: "var(--bad)", fontSize: 12, marginBottom: 8 }}>{erro}</div>}
-          <div className="row" style={{ justifyContent: "space-between" }}>
-            <button
-              className="btn"
-              type="button"
-              onClick={toggleStatus}
-              style={{
-                color: pessoa.ativo === false ? "var(--ok)" : "var(--bad)",
-              }}
-            >
-              {pessoa.ativo === false ? "Ativar" : "Desativar"}
-            </button>
-            <button className="btn" type="button" onClick={onClose}>
-              Fechar
-            </button>
-          </div>
-        </div>
-      </aside>
-    </div>
-  );
-}
-
-function FichaSec({ titulo, children }) {
-  return (
-    <section style={{ marginBottom: 18 }}>
-      <div className="card-eyebrow" style={{ marginBottom: 6 }}>{titulo}</div>
-      <div className="card" style={{ padding: 12 }}>{children}</div>
-    </section>
-  );
-}
-
-function FichaRow({ label, value }) {
-  return (
-    <div className="row" style={{ justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--line)", fontSize: 13 }}>
-      <span style={{ color: "var(--ink-3)", fontSize: 12 }}>{label}</span>
-      <span style={{ color: "var(--ink)", textAlign: "right" }}>{value}</span>
-    </div>
-  );
-}
-
-// ────────────────────────────────────────────────────────────────────────────────
-// Modal de criar/editar
-// ────────────────────────────────────────────────────────────────────────────────
-
-function PessoaModal({ pessoa, onClose, onSaved }) {
-  const isEdit = !!pessoa;
-  const [form, setForm] = useState({
-    tipoPessoa: pessoa?.tipoPessoa || "FISICA",
-    nome: pessoa?.nome || "",
-    cpf: pessoa?.cpf || "",
-    cnpj: pessoa?.cnpj || "",
-    email: pessoa?.email || "",
-    telefone: pessoa?.telefone || "",
-    endereco: pessoa?.endereco || "",
-    cep: pessoa?.cep || "",
-    cidade: pessoa?.cidade || "",
-    estado: pessoa?.estado || "",
-    observacoes: pessoa?.observacoes || "",
-  });
-  const [saving, setSaving] = useState(false);
-  const [erro, setErro] = useState("");
-
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-
-  const submit = async (e) => {
-    e.preventDefault();
-    setErro("");
-    if (!form.nome.trim()) {
-      setErro("Informe o nome.");
-      return;
-    }
-    setSaving(true);
-    try {
-      const body = { ...form, nome: form.nome.trim() };
-      if (form.tipoPessoa === "FISICA") body.cnpj = null;
-      else body.cpf = null;
-      if (isEdit) await api.put(`/fin/pessoas/${pessoa.id}`, body);
-      else await api.post("/fin/pessoas", body);
-      onSaved();
-    } catch (err) {
-      setErro(typeof err.response?.data === "string" ? err.response.data : "Erro ao salvar.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submit} style={{ width: 640 }}>
-        <div className="modal-header">
-          <div>
-            <div className="card-eyebrow">{isEdit ? "Editar pessoa" : "Nova pessoa"}</div>
-            <div className="modal-title">{isEdit ? pessoa.nome : "Cadastrar nova pessoa"}</div>
-          </div>
-          <button className="icon-btn" type="button" onClick={onClose}>
-            <Icon name="x" />
-          </button>
-        </div>
-
-        <div className="modal-body" style={{ display: "grid", gap: 12 }}>
-          <div className="row" style={{ gap: 8 }}>
-            {[
-              { id: "FISICA", label: "Pessoa física" },
-              { id: "JURIDICA", label: "Pessoa jurídica" },
-            ].map((t) => (
+            )}
+            {alunosFiltrados.map((a) => (
               <button
-                key={t.id}
+                key={a.id}
                 type="button"
-                className={`chip ${form.tipoPessoa === t.id ? "active" : ""}`}
-                onClick={() => set("tipoPessoa", t.id)}
+                onClick={() => setAlunoId(String(a.id))}
+                style={{
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "10px 14px",
+                  background: String(a.id) === alunoId ? "color-mix(in srgb,var(--accent) 10%,var(--panel))" : "none",
+                  border: "none",
+                  borderBottom: "1px solid var(--border)",
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
               >
-                {t.label}
+                <div
+                  style={{
+                    width: 32, height: 32, borderRadius: "50%",
+                    background: String(a.id) === alunoId ? "var(--accent)" : "var(--border)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 11, fontWeight: 700,
+                    color: String(a.id) === alunoId ? "#fff" : "var(--ink-2)",
+                    flexShrink: 0,
+                  }}
+                >
+                  {(a.nome || "?")[0].toUpperCase()}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{
+                    fontSize: 13, fontWeight: 500,
+                    color: String(a.id) === alunoId ? "var(--accent)" : "var(--ink)",
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  }}>
+                    {a.nome}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--ink-3)" }}>
+                    {a.login || `#${a.id}`}
+                  </div>
+                </div>
+                <Icon name="chev" size={12} style={{ marginLeft: "auto", color: "var(--ink-3)", flexShrink: 0 }} />
               </button>
             ))}
           </div>
-
-          <div className="field">
-            <label>Nome {form.tipoPessoa === "JURIDICA" ? "/ Razão social" : "completo"}</label>
-            <input
-              className="input"
-              value={form.nome}
-              onChange={(e) => set("nome", e.target.value)}
-              autoFocus
-            />
-          </div>
-
-          <div className="row" style={{ gap: 12 }}>
-            {form.tipoPessoa === "FISICA" ? (
-              <div className="field" style={{ flex: 1 }}>
-                <label>CPF</label>
-                <input
-                  className="input"
-                  value={form.cpf}
-                  onChange={(e) => set("cpf", e.target.value)}
-                  placeholder="000.000.000-00"
-                />
-              </div>
-            ) : (
-              <div className="field" style={{ flex: 1 }}>
-                <label>CNPJ</label>
-                <input
-                  className="input"
-                  value={form.cnpj}
-                  onChange={(e) => set("cnpj", e.target.value)}
-                  placeholder="00.000.000/0000-00"
-                />
-              </div>
-            )}
-            <div className="field" style={{ flex: 1 }}>
-              <label>Telefone</label>
-              <input
-                className="input"
-                value={form.telefone}
-                onChange={(e) => set("telefone", e.target.value)}
-                placeholder="(00) 00000-0000"
-              />
-            </div>
-          </div>
-
-          <div className="field">
-            <label>E-mail</label>
-            <input
-              className="input"
-              type="email"
-              value={form.email}
-              onChange={(e) => set("email", e.target.value)}
-            />
-          </div>
-
-          <div className="row" style={{ gap: 12 }}>
-            <div className="field" style={{ flex: 2 }}>
-              <label>Endereço</label>
-              <input
-                className="input"
-                value={form.endereco}
-                onChange={(e) => set("endereco", e.target.value)}
-              />
-            </div>
-            <div className="field" style={{ flex: 1 }}>
-              <label>CEP</label>
-              <input
-                className="input"
-                value={form.cep}
-                onChange={(e) => set("cep", e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="row" style={{ gap: 12 }}>
-            <div className="field" style={{ flex: 2 }}>
-              <label>Cidade</label>
-              <input
-                className="input"
-                value={form.cidade}
-                onChange={(e) => set("cidade", e.target.value)}
-              />
-            </div>
-            <div className="field" style={{ width: 80 }}>
-              <label>UF</label>
-              <input
-                className="input"
-                value={form.estado}
-                onChange={(e) => set("estado", e.target.value.toUpperCase().slice(0, 2))}
-                maxLength={2}
-              />
-            </div>
-          </div>
-
-          <div className="field">
-            <label>Observações</label>
-            <textarea
-              className="input"
-              rows={3}
-              value={form.observacoes}
-              onChange={(e) => set("observacoes", e.target.value)}
-            />
-          </div>
-
-          {erro && <div style={{ color: "var(--bad)", fontSize: 12 }}>{erro}</div>}
         </div>
 
-        <div className="modal-footer">
-          <button className="btn" type="button" onClick={onClose}>
-            Cancelar
-          </button>
-          <button className="btn accent" type="submit" disabled={saving}>
-            {saving ? "salvando…" : isEdit ? "Salvar alterações" : "Criar pessoa"}
-          </button>
+        {/* ── coluna direita: responsáveis do aluno ─────────────── */}
+        <div>
+          {!alunoId ? (
+            <div className="card" style={{ textAlign: "center", padding: "48px 0" }}>
+              <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.25 }}>👤</div>
+              <div style={{ fontSize: 14, color: "var(--ink-2)", fontWeight: 500 }}>Selecione um aluno</div>
+              <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 4 }}>
+                Escolha um aluno na lista ao lado para ver e gerenciar seus responsáveis.
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* header do aluno selecionado */}
+              <div className="card mb-4">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div className="card-eyebrow">Aluno selecionado</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)" }}>{alunoSel?.nome}</div>
+                    <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>
+                      {loading ? "carregando…" : `${resps.length} responsável${resps.length !== 1 ? "is" : ""} cadastrado${resps.length !== 1 ? "s" : ""}`}
+                    </div>
+                  </div>
+                  {podeAdicionar && (
+                    <button
+                      className="btn accent"
+                      type="button"
+                      onClick={() => {
+                        setForm({
+                          pessoaId: "",
+                          tipo: resps.length === 0 ? "PRINCIPAL" : "SECUNDARIO",
+                          parentesco: "PAI",
+                        });
+                        setModalVinc(true);
+                      }}
+                    >
+                      <Icon name="plus" size={13} /> Vincular responsável
+                    </button>
+                  )}
+                  {!podeAdicionar && (
+                    <span className="pill" style={{ fontSize: 11, background: "var(--ok)", color: "#fff" }}>
+                      2/2 responsáveis
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* cards dos responsáveis */}
+              {loading ? (
+                <div className="card" style={{ padding: 32, textAlign: "center", color: "var(--ink-3)" }}>Carregando…</div>
+              ) : resps.length === 0 ? (
+                <div className="card" style={{ textAlign: "center", padding: "40px 0" }}>
+                  <div style={{ fontSize: 28, marginBottom: 10, opacity: 0.25 }}>🔗</div>
+                  <div style={{ fontSize: 13, color: "var(--ink-2)" }}>Nenhum responsável vinculado.</div>
+                  <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 4 }}>
+                    Clique em "Vincular responsável" para adicionar.
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {resps.map((r) => (
+                    <div key={r.id} className="card">
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+                        {/* avatar */}
+                        <div
+                          style={{
+                            width: 44, height: 44, borderRadius: "50%",
+                            background: "var(--border)",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                            fontSize: 16, fontWeight: 700, color: "var(--ink-2)",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {(r.pessoaNome || "?")[0].toUpperCase()}
+                        </div>
+
+                        {/* dados */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)" }}>
+                              {r.pessoaNome}
+                            </span>
+                            <span
+                              className="pill"
+                              style={{ ...(TIPO_COLORS[r.tipo] || {}), fontSize: 10 }}
+                            >
+                              {r.tipo === "PRINCIPAL" ? "Principal" : "Secundário"}
+                            </span>
+                            {r.parentesco && (
+                              <span className="pill" style={{ fontSize: 10 }}>
+                                {PARENTESCO_LABEL[r.parentesco] || r.parentesco}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ display: "flex", gap: 20, fontSize: 12, color: "var(--ink-2)", flexWrap: "wrap" }}>
+                            {r.pessoaCpf && (
+                              <span style={{ fontFamily: "var(--font-mono)" }}>
+                                CPF {fmtCpf(r.pessoaCpf)}
+                              </span>
+                            )}
+                            {r.pessoaTelefone && (
+                              <span>{fmtPhone(r.pessoaTelefone)}</span>
+                            )}
+                            {r.pessoaEmail && (
+                              <span>{r.pessoaEmail}</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* ações */}
+                        <div className="row" style={{ gap: 6, flexShrink: 0 }}>
+                          <button
+                            className="btn sm"
+                            type="button"
+                            onClick={() => setEditando({ id: r.id, tipo: r.tipo, parentesco: r.parentesco || "PAI" })}
+                          >
+                            <Icon name="edit" size={11} /> Editar
+                          </button>
+                          <button
+                            className="btn sm"
+                            type="button"
+                            style={{ color: "var(--bad)" }}
+                            onClick={() => remover(r.id)}
+                          >
+                            <Icon name="trash" size={11} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </div>
-      </form>
+      </div>
+
+      {/* ──────────── modal vincular ──────────── */}
+      {modalVinc && (
+        <div className="modal-overlay" onClick={() => setModalVinc(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 500 }}>
+            <div className="modal-header">
+              <div>
+                <div className="card-eyebrow">Novo vínculo</div>
+                <div className="modal-title">Vincular responsável</div>
+                <div style={{ fontSize: 11, color: "var(--ink-3)" }}>
+                  Aluno: <strong>{alunoSel?.nome}</strong>
+                </div>
+              </div>
+              <button className="icon-btn" type="button" onClick={() => setModalVinc(false)}>
+                <Icon name="x" />
+              </button>
+            </div>
+            <div className="modal-body" style={{ display: "grid", gap: 14 }}>
+              <div className="field">
+                <label>Pessoa (responsável)</label>
+                <select
+                  className="input"
+                  value={form.pessoaId}
+                  onChange={(e) => setForm((f) => ({ ...f, pessoaId: e.target.value }))}
+                  autoFocus
+                >
+                  <option value="">— selecione uma pessoa —</option>
+                  {pessoas.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nome}{p.cpf ? ` — ${fmtCpf(p.cpf)}` : ""}{p.telefone ? ` — ${fmtPhone(p.telefone)}` : ""}
+                    </option>
+                  ))}
+                </select>
+                <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 4 }}>
+                  Não encontrou? Cadastre primeiro em{" "}
+                  <strong>Pessoas → Pessoas</strong>.
+                </div>
+              </div>
+              <div className="row" style={{ gap: 12 }}>
+                <div className="field" style={{ flex: 1 }}>
+                  <label>Tipo</label>
+                  <select className="input" value={form.tipo} onChange={(e) => setForm((f) => ({ ...f, tipo: e.target.value }))}>
+                    <option value="PRINCIPAL">Principal</option>
+                    <option value="SECUNDARIO">Secundário</option>
+                  </select>
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label>Parentesco</label>
+                  <select className="input" value={form.parentesco} onChange={(e) => setForm((f) => ({ ...f, parentesco: e.target.value }))}>
+                    {PARENTESCO_OPTS.map((p) => (
+                      <option key={p} value={p}>{PARENTESCO_LABEL[p]}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn" type="button" onClick={() => setModalVinc(false)}>Cancelar</button>
+              <button
+                className="btn accent"
+                type="button"
+                disabled={!form.pessoaId || salvando}
+                onClick={vincular}
+              >
+                {salvando ? "salvando…" : "Vincular"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────── modal editar vínculo ──────────── */}
+      {editando && (
+        <div className="modal-overlay" onClick={() => setEditando(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 420 }}>
+            <div className="modal-header">
+              <div>
+                <div className="card-eyebrow">Editar vínculo</div>
+                <div className="modal-title">Alterar tipo e parentesco</div>
+              </div>
+              <button className="icon-btn" type="button" onClick={() => setEditando(null)}>
+                <Icon name="x" />
+              </button>
+            </div>
+            <div className="modal-body" style={{ display: "grid", gap: 14 }}>
+              <div className="row" style={{ gap: 12 }}>
+                <div className="field" style={{ flex: 1 }}>
+                  <label>Tipo</label>
+                  <select
+                    className="input"
+                    value={editando.tipo}
+                    onChange={(e) => setEditando((ed) => ({ ...ed, tipo: e.target.value }))}
+                  >
+                    <option value="PRINCIPAL">Principal</option>
+                    <option value="SECUNDARIO">Secundário</option>
+                  </select>
+                </div>
+                <div className="field" style={{ flex: 1 }}>
+                  <label>Parentesco</label>
+                  <select
+                    className="input"
+                    value={editando.parentesco}
+                    onChange={(e) => setEditando((ed) => ({ ...ed, parentesco: e.target.value }))}
+                  >
+                    {PARENTESCO_OPTS.map((p) => (
+                      <option key={p} value={p}>{PARENTESCO_LABEL[p]}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn" type="button" onClick={() => setEditando(null)}>Cancelar</button>
+              <button className="btn accent" type="button" disabled={salvando} onClick={atualizar}>
+                {salvando ? "salvando…" : "Salvar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
