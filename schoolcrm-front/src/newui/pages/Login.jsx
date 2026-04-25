@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import axios from "axios";
-import { isNewUIEnabled, setNewUI } from "../featureFlag";
 import "./Login.css";
 
 function Eye({ closed }) {
@@ -39,15 +38,12 @@ function CheckIcon() {
 }
 
 function postLoginPath(slug, role) {
-  const useNew = isNewUIEnabled();
-  const base = `/escola/${slug}`;
   const module = role === "PROFESSOR" ? "professor" : role === "ALUNO" ? "aluno" : "direcao";
-  return useNew ? `/new${base}` : `${base}/${module}`;
+  return `/escola/${slug}/${module}`;
 }
 
 export default function Login() {
   const { slug } = useParams();
-  const navigate = useNavigate();
 
   const [login, setLogin] = useState("");
   const [senha, setSenha] = useState("");
@@ -124,9 +120,6 @@ export default function Login() {
       if (lu) localStorage.setItem("escolaLogoUrl", lu);
       else localStorage.removeItem("escolaLogoUrl");
 
-      // Como chegamos no /new/escola/:slug/login, marca a flag para persistir
-      setNewUI(true);
-
       window.location.href = postLoginPath(escolaSlug, role);
     } catch (err) {
       const msg = err.response?.data;
@@ -134,11 +127,6 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const switchToClassic = () => {
-    setNewUI(false);
-    navigate(`/escola/${slug}/login`);
   };
 
   return (
@@ -176,14 +164,6 @@ export default function Login() {
               <img src="/skolyo-logo.svg" alt="Skolyo" />
               <span className="n">Skolyo</span>
             </div>
-            <button
-              type="button"
-              className="link"
-              onClick={switchToClassic}
-              title="Usar UI clássica"
-            >
-              ui clássica
-            </button>
           </div>
 
           <div className="form-wrap">

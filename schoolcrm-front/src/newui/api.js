@@ -17,7 +17,7 @@ api.interceptors.response.use(
     if (error?.response?.status === 401) {
       const slug = localStorage.getItem("escolaSlug");
       localStorage.removeItem("token");
-      if (slug) window.location.href = `/new/escola/${slug}/login`;
+      if (slug) window.location.href = `/escola/${slug}/login`;
     }
     return Promise.reject(error);
   }

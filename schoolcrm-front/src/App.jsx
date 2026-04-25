@@ -10,6 +10,7 @@ import MasterLogin from "./pages/MasterLogin";
 import MasterDashboard from "./pages/MasterDashboard";
 import NewUIRoot from "./newui/NewUIRoot";
 import NewLogin from "./newui/pages/Login";
+import { isLegacyUIEnabled } from "./newui/featureFlag";
 
 class AppErrorBoundary extends Component {
     constructor(props) {
@@ -86,6 +87,15 @@ function LegacyRedirect({ role, children }) {
     return children;
 }
 
+// Pickers — escolhem UI nova (default) ou legada baseado em localStorage.skolyo.legacyUI
+// A UI antiga fica preservada no repo; no futuro um setting expõe esse toggle.
+function LoginPicker() {
+    return isLegacyUIEnabled() ? <Login /> : <NewLogin />;
+}
+function DashboardPicker({ legacy }) {
+    return isLegacyUIEnabled() ? legacy : <NewUIRoot />;
+}
+
 function App() {
     return (
         <AppErrorBoundary>
@@ -94,34 +104,21 @@ function App() {
                     {/* Página inicial — redireciona para login da escola se já tiver slug salvo */}
                     <Route path="/" element={<RootRedirect />} />
 
-                    {/* Nova UI (feature flag) — login público + shell protegida */}
-                    <Route path="/new/escola/:slug/login" element={<NewLogin />} />
-                    <Route path="/new" element={
-                        <PrivateRoute role={["DIRECAO", "COORDENACAO", "PROFESSOR", "ALUNO"]}>
-                            <NewUIRoot />
-                        </PrivateRoute>
-                    } />
-                    <Route path="/new/escola/:slug/*" element={
-                        <PrivateRoute role={["DIRECAO", "COORDENACAO", "PROFESSOR", "ALUNO"]}>
-                            <NewUIRoot />
-                        </PrivateRoute>
-                    } />
-
-                    {/* Multi-tenant: rotas com slug */}
-                    <Route path="/escola/:slug/login" element={<Login />} />
+                    {/* Multi-tenant: rotas com slug (nova UI por default, legada via ?ui=legacy) */}
+                    <Route path="/escola/:slug/login" element={<LoginPicker />} />
                     <Route path="/escola/:slug/direcao" element={
                         <PrivateRoute role={["DIRECAO", "COORDENACAO"]}>
-                            <DirecaoDashboard />
+                            <DashboardPicker legacy={<DirecaoDashboard />} />
                         </PrivateRoute>
                     } />
                     <Route path="/escola/:slug/professor" element={
                         <PrivateRoute role="PROFESSOR">
-                            <ProfessorDashboard />
+                            <DashboardPicker legacy={<ProfessorDashboard />} />
                         </PrivateRoute>
                     } />
                     <Route path="/escola/:slug/aluno" element={
                         <PrivateRoute role="ALUNO">
-                            <AlunoDashboard />
+                            <DashboardPicker legacy={<AlunoDashboard />} />
                         </PrivateRoute>
                     } />
 

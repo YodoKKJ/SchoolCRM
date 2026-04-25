@@ -1,8 +1,6 @@
 import { useMemo } from "react";
-import { useNavigate, useParams } from "react-router-dom";
 import Icon from "./Icon";
 import useTheme from "./useTheme";
-import { setNewUI } from "./featureFlag";
 
 const ROLE_ALLOWED = {
   ALUNO: new Set(["inicio"]),
@@ -70,8 +68,6 @@ export default function AppShell({
   children,
 }) {
   const { theme, toggle } = useTheme();
-  const navigate = useNavigate();
-  const { slug } = useParams();
 
   const role = typeof window !== "undefined" ? localStorage.getItem("role") : null;
   const userName = typeof window !== "undefined" ? localStorage.getItem("nome") || "Usuário" : "Usuário";
@@ -83,14 +79,6 @@ export default function AppShell({
   );
 
   const subs = SUBNAV[section] || [];
-
-  const disableNewUI = () => {
-    setNewUI(false);
-    const target = slug
-      ? `/escola/${slug}/${role === "PROFESSOR" ? "professor" : role === "ALUNO" ? "aluno" : "direcao"}`
-      : "/";
-    navigate(target);
-  };
 
   return (
     <div className="skolyo-ui" data-theme={theme}>
@@ -135,12 +123,7 @@ export default function AppShell({
               <Icon name="bell" />
               <span className="badge" />
             </button>
-            <button
-              className="icon-btn"
-              title="Voltar para UI clássica"
-              onClick={disableNewUI}
-              type="button"
-            >
+            <button className="icon-btn" title="Configurações" type="button">
               <Icon name="settings" />
             </button>
             <div className="user-chip">
