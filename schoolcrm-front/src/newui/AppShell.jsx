@@ -1,8 +1,7 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import Icon from "./Icon";
 import useTheme from "./useTheme";
-
-const APP_VERSION = "2.4.0";
+import { APP_VERSION } from "../version";
 
 const ROLE_ALLOWED = {
   ALUNO: new Set(["inicio"]),
