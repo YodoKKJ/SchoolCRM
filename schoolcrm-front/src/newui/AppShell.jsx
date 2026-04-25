@@ -167,6 +167,103 @@ function AboutPopover({ onClose }) {
   );
 }
 
+function UserMenu({ userName, role, onClose }) {
+  const logout = () => {
+    const slug = localStorage.getItem("escolaSlug");
+    localStorage.clear();
+    window.location.href = slug ? `/escola/${slug}/login` : "/";
+  };
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: "calc(100% + 8px)",
+        right: 0,
+        zIndex: 200,
+        width: 220,
+        background: "var(--panel)",
+        border: "1px solid var(--border)",
+        borderRadius: 10,
+        boxShadow: "0 8px 32px rgba(0,0,0,.18)",
+        overflow: "hidden",
+      }}
+    >
+      {/* cabeçalho com avatar + nome */}
+      <div
+        style={{
+          padding: "14px 16px 12px",
+          borderBottom: "1px solid var(--border)",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+        }}
+      >
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: "50%",
+            background: "var(--accent)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 13,
+            fontWeight: 700,
+            color: "#fff",
+            flexShrink: 0,
+          }}
+        >
+          {getInitials(userName)}
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontWeight: 600,
+              fontSize: 13,
+              color: "var(--ink)",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {userName}
+          </div>
+          <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 1 }}>
+            {roleLabel(role)}
+          </div>
+        </div>
+      </div>
+
+      {/* ações */}
+      <div style={{ padding: "6px 0" }}>
+        <button
+          type="button"
+          onClick={logout}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            width: "100%",
+            padding: "8px 16px",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            fontSize: 13,
+            color: "var(--bad)",
+            textAlign: "left",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-hover, rgba(0,0,0,.04))")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+        >
+          <Icon name="x" size={14} />
+          Sair
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AppShell({
   section = "inicio",
   page,
@@ -177,7 +274,9 @@ export default function AppShell({
 }) {
   const { theme, toggle } = useTheme();
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const aboutRef = useRef(null);
+  const userRef  = useRef(null);
 
   const role = typeof window !== "undefined" ? localStorage.getItem("role") : null;
   const userName = typeof window !== "undefined" ? localStorage.getItem("nome") || "Usuário" : "Usuário";
@@ -190,17 +289,20 @@ export default function AppShell({
 
   const subs = SUBNAV[section] || [];
 
-  // Fechar popover ao clicar fora
+  // Fechar popovers ao clicar fora
   useEffect(() => {
-    if (!aboutOpen) return;
+    if (!aboutOpen && !userMenuOpen) return;
     const handler = (e) => {
-      if (aboutRef.current && !aboutRef.current.contains(e.target)) {
+      if (aboutOpen && aboutRef.current && !aboutRef.current.contains(e.target)) {
         setAboutOpen(false);
+      }
+      if (userMenuOpen && userRef.current && !userRef.current.contains(e.target)) {
+        setUserMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [aboutOpen]);
+  }, [aboutOpen, userMenuOpen]);
 
   return (
     <div className="skolyo-ui" data-theme={theme}>
@@ -271,13 +373,27 @@ export default function AppShell({
               </button>
               {aboutOpen && <AboutPopover onClose={() => setAboutOpen(false)} />}
             </div>
-            <div className="user-chip">
-              <div className="avatar">{getInitials(userName)}</div>
-              <div>
-                <div className="name">{userName}</div>
-                <div className="role">{roleLabel(role)}</div>
-              </div>
-              <Icon name="chevDown" size={10} />
+            <div ref={userRef} style={{ position: "relative" }}>
+              <button
+                type="button"
+                className={`user-chip ${userMenuOpen ? "active" : ""}`}
+                onClick={() => setUserMenuOpen((v) => !v)}
+                style={{ cursor: "pointer", background: "none", border: "none", padding: 0 }}
+              >
+                <div className="avatar">{getInitials(userName)}</div>
+                <div>
+                  <div className="name">{userName}</div>
+                  <div className="role">{roleLabel(role)}</div>
+                </div>
+                <Icon name="chevDown" size={10} />
+              </button>
+              {userMenuOpen && (
+                <UserMenu
+                  userName={userName}
+                  role={role}
+                  onClose={() => setUserMenuOpen(false)}
+                />
+              )}
             </div>
           </div>
         </div>
