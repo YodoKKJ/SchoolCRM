@@ -9,6 +9,12 @@ import Lancamentos from "./pages/Lancamentos";
 import Boletins from "./pages/Boletins";
 import Usuarios from "./pages/Usuarios";
 import Responsaveis from "./pages/Responsaveis";
+import FinDashboard from "./pages/FinDashboard";
+import FinContratos from "./pages/FinContratos";
+import FinReceber from "./pages/FinReceber";
+import FinPagar from "./pages/FinPagar";
+import Comunicacao from "./pages/Comunicacao";
+import Relatorios from "./pages/Relatorios";
 
 // Default page (sub-nav) por seção
 const DEFAULT_PAGE = {
@@ -22,20 +28,31 @@ function renderSection(section, page) {
   if (section === "inicio") return <Inicio />;
 
   if (section === "academico") {
-    if (page === "turmas") return <Turmas />;
-    if (page === "materias") return <Materias />;
-    if (page === "horarios") return <Horarios />;
-    if (page === "atrasos") return <Atrasos />;
+    if (page === "turmas")      return <Turmas />;
+    if (page === "materias")    return <Materias />;
+    if (page === "horarios")    return <Horarios />;
+    if (page === "atrasos")     return <Atrasos />;
     if (page === "lancamentos") return <Lancamentos />;
-    if (page === "boletins") return <Boletins />;
+    if (page === "boletins")    return <Boletins />;
     return <EmBreve titulo={page || "Acadêmico"} />;
   }
 
   if (section === "pessoas") {
-    if (page === "usuarios") return <Usuarios />;
+    if (page === "usuarios")    return <Usuarios />;
     if (page === "responsaveis") return <Responsaveis />;
     return <EmBreve titulo={page || "Pessoas"} />;
   }
+
+  if (section === "financeiro") {
+    if (page === "dashboard")  return <FinDashboard />;
+    if (page === "contratos")  return <FinContratos />;
+    if (page === "receber")    return <FinReceber />;
+    if (page === "pagar")      return <FinPagar />;
+    return <EmBreve titulo={page || "Financeiro"} />;
+  }
+
+  if (section === "comunicacao") return <Comunicacao />;
+  if (section === "relatorios")  return <Relatorios />;
 
   return <EmBreve titulo={section} />;
 }
