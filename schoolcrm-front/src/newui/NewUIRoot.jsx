@@ -13,6 +13,8 @@ import FinDashboard from "./pages/FinDashboard";
 import FinContratos from "./pages/FinContratos";
 import FinReceber from "./pages/FinReceber";
 import FinPagar from "./pages/FinPagar";
+import Comunicacao from "./pages/Comunicacao";
+import Relatorios from "./pages/Relatorios";
 
 // Default page (sub-nav) por seção
 const DEFAULT_PAGE = {
@@ -48,6 +50,9 @@ function renderSection(section, page) {
     if (page === "pagar")      return <FinPagar />;
     return <EmBreve titulo={page || "Financeiro"} />;
   }
+
+  if (section === "comunicacao") return <Comunicacao />;
+  if (section === "relatorios")  return <Relatorios />;
 
   return <EmBreve titulo={section} />;
 }
