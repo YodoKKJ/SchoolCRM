@@ -8,6 +8,7 @@ import Atrasos from "./pages/Atrasos";
 import Lancamentos from "./pages/Lancamentos";
 import Boletins from "./pages/Boletins";
 import Usuarios from "./pages/Usuarios";
+import Pessoas from "./pages/Pessoas";
 import Responsaveis from "./pages/Responsaveis";
 import FinDashboard from "./pages/FinDashboard";
 import FinContratos from "./pages/FinContratos";
@@ -41,7 +42,8 @@ function renderSection(section, page) {
   }
 
   if (section === "pessoas") {
-    if (page === "usuarios")    return <Usuarios />;
+    if (page === "usuarios")     return <Usuarios />;
+    if (page === "pessoas")      return <Pessoas />;
     if (page === "responsaveis") return <Responsaveis />;
     return <EmBreve titulo={page || "Pessoas"} />;
   }
