@@ -53,12 +53,12 @@ function renderSection(section, page) {
     if (page === "pagar")         return <FinPagar />;
     if (page === "movimentacoes") return <FinMovimentacoes />;
     if (page === "funcionarios")  return <FinFuncionarios />;
-    if (page === "configuracoes") return <FinConfiguracoes />;
     return <EmBreve titulo={page || "Financeiro"} />;
   }
 
-  if (section === "comunicacao") return <Comunicacao />;
-  if (section === "relatorios")  return <Relatorios />;
+  if (section === "comunicacao")   return <Comunicacao />;
+  if (section === "relatorios")    return <Relatorios />;
+  if (section === "configuracoes") return <FinConfiguracoes />;
 
   return <EmBreve titulo={section} />;
 }

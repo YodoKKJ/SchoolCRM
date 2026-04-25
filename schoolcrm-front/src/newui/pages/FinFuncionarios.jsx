@@ -204,7 +204,7 @@ export default function FinFuncionarios() {
                 >
                   <td style={{ textAlign: "center", color: "var(--ink-3)" }}>
                     <Icon
-                      name="chevRight"
+                      name="chev"
                       size={12}
                       style={{
                         transform: expandido === f.id ? "rotate(90deg)" : "none",
