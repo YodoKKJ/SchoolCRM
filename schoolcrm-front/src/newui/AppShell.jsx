@@ -6,17 +6,18 @@ const ROLE_ALLOWED = {
   ALUNO: new Set(["inicio"]),
   PROFESSOR: new Set(["inicio", "academico", "comunicacao"]),
   COORDENACAO: new Set(["inicio", "academico", "pessoas", "comunicacao", "relatorios"]),
-  DIRECAO: new Set(["inicio", "academico", "pessoas", "financeiro", "comunicacao", "relatorios"]),
-  MASTER: new Set(["inicio", "academico", "pessoas", "financeiro", "comunicacao", "relatorios"]),
+  DIRECAO: new Set(["inicio", "academico", "pessoas", "financeiro", "comunicacao", "relatorios", "configuracoes"]),
+  MASTER: new Set(["inicio", "academico", "pessoas", "financeiro", "comunicacao", "relatorios", "configuracoes"]),
 };
 
 const NAV = [
-  { id: "inicio", label: "Início", icon: "home" },
-  { id: "academico", label: "Acadêmico", icon: "school", hasSub: true },
-  { id: "pessoas", label: "Pessoas", icon: "users", hasSub: true },
-  { id: "financeiro", label: "Financeiro", icon: "dollar", hasSub: true },
-  { id: "comunicacao", label: "Comunicação", icon: "mail" },
-  { id: "relatorios", label: "Relatórios", icon: "chart" },
+  { id: "inicio",        label: "Início",        icon: "home" },
+  { id: "academico",     label: "Acadêmico",      icon: "school",   hasSub: true },
+  { id: "pessoas",       label: "Pessoas",        icon: "users",    hasSub: true },
+  { id: "financeiro",    label: "Financeiro",     icon: "dollar",   hasSub: true },
+  { id: "comunicacao",   label: "Comunicação",    icon: "mail" },
+  { id: "relatorios",    label: "Relatórios",     icon: "chart" },
+  { id: "configuracoes", label: "Configurações",  icon: "settings" },
 ];
 
 const SUBNAV = {
@@ -33,13 +34,12 @@ const SUBNAV = {
     { id: "responsaveis", label: "Responsáveis", icon: "users" },
   ],
   financeiro: [
-    { id: "dashboard",     label: "Dashboard",        icon: "chart" },
-    { id: "contratos",     label: "Contratos",         icon: "clipboard" },
-    { id: "receber",       label: "A Receber",         icon: "dollar" },
-    { id: "pagar",         label: "A Pagar",           icon: "dollar" },
-    { id: "movimentacoes", label: "Movimentações",     icon: "edit" },
-    { id: "funcionarios",  label: "Funcionários",      icon: "users" },
-    { id: "configuracoes", label: "Configurações",     icon: "settings" },
+    { id: "dashboard",     label: "Dashboard",    icon: "chart" },
+    { id: "contratos",     label: "Contratos",    icon: "clipboard" },
+    { id: "receber",       label: "A Receber",    icon: "dollar" },
+    { id: "pagar",         label: "A Pagar",      icon: "dollar" },
+    { id: "movimentacoes", label: "Movimentações", icon: "edit" },
+    { id: "funcionarios",  label: "Funcionários", icon: "users" },
   ],
 };
 
