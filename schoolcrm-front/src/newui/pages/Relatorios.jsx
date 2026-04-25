@@ -185,43 +185,91 @@ export default function Relatorios() {
   );
 }
 
-function FinRelatorios() {
-  const [downloading, setDownloading] = useState(null);
-  const [erro, setErro] = useState("");
-  const [mes, setMes] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  });
+// ── Relatórios financeiros com modals de filtro ────────────────────────────
+const FIN_REL_LIST = [
+  {
+    id: "cr",
+    label: "CR por período",
+    desc: "Contas a receber filtradas por período, status e tipo.",
+    filtros: ["periodo", "status_cr", "tipo_cr"],
+    buildUrl: (f) =>
+      `/relatorios/financeiro/contas-receber?de=${f.de}&ate=${f.ate}${f.status ? `&status=${f.status}` : ""}${f.tipo ? `&tipo=${f.tipo}` : ""}`,
+    filename: (f) => `cr_${f.de}_${f.ate}.pdf`,
+  },
+  {
+    id: "cp",
+    label: "CP por período",
+    desc: "Contas a pagar filtradas por período, status, tipo e categoria.",
+    filtros: ["periodo", "status_cp", "tipo_cp", "categoria_cp"],
+    buildUrl: (f) =>
+      `/relatorios/financeiro/contas-pagar?de=${f.de}&ate=${f.ate}${f.status ? `&status=${f.status}` : ""}${f.tipo ? `&tipo=${f.tipo}` : ""}${f.categoria ? `&categoria=${f.categoria}` : ""}`,
+    filename: (f) => `cp_${f.de}_${f.ate}.pdf`,
+  },
+  {
+    id: "inadimplencia",
+    label: "Inadimplência",
+    desc: "CR vencidas e saldo devedor por aluno.",
+    filtros: ["data_base"],
+    buildUrl: (f) =>
+      `/relatorios/financeiro/inadimplencia${f.dataBase ? `?dataBase=${f.dataBase}` : ""}`,
+    filename: () => "inadimplencia.pdf",
+  },
+  {
+    id: "fluxo-caixa",
+    label: "Fluxo de caixa",
+    desc: "Entradas e saídas do período selecionado.",
+    filtros: ["periodo"],
+    buildUrl: (f) => `/relatorios/financeiro/fluxo-caixa?de=${f.de}&ate=${f.ate}`,
+    filename: (f) => `fluxo_caixa_${f.de}_${f.ate}.pdf`,
+  },
+  {
+    id: "folha",
+    label: "Folha de pagamento",
+    desc: "Salários e benefícios dos funcionários no mês.",
+    filtros: ["mes_referencia"],
+    buildUrl: (f) => `/relatorios/financeiro/folha-pagamento?mes=${f.mes}`,
+    filename: (f) => `folha_${f.mes}.pdf`,
+  },
+];
 
-  const baixarFin = async (tipo) => {
+function FinRelatorios() {
+  const [modalRel, setModalRel]   = useState(null);
+  const [filtros, setFiltros]     = useState({});
+  const [gerando, setGerando]     = useState(false);
+  const [erro, setErro]           = useState("");
+
+  const abrirModal = (rel) => {
+    const hoje = new Date().toISOString().slice(0, 10);
+    const primeiroDiaMes = hoje.slice(0, 7) + "-01";
+    setFiltros({ de: primeiroDiaMes, ate: hoje, dataBase: hoje, mes: hoje.slice(0, 7) });
     setErro("");
-    setDownloading(tipo);
+    setModalRel(rel);
+  };
+
+  const set = (k, v) => setFiltros((prev) => ({ ...prev, [k]: v }));
+
+  const gerar = async () => {
+    if (!modalRel) return;
+    setGerando(true);
+    setErro("");
     try {
-      const url = `/fin/relatorios/${tipo}?mes=${mes}`;
-      await downloadFile(url, `relatorio_financeiro_${tipo}_${mes}.pdf`);
+      const url = modalRel.buildUrl(filtros);
+      const fname = modalRel.filename(filtros);
+      await downloadFile(url, fname);
+      setModalRel(null);
     } catch (err) {
       setErro(`Erro ao gerar: ${err.message}`);
     } finally {
-      setDownloading(null);
+      setGerando(false);
     }
   };
 
+  const tem = (nome) => modalRel?.filtros?.includes(nome);
+
   return (
     <div>
-      {erro && (
-        <div style={{ color: "var(--bad)", fontSize: 12, marginBottom: 8 }}>{erro}</div>
-      )}
-      <div className="row" style={{ gap: 8, marginBottom: 12 }}>
-        <div className="field">
-          <label>Mês de referência</label>
-          <input className="input" type="month" value={mes} onChange={(e) => setMes(e.target.value)} style={{ width: 160 }} />
-        </div>
-      </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
-        {[
-          { id: "inadimplencia", label: "Inadimplência", desc: "CR vencidas e saldo devedor por aluno." },
-          { id: "fluxo-caixa", label: "Fluxo de caixa", desc: "Entradas e saídas do mês selecionado." },
-        ].map((r) => (
+        {FIN_REL_LIST.map((r) => (
           <div key={r.id} className="card" style={{ padding: 16 }}>
             <div className="strong" style={{ marginBottom: 4 }}>{r.label}</div>
             <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 12, lineHeight: 1.5 }}>
@@ -230,16 +278,135 @@ function FinRelatorios() {
             <button
               className="btn"
               type="button"
-              disabled={downloading === r.id}
-              onClick={() => baixarFin(r.id)}
+              onClick={() => abrirModal(r)}
               style={{ width: "100%" }}
             >
-              <Icon name="download" size={12} />
-              {downloading === r.id ? " gerando…" : " Baixar PDF"}
+              <Icon name="download" size={12} /> Gerar PDF
             </button>
           </div>
         ))}
       </div>
+
+      {modalRel && (
+        <div className="modal-overlay" onClick={() => setModalRel(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 480 }}>
+            <div className="modal-header">
+              <div>
+                <div className="card-eyebrow">Relatório financeiro</div>
+                <div className="modal-title">{modalRel.label}</div>
+              </div>
+              <button className="icon-btn" type="button" onClick={() => setModalRel(null)}>
+                <Icon name="x" />
+              </button>
+            </div>
+            <div className="modal-body" style={{ display: "grid", gap: 14 }}>
+
+              {tem("periodo") && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div className="field">
+                    <label>Data inicial *</label>
+                    <input className="input" type="date" value={filtros.de || ""} onChange={(e) => set("de", e.target.value)} />
+                  </div>
+                  <div className="field">
+                    <label>Data final *</label>
+                    <input className="input" type="date" value={filtros.ate || ""} onChange={(e) => set("ate", e.target.value)} />
+                  </div>
+                </div>
+              )}
+
+              {tem("data_base") && (
+                <div className="field">
+                  <label>Data base</label>
+                  <input className="input" type="date" value={filtros.dataBase || ""} onChange={(e) => set("dataBase", e.target.value)} />
+                </div>
+              )}
+
+              {tem("mes_referencia") && (
+                <div className="field">
+                  <label>Mês de referência *</label>
+                  <input className="input" type="month" value={filtros.mes || ""} onChange={(e) => set("mes", e.target.value)} />
+                </div>
+              )}
+
+              {tem("status_cr") && (
+                <div className="field">
+                  <label>Status</label>
+                  <select className="input" value={filtros.status || ""} onChange={(e) => set("status", e.target.value)}>
+                    <option value="">Todos</option>
+                    <option value="PENDENTE">Pendente</option>
+                    <option value="PAGO">Pago</option>
+                    <option value="VENCIDO">Vencido</option>
+                    <option value="CANCELADO">Cancelado</option>
+                  </select>
+                </div>
+              )}
+
+              {tem("tipo_cr") && (
+                <div className="field">
+                  <label>Tipo</label>
+                  <select className="input" value={filtros.tipo || ""} onChange={(e) => set("tipo", e.target.value)}>
+                    <option value="">Todos</option>
+                    <option value="MENSALIDADE">Mensalidade</option>
+                    <option value="MATRICULA">Matrícula</option>
+                    <option value="UNIFORME">Uniforme</option>
+                    <option value="EVENTO">Evento</option>
+                    <option value="OUTRO">Outro</option>
+                  </select>
+                </div>
+              )}
+
+              {tem("status_cp") && (
+                <div className="field">
+                  <label>Status</label>
+                  <select className="input" value={filtros.status || ""} onChange={(e) => set("status", e.target.value)}>
+                    <option value="">Todos</option>
+                    <option value="PENDENTE">Pendente</option>
+                    <option value="PAGO">Pago</option>
+                    <option value="VENCIDO">Vencido</option>
+                    <option value="CANCELADO">Cancelado</option>
+                  </select>
+                </div>
+              )}
+
+              {tem("tipo_cp") && (
+                <div className="field">
+                  <label>Tipo</label>
+                  <select className="input" value={filtros.tipo || ""} onChange={(e) => set("tipo", e.target.value)}>
+                    <option value="">Todos</option>
+                    <option value="SALARIO">Salário</option>
+                    <option value="CONTA_FIXA">Conta Fixa</option>
+                    <option value="FORNECEDOR">Fornecedor</option>
+                    <option value="OUTRO">Outro</option>
+                  </select>
+                </div>
+              )}
+
+              {tem("categoria_cp") && (
+                <div className="field">
+                  <label>Categoria</label>
+                  <select className="input" value={filtros.categoria || ""} onChange={(e) => set("categoria", e.target.value)}>
+                    <option value="">Todas</option>
+                    {["AGUA","LUZ","INTERNET","ALUGUEL","SALARIO","LIMPEZA","MANUTENCAO","MATERIAL","OUTRO"].map((c) => (
+                      <option key={c} value={c}>{c.charAt(0) + c.slice(1).toLowerCase().replace("_", " ")}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {erro && <div style={{ color: "var(--bad)", fontSize: 12 }}>{erro}</div>}
+            </div>
+            <div className="modal-footer">
+              <button className="btn" type="button" onClick={() => setModalRel(null)} disabled={gerando}>
+                Cancelar
+              </button>
+              <button className="btn accent" type="button" onClick={gerar} disabled={gerando}>
+                <Icon name="download" size={12} />
+                {gerando ? " gerando…" : " Gerar PDF"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

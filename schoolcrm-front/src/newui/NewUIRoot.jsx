@@ -13,6 +13,9 @@ import FinDashboard from "./pages/FinDashboard";
 import FinContratos from "./pages/FinContratos";
 import FinReceber from "./pages/FinReceber";
 import FinPagar from "./pages/FinPagar";
+import FinMovimentacoes from "./pages/FinMovimentacoes";
+import FinFuncionarios from "./pages/FinFuncionarios";
+import FinConfiguracoes from "./pages/FinConfiguracoes";
 import Comunicacao from "./pages/Comunicacao";
 import Relatorios from "./pages/Relatorios";
 
@@ -46,8 +49,11 @@ function renderSection(section, page) {
   if (section === "financeiro") {
     if (page === "dashboard")  return <FinDashboard />;
     if (page === "contratos")  return <FinContratos />;
-    if (page === "receber")    return <FinReceber />;
-    if (page === "pagar")      return <FinPagar />;
+    if (page === "receber")       return <FinReceber />;
+    if (page === "pagar")         return <FinPagar />;
+    if (page === "movimentacoes") return <FinMovimentacoes />;
+    if (page === "funcionarios")  return <FinFuncionarios />;
+    if (page === "configuracoes") return <FinConfiguracoes />;
     return <EmBreve titulo={page || "Financeiro"} />;
   }
 

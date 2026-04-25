@@ -33,10 +33,13 @@ const SUBNAV = {
     { id: "responsaveis", label: "Responsáveis", icon: "users" },
   ],
   financeiro: [
-    { id: "dashboard", label: "Dashboard", icon: "chart" },
-    { id: "contratos", label: "Contratos", icon: "clipboard" },
-    { id: "receber", label: "Contas a Receber", icon: "dollar" },
-    { id: "pagar", label: "Contas a Pagar", icon: "dollar" },
+    { id: "dashboard",     label: "Dashboard",        icon: "chart" },
+    { id: "contratos",     label: "Contratos",         icon: "clipboard" },
+    { id: "receber",       label: "A Receber",         icon: "dollar" },
+    { id: "pagar",         label: "A Pagar",           icon: "dollar" },
+    { id: "movimentacoes", label: "Movimentações",     icon: "edit" },
+    { id: "funcionarios",  label: "Funcionários",      icon: "users" },
+    { id: "configuracoes", label: "Configurações",     icon: "settings" },
   ],
 };
 
