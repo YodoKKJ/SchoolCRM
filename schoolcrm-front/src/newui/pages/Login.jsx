@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 import "./Login.css";
+import { APP_VERSION } from "../../version";
 
 function Eye({ closed }) {
   return (
@@ -152,7 +153,7 @@ export default function Login() {
             </p>
           </div>
           <footer className="hero-foot">
-            <span><span className="dot" />v2.4.0</span>
+            <span><span className="dot" />v{APP_VERSION}</span>
             <span>© {new Date().getFullYear()} Skolyo</span>
           </footer>
         </aside>

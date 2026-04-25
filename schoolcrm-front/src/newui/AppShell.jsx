@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import Icon from "./Icon";
 import useTheme from "./useTheme";
+import { APP_VERSION } from "../version";
 
 const ROLE_ALLOWED = {
   ALUNO: new Set(["inicio"]),
@@ -62,6 +63,110 @@ function roleLabel(role) {
   }
 }
 
+function AboutPopover({ onClose }) {
+  const escolaNome = typeof window !== "undefined" ? localStorage.getItem("escolaNome") || "" : "";
+  const escolaSlug = typeof window !== "undefined" ? localStorage.getItem("escolaSlug") || "" : "";
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: "calc(100% + 8px)",
+        right: 0,
+        zIndex: 200,
+        width: 260,
+        background: "var(--panel)",
+        border: "1px solid var(--border)",
+        borderRadius: 10,
+        boxShadow: "0 8px 32px rgba(0,0,0,.18)",
+        overflow: "hidden",
+      }}
+    >
+      {/* Header dark */}
+      <div
+        style={{
+          background: "var(--ink)",
+          padding: "14px 16px 12px",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+        }}
+      >
+        <img src="/skolyo-logo.svg" alt="Skolyo" style={{ width: 22, height: 22, filter: "brightness(0) invert(1)" }} />
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 13, color: "#fff", letterSpacing: ".02em" }}>Skolyo ERP</div>
+          <div
+            style={{
+              fontSize: 10,
+              color: "rgba(255,255,255,.45)",
+              fontFamily: "var(--font-mono)",
+              letterSpacing: ".08em",
+              marginTop: 1,
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+            }}
+          >
+            <span
+              style={{
+                width: 5, height: 5, borderRadius: "50%",
+                background: "var(--ok)",
+                display: "inline-block", flexShrink: 0,
+              }}
+            />
+            v{APP_VERSION}
+          </div>
+        </div>
+      </div>
+
+      {/* Details */}
+      <div style={{ padding: "12px 16px", display: "grid", gap: 8 }}>
+        {[
+          { label: "Versão",    value: `v${APP_VERSION}` },
+          { label: "Ambiente",  value: window.location.hostname.includes("homolog") ? "Homologação" : "Produção" },
+          ...(escolaNome ? [{ label: "Escola",   value: escolaNome }] : []),
+          ...(escolaSlug ? [{ label: "Slug",     value: escolaSlug }] : []),
+          { label: "Build",     value: "2026" },
+        ].map((r) => (
+          <div key={r.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 11, color: "var(--ink-3)" }}>{r.label}</span>
+            <span
+              style={{
+                fontSize: 11, fontFamily: "var(--font-mono)",
+                color: "var(--ink-2)", fontWeight: 600,
+              }}
+            >
+              {r.value}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div
+        style={{
+          padding: "10px 16px",
+          borderTop: "1px solid var(--border)",
+          fontSize: 10,
+          color: "var(--ink-3)",
+          fontFamily: "var(--font-mono)",
+          letterSpacing: ".06em",
+          display: "flex",
+          justifyContent: "space-between",
+        }}
+      >
+        <span>© {new Date().getFullYear()} Skolyo</span>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-3)", fontSize: 10, padding: 0 }}
+        >
+          fechar
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AppShell({
   section = "inicio",
   page,
@@ -71,6 +176,8 @@ export default function AppShell({
   children,
 }) {
   const { theme, toggle } = useTheme();
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const aboutRef = useRef(null);
 
   const role = typeof window !== "undefined" ? localStorage.getItem("role") : null;
   const userName = typeof window !== "undefined" ? localStorage.getItem("nome") || "Usuário" : "Usuário";
@@ -83,6 +190,18 @@ export default function AppShell({
 
   const subs = SUBNAV[section] || [];
 
+  // Fechar popover ao clicar fora
+  useEffect(() => {
+    if (!aboutOpen) return;
+    const handler = (e) => {
+      if (aboutRef.current && !aboutRef.current.contains(e.target)) {
+        setAboutOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [aboutOpen]);
+
   return (
     <div className="skolyo-ui" data-theme={theme}>
       <header className="topbar">
@@ -91,7 +210,21 @@ export default function AppShell({
             <img src="/skolyo-logo.svg" alt="Skolyo" />
             <div>
               <div className="brand-name">Skolyo</div>
-              <div className="brand-sub">ERP · 2026</div>
+              <div
+                className="brand-sub"
+                style={{ display: "flex", alignItems: "center", gap: 5 }}
+              >
+                <span
+                  style={{
+                    width: 5, height: 5, borderRadius: "50%",
+                    background: "var(--ok)",
+                    display: "inline-block", flexShrink: 0,
+                  }}
+                />
+                <span style={{ fontFamily: "var(--font-mono)", letterSpacing: ".04em" }}>
+                  v{APP_VERSION}
+                </span>
+              </div>
             </div>
           </div>
           <nav className="topnav">
@@ -126,9 +259,18 @@ export default function AppShell({
               <Icon name="bell" />
               <span className="badge" />
             </button>
-            <button className="icon-btn" title="Configurações" type="button">
-              <Icon name="settings" />
-            </button>
+            {/* Botão Sobre — mostra popover com versão */}
+            <div ref={aboutRef} style={{ position: "relative" }}>
+              <button
+                className={`icon-btn ${aboutOpen ? "active" : ""}`}
+                title="Sobre o sistema"
+                type="button"
+                onClick={() => setAboutOpen((v) => !v)}
+              >
+                <Icon name="settings" />
+              </button>
+              {aboutOpen && <AboutPopover onClose={() => setAboutOpen(false)} />}
+            </div>
             <div className="user-chip">
               <div className="avatar">{getInitials(userName)}</div>
               <div>
