@@ -26,12 +26,27 @@ function fmtData(d) {
   }
 }
 
+/** Transforma a lista de vínculos do professor em turmas únicas */
+function vinculos2turmas(vArr) {
+  const map = new Map();
+  vArr.forEach((v) => {
+    const t = v.turma;
+    if (t?.id && !map.has(t.id))
+      map.set(t.id, { id: t.id, nome: t.nome, serieNome: t.serie?.nome || "" });
+  });
+  return [...map.values()];
+}
+
 export default function Lancamentos() {
-  const [turmas, setTurmas] = useState([]);
-  const [materias, setMaterias] = useState([]);
-  const [turmaId, setTurmaId] = useState("");
+  const role     = localStorage.getItem("role");
+  const isProf   = role === "PROFESSOR";
+
+  const [vinculos,  setVinculos]  = useState([]); // professor only
+  const [turmas,    setTurmas]    = useState([]);
+  const [materias,  setMaterias]  = useState([]);
+  const [turmaId,   setTurmaId]   = useState("");
   const [materiaId, setMateriaId] = useState("");
-  const [bimestre, setBimestre] = useState(1);
+  const [bimestre,  setBimestre]  = useState(1);
 
   const [avaliacoes, setAvaliacoes] = useState([]);
   const [alunos, setAlunos] = useState([]);
@@ -39,17 +54,42 @@ export default function Lancamentos() {
   const [erro, setErro] = useState("");
   const [modal, setModal] = useState(null); // { mode: "new" } | { mode: "lancar", a }
 
+  /* ── carrega turmas + matérias (mode depende do role) ── */
   useEffect(() => {
-    Promise.all([
-      api.get("/turmas").catch(() => ({ data: [] })),
-      api.get("/materias").catch(() => ({ data: [] })),
-    ]).then(([t, m]) => {
-      const ts = Array.isArray(t.data) ? t.data : [];
-      setTurmas(ts);
-      setMaterias(Array.isArray(m.data) ? m.data : []);
-      if (ts.length && !turmaId) setTurmaId(String(ts[0].id));
-    });
+    if (isProf) {
+      api.get("/vinculos/professor-turma-materia/minhas")
+        .then((r) => {
+          const vArr = Array.isArray(r.data) ? r.data : [];
+          setVinculos(vArr);
+          const ts = vinculos2turmas(vArr);
+          setTurmas(ts);
+          if (ts.length) setTurmaId(String(ts[0].id));
+        })
+        .catch(() => {});
+    } else {
+      Promise.all([
+        api.get("/turmas").catch(() => ({ data: [] })),
+        api.get("/materias").catch(() => ({ data: [] })),
+      ]).then(([t, m]) => {
+        const ts = Array.isArray(t.data) ? t.data : [];
+        setTurmas(ts);
+        setMaterias(Array.isArray(m.data) ? m.data : []);
+        if (ts.length && !turmaId) setTurmaId(String(ts[0].id));
+      });
+    }
   }, []);
+
+  /* ── professor: matérias da turma selecionada ── */
+  useEffect(() => {
+    if (!isProf || !turmaId) return;
+    const mats = vinculos
+      .filter((v) => String(v.turma?.id) === String(turmaId))
+      .map((v) => v.materia)
+      .filter(Boolean)
+      .filter((m, i, arr) => arr.findIndex((x) => x.id === m.id) === i);
+    setMaterias(mats);
+    setMateriaId(mats.length === 1 ? String(mats[0].id) : "");
+  }, [isProf, turmaId, vinculos]);
 
   const loadAvaliacoes = () => {
     if (!turmaId || !materiaId) {
