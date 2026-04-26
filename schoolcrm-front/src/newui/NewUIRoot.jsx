@@ -20,12 +20,18 @@ import FinConfiguracoes from "./pages/FinConfiguracoes";
 import Comunicacao from "./pages/Comunicacao";
 import Relatorios from "./pages/Relatorios";
 
-// Default page (sub-nav) por seção
-const DEFAULT_PAGE = {
-  academico: "turmas",
-  pessoas: "usuarios",
-  financeiro: "dashboard",
-};
+// Default page (sub-nav) por seção — pode variar por role
+function getDefaultPage(sectionId) {
+  const role = typeof window !== "undefined" ? localStorage.getItem("role") : null;
+  if (sectionId === "academico") {
+    // Professor não tem acesso à página de turmas
+    if (role === "PROFESSOR" || role === "ALUNO") return "lancamentos";
+    return "turmas";
+  }
+  if (sectionId === "pessoas")    return "usuarios";
+  if (sectionId === "financeiro") return "dashboard";
+  return null;
+}
 
 // Resolvedor de conteúdo por (section, page)
 function renderSection(section, page, onNav) {
@@ -87,22 +93,23 @@ export default function NewUIRoot() {
   const [section, setSection] = useState("inicio");
   const [page, setPage] = useState(null);
 
-  // Ao trocar de seção, aplica a página default (ex: academico → turmas)
+  // Ao trocar de seção, aplica a página default (ex: academico → turmas ou lancamentos)
   useEffect(() => {
-    if (section && DEFAULT_PAGE[section] && !page) {
-      setPage(DEFAULT_PAGE[section]);
+    const def = getDefaultPage(section);
+    if (section && def && !page) {
+      setPage(def);
     }
   }, [section, page]);
 
   const handleNav = (id) => {
     setSection(id);
-    setPage(DEFAULT_PAGE[id] || null);
+    setPage(getDefaultPage(id) || null);
   };
 
   // Callback para navegação interna (ex: botões do painel de professor)
   const handleNavFull = (sectionId, pageId) => {
     setSection(sectionId);
-    setPage(pageId || DEFAULT_PAGE[sectionId] || null);
+    setPage(pageId || getDefaultPage(sectionId) || null);
   };
 
   return (
