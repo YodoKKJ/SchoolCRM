@@ -3,6 +3,81 @@ import Icon from "./Icon";
 import useTheme from "./useTheme";
 import { APP_VERSION } from "../version";
 
+/* ─── CSS mobile ──────────────────────────────────────────────── */
+const MOBILE_CSS = `
+  /* ── Bottom nav ────────────────────────────────────────────── */
+  .mobile-bottom-nav {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 60px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    z-index: 150;
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .mobile-nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--ink-3);
+    font-size: 9px;
+    font-weight: 600;
+    font-family: inherit;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    padding: 6px 4px;
+    -webkit-tap-highlight-color: transparent;
+    transition: color .12s;
+  }
+  .mobile-nav-btn.active { color: var(--accent); }
+
+  /* ── Mobile breakpoint ─────────────────────────────────────── */
+  @media (max-width: 767px) {
+    /* Topbar compacta */
+    .topbar-row { height: 52px; padding: 0 14px; }
+    .brand-sub  { display: none !important; }
+
+    /* Oculta nav principal */
+    .topnav { display: none !important; }
+
+    /* Top-right: oculta busca, notif, about */
+    .top-search  { display: none !important; }
+    .notif-btn   { display: none !important; }
+    .about-wrap  { display: none !important; }
+
+    /* User chip: apenas avatar */
+    .user-chip-text { display: none !important; }
+    .chip-chev      { display: none !important; }
+
+    /* Subnav: scroll horizontal */
+    .subnav {
+      padding: 6px 12px;
+      gap: 6px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .subnav::-webkit-scrollbar { display: none; }
+    .snav   { flex-shrink: 0; font-size: 12px; }
+    .ctx    { display: none !important; }
+
+    /* Espaço para a bottom nav */
+    main { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px)) !important; }
+
+    /* Mostra bottom nav */
+    .mobile-bottom-nav { display: flex !important; }
+  }
+`;
+
 const ROLE_ALLOWED = {
   ALUNO: new Set(["inicio"]),
   PROFESSOR: new Set(["inicio", "academico", "comunicacao"]),
@@ -306,123 +381,141 @@ export default function AppShell({
   }, [aboutOpen, userMenuOpen]);
 
   return (
-    <div className="skolyo-ui" data-theme={theme}>
-      <header className="topbar">
-        <div className="topbar-row">
-          <div className="brand">
-            <img src="/skolyo-logo.svg" alt="Skolyo" />
-            <div>
-              <div className="brand-name">Skolyo</div>
-              <div
-                className="brand-sub"
-                style={{ display: "flex", alignItems: "center", gap: 5 }}
+    <>
+      <style>{MOBILE_CSS}</style>
+      <div className="skolyo-ui" data-theme={theme}>
+        <header className="topbar">
+          <div className="topbar-row">
+            <div className="brand">
+              <img src="/skolyo-logo.svg" alt="Skolyo" />
+              <div>
+                <div className="brand-name">Skolyo</div>
+                <div
+                  className="brand-sub"
+                  style={{ display: "flex", alignItems: "center", gap: 5 }}
+                >
+                  <span
+                    style={{
+                      width: 5, height: 5, borderRadius: "50%",
+                      background: "var(--ok)",
+                      display: "inline-block", flexShrink: 0,
+                    }}
+                  />
+                  <span style={{ fontFamily: "var(--font-mono)", letterSpacing: ".04em" }}>
+                    v{APP_VERSION}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <nav className="topnav">
+              {visibleNav.map((n) => (
+                <button
+                  key={n.id}
+                  type="button"
+                  className={`tnav ${section === n.id ? "active" : ""}`}
+                  onClick={() => onNav?.(n.id)}
+                >
+                  <Icon name={n.icon} />
+                  {n.label}
+                  {n.hasSub && <Icon name="chevDown" size={10} />}
+                </button>
+              ))}
+            </nav>
+            <div className="top-right">
+              <div className="search top-search" role="search">
+                <Icon name="search" size={13} />
+                <span>Buscar alunos, turmas…</span>
+                <span className="kbd">⌘K</span>
+              </div>
+              <button
+                className="icon-btn theme-toggle"
+                title={theme === "light" ? "Tema escuro" : "Tema claro"}
+                onClick={toggle}
+                type="button"
               >
-                <span
-                  style={{
-                    width: 5, height: 5, borderRadius: "50%",
-                    background: "var(--ok)",
-                    display: "inline-block", flexShrink: 0,
-                  }}
-                />
-                <span style={{ fontFamily: "var(--font-mono)", letterSpacing: ".04em" }}>
-                  v{APP_VERSION}
-                </span>
+                <Icon name={theme === "light" ? "moon" : "sun"} />
+              </button>
+              <button className="icon-btn notif-btn" title="Notificações" type="button">
+                <Icon name="bell" />
+                <span className="badge" />
+              </button>
+              {/* Botão Sobre */}
+              <div ref={aboutRef} style={{ position: "relative" }} className="about-wrap">
+                <button
+                  className={`icon-btn about-btn ${aboutOpen ? "active" : ""}`}
+                  title="Sobre o sistema"
+                  type="button"
+                  onClick={() => setAboutOpen((v) => !v)}
+                >
+                  <Icon name="settings" />
+                </button>
+                {aboutOpen && <AboutPopover onClose={() => setAboutOpen(false)} />}
+              </div>
+              <div ref={userRef} style={{ position: "relative" }}>
+                <button
+                  type="button"
+                  className={`user-chip ${userMenuOpen ? "active" : ""}`}
+                  onClick={() => setUserMenuOpen((v) => !v)}
+                  style={{ cursor: "pointer", background: "none", border: "none", padding: 0 }}
+                >
+                  <div className="avatar">{getInitials(userName)}</div>
+                  <div className="user-chip-text">
+                    <div className="name">{userName}</div>
+                    <div className="role">{roleLabel(role)}</div>
+                  </div>
+                  <span className="chip-chev"><Icon name="chevDown" size={10} /></span>
+                </button>
+                {userMenuOpen && (
+                  <UserMenu
+                    userName={userName}
+                    role={role}
+                    onClose={() => setUserMenuOpen(false)}
+                  />
+                )}
               </div>
             </div>
           </div>
-          <nav className="topnav">
-            {visibleNav.map((n) => (
-              <button
-                key={n.id}
-                type="button"
-                className={`tnav ${section === n.id ? "active" : ""}`}
-                onClick={() => onNav?.(n.id)}
-              >
-                <Icon name={n.icon} />
-                {n.label}
-                {n.hasSub && <Icon name="chevDown" size={10} />}
-              </button>
-            ))}
-          </nav>
-          <div className="top-right">
-            <div className="search" role="search">
-              <Icon name="search" size={13} />
-              <span>Buscar alunos, turmas…</span>
-              <span className="kbd">⌘K</span>
-            </div>
-            <button
-              className="icon-btn"
-              title={theme === "light" ? "Tema escuro" : "Tema claro"}
-              onClick={toggle}
-              type="button"
-            >
-              <Icon name={theme === "light" ? "moon" : "sun"} />
-            </button>
-            <button className="icon-btn" title="Notificações" type="button">
-              <Icon name="bell" />
-              <span className="badge" />
-            </button>
-            {/* Botão Sobre — mostra popover com versão */}
-            <div ref={aboutRef} style={{ position: "relative" }}>
-              <button
-                className={`icon-btn ${aboutOpen ? "active" : ""}`}
-                title="Sobre o sistema"
-                type="button"
-                onClick={() => setAboutOpen((v) => !v)}
-              >
-                <Icon name="settings" />
-              </button>
-              {aboutOpen && <AboutPopover onClose={() => setAboutOpen(false)} />}
-            </div>
-            <div ref={userRef} style={{ position: "relative" }}>
-              <button
-                type="button"
-                className={`user-chip ${userMenuOpen ? "active" : ""}`}
-                onClick={() => setUserMenuOpen((v) => !v)}
-                style={{ cursor: "pointer", background: "none", border: "none", padding: 0 }}
-              >
-                <div className="avatar">{getInitials(userName)}</div>
-                <div>
-                  <div className="name">{userName}</div>
-                  <div className="role">{roleLabel(role)}</div>
+          {subs.length > 0 && (
+            <div className="subnav">
+              {subs.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`snav ${page === s.id ? "active" : ""}`}
+                  onClick={() => onSubNav?.(s.id)}
+                >
+                  <Icon name={s.icon} size={13} />
+                  {s.label}
+                  {s.count != null && <span className="count">{s.count}</span>}
+                </button>
+              ))}
+              {contextLabels.length > 0 && (
+                <div className="ctx">
+                  {contextLabels.map((c, i) => (
+                    <span key={i} className={c.pill ? "pill" : ""}>{c.text}</span>
+                  ))}
                 </div>
-                <Icon name="chevDown" size={10} />
-              </button>
-              {userMenuOpen && (
-                <UserMenu
-                  userName={userName}
-                  role={role}
-                  onClose={() => setUserMenuOpen(false)}
-                />
               )}
             </div>
-          </div>
-        </div>
-        {subs.length > 0 && (
-          <div className="subnav">
-            {subs.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                className={`snav ${page === s.id ? "active" : ""}`}
-                onClick={() => onSubNav?.(s.id)}
-              >
-                <Icon name={s.icon} size={13} />
-                {s.label}
-                {s.count != null && <span className="count">{s.count}</span>}
-              </button>
-            ))}
-            {contextLabels.length > 0 && (
-              <div className="ctx">
-                {contextLabels.map((c, i) => (
-                  <span key={i} className={c.pill ? "pill" : ""}>{c.text}</span>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </header>
-      <main>{children}</main>
-    </div>
+          )}
+        </header>
+        <main>{children}</main>
+
+        {/* Navegação inferior — mobile only */}
+        <nav className="mobile-bottom-nav" aria-label="Navegação principal">
+          {visibleNav.map((n) => (
+            <button
+              key={n.id}
+              type="button"
+              className={`mobile-nav-btn ${section === n.id ? "active" : ""}`}
+              onClick={() => onNav?.(n.id)}
+            >
+              <Icon name={n.icon} size={22} />
+              <span>{n.label.split(" ")[0]}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
+    </>
   );
 }
