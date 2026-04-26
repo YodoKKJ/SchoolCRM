@@ -23,7 +23,7 @@ public interface FinContaPagarRepository extends JpaRepository<FinContaPagar, Lo
           AND (cast(:vencimentoDe as date) IS NULL OR data_vencimento >= cast(:vencimentoDe as date))
           AND (cast(:vencimentoAte as date) IS NULL OR data_vencimento <= cast(:vencimentoAte as date))
           AND (cast(:mesReferencia as text) IS NULL OR mes_referencia = cast(:mesReferencia as text))
-          AND (cast(:escolaId as bigint) IS NULL OR escola_id = cast(:escolaId as bigint))
+          AND (cast(:escolaId as bigint) IS NULL OR escola_id = cast(:escolaId as bigint) OR escola_id IS NULL)
         ORDER BY data_vencimento ASC
         """, nativeQuery = true)
     List<FinContaPagar> buscar(
