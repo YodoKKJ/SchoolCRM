@@ -98,7 +98,7 @@ const NAV = [
 
 // Páginas do sub-nav acadêmico visíveis por role
 const SUBNAV_ACADEMICO_ROLE = {
-  PROFESSOR:   new Set(["atrasos", "lancamentos", "boletins"]),
+  PROFESSOR:   new Set(["lancamentos", "boletins"]),
   ALUNO:       new Set(["boletins"]),
   COORDENACAO: new Set(["turmas", "materias", "horarios", "atrasos", "lancamentos", "boletins"]),
   DIRECAO:     new Set(["turmas", "materias", "horarios", "atrasos", "lancamentos", "boletins"]),
