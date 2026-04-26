@@ -28,8 +28,8 @@ const DEFAULT_PAGE = {
 };
 
 // Resolvedor de conteúdo por (section, page)
-function renderSection(section, page) {
-  if (section === "inicio") return <Inicio />;
+function renderSection(section, page, onNav) {
+  if (section === "inicio") return <Inicio onNav={onNav} />;
 
   if (section === "academico") {
     if (page === "turmas")      return <Turmas />;
@@ -99,6 +99,12 @@ export default function NewUIRoot() {
     setPage(DEFAULT_PAGE[id] || null);
   };
 
+  // Callback para navegação interna (ex: botões do painel de professor)
+  const handleNavFull = (sectionId, pageId) => {
+    setSection(sectionId);
+    setPage(pageId || DEFAULT_PAGE[sectionId] || null);
+  };
+
   return (
     <AppShell
       section={section}
@@ -110,7 +116,7 @@ export default function NewUIRoot() {
         { text: "2026", pill: true },
       ]}
     >
-      {renderSection(section, page)}
+      {renderSection(section, page, handleNavFull)}
     </AppShell>
   );
 }

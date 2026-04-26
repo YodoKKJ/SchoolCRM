@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import api from "../api";
 import Icon from "../Icon";
+import ProfessorInicio from "./ProfessorInicio";
 
 const ANO_LETIVO = new Date().getFullYear();
 
@@ -161,9 +162,12 @@ function AlertaRow({ aluno }) {
 }
 
 /* ─── MAIN ─────────────────────────────────────────────────────── */
-export default function Inicio() {
+export default function Inicio({ onNav }) {
   const role      = typeof window !== "undefined" ? localStorage.getItem("role")      : null;
   const escolaNome = typeof window !== "undefined" ? localStorage.getItem("escolaNome") || "Escola" : "Escola";
+
+  /* ── Professor vê painel específico ── */
+  if (role === "PROFESSOR") return <ProfessorInicio onNav={onNav} />;
 
   /* estado base */
   const [loadingBase, setLoadingBase] = useState(true);
