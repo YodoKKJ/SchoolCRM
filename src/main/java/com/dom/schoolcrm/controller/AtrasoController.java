@@ -23,7 +23,7 @@ public class AtrasoController {
     @Autowired private TurmaRepository turmaRepository;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO', 'PROFESSOR')")
     public ResponseEntity<?> registrar(@RequestBody Map<String, String> body) {
         Long alunoId = Long.parseLong(body.get("alunoId"));
 
@@ -70,7 +70,7 @@ public class AtrasoController {
     }
 
     @GetMapping("/hoje")
-    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO', 'PROFESSOR')")
     public ResponseEntity<?> hoje() {
         LocalDateTime inicio = LocalDate.now().atStartOfDay();
         LocalDateTime fim = inicio.plusDays(1);
@@ -79,7 +79,7 @@ public class AtrasoController {
     }
 
     @GetMapping("/historico")
-    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO', 'PROFESSOR')")
     public ResponseEntity<?> historico(
             @RequestParam(required = false) String data) {
         if (data != null && !data.isBlank()) {
@@ -92,7 +92,7 @@ public class AtrasoController {
     }
 
     @GetMapping("/aluno/{alunoId}")
-    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO')")
+    @PreAuthorize("hasAnyRole('DIRECAO', 'COORDENACAO', 'PROFESSOR')")
     public ResponseEntity<?> porAluno(@PathVariable Long alunoId) {
         return ResponseEntity.ok(
             atrasoRepository.findByAlunoIdOrderByRegistradoEmDesc(alunoId)

@@ -96,14 +96,23 @@ const NAV = [
   { id: "configuracoes", label: "Configurações",  icon: "settings" },
 ];
 
+// Páginas do sub-nav acadêmico visíveis por role
+const SUBNAV_ACADEMICO_ROLE = {
+  PROFESSOR:   new Set(["atrasos", "lancamentos", "boletins"]),
+  ALUNO:       new Set(["boletins"]),
+  COORDENACAO: new Set(["turmas", "materias", "horarios", "atrasos", "lancamentos", "boletins"]),
+  DIRECAO:     new Set(["turmas", "materias", "horarios", "atrasos", "lancamentos", "boletins"]),
+  MASTER:      new Set(["turmas", "materias", "horarios", "atrasos", "lancamentos", "boletins"]),
+};
+
 const SUBNAV = {
   academico: [
-    { id: "turmas", label: "Turmas", icon: "users" },
-    { id: "materias", label: "Matérias", icon: "book" },
-    { id: "horarios", label: "Horários", icon: "calendar" },
-    { id: "atrasos", label: "Atrasos", icon: "clock" },
-    { id: "lancamentos", label: "Lançamentos", icon: "edit" },
-    { id: "boletins", label: "Boletins", icon: "clipboard" },
+    { id: "turmas",      label: "Turmas",        icon: "users"     },
+    { id: "materias",    label: "Matérias",       icon: "book"      },
+    { id: "horarios",    label: "Horários",       icon: "calendar"  },
+    { id: "atrasos",     label: "Atrasos",        icon: "clock"     },
+    { id: "lancamentos", label: "Lançamentos",    icon: "edit"      },
+    { id: "boletins",    label: "Boletins",       icon: "clipboard" },
   ],
   pessoas: [
     { id: "usuarios",     label: "Usuários",     icon: "users" },
@@ -363,7 +372,13 @@ export default function AppShell({
     [allowed]
   );
 
-  const subs = SUBNAV[section] || [];
+  const rawSubs = SUBNAV[section] || [];
+  const allowedSubs = section === "academico"
+    ? (SUBNAV_ACADEMICO_ROLE[role] || SUBNAV_ACADEMICO_ROLE.DIRECAO)
+    : null;
+  const subs = allowedSubs
+    ? rawSubs.filter((s) => allowedSubs.has(s.id))
+    : rawSubs;
 
   // Fechar popovers ao clicar fora
   useEffect(() => {
