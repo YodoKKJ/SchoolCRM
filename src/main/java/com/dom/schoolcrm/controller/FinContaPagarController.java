@@ -372,6 +372,7 @@ public class FinContaPagarController {
             cp.setDataVencimento(vencimento);
             cp.setStatus("PENDENTE");
             cp.setMesReferencia(mes);
+            if (escolaIdFolha != null) cp.setEscolaId(escolaIdFolha);
 
             cpRepository.save(cp);
             geradas.add(Map.of(
@@ -404,6 +405,7 @@ public class FinContaPagarController {
         try { ym = YearMonth.parse(mes); }
         catch (Exception e) { return ResponseEntity.badRequest().body("Formato de mês inválido. Use YYYY-MM."); }
 
+        Long escolaIdRec = TenantContext.getEscolaId();
         List<FinContaPagarModelo> modelos = modeloRepository.findByAtivoTrueOrderByDescricaoAsc();
         if (modelos.isEmpty()) return ResponseEntity.badRequest().body("Nenhum modelo de conta fixa ativo cadastrado.");
 
@@ -432,6 +434,7 @@ public class FinContaPagarController {
             cp.setDataVencimento(vencimento);
             cp.setStatus("PENDENTE");
             cp.setMesReferencia(mes);
+            if (escolaIdRec != null) cp.setEscolaId(escolaIdRec);
 
             cpRepository.save(cp);
             geradas.add(modelo.getDescricao());
