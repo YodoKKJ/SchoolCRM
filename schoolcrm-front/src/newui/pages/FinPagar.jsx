@@ -53,7 +53,7 @@ export default function FinPagar() {
   /* filtros */
   const [statusFiltro, setStatusFiltro] = useState("");
   const [tipoFiltro,   setTipoFiltro]   = useState("");
-  const [mesRef,       setMesRef]       = useState(mesAtual());
+  const [mesRef,       setMesRef]       = useState("");   // sem filtro de mês por padrão
   const [busca,        setBusca]        = useState("");
 
   const [loading,  setLoading]  = useState(true);
@@ -128,12 +128,15 @@ export default function FinPagar() {
   const avisoPendentes = useMemo(() => {
     const ativos = modelos.filter((m) => m.ativo);
     if (!ativos.length) return null;
-    const gerados = new Set(contas.filter((c) => c.modeloId && c.mesReferencia === mesRef).map((c) => c.modeloId));
+    const refAtual = mesAtual();
+    const gerados = new Set(
+      contas.filter((c) => c.modeloId && c.mesReferencia === refAtual).map((c) => c.modeloId)
+    );
     const pendentes = ativos.filter((m) => !gerados.has(m.id));
     if (!pendentes.length) return null;
-    const nomeMes = new Date(mesRef + "-15").toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+    const nomeMes = new Date(refAtual + "-15").toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
     return { nomeMes, pendentes, total: ativos.length };
-  }, [modelos, contas, mesRef]);
+  }, [modelos, contas]);
 
   /* ── ações ───────────────────────────────────────────────────── */
   const gerarFolha = async () => {
