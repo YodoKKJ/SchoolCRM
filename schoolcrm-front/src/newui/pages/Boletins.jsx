@@ -32,19 +32,33 @@ async function downloadFile(path, filename) {
 }
 
 export default function Boletins() {
-  const [turmas, setTurmas] = useState([]);
-  const [turmaId, setTurmaId] = useState("");
-  const [alunos, setAlunos] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [busca, setBusca] = useState("");
-  const [erro, setErro] = useState("");
+  const role   = localStorage.getItem("role");
+  const isProf = role === "PROFESSOR";
+
+  const [turmas,      setTurmas]      = useState([]);
+  const [turmaId,     setTurmaId]     = useState("");
+  const [alunos,      setAlunos]      = useState([]);
+  const [loading,     setLoading]     = useState(false);
+  const [busca,       setBusca]       = useState("");
+  const [erro,        setErro]        = useState("");
   const [downloading, setDownloading] = useState(null); // alunoId
 
   useEffect(() => {
-    api
-      .get("/turmas")
-      .then((r) => {
-        const lista = Array.isArray(r.data) ? r.data : [];
+    const req = isProf
+      ? api.get("/vinculos/professor-turma-materia/minhas").then((r) => {
+          const vArr = Array.isArray(r.data) ? r.data : [];
+          const map = new Map();
+          vArr.forEach((v) => {
+            const t = v.turma;
+            if (t?.id && !map.has(t.id))
+              map.set(t.id, { id: t.id, nome: t.nome, serieNome: t.serie?.nome || "" });
+          });
+          return [...map.values()];
+        })
+      : api.get("/turmas").then((r) => (Array.isArray(r.data) ? r.data : []));
+
+    req
+      .then((lista) => {
         setTurmas(lista);
         if (lista.length && !turmaId) setTurmaId(String(lista[0].id));
       })
