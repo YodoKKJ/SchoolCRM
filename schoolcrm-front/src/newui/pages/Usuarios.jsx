@@ -1065,6 +1065,8 @@ function EditarUsuarioModal({ u, onClose, onSaved }) {
     nomePai: u.nomePai || "",
     telefone: u.telefone || "",
   });
+  const [novaSenha,      setNovaSenha]      = useState("");
+  const [confirmarSenha, setConfirmarSenha] = useState("");
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState("");
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -1072,10 +1074,17 @@ function EditarUsuarioModal({ u, onClose, onSaved }) {
   const submit = async (e) => {
     e.preventDefault();
     setErro("");
+    if (novaSenha && novaSenha !== confirmarSenha) {
+      setErro("As senhas não coincidem."); return;
+    }
+    if (novaSenha && novaSenha.length < 4) {
+      setErro("A senha deve ter pelo menos 4 caracteres."); return;
+    }
     setSaving(true);
     try {
       const payload = { ...form };
       if (!payload.dataNascimento) delete payload.dataNascimento;
+      if (novaSenha) payload.senha = novaSenha;
       await api.put(`/usuarios/${u.id}`, payload);
       onSaved();
     } catch (err) {
@@ -1166,7 +1175,56 @@ function EditarUsuarioModal({ u, onClose, onSaved }) {
               </>
             )}
           </div>
-          {erro && <div style={{ marginTop: 4, color: "var(--bad)", fontSize: 12 }}>{erro}</div>}
+
+          {/* Trocar senha */}
+          <div style={{
+            marginTop: 16, paddingTop: 16,
+            borderTop: "1px solid var(--border)",
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-3)", letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 10 }}>
+              Alterar senha <span style={{ fontWeight: 400, textTransform: "none", letterSpacing: 0 }}>(deixe em branco para manter)</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div className="field">
+                <label>Nova senha</label>
+                <input
+                  className="input"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="••••••••"
+                  value={novaSenha}
+                  onChange={(e) => setNovaSenha(e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label>Confirmar senha</label>
+                <input
+                  className="input"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="••••••••"
+                  value={confirmarSenha}
+                  onChange={(e) => setConfirmarSenha(e.target.value)}
+                  style={{
+                    borderColor: confirmarSenha && novaSenha !== confirmarSenha
+                      ? "var(--bad)" : undefined,
+                  }}
+                />
+              </div>
+            </div>
+            {confirmarSenha && novaSenha !== confirmarSenha && (
+              <div style={{ fontSize: 11, color: "var(--bad)", marginTop: 4 }}>
+                As senhas não coincidem.
+              </div>
+            )}
+            {novaSenha && novaSenha === confirmarSenha && novaSenha.length >= 4 && (
+              <div style={{ fontSize: 11, color: "var(--ok)", marginTop: 4 }}>
+                ✓ Senha válida — será atualizada ao salvar.
+              </div>
+            )}
+          </div>
+
+          {erro && <div style={{ marginTop: 8, color: "var(--bad)", fontSize: 12 }}>{erro}</div>}
         </div>
         <div className="modal-footer">
           <button className="btn" type="button" onClick={onClose}>
