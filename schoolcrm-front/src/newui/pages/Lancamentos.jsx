@@ -68,8 +68,8 @@ export default function Lancamentos() {
   const [modal,      setModal]      = useState(null);
 
   /* ── chamada ── */
-  const [historico,    setHistorico]    = useState({}); // { "2026-04-26": [{ alunoId, alunoNome, presente },...] }
-  const [aulaModal,    setAulaModal]    = useState(null); // null | { data: "...", registros: [...] }
+  const [historico,    setHistorico]    = useState({}); // { "2026-04-26": [{ alunoId, alunoNome, presente, ordemAula },...] }
+  const [aulaModal,    setAulaModal]    = useState(null); // null | { data, ordemAula, registros }
 
   /* ── carrega turmas + matérias ── */
   useEffect(() => {
@@ -161,29 +161,44 @@ export default function Lancamentos() {
   const materiaAtual = materias.find((m) => String(m.id) === String(materiaId));
   const v            = materiaAtual ? visual(materiaAtual.nome) : null;
 
-  /* ── aulas ordenadas (mais recente primeiro) ── */
-  const aulas = useMemo(
-    () =>
-      Object.entries(historico)
-        .map(([data, regs]) => ({
+  /* ── aulas: agrupa por (data, ordemAula) — permite múltiplas por dia ── */
+  const aulas = useMemo(() => {
+    const list = [];
+    Object.entries(historico).forEach(([data, regs]) => {
+      // agrupa por ordemAula (null → chave especial "null")
+      const byOrdem = new Map();
+      regs.forEach((r) => {
+        const key = r.ordemAula ?? null;
+        if (!byOrdem.has(key)) byOrdem.set(key, []);
+        byOrdem.get(key).push(r);
+      });
+      byOrdem.forEach((aulaRegs, ordemAula) => {
+        list.push({
           data,
-          presentes: regs.filter((r) => r.presente).length,
-          faltas:    regs.filter((r) => !r.presente).length,
-          total:     regs.length,
-          registros: regs,
-        }))
-        .sort((a, b) => b.data.localeCompare(a.data)),
-    [historico]
-  );
+          ordemAula,
+          presentes: aulaRegs.filter((r) => r.presente).length,
+          faltas:    aulaRegs.filter((r) => !r.presente).length,
+          total:     aulaRegs.length,
+          registros: aulaRegs,
+        });
+      });
+    });
+    // ordena: data desc, depois ordemAula asc
+    return list.sort((a, b) => {
+      const dc = b.data.localeCompare(a.data);
+      if (dc !== 0) return dc;
+      return (a.ordemAula ?? 0) - (b.ordemAula ?? 0);
+    });
+  }, [historico]);
 
   /* ── abre modal para nova aula ── */
   const novaAula = () => {
-    setAulaModal({ data: todayIso(), registros: [] });
+    setAulaModal({ data: todayIso(), ordemAula: null, registros: [] });
   };
 
   /* ── abre modal para editar aula existente ── */
   const editarAula = (aula) => {
-    setAulaModal({ data: aula.data, registros: aula.registros });
+    setAulaModal({ data: aula.data, ordemAula: aula.ordemAula, registros: aula.registros });
   };
 
   /* ── callback após salvar aula ── */
@@ -398,9 +413,12 @@ export default function Lancamentos() {
               {aulas.map((aula, i) => {
                 const pct = aula.total > 0 ? Math.round((aula.presentes / aula.total) * 100) : null;
                 const cor = pct == null ? "var(--ink-3)" : pct >= 75 ? "var(--ok)" : pct >= 60 ? "var(--warn)" : "var(--bad)";
+                const aulasNoDia = aulas.filter((a) => a.data === aula.data);
+                const idxNoDia   = aulasNoDia.findIndex((a) => a.ordemAula === aula.ordemAula) + 1;
+                const mostraIdx  = aulasNoDia.length > 1;
                 return (
                   <div
-                    key={aula.data}
+                    key={`${aula.data}-${aula.ordemAula ?? "leg"}`}
                     style={{
                       display: "flex", alignItems: "center", gap: 14,
                       padding: "12px 16px",
@@ -414,6 +432,11 @@ export default function Lancamentos() {
                       </div>
                       <div style={{ fontSize: 11, color: "var(--ink-3)" }}>
                         {diaSemana(aula.data)}
+                        {mostraIdx && (
+                          <span style={{ marginLeft: 4, color: "var(--accent)", fontWeight: 700 }}>
+                            · {idxNoDia}ª aula
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -475,6 +498,8 @@ export default function Lancamentos() {
           materiaId={materiaId}
           alunos={alunos}
           data={aulaModal.data}
+          ordemAula={aulaModal.ordemAula}
+          todasAulas={aulas}
           registrosExistentes={aulaModal.registros}
           onClose={() => setAulaModal(null)}
           onSaved={onAulaSalva}
@@ -487,7 +512,7 @@ export default function Lancamentos() {
 /* ════════════════════════════════════════════════════════════════
    Modal de Aula — cria nova aula ou edita existente
    ════════════════════════════════════════════════════════════════ */
-function AulaModal({ turmaId, materiaId, alunos, data: dataInicial, registrosExistentes, onClose, onSaved }) {
+function AulaModal({ turmaId, materiaId, alunos, data: dataInicial, ordemAula: ordemAulaInicial, todasAulas, registrosExistentes, onClose, onSaved }) {
   const [data,     setData]     = useState(dataInicial || todayIso());
   const [chamada,  setChamada]  = useState(() => {
     const init = {};
@@ -505,6 +530,15 @@ function AulaModal({ turmaId, materiaId, alunos, data: dataInicial, registrosExi
     if (!data || !alunos.length) return;
     setSalvando(true);
     setErro("");
+
+    // Nova aula: calcula próximo ordemAula para esta data
+    let ordemAula = ordemAulaInicial;
+    if (!isEdicao) {
+      const aulasNaData = (todasAulas || []).filter((a) => a.data === data);
+      const maxOrdem    = aulasNaData.reduce((mx, a) => Math.max(mx, a.ordemAula ?? 0), 0);
+      ordemAula = maxOrdem + 1;
+    }
+
     let erros = 0;
     for (const aluno of alunos) {
       try {
@@ -514,6 +548,7 @@ function AulaModal({ turmaId, materiaId, alunos, data: dataInicial, registrosExi
           materiaId: String(materiaId),
           presente:  String(chamada[aluno.id] ?? true),
           data,
+          ordemAula: String(ordemAula),
         });
       } catch { erros++; }
     }
