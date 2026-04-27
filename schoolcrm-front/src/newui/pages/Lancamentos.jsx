@@ -3,19 +3,20 @@ import api from "../api";
 import Icon from "../Icon";
 import { visual } from "../utils/materiaVisual";
 
+/* ── constantes ── */
 const TIPOS = [
-  { id: "PROVA",      label: "Prova",       cor: "#3F6FB0" },
-  { id: "TRABALHO",   label: "Trabalho",    cor: "#4FAE85" },
-  { id: "SIMULADO",   label: "Simulado",    cor: "#B5832A" },
-  { id: "RECUPERACAO",label: "Recuperação", cor: "#A8473A" },
+  { id: "PROVA",       label: "Prova",        cor: "#3F6FB0" },
+  { id: "TRABALHO",    label: "Trabalho",     cor: "#4FAE85" },
+  { id: "SIMULADO",    label: "Simulado",     cor: "#B5832A" },
+  { id: "RECUPERACAO", label: "Recuperação",  cor: "#A8473A" },
 ];
 const BIMESTRES = [1, 2, 3, 4];
+const DIAS_PT   = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
 
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
-}
+/* ── helpers ── */
+function todayIso() { return new Date().toISOString().slice(0, 10); }
 function tipoLabel(t) { return TIPOS.find((x) => x.id === t)?.label || t; }
-function tipoCor(t)   { return TIPOS.find((x) => x.id === t)?.cor || "var(--ink-3)"; }
+function tipoCor(t)   { return TIPOS.find((x) => x.id === t)?.cor   || "var(--ink-3)"; }
 function fmtData(d) {
   if (!d) return "—";
   try { return new Date(d).toLocaleDateString("pt-BR"); } catch { return String(d); }
@@ -25,8 +26,14 @@ function fmtDataBR(iso) {
   const [y, m, da] = iso.split("-");
   return `${da}/${m}/${y}`;
 }
+function diaSemana(iso) {
+  try { return DIAS_PT[new Date(iso + "T12:00").getDay()]; } catch { return ""; }
+}
+function iniciais(nome = "") {
+  return nome.trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase() || "?";
+}
 
-/** Transforma vínculos do professor em turmas únicas */
+/** Vínculos do professor → turmas únicas */
 function vinculos2turmas(vArr) {
   const map = new Map();
   vArr.forEach((v) => {
@@ -37,7 +44,9 @@ function vinculos2turmas(vArr) {
   return [...map.values()];
 }
 
-/* ═══════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════════
+   Componente principal
+   ════════════════════════════════════════════════════════════════ */
 export default function Lancamentos() {
   const role   = localStorage.getItem("role");
   const isProf = role === "PROFESSOR";
@@ -59,13 +68,10 @@ export default function Lancamentos() {
   const [modal,      setModal]      = useState(null);
 
   /* ── chamada ── */
-  const [dataAula,        setDataAula]        = useState(todayIso);
-  const [historico,       setHistorico]       = useState({}); // { "2026-04-26": [{alunoId,presente,...}] }
-  const [chamada,         setChamada]         = useState({}); // { [alunoId]: boolean }
-  const [salvandoChamada, setSalvandoChamada] = useState(false);
-  const [msgChamada,      setMsgChamada]      = useState(null); // { tipo: "ok"|"err", txt }
+  const [historico,    setHistorico]    = useState({}); // { "2026-04-26": [{ alunoId, alunoNome, presente },...] }
+  const [aulaModal,    setAulaModal]    = useState(null); // null | { data: "...", registros: [...] }
 
-  /* ── carrega turmas + matérias (modo depende do role) ── */
+  /* ── carrega turmas + matérias ── */
   useEffect(() => {
     if (isProf) {
       api.get("/vinculos/professor-turma-materia/minhas")
@@ -102,28 +108,26 @@ export default function Lancamentos() {
     setMateriaId(mats.length === 1 ? String(mats[0].id) : "");
   }, [isProf, turmaId, vinculos]);
 
-  /* ── carrega alunos quando turma muda ── */
+  /* ── alunos da turma ── */
   const loadAlunos = useCallback(() => {
     if (!turmaId) return;
     api
       .get(`/vinculos/aluno-turma/turma/${turmaId}`)
       .then((r) => {
         const raw = Array.isArray(r.data) ? r.data : [];
-        const lista = raw
-          .map((at) => ({
-            id: at.aluno?.id || at.alunoId,
-            nome: at.aluno?.nome || at.alunoNome,
-          }))
-          .filter((a) => a.id)
-          .sort((a, b) => (a.nome || "").localeCompare(b.nome || ""));
-        setAlunos(lista);
+        setAlunos(
+          raw
+            .map((at) => ({ id: at.aluno?.id || at.alunoId, nome: at.aluno?.nome || at.alunoNome }))
+            .filter((a) => a.id)
+            .sort((a, b) => (a.nome || "").localeCompare(b.nome || ""))
+        );
       })
       .catch(() => setAlunos([]));
   }, [turmaId]);
 
   useEffect(() => { loadAlunos(); }, [loadAlunos]);
 
-  /* ── carrega avaliações ── */
+  /* ── avaliações ── */
   const loadAvaliacoes = useCallback(() => {
     if (!turmaId || !materiaId) { setAvaliacoes([]); return; }
     setLoading(true);
@@ -137,53 +141,16 @@ export default function Lancamentos() {
 
   useEffect(() => { loadAvaliacoes(); }, [loadAvaliacoes]);
 
-  /* ── carrega histórico de presenças quando turma/matéria muda ── */
+  /* ── histórico de presenças ── */
   const loadHistorico = useCallback(() => {
     if (!turmaId || !materiaId) { setHistorico({}); return; }
     api
       .get(`/presencas/turma/${turmaId}/materia/${materiaId}`)
-      .then((r) => setHistorico(typeof r.data === "object" && r.data !== null ? r.data : {}))
+      .then((r) => setHistorico(typeof r.data === "object" && r.data ? r.data : {}))
       .catch(() => setHistorico({}));
   }, [turmaId, materiaId]);
 
   useEffect(() => { loadHistorico(); }, [loadHistorico]);
-
-  /* ── preenche chamada a partir do histórico / padrão todos presentes ── */
-  useEffect(() => {
-    if (!alunos.length) return;
-    const registros = historico[dataAula] || [];
-    const init = {};
-    alunos.forEach((a) => { init[a.id] = true; }); // default = presente
-    registros.forEach((r) => { init[r.alunoId] = r.presente; });
-    setChamada(init);
-  }, [dataAula, historico, alunos]);
-
-  /* ── salvar chamada ── */
-  const salvarChamada = async () => {
-    if (!turmaId || !materiaId || !dataAula || !alunos.length) return;
-    setSalvandoChamada(true);
-    setMsgChamada(null);
-    let erros = 0;
-    for (const aluno of alunos) {
-      try {
-        await api.post("/presencas/lancar", {
-          alunoId:   String(aluno.id),
-          turmaId:   String(turmaId),
-          materiaId: String(materiaId),
-          presente:  String(chamada[aluno.id] ?? true),
-          data:      dataAula,
-        });
-      } catch { erros++; }
-    }
-    setSalvandoChamada(false);
-    setMsgChamada(
-      erros > 0
-        ? { tipo: "err", txt: `${erros} erro(s) ao salvar chamada.` }
-        : { tipo: "ok",  txt: `Chamada de ${fmtDataBR(dataAula)} salva!` }
-    );
-    loadHistorico();
-    setTimeout(() => setMsgChamada(null), 4000);
-  };
 
   /* ── helpers de display ── */
   const avaliacoesFiltradas = useMemo(
@@ -194,20 +161,41 @@ export default function Lancamentos() {
   const materiaAtual = materias.find((m) => String(m.id) === String(materiaId));
   const v            = materiaAtual ? visual(materiaAtual.nome) : null;
 
-  /* ── datas com chamada registrada (para o histórico) ── */
-  const datasComChamada = useMemo(
-    () => Object.keys(historico).sort().reverse(),
+  /* ── aulas ordenadas (mais recente primeiro) ── */
+  const aulas = useMemo(
+    () =>
+      Object.entries(historico)
+        .map(([data, regs]) => ({
+          data,
+          presentes: regs.filter((r) => r.presente).length,
+          faltas:    regs.filter((r) => !r.presente).length,
+          total:     regs.length,
+          registros: regs,
+        }))
+        .sort((a, b) => b.data.localeCompare(a.data)),
     [historico]
   );
-  const totalFaltasHoje = useMemo(
-    () => alunos.filter((a) => chamada[a.id] === false).length,
-    [alunos, chamada]
-  );
 
-  /* ═══════════ RENDER ═══════════ */
+  /* ── abre modal para nova aula ── */
+  const novaAula = () => {
+    setAulaModal({ data: todayIso(), registros: [] });
+  };
+
+  /* ── abre modal para editar aula existente ── */
+  const editarAula = (aula) => {
+    setAulaModal({ data: aula.data, registros: aula.registros });
+  };
+
+  /* ── callback após salvar aula ── */
+  const onAulaSalva = () => {
+    setAulaModal(null);
+    loadHistorico();
+  };
+
+  /* ════════════════════ RENDER ════════════════════ */
   return (
     <div className="page">
-      {/* ── Cabeçalho ── */}
+      {/* cabeçalho */}
       <div className="page-header">
         <div>
           <div className="page-eyebrow">Acadêmico · Lançamentos</div>
@@ -234,43 +222,39 @@ export default function Lancamentos() {
             <button
               className="btn accent"
               type="button"
-              disabled={!turmaId || !materiaId || !alunos.length || salvandoChamada}
-              onClick={salvarChamada}
+              disabled={!turmaId || !materiaId || !alunos.length}
+              onClick={novaAula}
             >
-              <Icon name="check" size={13} />
-              {salvandoChamada ? "Salvando…" : "Salvar chamada"}
+              <Icon name="plus" size={13} /> Nova aula
             </button>
           )}
         </div>
       </div>
 
-      {/* ── Abas ── */}
-      <div className="filter-row" style={{ borderBottom: "1px solid var(--border)", paddingBottom: 0, marginBottom: 0 }}>
-        {["avaliacoes", "chamada"].map((id) => (
+      {/* abas */}
+      <div style={{ display: "flex", gap: 0, borderBottom: "1px solid var(--border)", marginBottom: 0 }}>
+        {[
+          { id: "avaliacoes", label: "Avaliações & notas" },
+          { id: "chamada",    label: "Chamada / Frequência" },
+        ].map((a) => (
           <button
-            key={id}
+            key={a.id}
             type="button"
-            onClick={() => setAba(id)}
+            onClick={() => setAba(a.id)}
             style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: "10px 4px",
-              fontSize: 13,
-              fontWeight: 600,
-              color: aba === id ? "var(--accent)" : "var(--ink-3)",
-              borderBottom: aba === id ? "2px solid var(--accent)" : "2px solid transparent",
-              marginBottom: -1,
-              fontFamily: "inherit",
-              transition: "color .12s",
+              background: "none", border: "none", cursor: "pointer",
+              padding: "10px 16px", fontSize: 13, fontWeight: 600, fontFamily: "inherit",
+              color: aba === a.id ? "var(--accent)" : "var(--ink-3)",
+              borderBottom: aba === a.id ? "2px solid var(--accent)" : "2px solid transparent",
+              marginBottom: -1, transition: "color .12s",
             }}
           >
-            {id === "avaliacoes" ? "Avaliações & notas" : "Chamada / Frequência"}
+            {a.label}
           </button>
         ))}
       </div>
 
-      {/* ── Filtros comuns: turma + matéria ── */}
+      {/* filtros: turma + matéria + bimestre/vazio */}
       <div className="filter-row" style={{ marginTop: 16 }}>
         <div className="field" style={{ minWidth: 200 }}>
           <label>Turma</label>
@@ -290,8 +274,6 @@ export default function Lancamentos() {
             {materias.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
           </select>
         </div>
-
-        {/* bimestre só aparece na aba de avaliações */}
         {aba === "avaliacoes" && (
           <div className="row" style={{ gap: 6 }}>
             {BIMESTRES.map((b) => (
@@ -306,23 +288,9 @@ export default function Lancamentos() {
             ))}
           </div>
         )}
-
-        {/* data só aparece na aba de chamada */}
-        {aba === "chamada" && (
-          <div className="field">
-            <label>Data da aula</label>
-            <input
-              className="input"
-              type="date"
-              value={dataAula}
-              onChange={(e) => setDataAula(e.target.value)}
-              style={{ width: 160 }}
-            />
-          </div>
-        )}
       </div>
 
-      {/* ══════════ ABA AVALIAÇÕES ══════════ */}
+      {/* ══════ ABA AVALIAÇÕES ══════ */}
       {aba === "avaliacoes" && (
         <>
           {erro && (
@@ -389,222 +357,96 @@ export default function Lancamentos() {
         </>
       )}
 
-      {/* ══════════ ABA CHAMADA ══════════ */}
+      {/* ══════ ABA CHAMADA ══════ */}
       {aba === "chamada" && (
         <>
-          {/* feedback */}
-          {msgChamada && (
-            <div
-              className="card"
-              style={{
-                borderColor: msgChamada.tipo === "ok" ? "var(--ok)" : "var(--bad)",
-                marginBottom: 12,
-                padding: "10px 16px",
-              }}
-            >
-              <div style={{ color: msgChamada.tipo === "ok" ? "var(--ok)" : "var(--bad)", fontSize: 13, fontWeight: 600 }}>
-                {msgChamada.txt}
-              </div>
-            </div>
-          )}
-
           {!turmaId || !materiaId ? (
             <div className="empty">
               <div className="t">Selecione turma e matéria</div>
-              <div className="s">PARA REGISTRAR A CHAMADA</div>
+              <div className="s">PARA REGISTRAR CHAMADAS</div>
             </div>
-          ) : alunos.length === 0 ? (
+          ) : aulas.length === 0 ? (
             <div className="empty">
-              <div className="t">Nenhum aluno nesta turma</div>
-              <div className="s">VERIFIQUE OS VÍNCULOS NA SEÇÃO PESSOAS</div>
+              <div className="t">Nenhuma aula registrada</div>
+              <div className="s">CLIQUE EM "NOVA AULA" PARA COMEÇAR</div>
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 20 }}>
-
-              {/* Lista de chamada */}
-              <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-                {/* barra de resumo */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "12px 16px",
-                    borderBottom: "1px solid var(--border)",
-                    background: "var(--bg)",
-                    gap: 12,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>
-                      {alunos.length} aluno{alunos.length !== 1 ? "s" : ""}
-                    </span>
-                    <span style={{ fontSize: 12, color: "var(--ok)", fontWeight: 600 }}>
-                      ✓ {alunos.length - totalFaltasHoje} presentes
-                    </span>
-                    {totalFaltasHoje > 0 && (
-                      <span style={{ fontSize: 12, color: "var(--bad)", fontWeight: 600 }}>
-                        ✗ {totalFaltasHoje} falta{totalFaltasHoje !== 1 ? "s" : ""}
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <button
-                      type="button"
-                      className="btn sm"
-                      onClick={() => {
-                        const todos = {};
-                        alunos.forEach((a) => { todos[a.id] = true; });
-                        setChamada(todos);
-                      }}
-                    >
-                      Todos presentes
-                    </button>
-                    <button
-                      type="button"
-                      className="btn sm"
-                      onClick={() => {
-                        const todos = {};
-                        alunos.forEach((a) => { todos[a.id] = false; });
-                        setChamada(todos);
-                      }}
-                    >
-                      Todos ausentes
-                    </button>
-                  </div>
-                </div>
-
-                {/* linhas por aluno */}
-                {alunos.map((a, i) => {
-                  const presente = chamada[a.id] ?? true;
-                  return (
-                    <div
-                      key={a.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 14,
-                        padding: "10px 16px",
-                        borderBottom: i < alunos.length - 1 ? "1px solid var(--border)" : "none",
-                        background: presente ? "transparent" : "color-mix(in srgb, var(--bad) 5%, var(--panel))",
-                        transition: "background .15s",
-                      }}
-                    >
-                      {/* avatar */}
-                      <div
-                        style={{
-                          width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
-                          background: presente
-                            ? "color-mix(in srgb, var(--ok) 15%, var(--panel))"
-                            : "color-mix(in srgb, var(--bad) 15%, var(--panel))",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: 11, fontWeight: 700,
-                          color: presente ? "var(--ok)" : "var(--bad)",
-                        }}
-                      >
-                        {(a.nome || "?").split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
-                      </div>
-
-                      {/* nome */}
-                      <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
-                        {a.nome}
-                      </div>
-
-                      {/* toggle presente/ausente */}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setChamada((prev) => ({ ...prev, [a.id]: !prev[a.id] }))
-                        }
-                        style={{
-                          padding: "5px 14px",
-                          borderRadius: 20,
-                          border: "1.5px solid",
-                          borderColor: presente ? "var(--ok)" : "var(--bad)",
-                          background: presente
-                            ? "color-mix(in srgb, var(--ok) 10%, var(--panel))"
-                            : "color-mix(in srgb, var(--bad) 10%, var(--panel))",
-                          color: presente ? "var(--ok)" : "var(--bad)",
-                          fontSize: 12, fontWeight: 700,
-                          cursor: "pointer", fontFamily: "inherit",
-                          transition: "all .12s",
-                          minWidth: 90, textAlign: "center",
-                        }}
-                      >
-                        {presente ? "✓ Presente" : "✗ Falta"}
-                      </button>
-                    </div>
-                  );
-                })}
+            <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+              {/* header da lista */}
+              <div
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "10px 16px", borderBottom: "1px solid var(--border)",
+                  background: "var(--bg)",
+                }}
+              >
+                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-3)", letterSpacing: ".08em", textTransform: "uppercase" }}>
+                  {aulas.length} aula{aulas.length !== 1 ? "s" : ""} registrada{aulas.length !== 1 ? "s" : ""}
+                </span>
+                <span style={{ fontSize: 11, color: "var(--ink-3)" }}>
+                  Total de frequência: {
+                    (() => {
+                      const tot = aulas.reduce((s, a) => s + a.total, 0);
+                      const pre = aulas.reduce((s, a) => s + a.presentes, 0);
+                      return tot > 0 ? `${((pre / tot) * 100).toFixed(0)}%` : "—";
+                    })()
+                  }
+                </span>
               </div>
 
-              {/* Histórico de chamadas */}
-              {datasComChamada.length > 0 && (
-                <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+              {/* linhas de aulas */}
+              {aulas.map((aula, i) => {
+                const pct = aula.total > 0 ? Math.round((aula.presentes / aula.total) * 100) : null;
+                const cor = pct == null ? "var(--ink-3)" : pct >= 75 ? "var(--ok)" : pct >= 60 ? "var(--warn)" : "var(--bad)";
+                return (
                   <div
+                    key={aula.data}
                     style={{
+                      display: "flex", alignItems: "center", gap: 14,
                       padding: "12px 16px",
-                      borderBottom: "1px solid var(--border)",
-                      fontWeight: 700, fontSize: 12,
-                      color: "var(--ink-3)", letterSpacing: ".06em", textTransform: "uppercase",
+                      borderBottom: i < aulas.length - 1 ? "1px solid var(--border)" : "none",
                     }}
                   >
-                    Histórico de chamadas ({datasComChamada.length})
+                    {/* data */}
+                    <div style={{ minWidth: 90 }}>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)", fontFamily: "var(--font-mono)" }}>
+                        {fmtDataBR(aula.data)}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--ink-3)" }}>
+                        {diaSemana(aula.data)}
+                      </div>
+                    </div>
+
+                    {/* badges */}
+                    <div style={{ display: "flex", gap: 8, flex: 1, alignItems: "center", flexWrap: "wrap" }}>
+                      <span className="pill" style={{ background: "color-mix(in srgb,var(--ok) 12%,var(--panel))", color: "var(--ok)", fontSize: 11, fontWeight: 700 }}>
+                        ✓ {aula.presentes} presente{aula.presentes !== 1 ? "s" : ""}
+                      </span>
+                      {aula.faltas > 0 && (
+                        <span className="pill" style={{ background: "color-mix(in srgb,var(--bad) 12%,var(--panel))", color: "var(--bad)", fontSize: 11, fontWeight: 700 }}>
+                          ✗ {aula.faltas} falta{aula.faltas !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* percentual */}
+                    {pct != null && (
+                      <div style={{ fontSize: 15, fontWeight: 700, color: cor, minWidth: 40, textAlign: "right" }}>
+                        {pct}%
+                      </div>
+                    )}
+
+                    {/* editar */}
+                    <button
+                      className="btn sm"
+                      type="button"
+                      onClick={() => editarAula(aula)}
+                    >
+                      <Icon name="edit" size={11} /> Editar
+                    </button>
                   </div>
-                  <div style={{ maxHeight: 260, overflowY: "auto" }}>
-                    {datasComChamada.map((data) => {
-                      const regs      = historico[data] || [];
-                      const presentes = regs.filter((r) => r.presente).length;
-                      const total     = regs.length;
-                      const isSel     = data === dataAula;
-                      return (
-                        <button
-                          key={data}
-                          type="button"
-                          onClick={() => setDataAula(data)}
-                          style={{
-                            display: "flex", alignItems: "center", gap: 12,
-                            width: "100%", padding: "9px 16px",
-                            background: isSel
-                              ? "color-mix(in srgb,var(--accent) 8%,var(--panel))"
-                              : "none",
-                            border: "none",
-                            borderBottom: "1px solid var(--border)",
-                            cursor: "pointer", fontFamily: "inherit",
-                            textAlign: "left",
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontSize: 12, fontWeight: 700, fontFamily: "var(--font-mono)",
-                              color: isSel ? "var(--accent)" : "var(--ink-2)",
-                              minWidth: 80,
-                            }}
-                          >
-                            {fmtDataBR(data)}
-                          </div>
-                          <div style={{ flex: 1, display: "flex", gap: 8, alignItems: "center" }}>
-                            <span style={{ fontSize: 11, color: "var(--ok)", fontWeight: 600 }}>
-                              {presentes}P
-                            </span>
-                            {total - presentes > 0 && (
-                              <span style={{ fontSize: 11, color: "var(--bad)", fontWeight: 600 }}>
-                                {total - presentes}F
-                              </span>
-                            )}
-                          </div>
-                          {isSel && (
-                            <span style={{ fontSize: 10, color: "var(--accent)", fontWeight: 700 }}>
-                              EDITANDO
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                );
+              })}
             </div>
           )}
         </>
@@ -613,26 +455,228 @@ export default function Lancamentos() {
       {/* ── Modais avaliações ── */}
       {modal?.mode === "new" && (
         <NovaAvaliacaoModal
-          turmaId={turmaId}
-          materiaId={materiaId}
-          bimestre={bimestre}
+          turmaId={turmaId} materiaId={materiaId} bimestre={bimestre}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); loadAvaliacoes(); }}
         />
       )}
       {modal?.mode === "lancar" && (
         <LancarNotasModal
-          avaliacao={modal.a}
-          alunos={alunos}
+          avaliacao={modal.a} alunos={alunos}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); loadAvaliacoes(); }}
+        />
+      )}
+
+      {/* ── Modal de aula (chamada) ── */}
+      {aulaModal && (
+        <AulaModal
+          turmaId={turmaId}
+          materiaId={materiaId}
+          alunos={alunos}
+          data={aulaModal.data}
+          registrosExistentes={aulaModal.registros}
+          onClose={() => setAulaModal(null)}
+          onSaved={onAulaSalva}
         />
       )}
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════════
+   Modal de Aula — cria nova aula ou edita existente
+   ════════════════════════════════════════════════════════════════ */
+function AulaModal({ turmaId, materiaId, alunos, data: dataInicial, registrosExistentes, onClose, onSaved }) {
+  const [data,     setData]     = useState(dataInicial || todayIso());
+  const [chamada,  setChamada]  = useState(() => {
+    const init = {};
+    alunos.forEach((a) => { init[a.id] = true; }); // padrão: todos presentes
+    registrosExistentes.forEach((r) => { init[r.alunoId] = Boolean(r.presente); });
+    return init;
+  });
+  const [salvando, setSalvando] = useState(false);
+  const [erro,     setErro]     = useState("");
+
+  const isEdicao    = registrosExistentes.length > 0;
+  const totalFaltas = alunos.filter((a) => chamada[a.id] === false).length;
+
+  const salvar = async () => {
+    if (!data || !alunos.length) return;
+    setSalvando(true);
+    setErro("");
+    let erros = 0;
+    for (const aluno of alunos) {
+      try {
+        await api.post("/presencas/lancar", {
+          alunoId:   String(aluno.id),
+          turmaId:   String(turmaId),
+          materiaId: String(materiaId),
+          presente:  String(chamada[aluno.id] ?? true),
+          data,
+        });
+      } catch { erros++; }
+    }
+    setSalvando(false);
+    if (erros > 0) {
+      setErro(`${erros} erro(s) ao salvar. Tente novamente.`);
+    } else {
+      onSaved();
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal"
+        onClick={(e) => e.stopPropagation()}
+        style={{ width: 540, maxHeight: "85vh", display: "flex", flexDirection: "column" }}
+      >
+        {/* header */}
+        <div className="modal-header">
+          <div>
+            <div className="card-eyebrow">{isEdicao ? "Editar chamada" : "Nova aula"}</div>
+            <div className="modal-title">Registro de presença</div>
+            <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 2 }}>
+              {alunos.length} aluno{alunos.length !== 1 ? "s" : ""}
+              {" · "}
+              <span style={{ color: "var(--ok)", fontWeight: 600 }}>
+                {alunos.length - totalFaltas} presentes
+              </span>
+              {totalFaltas > 0 && (
+                <>
+                  {" · "}
+                  <span style={{ color: "var(--bad)", fontWeight: 600 }}>
+                    {totalFaltas} falta{totalFaltas !== 1 ? "s" : ""}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+          <button className="icon-btn" type="button" onClick={onClose}>
+            <Icon name="x" />
+          </button>
+        </div>
+
+        {/* data + ações rápidas */}
+        <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label>Data da aula</label>
+            <input
+              className="input"
+              type="date"
+              value={data}
+              onChange={(e) => setData(e.target.value)}
+              style={{ width: 160 }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              type="button"
+              className="btn sm"
+              onClick={() => {
+                const todos = {};
+                alunos.forEach((a) => { todos[a.id] = true; });
+                setChamada(todos);
+              }}
+            >
+              Todos presentes
+            </button>
+            <button
+              type="button"
+              className="btn sm"
+              onClick={() => {
+                const todos = {};
+                alunos.forEach((a) => { todos[a.id] = false; });
+                setChamada(todos);
+              }}
+            >
+              Todos ausentes
+            </button>
+          </div>
+        </div>
+
+        {/* lista de alunos */}
+        <div className="modal-body" style={{ overflow: "auto", padding: 0 }}>
+          {alunos.map((a, i) => {
+            const presente = chamada[a.id] ?? true;
+            return (
+              <div
+                key={a.id}
+                style={{
+                  display: "flex", alignItems: "center", gap: 12,
+                  padding: "10px 20px",
+                  borderBottom: i < alunos.length - 1 ? "1px solid var(--border)" : "none",
+                  background: presente
+                    ? "transparent"
+                    : "color-mix(in srgb, var(--bad) 4%, var(--panel))",
+                  transition: "background .12s",
+                }}
+              >
+                {/* avatar */}
+                <div
+                  style={{
+                    width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+                    background: presente
+                      ? "color-mix(in srgb, var(--ok) 14%, var(--panel))"
+                      : "color-mix(in srgb, var(--bad) 14%, var(--panel))",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 11, fontWeight: 700,
+                    color: presente ? "var(--ok)" : "var(--bad)",
+                  }}
+                >
+                  {iniciais(a.nome)}
+                </div>
+
+                {/* nome */}
+                <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+                  {a.nome}
+                </div>
+
+                {/* toggle */}
+                <button
+                  type="button"
+                  onClick={() => setChamada((prev) => ({ ...prev, [a.id]: !prev[a.id] }))}
+                  style={{
+                    padding: "5px 14px", borderRadius: 20, cursor: "pointer",
+                    border: "1.5px solid",
+                    borderColor: presente ? "var(--ok)" : "var(--bad)",
+                    background: presente
+                      ? "color-mix(in srgb, var(--ok) 10%, var(--panel))"
+                      : "color-mix(in srgb, var(--bad) 10%, var(--panel))",
+                    color: presente ? "var(--ok)" : "var(--bad)",
+                    fontSize: 12, fontWeight: 700, fontFamily: "inherit",
+                    transition: "all .12s", minWidth: 90, textAlign: "center",
+                  }}
+                >
+                  {presente ? "✓ Presente" : "✗ Falta"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* footer */}
+        <div className="modal-footer">
+          {erro && <div style={{ color: "var(--bad)", fontSize: 12, flex: 1 }}>{erro}</div>}
+          <button className="btn" type="button" onClick={onClose}>Cancelar</button>
+          <button
+            className="btn accent"
+            type="button"
+            onClick={salvar}
+            disabled={salvando || !data}
+          >
+            {salvando ? "Salvando…" : isEdicao ? "Salvar alterações" : "Registrar aula"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Modal Nova Avaliação
+   ════════════════════════════════════════════════════════════════ */
 function NovaAvaliacaoModal({ turmaId, materiaId, bimestre, onClose, onSaved }) {
   const [tipo,          setTipo]          = useState("PROVA");
   const [descricao,     setDescricao]     = useState("");
@@ -729,12 +773,14 @@ function NovaAvaliacaoModal({ turmaId, materiaId, bimestre, onClose, onSaved }) 
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════════
+   Modal Lançar Notas
+   ════════════════════════════════════════════════════════════════ */
 function LancarNotasModal({ avaliacao, alunos, onClose, onSaved }) {
-  const [valores,   setValores]   = useState({});
-  const [saving,    setSaving]    = useState(false);
-  const [erro,      setErro]      = useState("");
-  const [salvosOk,  setSalvosOk]  = useState(0);
+  const [valores,  setValores]  = useState({});
+  const [saving,   setSaving]   = useState(false);
+  const [erro,     setErro]     = useState("");
+  const [salvosOk, setSalvosOk] = useState(0);
 
   useEffect(() => {
     const inicial = {};
